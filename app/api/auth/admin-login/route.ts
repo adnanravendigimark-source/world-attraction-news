@@ -1,0 +1,60 @@
+import { NextResponse } from "next/server";
+import { createSessionToken, SESSION_COOKIE_NAME, type Session } from "@/lib/auth";
+import { verifyUserCredentials, touchLastLogin } from "@/lib/users";
+import { DB_ERROR_MESSAGE } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+// Admin Panel login. Two ways in:
+//   1. The .env "owner" account (ADMIN_EMAIL / ADMIN_PASSWORD) — always
+//      valid, works even before the database has any rows in it. This is
+//      what you use for the very first login on a fresh database.
+//   2. Any user in the database with role "admin" (promoted from the Admin
+//      Panel's Users page after the owner account has logged in once).
+export async function POST(req: Request) {
+  let email = "";
+  let password = "";
+  try {
+    const body = await req.json();
+    email = (body.email || "").trim();
+    password = body.password || "";
+  } catch {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  const ownerEmail = process.env.ADMIN_EMAIL;
+  const ownerPassword = process.env.ADMIN_PASSWORD;
+  let session: Session | null = null;
+
+  if (ownerEmail && email.toLowerCase() === ownerEmail.toLowerCase()) {
+    if (ownerPassword && password === ownerPassword) {
+      session = { userId: "owner", email: ownerEmail, role: "admin", displayName: "Site Owner", cityId: null };
+    }
+  } else {
+    let user;
+    try {
+      user = await verifyUserCredentials(email, password);
+    } catch {
+      return NextResponse.json({ error: DB_ERROR_MESSAGE }, { status: 500 });
+    }
+    if (user && user.role === "admin") {
+      session = { userId: user.id, email: user.email, role: "admin", displayName: user.displayName, cityId: null };
+      await touchLastLogin(user.id);
+    }
+  }
+
+  if (!session) {
+    return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+  }
+
+  const token = await createSessionToken(session);
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 8, // 8 hours
+  });
+  return res;
+}

@@ -1,0 +1,243 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #fbf9f5;
+  color: #151310;
+}
+
+::selection {
+  background-color: #f3c3cb;
+  color: #8c0e21;
+}
+
+/* Subtle, CSS-only entrance animation for above-the-fold hero content —
+   deliberately small/short (no scroll-triggered JS, no layout shift) so it
+   reads as "polished" rather than "flashy" and never costs a meaningful
+   Core Web Vitals hit. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up {
+    animation: none;
+  }
+}
+
+/* Long-form article typography — serif headlines/body for a readable,
+   editorial feel distinct from the sans-only informational sites. */
+.article-body {
+  max-width: 100%;
+  color: #26221d;
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 1.09rem;
+  line-height: 1.85;
+}
+
+.article-body h1 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #151310;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.article-body h2 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #151310;
+  margin-top: 2.25rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+.article-body h3 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #26221d;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.article-body p {
+  margin-bottom: 1.15rem;
+}
+
+.article-body ul,
+.article-body ol {
+  margin-bottom: 1.25rem;
+  padding-left: 1.4rem;
+}
+
+.article-body ul {
+  list-style-type: disc;
+}
+
+.article-body ol {
+  list-style-type: decimal;
+}
+
+.article-body li {
+  margin-bottom: 0.4rem;
+}
+
+.article-body li::marker {
+  color: #b3122a;
+}
+
+.article-body strong {
+  color: #151310;
+  font-weight: 700;
+}
+
+.article-body a {
+  color: #b3122a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.article-body a:hover {
+  color: #8c0e21;
+}
+
+.article-body blockquote {
+  border-left: 3px solid #b3122a;
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: #524a42;
+  font-style: italic;
+}
+
+.article-body img {
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Captioned/aligned in-content images (lib/figureImage.ts) — a plain
+   .article-body img above still covers legacy content saved before this
+   extension existed. */
+.article-body figure[data-figure-image],
+.editor-body figure[data-figure-image] {
+  margin: 1.5rem 0;
+}
+
+.article-body figure[data-figure-image] img,
+.editor-body figure[data-figure-image] img {
+  border-radius: 0.5rem;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.article-body figure.img-align-center,
+.editor-body figure.img-align-center {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.article-body figure.img-align-left,
+.editor-body figure.img-align-left {
+  float: left;
+  max-width: 50%;
+  margin-right: 1.5rem;
+}
+
+.article-body figure.img-align-right,
+.editor-body figure.img-align-right {
+  float: right;
+  max-width: 50%;
+  margin-left: 1.5rem;
+}
+
+.article-body figure.img-align-full,
+.editor-body figure.img-align-full {
+  width: 100%;
+}
+
+.article-body figcaption,
+.editor-body figcaption {
+  margin-top: 0.5rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.8rem;
+  color: #7a7266;
+  text-align: center;
+}
+
+.article-body table,
+.editor-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.9rem;
+}
+
+.article-body th,
+.article-body td,
+.editor-body th,
+.editor-body td {
+  border: 1px solid #e4ded3;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.article-body th,
+.editor-body th {
+  background-color: #f5f1e8;
+  font-weight: 700;
+}
+
+/* Tiptap editor (dashboard + admin article editor) shares the same reading
+   typography so what a contributor sees while writing matches the
+   published output. */
+.editor-body .ProseMirror {
+  min-height: 320px;
+  outline: none;
+}
+
+.editor-body .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #b3a99a;
+  pointer-events: none;
+  height: 0;
+}
+
+.editor-body .ProseMirror .selectedCell {
+  background-color: rgba(179, 18, 42, 0.08);
+}
+
+.editor-body .ProseMirror figure[data-figure-image] {
+  cursor: pointer;
+}
+
+.editor-body .ProseMirror figure[data-figure-image].ProseMirror-selectednode {
+  outline: 2px solid #b3122a;
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
