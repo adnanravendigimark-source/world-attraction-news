@@ -1,0 +1,28 @@
+import { NextResponse } from "next/server";
+import { publishDueScheduledArticles } from "@/lib/scheduling";
+
+export const dynamic = "force-dynamic";
+
+// Meant to be hit on a regular interval by a platform scheduler (Vercel
+// Cron — see vercel.json, configured for every 5 minutes) so scheduled
+// articles go live automatically without an admin needing to be online.
+// Also called defensively from every public content read in
+// lib/articles.ts, so this endpoint isn't the only thing making
+// "automatic" actually true — it's what makes it prompt rather than
+// "whenever the next visitor happens to load a page."
+//
+// Protected by CRON_SECRET (set in your Vercel project's environment
+// variables) so this can't be triggered by anyone who finds the URL —
+// Vercel Cron sends this automatically as a Bearer token; see
+// https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs.
+export async function GET(req: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (secret) {
+    const auth = req.headers.get("authorization");
+    if (auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+  const publishedCount = await publishDueScheduledArticles();
+  return NextResponse.json({ ok: true, published: publishedCount });
+}

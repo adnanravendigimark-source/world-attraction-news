@@ -12,6 +12,9 @@ import {
   getTrendingArticles,
   getTopScoredArticles,
   getPublishedArticleCountsByCategory,
+  getFeaturedArticles,
+  getEditorsPickArticles,
+  getBreakingArticles,
 } from "@/lib/articles";
 import { buildMetadata, websiteJsonLd } from "@/lib/seo";
 import { getSettings } from "@/lib/settings";
@@ -40,15 +43,19 @@ function formatDate(iso: string | null) {
 }
 
 export default async function HomePage() {
-  const [cities, categories, articles, trending, topScored, categoryCounts, settings] = await Promise.all([
-    getCitiesWithArticleCounts(),
-    getCategories(),
-    getPublishedArticles({ limit: 60 }),
-    getTrendingArticles(6),
-    getTopScoredArticles(6),
-    getPublishedArticleCountsByCategory(),
-    getSettings(),
-  ]);
+  const [cities, categories, articles, trending, topScored, categoryCounts, settings, breaking, featured, editorsPicks] =
+    await Promise.all([
+      getCitiesWithArticleCounts(),
+      getCategories(),
+      getPublishedArticles({ limit: 60 }),
+      getTrendingArticles(6),
+      getTopScoredArticles(6),
+      getPublishedArticleCountsByCategory(),
+      getSettings(),
+      getBreakingArticles(4),
+      getFeaturedArticles(6),
+      getEditorsPickArticles(3),
+    ]);
 
   // Featured cities (chosen in Admin -> Settings) are shown first, in the
   // order selected; any remaining cities follow after, sorted by real
@@ -115,6 +122,31 @@ export default async function HomePage() {
         </Container>
       </section>
 
+      {/* Breaking News — admin-flagged only (Article Review -> Editorial
+          Placement), never a computed guess. */}
+      {breaking.length > 0 && (
+        <section className="border-b border-signal/30 bg-signal-light/40 py-2.5">
+          <Container>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="shrink-0 rounded bg-signal px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                Breaking
+              </span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                {breaking.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={`/cities/${a.citySlug}/${a.slug}`}
+                    className="text-xs font-semibold text-ink-800 hover:text-signal hover:underline"
+                  >
+                    {a.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </Container>
+        </section>
+      )}
+
       {articles.length === 0 ? (
         <Container className="py-16 text-center">
           <p className="text-sm text-ink-500">
@@ -168,6 +200,21 @@ export default async function HomePage() {
             </div>
           </Container>
 
+          {/* Featured — hand-picked by the admin (Article Review -> Editorial
+              Placement), independent of the algorithmic sections below. */}
+          {featured.length > 0 && (
+            <section className="border-t border-ink-200 bg-white py-10 sm:py-12">
+              <Container>
+                <SectionHeading eyebrow="Chosen by our editors" title="Featured Stories" href="/latest-news" />
+                <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {featured.map((a) => (
+                    <ArticleCard key={a.id} article={a} />
+                  ))}
+                </div>
+              </Container>
+            </section>
+          )}
+
           {/* Trending Now */}
           {trending.length > 0 && (
             <section className="border-t border-ink-200 bg-ink-50 py-10 sm:py-12">
@@ -176,6 +223,20 @@ export default async function HomePage() {
                 <div className="mt-6 grid gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
                   {trending.map((a, i) => (
                     <ArticleCard key={a.id} article={a} size="compact" rank={i + 1} />
+                  ))}
+                </div>
+              </Container>
+            </section>
+          )}
+
+          {/* Editor's Picks */}
+          {editorsPicks.length > 0 && (
+            <section className="border-t border-ink-200 bg-white py-10 sm:py-12">
+              <Container>
+                <SectionHeading eyebrow="Hand-selected coverage" title="Editor's Picks" href="/latest-news" />
+                <div className="mt-6 grid gap-6 sm:grid-cols-3">
+                  {editorsPicks.map((a) => (
+                    <ArticleCard key={a.id} article={a} />
                   ))}
                 </div>
               </Container>

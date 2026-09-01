@@ -13,6 +13,7 @@ interface EditorValue {
   contentHtml: string;
   cityId: string;
   categoryId: string | null;
+  attractionId: string | null;
   image: string;
   imageAlt: string;
   metaTitle: string;
@@ -21,6 +22,7 @@ interface EditorValue {
 }
 
 const AUTOSAVE_DELAY_MS = 2500;
+const EDITABLE_STATUSES = ["draft", "pending", "rejected", "changes_requested"];
 
 export default function ArticleEditor({
   articleId,
@@ -28,12 +30,14 @@ export default function ArticleEditor({
   status,
   cities,
   categories,
+  attractions,
 }: {
   articleId?: string;
   initial?: Partial<EditorValue>;
   status?: string; // undefined for a brand-new article
   cities: { id: string; name: string; country: string }[];
   categories: { id: string; name: string }[];
+  attractions: { id: string; name: string; cityId: string }[];
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -46,6 +50,7 @@ export default function ArticleEditor({
     contentHtml: initial?.contentHtml || "",
     cityId: initial?.cityId || cities[0]?.id || "",
     categoryId: initial?.categoryId ?? null,
+    attractionId: initial?.attractionId ?? null,
     image: initial?.image || "",
     imageAlt: initial?.imageAlt || "",
     metaTitle: initial?.metaTitle || "",
@@ -65,8 +70,9 @@ export default function ArticleEditor({
   const idRef = useRef(id);
   idRef.current = id;
 
-  const editable = !currentStatus || currentStatus === "draft" || currentStatus === "rejected";
+  const editable = !currentStatus || EDITABLE_STATUSES.includes(currentStatus);
   const plainTextLength = form.contentHtml.replace(/<[^>]*>/g, "").trim().length;
+  const attractionsForCity = attractions.filter((a) => a.cityId === form.cityId);
 
   const save = useCallback(async (value: EditorValue) => {
     if (!value.cityId) return; // wait for a city before ever saving
@@ -138,10 +144,11 @@ export default function ArticleEditor({
     if (!form.image) return toast.error("Upload a cover image.");
 
     if (!confirmDespiteFlag) {
+      const isResubmit = currentStatus === "rejected" || currentStatus === "changes_requested";
       const ok = await confirm({
-        title: currentStatus === "rejected" ? "Resubmit this article for review?" : "Submit this article for review?",
+        title: isResubmit ? "Resubmit this article for review?" : "Submit this article for review?",
         description: "An editor will review it before it can be published.",
-        confirmLabel: currentStatus === "rejected" ? "Resubmit" : "Submit",
+        confirmLabel: isResubmit ? "Resubmit" : "Submit",
       });
       if (!ok) return;
     }
@@ -296,7 +303,7 @@ export default function ArticleEditor({
               <select
                 disabled={!editable}
                 value={form.cityId}
-                onChange={(e) => update({ cityId: e.target.value })}
+                onChange={(e) => update({ cityId: e.target.value, attractionId: null })}
                 className="mt-1.5 w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm focus:border-signal focus:outline-none disabled:bg-ink-50"
               >
                 {cities.length === 0 && <option value="">No cities configured yet</option>}
@@ -323,6 +330,27 @@ export default function ArticleEditor({
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Attraction (optional)</label>
+              <select
+                disabled={!editable}
+                value={form.attractionId || ""}
+                onChange={(e) => update({ attractionId: e.target.value || null })}
+                className="mt-1.5 w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm focus:border-signal focus:outline-none disabled:bg-ink-50"
+              >
+                <option value="">Not attraction-specific</option>
+                {attractionsForCity.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-ink-400">
+                {attractionsForCity.length === 0
+                  ? "No attractions set up yet for this city."
+                  : "Tag this article to a specific attraction, e.g. Rijksmuseum in Amsterdam."}
+              </p>
             </div>
           </div>
 

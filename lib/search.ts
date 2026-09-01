@@ -12,6 +12,7 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     contentHtml: row.content_html,
     cityId: row.city_id,
     categoryId: row.category_id,
+    attractionId: row.attraction_id ?? null,
     authorId: row.author_id,
     status: row.status,
     score: row.score === null || row.score === undefined ? null : Number(row.score),
@@ -27,6 +28,13 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     readingTimeMinutes: row.reading_time_minutes ?? 0,
     originalityScore: row.originality_score === null || row.originality_score === undefined ? null : Number(row.originality_score),
     originalityFlag: Boolean(row.originality_flag),
+    moderationSignals: row.moderation_signals ?? null,
+    featured: Boolean(row.featured),
+    trending: Boolean(row.trending),
+    editorsPick: Boolean(row.editors_pick),
+    breaking: Boolean(row.breaking),
+    scheduledAt: row.scheduled_at ? new Date(row.scheduled_at).toISOString() : null,
+    viewCount: row.view_count ?? 0,
     submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
     reviewedAt: row.reviewed_at ? new Date(row.reviewed_at).toISOString() : null,
     publishedAt: row.published_at ? new Date(row.published_at).toISOString() : null,
@@ -35,8 +43,11 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     citySlug: row.city_slug,
     categoryName: row.category_name,
     categorySlug: row.category_slug,
+    attractionName: row.attraction_name ?? null,
+    attractionSlug: row.attraction_slug ?? null,
     authorName: row.author_name,
     authorEmail: row.author_email,
+    authorSlug: row.author_slug ?? null,
   };
 }
 
@@ -53,10 +64,12 @@ export async function searchArticles(query: string, limit = 20): Promise<Article
     const rows = await sql`
       SELECT a.*, c.name AS city_name, c.slug AS city_slug,
              cat.name AS category_name, cat.slug AS category_slug,
-             u.display_name AS author_name, u.email AS author_email
+             att.name AS attraction_name, att.slug AS attraction_slug,
+             u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
       FROM articles a
       JOIN cities c ON c.id = a.city_id
       LEFT JOIN categories cat ON cat.id = a.category_id
+      LEFT JOIN attractions att ON att.id = a.attraction_id
       JOIN users u ON u.id = a.author_id
       WHERE a.status = 'published'
         AND (

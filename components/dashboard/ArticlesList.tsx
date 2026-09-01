@@ -10,7 +10,25 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const TABS = ["all", "draft", "pending", "approved", "published", "rejected"] as const;
+const TABS = [
+  "all",
+  "draft",
+  "pending",
+  "under_review",
+  "changes_requested",
+  "approved",
+  "scheduled",
+  "published",
+  "rejected",
+] as const;
+
+function tabLabel(t: string) {
+  if (t === "all") return "All";
+  return t
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 export default function ArticlesList({ articles }: { articles: ArticleWithRelations[] }) {
   const [filter, setFilter] = useState<(typeof TABS)[number]>("all");
@@ -29,7 +47,7 @@ export default function ArticlesList({ articles }: { articles: ArticleWithRelati
               filter === t ? "border-ink-900 bg-ink-900 text-white" : "border-ink-200 bg-white text-ink-600 hover:border-ink-400"
             }`}
           >
-            {t === "all" ? "All" : t.charAt(0).toUpperCase() + t.slice(1)}
+            {tabLabel(t)}
             {counts[t] > 0 ? ` (${counts[t]})` : ""}
           </button>
         ))}
@@ -75,12 +93,12 @@ export default function ArticlesList({ articles }: { articles: ArticleWithRelati
                     Continue Writing →
                   </Link>
                 )}
-                {(a.status === "pending" || a.status === "rejected") && (
+                {(a.status === "rejected" || a.status === "changes_requested") && (
                   <Link href={`/dashboard/articles/${a.id}/edit`} className="text-xs font-semibold text-signal hover:underline">
                     Edit &amp; Resubmit →
                   </Link>
                 )}
-                {(a.status === "approved" || a.status === "published" || a.status === "pending" || a.status === "rejected") && (
+                {a.status !== "draft" && (
                   <Link href={`/dashboard/articles/${a.id}`} className="text-xs font-semibold text-ink-600 hover:underline">
                     View Details →
                   </Link>

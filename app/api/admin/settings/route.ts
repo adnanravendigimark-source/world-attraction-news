@@ -34,6 +34,8 @@ export async function PATCH(req: Request) {
       robotsDefault: body.robotsDefault === "noindex" ? "noindex" : body.robotsDefault === "index" ? "index" : undefined,
       featuredCitySlugs: Array.isArray(body.featuredCitySlugs) ? body.featuredCitySlugs : undefined,
       moderationNote: body.moderationNote !== undefined ? body.moderationNote : undefined,
+      gaMeasurementId: body.gaMeasurementId !== undefined ? body.gaMeasurementId : undefined,
+      gscVerificationCode: body.gscVerificationCode !== undefined ? body.gscVerificationCode : undefined,
     });
     await logActivity(session, "settings_updated", { type: "settings", id: "1", label: "Site settings" });
     return NextResponse.json({ ok: true, settings });

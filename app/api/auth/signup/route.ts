@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { registerContributor } from "@/lib/users";
 import { dbErrorMessage } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,16 @@ export const dynamic = "force-dynamic";
 // "pending". There is no way to reach role "admin" through this endpoint;
 // admins can only be promoted from the Admin Panel by an existing admin.
 export async function POST(req: Request) {
+  // Limits automated mass account creation — 5 signups per hour per IP.
+  const ip = getClientIp(req);
+  const limit = await checkRateLimit(`signup:${ip}`, 5, 3600);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many signup attempts from this connection. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let body: any;
   try {
     body = await req.json();

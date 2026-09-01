@@ -13,6 +13,8 @@ export interface SiteSettings {
   robotsDefault: "index" | "noindex";
   featuredCitySlugs: string[];
   moderationNote: string;
+  gaMeasurementId: string;
+  gscVerificationCode: string;
   updatedAt: string;
 }
 
@@ -23,6 +25,8 @@ const FALLBACK: SiteSettings = {
   robotsDefault: "index",
   featuredCitySlugs: [],
   moderationNote: "",
+  gaMeasurementId: "",
+  gscVerificationCode: "",
   updatedAt: "",
 };
 
@@ -37,6 +41,8 @@ function rowToSettings(row: any): SiteSettings {
       .map((s: string) => s.trim())
       .filter(Boolean),
     moderationNote: row.moderation_note || "",
+    gaMeasurementId: row.ga_measurement_id || "",
+    gscVerificationCode: row.gsc_verification_code || "",
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at || ""),
   };
 }
@@ -56,8 +62,8 @@ export async function updateSettings(updates: Partial<Omit<SiteSettings, "update
   const current = await getSettings();
   const next = { ...current, ...updates };
   const rows = await sql`
-    INSERT INTO settings (id, homepage_intro_override, default_meta_description, default_og_image, robots_default, featured_city_slugs, moderation_note, updated_at)
-    VALUES (1, ${next.homepageIntroOverride}, ${next.defaultMetaDescription}, ${next.defaultOgImage}, ${next.robotsDefault}, ${next.featuredCitySlugs.join(", ")}, ${next.moderationNote}, now())
+    INSERT INTO settings (id, homepage_intro_override, default_meta_description, default_og_image, robots_default, featured_city_slugs, moderation_note, ga_measurement_id, gsc_verification_code, updated_at)
+    VALUES (1, ${next.homepageIntroOverride}, ${next.defaultMetaDescription}, ${next.defaultOgImage}, ${next.robotsDefault}, ${next.featuredCitySlugs.join(", ")}, ${next.moderationNote}, ${next.gaMeasurementId}, ${next.gscVerificationCode}, now())
     ON CONFLICT (id) DO UPDATE SET
       homepage_intro_override = EXCLUDED.homepage_intro_override,
       default_meta_description = EXCLUDED.default_meta_description,
@@ -65,6 +71,8 @@ export async function updateSettings(updates: Partial<Omit<SiteSettings, "update
       robots_default = EXCLUDED.robots_default,
       featured_city_slugs = EXCLUDED.featured_city_slugs,
       moderation_note = EXCLUDED.moderation_note,
+      ga_measurement_id = EXCLUDED.ga_measurement_id,
+      gsc_verification_code = EXCLUDED.gsc_verification_code,
       updated_at = now()
     RETURNING *
   `;

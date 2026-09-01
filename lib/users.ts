@@ -19,6 +19,7 @@ export interface User {
   status: UserStatus;
   displayName: string;
   bio: string;
+  slug: string | null;
   cityId: string | null;
   authProvider: AuthProvider;
   googleId: string | null;
@@ -37,6 +38,7 @@ export interface SafeUser {
   status: UserStatus;
   displayName: string;
   bio: string;
+  slug: string | null;
   cityId: string | null;
   authProvider: AuthProvider;
   googleId: string | null;
@@ -66,6 +68,7 @@ function rowToUser(row: any): User {
     status: row.status,
     displayName: row.display_name,
     bio: row.bio,
+    slug: row.slug ?? null,
     cityId: row.city_id,
     authProvider: (row.auth_provider as AuthProvider) || "password",
     googleId: row.google_id,
@@ -113,6 +116,56 @@ export async function findUserByGoogleId(googleId: string): Promise<User | undef
   return rows.length ? rowToUser(rows[0]) : undefined;
 }
 
+// Public author pages (/author/[slug]) look users up by this handle.
+export async function findUserBySlug(slug: string): Promise<User | undefined> {
+  const rows = await sql`SELECT * FROM users WHERE slug = ${slug} LIMIT 1`;
+  return rows.length ? rowToUser(rows[0]) : undefined;
+}
+
+// Every author with at least one published article — used to build
+// /author/[slug] entries in the sitemap without guessing at who has a real
+// public page.
+export async function getPublishedAuthorSlugs(): Promise<string[]> {
+  try {
+    const rows = await sql`
+      SELECT DISTINCT u.slug FROM users u
+      JOIN articles a ON a.author_id = u.id
+      WHERE a.status = 'published' AND u.slug IS NOT NULL
+    `;
+    return rows.map((r: any) => r.slug);
+  } catch {
+    return [];
+  }
+}
+
+async function userSlugExists(slug: string): Promise<boolean> {
+  const rows = await sql`SELECT id FROM users WHERE slug = ${slug} LIMIT 1`;
+  return rows.length > 0;
+}
+
+// Generates a unique, URL-safe author handle from a display name (falling
+// back to the email's local part if the display name is empty) — called
+// once at account-creation time for every new contributor/admin, so every
+// user has a stable /author/[slug] from day one. Existing accounts created
+// before this existed are backfilled once by scripts/setup-db.mjs.
+async function generateUniqueUserSlug(displayName: string, email: string): Promise<string> {
+  const base =
+    (displayName || email.split("@")[0])
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 60) || "contributor";
+  let slug = base;
+  let i = 2;
+  while (await userSlugExists(slug)) {
+    slug = `${base}-${i}`;
+    i++;
+  }
+  return slug;
+}
+
 // Public signup — always creates a "contributor" with status "pending".
 // Role escalation to "admin" is never available through this path; only an
 // existing admin can promote a user, and only from the Admin Panel.
@@ -130,9 +183,10 @@ export async function registerContributor(input: {
   const existing = await findUserByEmail(input.email);
   if (existing) throw new Error("An account with this email already exists.");
   const passwordHash = hashPassword(input.password);
+  const slug = await generateUniqueUserSlug(input.displayName, input.email);
   const rows = await sql`
-    INSERT INTO users (email, password_hash, role, status, display_name, bio, auth_provider)
-    VALUES (${input.email}, ${passwordHash}, 'contributor', 'pending', ${input.displayName}, ${input.bio}, 'password')
+    INSERT INTO users (email, password_hash, role, status, display_name, bio, auth_provider, slug)
+    VALUES (${input.email}, ${passwordHash}, 'contributor', 'pending', ${input.displayName}, ${input.bio}, 'password', ${slug})
     RETURNING *
   `;
   return toSafe(rowToUser(rows[0]));
@@ -170,9 +224,10 @@ export async function findOrCreateGoogleUser(profile: {
     return { user: rowToUser(rows[0]), isNewAccount: false };
   }
 
+  const slug = await generateUniqueUserSlug(profile.name, profile.email);
   const rows = await sql`
-    INSERT INTO users (email, password_hash, role, status, display_name, bio, auth_provider, google_id, avatar_url)
-    VALUES (${profile.email}, NULL, 'contributor', 'pending', ${profile.name || profile.email}, '', 'google', ${profile.googleId}, ${profile.avatarUrl})
+    INSERT INTO users (email, password_hash, role, status, display_name, bio, auth_provider, google_id, avatar_url, slug)
+    VALUES (${profile.email}, NULL, 'contributor', 'pending', ${profile.name || profile.email}, '', 'google', ${profile.googleId}, ${profile.avatarUrl}, ${slug})
     RETURNING *
   `;
   return { user: rowToUser(rows[0]), isNewAccount: true };

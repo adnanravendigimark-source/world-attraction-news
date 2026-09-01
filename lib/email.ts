@@ -9,7 +9,7 @@
 // https://resend.com works) — this uses their HTTP API directly with
 // fetch(), no extra dependency required. Swap this file for a different
 // provider's HTTP API the same way if you'd rather use one of those.
-import { SITE_NAME, CONTACT_EMAIL } from "./site";
+import { SITE_NAME, CONTACT_EMAIL, SITE_URL } from "./site";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
   const subject = `Reset your ${SITE_NAME} password`;
@@ -43,6 +43,42 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
     }
   } catch (err) {
     console.error("[email] Failed to send via Resend:", err);
+  }
+}
+
+// Generic workflow-notification email — used by lib/notifications.ts for
+// every event in the notification system (account approved/rejected,
+// article submitted/reviewed/scored/published/unpublished, etc.). Same
+// graceful-degradation pattern as every other email in this file: without
+// RESEND_API_KEY, it logs instead of sending rather than pretending to
+// have sent something it didn't.
+export async function sendNotificationEmail(to: string, title: string, body: string, link: string): Promise<void> {
+  const fullLink = link ? (link.startsWith("http") ? link : `${SITE_URL}${link}`) : "";
+  const html = `
+    <p>${body}</p>
+    ${fullLink ? `<p><a href="${fullLink}">View it on ${SITE_NAME}</a></p>` : ""}
+  `;
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn(`[email] RESEND_API_KEY is not set — notification "${title}" NOT emailed to ${to} (saved in-app only).`);
+    throw new Error("RESEND_API_KEY not configured");
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: `${SITE_NAME} <${CONTACT_EMAIL}>`,
+      to: [to],
+      subject: `${title} — ${SITE_NAME}`,
+      html,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("[email] Resend API error:", res.status, text);
+    throw new Error(`Resend API error: ${res.status}`);
   }
 }
 

@@ -39,6 +39,13 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
         {article.publishedAt ? ` · Published ${formatDate(article.publishedAt)}` : ""}
       </p>
 
+      {article.status === "changes_requested" && (
+        <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
+          <p className="font-semibold">An editor requested changes on this article.</p>
+          {article.adminFeedback && <p className="mt-1.5">{article.adminFeedback}</p>}
+        </div>
+      )}
+
       {(article.score !== null || article.adminFeedback) && (
         <div className="mt-4 rounded-lg border border-ink-200 bg-white p-4">
           <div className="flex items-center justify-between">
@@ -46,6 +53,12 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
             {article.score !== null && <span className="rounded bg-ink-900 px-2 py-0.5 text-xs font-bold text-white">{article.score}/10</span>}
           </div>
           {article.adminFeedback && <p className="mt-2 text-sm leading-relaxed text-ink-700">{article.adminFeedback}</p>}
+        </div>
+      )}
+
+      {article.status === "scheduled" && article.scheduledAt && (
+        <div className="mt-4 rounded-lg border border-purple-200 bg-purple-50 p-4 text-xs text-purple-900">
+          Scheduled to publish automatically on {new Date(article.scheduledAt).toLocaleString()}.
         </div>
       )}
 
@@ -57,7 +70,7 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
       )}
 
       <div className="mt-6 flex items-center gap-4">
-        {(article.status === "pending" || article.status === "rejected") && (
+        {(article.status === "rejected" || article.status === "changes_requested") && (
           <Link href={`/dashboard/articles/${article.id}/edit`} className="text-sm font-semibold text-signal hover:underline">
             Edit &amp; Resubmit →
           </Link>

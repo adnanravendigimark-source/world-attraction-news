@@ -3,6 +3,7 @@ import { setPasswordResetToken } from "@/lib/users";
 import { generateResetToken } from "@/lib/tokens";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { dbErrorMessage } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,17 @@ export const dynamic = "force-dynamic";
 // the email is registered — never reveal via this endpoint which emails
 // have accounts (a standard anti-enumeration precaution).
 export async function POST(req: Request) {
+  // Prevents using this endpoint to spam a mailbox with reset emails — 5
+  // requests per hour per IP.
+  const ip = getClientIp(req);
+  const limit = await checkRateLimit(`forgot-password:${ip}`, 5, 3600);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let email = "";
   try {
     const body = await req.json();

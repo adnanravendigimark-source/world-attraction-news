@@ -1,18 +1,22 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getArticleById, submitDraftForReview } from "@/lib/articles";
-import { checkOriginality } from "@/lib/originality";
+import { runModerationChecks } from "@/lib/moderation";
+import { recordRevision } from "@/lib/revisions";
+import { notifyArticleSubmitted } from "@/lib/notifications";
 import { dbErrorMessage } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// Transitions a draft into the review queue. Always runs the originality
-// check first and snapshots its result onto the article either way; if the
-// content looks like it overlaps with something already on the site, this
-// returns a soft `needsConfirmation` response instead of submitting
-// outright, so the contributor sees the warning before it goes to review
-// (per the product requirement to warn pre-submission, not silently
-// auto-reject or auto-publish either way).
+// Transitions a draft (or a changes_requested article being resubmitted)
+// into the review queue. Always runs the full moderation check first
+// (duplicate/similarity, spam, inappropriate-content, quality, AI-content
+// signal — see lib/moderation.ts) and snapshots the result onto the
+// article either way; if the duplicate-content check specifically looks
+// like it overlaps with something already on the site, this returns a
+// soft `needsConfirmation` response instead of submitting outright, so the
+// contributor sees the warning before it goes to review. The other signals
+// (spam/quality/AI) never block submission — they're admin-review-only.
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,7 +25,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!article || article.authorId !== session.userId) {
     return NextResponse.json({ error: "Article not found." }, { status: 404 });
   }
-  if (article.status !== "draft") {
+  if (article.status !== "draft" && article.status !== "changes_requested") {
     return NextResponse.json({ error: "This article has already been submitted." }, { status: 409 });
   }
 
@@ -50,14 +54,39 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const confirmDespiteFlag = Boolean(body?.confirmDespiteFlag);
 
   try {
-    const originality = await checkOriginality(article.contentHtml, article.id);
+    const signals = await runModerationChecks({
+      title: article.title,
+      excerpt: article.excerpt,
+      contentHtml: article.contentHtml,
+      excludeArticleId: article.id,
+    });
 
-    if (originality.flag && !confirmDespiteFlag) {
-      return NextResponse.json({ ok: false, needsConfirmation: true, originality });
+    if (signals.duplicate.flag && !confirmDespiteFlag) {
+      return NextResponse.json({ ok: false, needsConfirmation: true, originality: signals.duplicate });
     }
 
-    const updated = await submitDraftForReview(article.id, { score: originality.score, flag: originality.flag });
-    return NextResponse.json({ ok: true, article: updated, originality });
+    const updated = await submitDraftForReview(article.id, {
+      score: signals.duplicate.score,
+      flag: signals.duplicate.flag,
+      signals,
+    });
+
+    await recordRevision({
+      articleId: article.id,
+      editorId: session.userId,
+      editorEmail: session.email,
+      editorRole: "contributor",
+      title: updated.title,
+      excerpt: updated.excerpt,
+      contentHtml: updated.contentHtml,
+      image: updated.image,
+      imageAlt: updated.imageAlt,
+      changeSummary: article.status === "changes_requested" ? "Resubmitted after changes requested" : "Submitted for review",
+    });
+
+    await notifyArticleSubmitted({ id: session.userId, email: session.email }, { id: updated.id, title: updated.title });
+
+    return NextResponse.json({ ok: true, article: updated, originality: signals.duplicate });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }

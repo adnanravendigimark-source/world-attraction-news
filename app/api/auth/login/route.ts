@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSessionToken, SESSION_COOKIE_NAME, type Session } from "@/lib/auth";
 import { verifyUserCredentials, findUserByEmail, touchLastLogin } from "@/lib/users";
 import { DB_ERROR_MESSAGE } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,18 @@ export const dynamic = "force-dynamic";
 // a generic "invalid credentials" — the person needs to know their account
 // is still waiting on the admin, not that they mistyped their password.
 export async function POST(req: Request) {
+  // Brute-force protection: 8 attempts per 10 minutes per IP. Fails open
+  // (allows the request) if the rate-limit table itself is unreachable, so
+  // this never becomes a new way to break login entirely.
+  const ip = getClientIp(req);
+  const limit = await checkRateLimit(`login:${ip}`, 8, 600);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many login attempts. Please wait a few minutes and try again." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let email = "";
   let password = "";
   try {

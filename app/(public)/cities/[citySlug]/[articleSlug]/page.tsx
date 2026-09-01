@@ -8,7 +8,13 @@ import ArticleCard from "@/components/ArticleCard";
 import SectionHeading from "@/components/SectionHeading";
 import SocialShare from "@/components/SocialShare";
 import NewsletterForm from "@/components/NewsletterForm";
-import { getPublishedArticleBySlug, getRelatedPublishedArticles, getRelatedByCategoryPublishedArticles } from "@/lib/articles";
+import {
+  getPublishedArticleBySlug,
+  getRelatedPublishedArticles,
+  getRelatedByCategoryPublishedArticles,
+  getRelatedByAttractionPublishedArticles,
+  incrementArticleView,
+} from "@/lib/articles";
 import { buildMetadata, breadcrumbJsonLd, newsArticleJsonLd } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 
@@ -50,9 +56,12 @@ export default async function ArticlePage({
   const article = await getPublishedArticleBySlug(params.citySlug, params.articleSlug);
   if (!article) notFound();
 
-  const [relatedByCity, relatedByCategory] = await Promise.all([
+  await incrementArticleView(article.id);
+
+  const [relatedByCity, relatedByCategory, relatedByAttraction] = await Promise.all([
     getRelatedPublishedArticles(article.cityId, article.id, 3),
     article.categoryId ? getRelatedByCategoryPublishedArticles(article.categoryId, article.id, 3) : Promise.resolve([]),
+    article.attractionId ? getRelatedByAttractionPublishedArticles(article.attractionId, article.id, 3) : Promise.resolve([]),
   ]);
 
   const path = `/cities/${article.citySlug}/${article.slug}`;
@@ -62,6 +71,9 @@ export default async function ArticlePage({
   const breadcrumbs = [
     { name: "Home", path: "/" },
     { name: article.cityName, path: `/cities/${article.citySlug}` },
+    ...(article.attractionName && article.attractionSlug
+      ? [{ name: article.attractionName, path: `/cities/${article.citySlug}/attractions/${article.attractionSlug}` }]
+      : []),
     { name: article.title, path },
   ];
 
@@ -73,6 +85,14 @@ export default async function ArticlePage({
           <Link href={`/cities/${article.citySlug}`} className="hover:underline">
             {article.cityName}
           </Link>
+          {article.attractionName && article.attractionSlug && (
+            <>
+              <span className="text-ink-300" aria-hidden="true">·</span>
+              <Link href={`/cities/${article.citySlug}/attractions/${article.attractionSlug}`} className="text-ink-500 hover:text-signal hover:underline">
+                {article.attractionName}
+              </Link>
+            </>
+          )}
           {article.categoryName && article.categorySlug && (
             <>
               <span className="text-ink-300" aria-hidden="true">·</span>
@@ -81,6 +101,8 @@ export default async function ArticlePage({
               </Link>
             </>
           )}
+          {article.breaking && <span className="rounded bg-signal px-1.5 py-0.5 text-white">Breaking</span>}
+          {article.editorsPick && <span className="rounded bg-ink-900 px-1.5 py-0.5 text-white">Editor's Pick</span>}
         </div>
         <h1 className="mt-2 max-w-3xl font-serif text-2xl font-bold leading-tight text-ink-900 sm:text-4xl">
           {article.title}
@@ -88,7 +110,14 @@ export default async function ArticlePage({
         <p className="mt-3 max-w-3xl text-base leading-relaxed text-ink-600">{article.excerpt}</p>
         <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-y border-ink-100 py-3 text-xs text-ink-500">
           <span>
-            By <span className="font-semibold text-ink-800">{article.authorName}</span>
+            By{" "}
+            {article.authorSlug ? (
+              <Link href={`/author/${article.authorSlug}`} className="font-semibold text-ink-800 hover:text-signal hover:underline">
+                {article.authorName}
+              </Link>
+            ) : (
+              <span className="font-semibold text-ink-800">{article.authorName}</span>
+            )}
           </span>
           <span aria-hidden="true">·</span>
           <span>Published {formatDate(article.publishedAt)}</span>
@@ -167,6 +196,22 @@ export default async function ArticlePage({
         </section>
       )}
 
+      {relatedByAttraction.length > 0 && (
+        <section className="border-b border-ink-200 bg-white py-10 sm:py-12">
+          <Container>
+            <SectionHeading
+              title={`More about ${article.attractionName}`}
+              href={article.attractionSlug ? `/cities/${article.citySlug}/attractions/${article.attractionSlug}` : undefined}
+            />
+            <div className="mt-6 grid gap-6 sm:grid-cols-3">
+              {relatedByAttraction.map((a) => (
+                <ArticleCard key={a.id} article={a} />
+              ))}
+            </div>
+          </Container>
+        </section>
+      )}
+
       {relatedByCategory.length > 0 && (
         <section className="bg-ink-50 py-10 sm:py-12">
           <Container>
@@ -197,6 +242,7 @@ export default async function ArticlePage({
               image: article.image,
               path,
               authorName: article.authorName,
+              authorSlug: article.authorSlug,
               publishedAt: article.publishedAt,
               updatedAt: article.updatedAt,
               cityName: article.cityName,

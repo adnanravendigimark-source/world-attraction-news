@@ -54,7 +54,11 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   if (!item) return NextResponse.json({ error: "Media item not found." }, { status: 404 });
 
   const usage = await getMediaUsage(item.url);
-  const isUsed = usage.cityHero.length > 0 || usage.articleCover.length > 0 || usage.articleContent.length > 0;
+  const isUsed =
+    usage.cityHero.length > 0 ||
+    usage.attractionHero.length > 0 ||
+    usage.articleCover.length > 0 ||
+    usage.articleContent.length > 0;
   if (isUsed && !force) {
     return NextResponse.json({ error: "This image is still in use.", usage, needsConfirmation: true }, { status: 409 });
   }

@@ -265,6 +265,230 @@ async function addPhase1Columns() {
   console.log("Phase 1 columns ready.");
 }
 
+// Phase 4 ("Final Phase" — production-readiness pass): attraction-level
+// content structure, revision history, a proper review audit trail,
+// notifications, scheduled publishing, editorial flags, view counts,
+// moderation signals, author pages, and analytics-ready settings. Every
+// statement is additive (CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT
+// EXISTS) and safe to re-run against a database already carrying Phase 1-3
+// data — nothing here drops or renames an existing column, and the
+// existing status values ('draft', 'pending', 'approved', 'rejected',
+// 'published') keep meaning exactly what they meant before. New status
+// values ('under_review', 'changes_requested', 'scheduled', 'unpublished')
+// are additive states the app now also understands; `status` stays a plain
+// TEXT column (no CHECK constraint), consistent with how it was already
+// modeled, with the state machine enforced in the application layer
+// (lib/articles.ts).
+async function createPhase4Tables() {
+  console.log("Creating Phase 4 (production-readiness) tables...");
+
+  // City -> Attraction -> Article. An attraction always belongs to exactly
+  // one city; its slug only needs to be unique within that city (so
+  // "old-town" could exist under two different cities), mirroring how
+  // article slugs are unique site-wide but attraction slugs are scoped.
+  await sql`
+    CREATE TABLE IF NOT EXISTS attractions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      city_id UUID NOT NULL REFERENCES cities(id) ON DELETE CASCADE,
+      slug TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      hero_image TEXT NOT NULL DEFAULT '',
+      hero_image_alt TEXT NOT NULL DEFAULT '',
+      meta_title TEXT NOT NULL DEFAULT '',
+      meta_description TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (city_id, slug)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS attractions_city_idx ON attractions (city_id)`;
+
+  // Full version history of an article's content. A new row is inserted
+  // every time content is meaningfully saved (draft autosave excluded —
+  // see lib/revisions.ts — otherwise every keystroke's autosave would
+  // flood this table; a revision is snapshotted on submit, on every admin
+  // edit, and whenever an admin restores an older version). Never
+  // overwritten or deleted by normal app flow, so "never permanently
+  // overwrite article history" holds even though the live `articles` row
+  // itself is mutable.
+  await sql`
+    CREATE TABLE IF NOT EXISTS article_revisions (
+      id SERIAL PRIMARY KEY,
+      article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+      editor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      editor_email TEXT NOT NULL DEFAULT '',
+      editor_role TEXT NOT NULL DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',
+      excerpt TEXT NOT NULL DEFAULT '',
+      content_html TEXT NOT NULL DEFAULT '',
+      image TEXT NOT NULL DEFAULT '',
+      image_alt TEXT NOT NULL DEFAULT '',
+      change_summary TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS article_revisions_article_idx ON article_revisions (article_id, created_at DESC)`;
+
+  // Append-only review decision log. articles.score / articles.admin_feedback
+  // (added in Phase 1/2) remain the "current" cached values shown
+  // everywhere for backward compatibility — this table is the full history
+  // of every review decision ever made on an article (who, when, what
+  // decision, what score, what moderation signals were showing at the
+  // time), which the single mutable columns on `articles` can't represent
+  // on their own.
+  await sql`
+    CREATE TABLE IF NOT EXISTS article_reviews (
+      id SERIAL PRIMARY KEY,
+      article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+      admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      admin_email TEXT NOT NULL DEFAULT '',
+      decision TEXT NOT NULL,
+      score NUMERIC,
+      feedback TEXT NOT NULL DEFAULT '',
+      moderation_signals JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS article_reviews_article_idx ON article_reviews (article_id, created_at DESC)`;
+
+  // In-app + (best-effort) emailed notifications for both contributors and
+  // admins. `read_at` powers the unread badge in the dashboard notification
+  // center; `email_sent` records whether lib/email.ts actually reached a
+  // configured provider for this one (see lib/email.ts — without
+  // RESEND_API_KEY it logs instead of sending, and this column reflects
+  // that honestly rather than always claiming true).
+  await sql`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      link TEXT NOT NULL DEFAULT '',
+      read_at TIMESTAMPTZ,
+      email_sent BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications (user_id, read_at, created_at DESC)`;
+
+  console.log("Phase 4 tables ready.");
+}
+
+async function addPhase4Columns() {
+  console.log("Ensuring Phase 4 (production-readiness) columns exist...");
+
+  // Attraction-level content structure — optional on every article (a
+  // contributor can still write a city-level piece with no specific
+  // attraction), scoped to the article's own city at the application layer.
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS attraction_id UUID REFERENCES attractions(id) ON DELETE SET NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS articles_attraction_idx ON articles (attraction_id)`;
+
+  // Editorial placement controls — real booleans an admin toggles from the
+  // Article Review page; homepage sections read these directly rather than
+  // guessing at "trending" from nothing.
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS trending BOOLEAN NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS editors_pick BOOLEAN NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS breaking BOOLEAN NOT NULL DEFAULT false`;
+
+  // Scheduled publishing — a future timestamp checked by
+  // lib/scheduling.ts's publishDueScheduledArticles(), which is called from
+  // both a dedicated cron API route and every public content read, so a
+  // scheduled article goes live automatically at (or shortly after) the
+  // right time with no manual "Publish" click required.
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ`;
+
+  // Real page-view counter — incremented exactly once per real public
+  // article page render (see lib/articles.ts incrementArticleView), never
+  // seeded or faked. This is the honest foundation "Popular articles" /
+  // analytics requirements ask for, not a placeholder number.
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0`;
+
+  // Cached moderation-signal snapshot from the most recent submission —
+  // duplicate/similarity, basic spam heuristics, quality checks, and an
+  // AI-generated-content heuristic (see lib/moderation.ts). Always
+  // review-only signals for the admin, never used to auto-reject.
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS moderation_signals JSONB`;
+
+  // Author pages (/author/[slug]) need a stable, unique, URL-safe handle
+  // per user. Backfilled for existing accounts below; generated for every
+  // new account going forward in lib/users.ts.
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS slug TEXT`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_slug_key ON users (slug) WHERE slug IS NOT NULL`;
+
+  // Media dimensions — captured at upload time (lib/blob.ts already runs
+  // every image through sharp, which reports these for free) so the Media
+  // Library can show real width x height instead of guessing.
+  await sql`ALTER TABLE media_library ADD COLUMN IF NOT EXISTS width INTEGER`;
+  await sql`ALTER TABLE media_library ADD COLUMN IF NOT EXISTS height INTEGER`;
+
+  // Analytics-ready settings — Google Analytics / Search Console are
+  // structurally wired (env-driven script injection + verification meta
+  // tag) but stay inert with no real numbers shown anywhere until an admin
+  // supplies real IDs here; see README.md.
+  await sql`ALTER TABLE settings ADD COLUMN IF NOT EXISTS ga_measurement_id TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE settings ADD COLUMN IF NOT EXISTS gsc_verification_code TEXT NOT NULL DEFAULT ''`;
+
+  // Basic admin management for newsletter subscribers (unsubscribe) and
+  // contact messages (mark handled) — see /admin/newsletter and the
+  // contact_messages read in /admin/settings.
+  await sql`ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS unsubscribed_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS handled_at TIMESTAMPTZ`;
+
+  console.log("Phase 4 columns ready.");
+}
+
+// Real, database-backed rate limiting for auth endpoints (login,
+// admin-login, signup, forgot-password) — see lib/rateLimit.ts. Using
+// Postgres instead of in-memory state means the limit holds even across
+// multiple serverless function instances, not just within one warm
+// process.
+async function createPhase5SecurityTables() {
+  console.log("Creating Phase 5 (security) tables...");
+  await sql`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 1,
+      window_start TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  console.log("Phase 5 tables ready.");
+}
+
+// Every user row needs a unique slug for /author/[slug] — including
+// accounts created before this column existed. Idempotent: only touches
+// rows where slug IS NULL, so re-running never reshuffles an existing
+// author's URL.
+async function backfillUserSlugs() {
+  const rows = await sql`SELECT id, display_name, email FROM users WHERE slug IS NULL`;
+  if (!rows.length) return;
+  console.log(`Backfilling author slugs for ${rows.length} user(s)...`);
+  const taken = new Set(
+    (await sql`SELECT slug FROM users WHERE slug IS NOT NULL`).map((r) => r.slug)
+  );
+  for (const row of rows) {
+    const base =
+      (row.display_name || row.email.split("@")[0])
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .slice(0, 60) || "contributor";
+    let slug = base;
+    let i = 2;
+    while (taken.has(slug)) {
+      slug = `${base}-${i}`;
+      i++;
+    }
+    taken.add(slug);
+    await sql`UPDATE users SET slug = ${slug} WHERE id = ${row.id}`;
+  }
+  console.log("Author slugs backfilled.");
+}
+
 const CITY_SEED = [
   {
     slug: "barcelona",
@@ -631,6 +855,10 @@ async function main() {
   await createTables();
   await addPhase1Columns();
   await addPhase2Columns();
+  await createPhase4Tables();
+  await addPhase4Columns();
+  await createPhase5SecurityTables();
+  await backfillUserSlugs();
   await seedCities();
   await seedCategories();
   await seedLaunchEditorsAndArticles();

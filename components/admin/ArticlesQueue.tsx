@@ -38,9 +38,13 @@ export default function ArticlesQueue({
 
   const counts = {
     pending: initialArticles.filter((a) => a.status === "pending").length,
+    under_review: initialArticles.filter((a) => a.status === "under_review").length,
+    changes_requested: initialArticles.filter((a) => a.status === "changes_requested").length,
     approved: initialArticles.filter((a) => a.status === "approved").length,
+    scheduled: initialArticles.filter((a) => a.status === "scheduled").length,
     published: initialArticles.filter((a) => a.status === "published").length,
     rejected: initialArticles.filter((a) => a.status === "rejected").length,
+    unpublished: initialArticles.filter((a) => a.status === "unpublished").length,
   };
 
   const filtered = useMemo(() => {
@@ -68,7 +72,20 @@ export default function ArticlesQueue({
   return (
     <div>
       <div className="flex flex-wrap gap-2">
-        {(["all", "draft", "pending", "approved", "published", "rejected"] as const).map((f) => (
+        {(
+          [
+            "all",
+            "draft",
+            "pending",
+            "under_review",
+            "changes_requested",
+            "approved",
+            "scheduled",
+            "published",
+            "rejected",
+            "unpublished",
+          ] as const
+        ).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -76,7 +93,12 @@ export default function ArticlesQueue({
               filter === f ? "border-ink-900 bg-ink-900 text-white" : "border-ink-200 bg-white text-ink-600 hover:border-ink-400"
             }`}
           >
-            {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+            {f === "all"
+              ? "All"
+              : f
+                  .split("_")
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join(" ")}
             {f !== "all" && f !== "draft" && counts[f as keyof typeof counts] > 0 ? ` (${counts[f as keyof typeof counts]})` : ""}
           </button>
         ))}

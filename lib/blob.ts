@@ -48,8 +48,8 @@ export async function uploadImage(file: File, folder: string): Promise<UploadRes
 
   try {
     await sql`
-      INSERT INTO media_library (url, filename, content_type, size_bytes)
-      VALUES (${blob.url}, ${filename}, 'image/webp', ${optimized.data.length})
+      INSERT INTO media_library (url, filename, content_type, size_bytes, width, height)
+      VALUES (${blob.url}, ${filename}, 'image/webp', ${optimized.data.length}, ${optimized.info.width}, ${optimized.info.height})
       ON CONFLICT (url) DO NOTHING
     `;
   } catch {

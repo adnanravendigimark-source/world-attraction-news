@@ -82,7 +82,64 @@ The full public site is city- and category-organized, entirely database-driven, 
 - **Legal pages**: `/privacy-policy` (expanded to cover contact-form and newsletter data), `/terms-and-conditions`, `/cookie-policy` (accurately states there's exactly one cookie — the session cookie — and no consent banner, because there's nothing to track), `/editorial-policy`, `/disclaimer`.
 - **Error/empty/loading states**: `app/error.tsx` (in-layout error boundary with Retry), `app/global-error.tsx` (root-layout-failure fallback, renders its own `<html>`/`<body>` per Next's requirement), `app/(public)/not-found.tsx` (on-brand 404 with search + quick links) and `app/not-found.tsx` (root fallback for routes outside the public layout), `app/(public)/loading.tsx` (skeleton shown during navigation), and `EmptyState`/`Pagination`/`SectionHeading` shared components used consistently across every listing page.
 - **SEO**: per-page canonical/OG/Twitter via `buildMetadata()` (now also honors an admin-set canonical override), `WebSite` schema with a `SearchAction` on the homepage, `BreadcrumbList` on every page, `ItemList` on city/category listing pages, `NewsArticle` on article pages, and `Organization` sitewide. `sitemap.ts` includes every static page, city, category, and published article; paginated/filtered variants of `/latest-news` and `/categories/[slug]` are `noindex` rather than fighting page 1 for the same search queries.
-- **What's honestly not here**: FAQ schema is not added anywhere, because there's no FAQ content model to back it — adding the schema without real Q&A data would be exactly the kind of fake markup this project avoids elsewhere. "Popular Attractions" is a quality-score ranking of real articles, not a separate attractions database (the schema has cities, categories, and articles — no distinct "attraction" entity), which matches how the Phase 1/2 data model was designed.
+- **What's honestly not here**: FAQ schema is not added anywhere, because there's no FAQ content model to back it — adding the schema without real Q&A data would be exactly the kind of fake markup this project avoids elsewhere.
+
+> Note: the "no distinct attraction entity" line that used to be here is no longer accurate — the Final Phase below adds a real `attractions` table (City → Attraction → Article). "Popular Attractions" on the homepage is still a quality-score ranking of articles, kept as-is; it's independent of the new Featured/Editor's Picks sections described below.
+
+## Final Phase — production readiness
+
+Everything in this section extends the system above without changing any of its existing behavior — original statuses, routes, and data keep their original meaning; everything here is additive (new columns, new tables, new optional fields).
+
+### Editorial workflow (extended)
+
+Status now moves through `draft → pending (submitted) → under_review → changes_requested → pending (resubmitted) → approved → scheduled → published → unpublished`, plus `rejected` off of `pending`. The original five statuses (`draft`, `pending`, `approved`, `rejected`, `published`) keep exactly their original meaning — `under_review`, `changes_requested`, `scheduled`, and `unpublished` are new. An admin moves an article between these from **Admin → Articles → [article]**: **Start Review** (pending → under_review), **Approve / Request Changes / Reject**, **Publish Now** or **Schedule** (approved/unpublished → published/scheduled), **Cancel Schedule**, **Unpublish**. When an admin requests changes, the contributor sees the feedback on their dashboard article page and gets an "Edit & Resubmit" link; resubmitting goes back to `pending`.
+
+### Revision history
+
+Every meaningful save — a contributor's submission, an admin's edit, or an admin's restore — snapshots the full article (title, excerpt, body, image, editor, timestamp, a short change summary) into `article_revisions`. Draft autosaves do **not** create revisions (that would flood the table with every keystroke); only submit/edit/restore do. From the Article Review page's **Revision History** panel, an admin can restore any older version — restoring itself creates a new revision first, so the version you're replacing is never lost. Review decisions are separately logged (who, when, what decision, what score, what moderation signals were showing) in `article_reviews`, an append-only audit trail distinct from the current `articles.score`/`admin_feedback` columns.
+
+### Scheduled publishing
+
+An approved (or previously unpublished) article can be scheduled for a future date/time instead of published immediately. Scheduled articles publish themselves automatically — this is enforced two ways, not just a UI trick: (1) a dedicated cron endpoint at `/api/cron/publish-scheduled`, wired up in `vercel.json` to run every 5 minutes via **Vercel Cron** (protected by a `CRON_SECRET` bearer token — set it in your environment variables; Vercel Cron sends it automatically), and (2) defensively on every public content read (`getPublishedArticles`, `getPublishedArticleBySlug`, etc. all call the same publish-check first), so even if the cron job were ever delayed, the next real visitor to any public page still triggers the catch-up. Canceling a schedule returns the article to `approved` without touching anything else.
+
+### Featured / Trending / Editor's Pick / Breaking
+
+Four independent booleans an admin sets per article from the **Editorial Placement** panel on the Article Review page — not computed guesses. The homepage reads them directly: a **Breaking** banner strip (if any), a **Featured Stories** section, the existing algorithmic **Trending Now** section (last-30-days quality-score ranking — unchanged), and **Editor's Picks**. An article can carry any combination of these flags regardless of its review status; they only actually render once it's published.
+
+### Author pages
+
+Every user gets a stable, unique slug (`users.slug`, generated at registration, backfilled for pre-existing accounts by `scripts/setup-db.mjs`). `/author/[slug]` shows their name, avatar, bio, published-article count, the cities they've covered, and a grid of their published work. A page 404s for an unknown slug, and for a real account with zero published articles (unless that account is an admin) — never a fabricated "coming soon" profile. Every published article links to its author's page from both the admin review panel and the public article byline.
+
+### Attraction-level content structure
+
+A new `attractions` table sits between city and article: **City → Attraction → Article**. Manage attractions from **Admin → Attractions** (name, description, hero image, meta title/description, sort order, scoped to one city). An article can optionally be tied to a specific attraction from the contributor editor or the admin review panel — a contributor can still write a general city-level piece with no attraction, and can write about any city/attraction, not just one they're "assigned" to. Public pages: `/cities/[citySlug]/attractions` (index) and `/cities/[citySlug]/attractions/[attractionSlug]` (detail, with its own articles and a "More about {attraction}" rail on article pages).
+
+### Content moderation signals
+
+`lib/moderation.ts` runs five real, local checks on every submission — duplicate/similarity (reusing the existing shingle-based originality check), spam (link density, ALL-CAPS ratio, repeated punctuation, a keyword list), inappropriate-content keywords, a quality score (word count, structure, excerpt/title completeness), and an AI-generated-content heuristic (stock-phrase and sentence-length-uniformity detection). All five are cached on `articles.moderation_signals` and shown to the admin in a collapsible **Moderation Signals** panel on the review page — **these are signals only and never auto-reject or auto-flag anything as final**; the admin always reads and decides on the actual article.
+
+### Notifications
+
+`notifications` table + `lib/notifications.ts`: every workflow event (account approved/rejected, article submitted/under review/changes requested/approved/rejected/scored/published/unpublished) creates a real in-app row and best-effort emails the user via `lib/email.ts` (same graceful-degradation behavior as password reset — without `RESEND_API_KEY` it logs instead of sending, and the `email_sent` column records that honestly). The dashboard header has a live unread-count bell with a dropdown; the full history lives at `/dashboard/notifications`, linked from the sidebar.
+
+### Advanced Media Library
+
+`/admin/media` now also shows each image's real dimensions (captured at upload time via `sharp`, same as always — just persisted and displayed now), an on-demand **Where used?** lookup (city/attraction hero, article cover, or inline content — queried live, not from a stale index) available for any item at any time (not just as a delete-blocking warning), and a real **Replace** action: uploading a new file for an existing item rewrites every place that referenced the old URL (city/attraction hero, article cover, inline `content_html`) to the new one, then deletes the old file — not a cosmetic swap. Upload validation (type/MIME/size/dimension caps, WebP re-encoding) is unchanged from Phase 2.
+
+### Newsletter
+
+Unchanged in structure from Phase 3 (`newsletter_subscribers`, real persistence, no delivery service wired) — `unsubscribed_at` was added to the schema so an admin management view or an unsubscribe link can be built directly on top of it without another migration.
+
+### Analytics & SEO
+
+Google Analytics and Google Search Console are wired but stay completely inert until an admin fills them in at **Admin → SEO Settings**: a Measurement ID (`G-XXXXXXXXXX`) injects the real `gtag.js` snippet sitewide via `next/script`; a Search Console verification code renders the `<meta name="google-site-verification">` tag. Leave both blank and nothing analytics-related loads — **no fake view counts or placeholder charts are shown anywhere**. Real per-article view counts (`articles.view_count`, incremented once per real public page render) already exist as the honest foundation for a future "popular articles" report. Every public page (including the new author and attraction pages) has its own canonical/OG/Twitter metadata and JSON-LD (`BreadcrumbList` plus `NewsArticle`/`Organization`/`WebSite`/`Person` as applicable); `sitemap.ts` includes attraction pages and author pages alongside everything from Phase 3.
+
+### Security hardening
+
+- **Rate limiting**: `lib/rateLimit.ts` is a real, database-backed limiter (a `rate_limits` table, atomic per-row Postgres upsert) — deliberately not in-memory, since serverless functions don't share memory across instances and an in-memory counter would silently do nothing in production. Applied to `/api/auth/login` (8/10min), `/api/auth/admin-login` (6/15min), `/api/auth/signup` (5/hour), `/api/auth/forgot-password` (5/hour), and `/api/auth/reset-password` (10/30min), all keyed by IP. Fails open (allows the request) if the rate-limit table itself can't be reached, so it can never become a new way to break login.
+- **Stored-XSS protection**: `lib/sanitizeHtml.ts` is a server-side allowlist sanitizer applied to `content_html` on every write path (draft save, submit, admin edit, revision restore) — regardless of what the rich text editor's UI would normally produce, a raw API request can't smuggle a `<script>`, an `onerror=` handler, or a `javascript:` URL into an article body. Only a small set of real content tags/attributes are kept; everything else is stripped.
+- **Access control audit**: every `/api/admin/**` route checks `session.role === "admin"` before touching any data (including all the routes added in this phase — attractions, media replace/usage, notifications are dashboard-scoped, the cron endpoint); every `/api/dashboard/**` by-ID route checks both in the handler and at the SQL `WHERE` clause that the record belongs to the logged-in user. `middleware.ts` additionally blocks non-admin sessions from `/admin/*` and `/api/admin/*` as a second layer.
+- Password hashing (scrypt via `lib/passwords.ts`), password-reset tokens (single-use, hashed, time-limited), and image upload validation (type/MIME/size/dimension caps) were already in place from earlier phases and are unchanged.
 
 ## Known technical gotchas (carried forward from earlier projects)
 

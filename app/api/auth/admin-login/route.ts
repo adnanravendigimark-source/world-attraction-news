@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSessionToken, SESSION_COOKIE_NAME, type Session } from "@/lib/auth";
 import { verifyUserCredentials, touchLastLogin } from "@/lib/users";
 import { DB_ERROR_MESSAGE } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,17 @@ export const dynamic = "force-dynamic";
 //   2. Any user in the database with role "admin" (promoted from the Admin
 //      Panel's Users page after the owner account has logged in once).
 export async function POST(req: Request) {
+  // Stricter than contributor login — the Admin Panel is the highest-value
+  // target on the site. 6 attempts per 15 minutes per IP.
+  const ip = getClientIp(req);
+  const limit = await checkRateLimit(`admin-login:${ip}`, 6, 900);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many login attempts. Please wait a few minutes and try again." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let email = "";
   let password = "";
   try {

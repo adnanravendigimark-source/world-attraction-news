@@ -1,6 +1,28 @@
 import { sql } from "./db";
+import { publishDueScheduledArticles } from "./scheduling";
+import type { ModerationSignals } from "./moderation";
+import { sanitizeArticleHtml } from "./sanitizeHtml";
 
-export type ArticleStatus = "draft" | "pending" | "approved" | "rejected" | "published";
+// Full editorial workflow (Final Phase spec):
+//   draft -> pending (submitted) -> under_review -> changes_requested -> pending (resubmitted)
+//                                              \-> approved -> scheduled -> published -> unpublished
+//                                              \-> rejected
+// 'pending' covers both "Submitted" and is also where an admin lands back
+// after a resubmission — 'under_review' is an explicit, admin-triggered
+// state for "an editor has started looking at this" that existed nowhere
+// before. All five original values ('draft', 'pending', 'approved',
+// 'rejected', 'published') keep their original meaning exactly as before;
+// everything else here is additive.
+export type ArticleStatus =
+  | "draft"
+  | "pending"
+  | "under_review"
+  | "changes_requested"
+  | "approved"
+  | "scheduled"
+  | "published"
+  | "rejected"
+  | "unpublished";
 
 export interface Article {
   id: string;
@@ -10,6 +32,7 @@ export interface Article {
   contentHtml: string;
   cityId: string;
   categoryId: string | null;
+  attractionId: string | null;
   authorId: string;
   status: ArticleStatus;
   score: number | null;
@@ -25,6 +48,13 @@ export interface Article {
   readingTimeMinutes: number;
   originalityScore: number | null;
   originalityFlag: boolean;
+  moderationSignals: ModerationSignals | null;
+  featured: boolean;
+  trending: boolean;
+  editorsPick: boolean;
+  breaking: boolean;
+  scheduledAt: string | null;
+  viewCount: number;
   submittedAt: string | null;
   reviewedAt: string | null;
   publishedAt: string | null;
@@ -32,14 +62,18 @@ export interface Article {
 }
 
 // Joined shape used everywhere an article is displayed alongside its city/
-// category/author names, rather than four separate lookups per article.
+// category/attraction/author names, rather than several separate lookups
+// per article.
 export interface ArticleWithRelations extends Article {
   cityName: string;
   citySlug: string;
   categoryName: string | null;
   categorySlug: string | null;
+  attractionName: string | null;
+  attractionSlug: string | null;
   authorName: string;
   authorEmail: string;
+  authorSlug: string | null;
 }
 
 function toIso(value: any): string | null {
@@ -56,6 +90,7 @@ function rowToArticle(row: any): Article {
     contentHtml: row.content_html,
     cityId: row.city_id,
     categoryId: row.category_id,
+    attractionId: row.attraction_id ?? null,
     authorId: row.author_id,
     status: row.status,
     score: row.score === null || row.score === undefined ? null : Number(row.score),
@@ -72,6 +107,13 @@ function rowToArticle(row: any): Article {
     originalityScore:
       row.originality_score === null || row.originality_score === undefined ? null : Number(row.originality_score),
     originalityFlag: Boolean(row.originality_flag),
+    moderationSignals: row.moderation_signals ?? null,
+    featured: Boolean(row.featured),
+    trending: Boolean(row.trending),
+    editorsPick: Boolean(row.editors_pick),
+    breaking: Boolean(row.breaking),
+    scheduledAt: toIso(row.scheduled_at),
+    viewCount: row.view_count ?? 0,
     submittedAt: toIso(row.submitted_at),
     reviewedAt: toIso(row.reviewed_at),
     publishedAt: toIso(row.published_at),
@@ -86,8 +128,11 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     citySlug: row.city_slug,
     categoryName: row.category_name,
     categorySlug: row.category_slug,
+    attractionName: row.attraction_name ?? null,
+    attractionSlug: row.attraction_slug ?? null,
     authorName: row.author_name,
     authorEmail: row.author_email,
+    authorSlug: row.author_slug ?? null,
   };
 }
 
@@ -116,10 +161,12 @@ export function computeContentStats(html: string): { wordCount: number; readingT
 const JOIN_SELECT = `
   SELECT a.*, c.name AS city_name, c.slug AS city_slug,
          cat.name AS category_name, cat.slug AS category_slug,
-         u.display_name AS author_name, u.email AS author_email
+         att.name AS attraction_name, att.slug AS attraction_slug,
+         u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
   FROM articles a
   JOIN cities c ON c.id = a.city_id
   LEFT JOIN categories cat ON cat.id = a.category_id
+  LEFT JOIN attractions att ON att.id = a.attraction_id
   JOIN users u ON u.id = a.author_id
 `;
 
@@ -128,9 +175,11 @@ const JOIN_SELECT = `
 export async function getPublishedArticles(opts: {
   citySlug?: string;
   categorySlug?: string;
+  attractionSlug?: string;
   limit?: number;
 } = {}): Promise<ArticleWithRelations[]> {
   try {
+    await publishDueScheduledArticles();
     const limit = opts.limit ?? 200;
     const conditions = ["a.status = 'published'"];
     const params: any[] = [];
@@ -141,6 +190,10 @@ export async function getPublishedArticles(opts: {
     if (opts.categorySlug) {
       params.push(opts.categorySlug);
       conditions.push(`cat.slug = $${params.length}`);
+    }
+    if (opts.attractionSlug) {
+      params.push(opts.attractionSlug);
+      conditions.push(`att.slug = $${params.length}`);
     }
     params.push(limit);
     const query = `${JOIN_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY a.published_at DESC LIMIT $${params.length}`;
@@ -155,9 +208,22 @@ export async function getPublishedArticleBySlug(
   citySlug: string,
   articleSlug: string
 ): Promise<ArticleWithRelations | undefined> {
+  await publishDueScheduledArticles();
   const query = `${JOIN_SELECT} WHERE a.status = 'published' AND c.slug = $1 AND a.slug = $2 LIMIT 1`;
   const rows = await sql(query, [citySlug, articleSlug]);
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
+}
+
+// Real page-view counter — called exactly once per real render of the
+// public article page (see app/(public)/cities/[citySlug]/[articleSlug]/
+// page.tsx). Never seeded, never fabricated. Best-effort: a failure here
+// must never break the article page itself.
+export async function incrementArticleView(id: string): Promise<void> {
+  try {
+    await sql`UPDATE articles SET view_count = view_count + 1 WHERE id = ${id}`;
+  } catch {
+    // non-critical
+  }
 }
 
 export async function getRelatedPublishedArticles(
@@ -180,12 +246,23 @@ export async function getRelatedByCategoryPublishedArticles(
   return rows.map(rowToArticleWithRelations);
 }
 
+export async function getRelatedByAttractionPublishedArticles(
+  attractionId: string,
+  excludeArticleId: string,
+  limit = 4
+): Promise<ArticleWithRelations[]> {
+  const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.attraction_id = $1 AND a.id != $2 ORDER BY a.published_at DESC LIMIT $3`;
+  const rows = await sql(query, [attractionId, excludeArticleId, limit]);
+  return rows.map(rowToArticleWithRelations);
+}
+
 // Paginated published-article listing — used by /latest-news and
 // /categories/[slug], which both need a real total count for "page X of Y"
 // / "load more" rather than just a capped list.
 export async function getPublishedArticlesPage(opts: {
   citySlug?: string;
   categorySlug?: string;
+  attractionSlug?: string;
   query?: string;
   page?: number;
   pageSize?: number;
@@ -193,6 +270,7 @@ export async function getPublishedArticlesPage(opts: {
   const page = Math.max(1, opts.page ?? 1);
   const pageSize = opts.pageSize ?? 12;
   try {
+    await publishDueScheduledArticles();
     const conditions = ["a.status = 'published'"];
     const params: any[] = [];
     if (opts.citySlug) {
@@ -202,6 +280,10 @@ export async function getPublishedArticlesPage(opts: {
     if (opts.categorySlug) {
       params.push(opts.categorySlug);
       conditions.push(`cat.slug = $${params.length}`);
+    }
+    if (opts.attractionSlug) {
+      params.push(opts.attractionSlug);
+      conditions.push(`att.slug = $${params.length}`);
     }
     if (opts.query && opts.query.trim()) {
       params.push(`%${opts.query.trim()}%`);
@@ -214,6 +296,7 @@ export async function getPublishedArticlesPage(opts: {
       FROM articles a
       JOIN cities c ON c.id = a.city_id
       LEFT JOIN categories cat ON cat.id = a.category_id
+      LEFT JOIN attractions att ON att.id = a.attraction_id
       WHERE ${where}
     `;
     const countRows = await sql(countQuery, params);
@@ -241,7 +324,7 @@ export async function getTrendingArticles(limit = 6): Promise<ArticleWithRelatio
     const recentQuery = `
       ${JOIN_SELECT}
       WHERE a.status = 'published' AND a.published_at >= now() - interval '30 days'
-      ORDER BY a.score DESC NULLS LAST, a.published_at DESC
+      ORDER BY a.view_count DESC, a.score DESC NULLS LAST, a.published_at DESC
       LIMIT $1
     `;
     const recentRows = await sql(recentQuery, [limit]);
@@ -269,6 +352,23 @@ export async function getTopScoredArticles(limit = 6): Promise<ArticleWithRelati
   }
 }
 
+// Admin-controlled editorial placement — real boolean columns an admin sets
+// from the Article Review page, not a computed guess. Homepage sections use
+// these directly so "what's Featured" is exactly what an editor chose.
+async function getFlaggedArticles(column: "featured" | "trending" | "editors_pick" | "breaking", limit = 6): Promise<ArticleWithRelations[]> {
+  try {
+    const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.${column} = true ORDER BY a.published_at DESC LIMIT $1`;
+    const rows = await sql(query, [limit]);
+    return rows.map(rowToArticleWithRelations);
+  } catch {
+    return [];
+  }
+}
+export const getFeaturedArticles = (limit = 6) => getFlaggedArticles("featured", limit);
+export const getEditorsPickArticles = (limit = 6) => getFlaggedArticles("editors_pick", limit);
+export const getBreakingArticles = (limit = 6) => getFlaggedArticles("breaking", limit);
+export const getPinnedTrendingArticles = (limit = 6) => getFlaggedArticles("trending", limit);
+
 // Real per-city / per-category published-article counts, used for "Popular
 // Cities", the /cities index, and the /categories index — every number here
 // comes straight from a COUNT(*) against real rows, never a placeholder.
@@ -294,6 +394,18 @@ export async function getPublishedArticleCountsByCategory(): Promise<Record<stri
   }
 }
 
+// --- Author pages ---------------------------------------------------
+
+export async function getPublishedArticlesByAuthorId(authorId: string, limit = 100): Promise<ArticleWithRelations[]> {
+  try {
+    const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.author_id = $1 ORDER BY a.published_at DESC LIMIT $2`;
+    const rows = await sql(query, [authorId, limit]);
+    return rows.map(rowToArticleWithRelations);
+  } catch {
+    return [];
+  }
+}
+
 // --- Dashboard reads (a contributor's own articles, any status) -------
 
 export async function getArticlesByAuthor(authorId: string): Promise<ArticleWithRelations[]> {
@@ -314,6 +426,7 @@ export async function getArticleById(id: string): Promise<ArticleWithRelations |
 // submitted by its author yet, so there's nothing for an admin to review.
 export async function getAllArticles(statusFilter?: ArticleStatus): Promise<ArticleWithRelations[]> {
   try {
+    await publishDueScheduledArticles();
     if (statusFilter) {
       const query = `${JOIN_SELECT} WHERE a.status = $1 ORDER BY a.submitted_at DESC NULLS LAST`;
       const rows = await sql(query, [statusFilter]);
@@ -367,6 +480,7 @@ export async function createArticle(input: {
   contentHtml: string;
   cityId: string;
   categoryId: string | null;
+  attractionId?: string | null;
   authorId: string;
   image: string;
   imageAlt: string;
@@ -375,15 +489,16 @@ export async function createArticle(input: {
   focusKeyword: string;
 }): Promise<Article> {
   const slug = await generateUniqueSlug(input.title);
-  const { wordCount, readingTimeMinutes } = computeContentStats(input.contentHtml);
+  const safeContent = sanitizeArticleHtml(input.contentHtml);
+  const { wordCount, readingTimeMinutes } = computeContentStats(safeContent);
   const rows = await sql`
     INSERT INTO articles (
-      slug, title, excerpt, content_html, city_id, category_id, author_id,
+      slug, title, excerpt, content_html, city_id, category_id, attraction_id, author_id,
       status, image, image_alt, meta_title, meta_description, focus_keyword,
       word_count, reading_time_minutes, submitted_at, updated_at
     ) VALUES (
-      ${slug}, ${input.title}, ${input.excerpt}, ${input.contentHtml}, ${input.cityId}, ${input.categoryId},
-      ${input.authorId}, 'pending', ${input.image}, ${input.imageAlt}, ${input.metaTitle},
+      ${slug}, ${input.title}, ${input.excerpt}, ${safeContent}, ${input.cityId}, ${input.categoryId},
+      ${input.attractionId ?? null}, ${input.authorId}, 'pending', ${input.image}, ${input.imageAlt}, ${input.metaTitle},
       ${input.metaDescription}, ${input.focusKeyword}, ${wordCount}, ${readingTimeMinutes}, now(), now()
     )
     RETURNING *
@@ -402,15 +517,16 @@ export async function createDraft(input: {
   title: string;
   cityId: string;
   categoryId: string | null;
+  attractionId?: string | null;
   authorId: string;
 }): Promise<Article> {
   const slug = await generateUniqueSlug(input.title || "untitled-draft");
   const rows = await sql`
     INSERT INTO articles (
-      slug, title, excerpt, content_html, city_id, category_id, author_id, status, updated_at
+      slug, title, excerpt, content_html, city_id, category_id, attraction_id, author_id, status, updated_at
     ) VALUES (
       ${slug}, ${input.title || "Untitled draft"}, '', '', ${input.cityId}, ${input.categoryId},
-      ${input.authorId}, 'draft', now()
+      ${input.attractionId ?? null}, ${input.authorId}, 'draft', now()
     )
     RETURNING *
   `;
@@ -429,6 +545,7 @@ export async function updateDraft(
     contentHtml?: string;
     cityId?: string;
     categoryId?: string | null;
+    attractionId?: string | null;
     image?: string;
     imageAlt?: string;
     metaTitle?: string;
@@ -441,7 +558,7 @@ export async function updateDraft(
   const c = current[0];
   const nextTitle = updates.title ?? c.title;
   const slug = updates.title && updates.title !== c.title ? await generateUniqueSlug(nextTitle, id) : c.slug;
-  const nextContent = updates.contentHtml ?? c.content_html;
+  const nextContent = updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
 
   const rows = await sql`
@@ -452,6 +569,7 @@ export async function updateDraft(
         content_html = ${nextContent},
         city_id = ${updates.cityId ?? c.city_id},
         category_id = ${updates.categoryId !== undefined ? updates.categoryId : c.category_id},
+        attraction_id = ${updates.attractionId !== undefined ? updates.attractionId : c.attraction_id},
         image = ${updates.image ?? c.image},
         image_alt = ${updates.imageAlt ?? c.image_alt},
         meta_title = ${updates.metaTitle ?? c.meta_title},
@@ -467,21 +585,25 @@ export async function updateDraft(
 }
 
 // Transitions a draft into the review queue: status -> 'pending',
-// submitted_at stamped, and the originality-check result snapshotted onto
-// the row (so admin review can see the score without re-running the check
-// later). Only callable on an article that is currently 'draft'.
+// submitted_at stamped, and the moderation-check result (originality +
+// spam/quality/AI signals) snapshotted onto the row (so admin review can
+// see every signal without re-running the checks later). Only callable on
+// an article that is currently 'draft' or 'changes_requested' (a
+// resubmission after the admin asked for edits).
 export async function submitDraftForReview(
   id: string,
-  originality: { score: number; flag: boolean }
+  moderation: { score: number; flag: boolean; signals: ModerationSignals }
 ): Promise<Article> {
   const rows = await sql`
     UPDATE articles
     SET status = 'pending',
         submitted_at = now(),
-        originality_score = ${originality.score},
-        originality_flag = ${originality.flag},
+        reviewed_at = NULL,
+        originality_score = ${moderation.score},
+        originality_flag = ${moderation.flag},
+        moderation_signals = ${JSON.stringify(moderation.signals)},
         updated_at = now()
-    WHERE id = ${id} AND status = 'draft'
+    WHERE id = ${id} AND status IN ('draft', 'changes_requested')
     RETURNING *
   `;
   if (!rows.length) throw new Error("This article can't be submitted from its current status.");
@@ -495,13 +617,12 @@ export async function deleteOwnDraft(id: string, authorId: string): Promise<void
   await sql`DELETE FROM articles WHERE id = ${id} AND author_id = ${authorId} AND status = 'draft'`;
 }
 
-// A contributor editing their own pending/rejected article (an edit that
-// resubmits it for review). The route handler must verify
-// article.authorId === session.userId AND article.status is 'pending' or
-// 'rejected' before calling this. cityId IS accepted here — contributors
+// A contributor editing their own pending/rejected/changes_requested
+// article (an edit that resubmits it for review). The route handler must
+// verify article.authorId === session.userId AND article.status is one of
+// those before calling this. cityId IS accepted here — contributors
 // aren't tied to one city, so they choose which city an article belongs to
-// at submission time and can change that choice while it's still
-// pending/rejected.
+// at submission time and can change that choice while it's still editable.
 export async function updateOwnArticle(
   id: string,
   updates: {
@@ -510,6 +631,7 @@ export async function updateOwnArticle(
     contentHtml?: string;
     cityId?: string;
     categoryId?: string | null;
+    attractionId?: string | null;
     image?: string;
     imageAlt?: string;
     metaTitle?: string;
@@ -522,7 +644,7 @@ export async function updateOwnArticle(
   const c = current[0];
   const nextTitle = updates.title ?? c.title;
   const slug = updates.title && updates.title !== c.title ? await generateUniqueSlug(nextTitle, id) : c.slug;
-  const nextContent = updates.contentHtml ?? c.content_html;
+  const nextContent = updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
 
   const rows = await sql`
@@ -533,6 +655,7 @@ export async function updateOwnArticle(
         content_html = ${nextContent},
         city_id = ${updates.cityId ?? c.city_id},
         category_id = ${updates.categoryId !== undefined ? updates.categoryId : c.category_id},
+        attraction_id = ${updates.attractionId !== undefined ? updates.attractionId : c.attraction_id},
         image = ${updates.image ?? c.image},
         image_alt = ${updates.imageAlt ?? c.image_alt},
         meta_title = ${updates.metaTitle ?? c.meta_title},
@@ -540,9 +663,6 @@ export async function updateOwnArticle(
         focus_keyword = ${updates.focusKeyword ?? c.focus_keyword},
         word_count = ${wordCount},
         reading_time_minutes = ${readingTimeMinutes},
-        status = 'pending',
-        submitted_at = COALESCE(submitted_at, now()),
-        reviewed_at = NULL,
         updated_at = now()
     WHERE id = ${id}
     RETURNING *
@@ -550,14 +670,31 @@ export async function updateOwnArticle(
   return rowToArticle(rows[0]);
 }
 
-// Admin review — sets a 0-10 quality score, optional written feedback, and
-// approves or rejects. A separate publishArticle() call is required to
-// actually put an approved article live (kept as two steps deliberately:
-// an admin can approve+score an article as "good enough" without it
-// appearing on the public site until they're ready to publish).
+// Admin explicitly claims an article for review — 'pending' -> 'under_review'.
+// Purely a workflow-visibility state (who's looking at what); approving or
+// rejecting works from either 'pending' or 'under_review'.
+export async function markUnderReview(id: string): Promise<Article> {
+  const rows = await sql`
+    UPDATE articles SET status = 'under_review', updated_at = now()
+    WHERE id = ${id} AND status = 'pending'
+    RETURNING *
+  `;
+  if (!rows.length) throw new Error("Article isn't awaiting review.");
+  return rowToArticle(rows[0]);
+}
+
+// Admin review — three possible decisions:
+//   'approved'           -> ready to schedule/publish
+//   'rejected'            -> hard rejection, contributor cannot resubmit
+//   'changes_requested'   -> softer than reject: contributor sees the
+//                            feedback and can edit + resubmit (goes back
+//                            through submitDraftForReview)
+// A separate publishArticle()/scheduleArticle() call is required to
+// actually put an approved article live — kept as separate steps
+// deliberately.
 export async function reviewArticle(
   id: string,
-  input: { status: "approved" | "rejected"; score: number | null; feedback: string }
+  input: { status: "approved" | "rejected" | "changes_requested"; score: number | null; feedback: string }
 ): Promise<Article> {
   const rows = await sql`
     UPDATE articles
@@ -576,31 +713,84 @@ export async function reviewArticle(
 export async function publishArticle(id: string): Promise<Article> {
   const rows = await sql`
     UPDATE articles
-    SET status = 'published', published_at = now(), updated_at = now()
-    WHERE id = ${id}
+    SET status = 'published', published_at = now(), scheduled_at = NULL, updated_at = now()
+    WHERE id = ${id} AND status IN ('approved', 'unpublished', 'scheduled')
     RETURNING *
   `;
-  if (!rows.length) throw new Error("Article not found.");
+  if (!rows.length) throw new Error("This article can't be published from its current status.");
   return rowToArticle(rows[0]);
 }
 
-// Pulls a published article back to "approved" — off the public site, but
-// keeps the score/feedback/review history intact (unlike reject, which is
-// meant for content that was never good enough to publish in the first
-// place). Used for e.g. "this needs an urgent correction."
+// Schedules an approved article for a future automatic publish — see
+// lib/scheduling.ts publishDueScheduledArticles() for the mechanism that
+// actually flips it live once the time comes.
+export async function scheduleArticle(id: string, scheduledAt: Date): Promise<Article> {
+  const rows = await sql`
+    UPDATE articles
+    SET status = 'scheduled', scheduled_at = ${scheduledAt.toISOString()}, updated_at = now()
+    WHERE id = ${id} AND status IN ('approved', 'unpublished')
+    RETURNING *
+  `;
+  if (!rows.length) throw new Error("Only an approved article can be scheduled.");
+  return rowToArticle(rows[0]);
+}
+
+// Cancels a pending schedule, returning the article to 'approved' so it
+// can be published immediately or rescheduled.
+export async function cancelSchedule(id: string): Promise<Article> {
+  const rows = await sql`
+    UPDATE articles
+    SET status = 'approved', scheduled_at = NULL, updated_at = now()
+    WHERE id = ${id} AND status = 'scheduled'
+    RETURNING *
+  `;
+  if (!rows.length) throw new Error("This article isn't currently scheduled.");
+  return rowToArticle(rows[0]);
+}
+
+// Pulls a published article back off the public site into a distinct
+// 'unpublished' state — kept separate from 'approved' so an article's
+// history honestly shows "this went live once, then was taken down"
+// rather than looking like it was never published. Score/feedback/review
+// history stay intact. publishArticle() accepts 'unpublished' as a valid
+// source status, so republishing needs no re-approval step.
 export async function unpublishArticle(id: string): Promise<Article> {
   const rows = await sql`
     UPDATE articles
-    SET status = 'approved', published_at = NULL, updated_at = now()
+    SET status = 'unpublished', published_at = NULL, updated_at = now()
+    WHERE id = ${id} AND status = 'published'
+    RETURNING *
+  `;
+  if (!rows.length) throw new Error("Article not found or not currently published.");
+  return rowToArticle(rows[0]);
+}
+
+// Admin-only editorial placement toggles (Featured / Trending / Editor's
+// Pick / Breaking) — independent of the review workflow, can be set on any
+// article regardless of status (an admin might mark something Featured
+// while still in draft, ready for the moment it publishes).
+export async function updateEditorialFlags(
+  id: string,
+  flags: { featured?: boolean; trending?: boolean; editorsPick?: boolean; breaking?: boolean }
+): Promise<Article> {
+  const current = await sql`SELECT * FROM articles WHERE id = ${id} LIMIT 1`;
+  if (!current.length) throw new Error("Article not found.");
+  const c = current[0];
+  const rows = await sql`
+    UPDATE articles
+    SET featured = ${flags.featured ?? c.featured},
+        trending = ${flags.trending ?? c.trending},
+        editors_pick = ${flags.editorsPick ?? c.editors_pick},
+        breaking = ${flags.breaking ?? c.breaking}
     WHERE id = ${id}
     RETURNING *
   `;
-  if (!rows.length) throw new Error("Article not found.");
   return rowToArticle(rows[0]);
 }
 
 // Full admin edit (any field, including moving an article to a different
-// city/category, fixing a contributor's content before publishing, etc.).
+// city/category/attraction, fixing a contributor's content before
+// publishing, etc.).
 export async function adminUpdateArticle(
   id: string,
   updates: {
@@ -609,6 +799,7 @@ export async function adminUpdateArticle(
     contentHtml?: string;
     cityId?: string;
     categoryId?: string | null;
+    attractionId?: string | null;
     image?: string;
     imageAlt?: string;
     metaTitle?: string;
@@ -641,7 +832,7 @@ export async function adminUpdateArticle(
     slug = await generateUniqueSlug(nextTitle, id);
   }
 
-  const nextContent = updates.contentHtml ?? c.content_html;
+  const nextContent = updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
 
   const rows = await sql`
@@ -652,6 +843,7 @@ export async function adminUpdateArticle(
         content_html = ${nextContent},
         city_id = ${updates.cityId ?? c.city_id},
         category_id = ${updates.categoryId !== undefined ? updates.categoryId : c.category_id},
+        attraction_id = ${updates.attractionId !== undefined ? updates.attractionId : c.attraction_id},
         image = ${updates.image ?? c.image},
         image_alt = ${updates.imageAlt ?? c.image_alt},
         meta_title = ${updates.metaTitle ?? c.meta_title},

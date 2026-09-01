@@ -11,6 +11,8 @@ export default function SeoSettingsForm({ initial }: { initial: SiteSettings }) 
     defaultMetaDescription: initial.defaultMetaDescription,
     defaultOgImage: initial.defaultOgImage,
     robotsDefault: initial.robotsDefault,
+    gaMeasurementId: initial.gaMeasurementId,
+    gscVerificationCode: initial.gscVerificationCode,
   });
   const [busy, setBusy] = useState(false);
 
@@ -66,6 +68,38 @@ export default function SeoSettingsForm({ initial }: { initial: SiteSettings }) 
           Applies only where a page doesn't already set its own robots directive. Dashboard and Admin pages are
           always noindex regardless of this setting.
         </p>
+      </div>
+
+      <div className="border-t border-ink-100 pt-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-ink-500">Analytics & Search Console</p>
+        <p className="mt-1 text-[11px] text-ink-400">
+          Optional — leave blank until you've created these in Google. Once set, they're wired into every public
+          page automatically (no code changes needed).
+        </p>
+        <div className="mt-3 space-y-3">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+              Google Analytics Measurement ID
+            </label>
+            <input
+              value={form.gaMeasurementId}
+              onChange={(e) => setForm({ ...form, gaMeasurementId: e.target.value.trim() })}
+              placeholder="G-XXXXXXXXXX"
+              className="mt-1.5 w-full max-w-xs rounded-md border border-ink-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+              Google Search Console Verification Code
+            </label>
+            <input
+              value={form.gscVerificationCode}
+              onChange={(e) => setForm({ ...form, gscVerificationCode: e.target.value.trim() })}
+              placeholder="Content value from the HTML tag verification method"
+              className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
       </div>
 
       <button

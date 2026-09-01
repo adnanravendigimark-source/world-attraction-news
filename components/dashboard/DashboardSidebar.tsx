@@ -9,6 +9,7 @@ const NAV = [
   { href: "/dashboard/articles", label: "My Articles", icon: "doc" },
   { href: "/dashboard/articles/new", label: "Write New Article", icon: "pencil" },
   { href: "/dashboard/points", label: "Points & Feedback", icon: "star" },
+  { href: "/dashboard/notifications", label: "Notifications", icon: "bell" },
   { href: "/dashboard/profile", label: "Profile & Account", icon: "user" },
 ] as const;
 
@@ -18,6 +19,7 @@ function NavIcon({ name }: { name: string }) {
     doc: "M7 3h7l5 5v13H7zM14 3v5h5M9 12h6M9 16h6",
     pencil: "M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3ZM14 6l4 4",
     star: "M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2L6.6 19.3l1.3-6L3.3 9.2l6.1-.6Z",
+    bell: "M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 6.5H4.5C4.5 13.5 6 12 6 8Z M10 19a2 2 0 0 0 4 0",
     user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0",
   };
   return (

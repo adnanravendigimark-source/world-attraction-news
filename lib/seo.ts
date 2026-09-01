@@ -101,6 +101,7 @@ export function newsArticleJsonLd(article: {
   image: string;
   path: string;
   authorName: string;
+  authorSlug?: string | null;
   publishedAt: string | null;
   updatedAt: string;
   cityName: string;
@@ -113,9 +114,25 @@ export function newsArticleJsonLd(article: {
     image: article.image ? [article.image] : undefined,
     datePublished: article.publishedAt || article.updatedAt,
     dateModified: article.updatedAt,
-    author: { "@type": "Person", name: article.authorName },
+    author: {
+      "@type": "Person",
+      name: article.authorName,
+      url: article.authorSlug ? `${SITE_URL}/author/${article.authorSlug}` : undefined,
+    },
     publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
     mainEntityOfPage: `${SITE_URL}${article.path}`,
     contentLocation: { "@type": "Place", name: article.cityName },
+  };
+}
+
+// Person schema for /author/[slug] pages.
+export function personJsonLd(author: { name: string; slug: string; bio: string; avatarUrl: string }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: author.name,
+    url: `${SITE_URL}/author/${author.slug}`,
+    description: author.bio || undefined,
+    image: author.avatarUrl || undefined,
   };
 }

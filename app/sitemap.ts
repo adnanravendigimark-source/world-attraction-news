@@ -3,14 +3,18 @@ import { SITE_URL } from "@/lib/site";
 import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
 import { getPublishedArticles } from "@/lib/articles";
+import { getAttractions } from "@/lib/attractions";
+import { getPublishedAuthorSlugs } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [cities, categories, articles] = await Promise.all([
+  const [cities, categories, articles, attractions, authorSlugs] = await Promise.all([
     getCities(),
     getCategories(),
     getPublishedArticles({ limit: 5000 }),
+    getAttractions(),
+    getPublishedAuthorSlugs(),
   ]);
 
   // /search is deliberately excluded — its content is entirely query-
@@ -30,16 +34,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/disclaimer`, changeFrequency: "yearly", priority: 0.1 },
   ];
 
-  const cityPages: MetadataRoute.Sitemap = cities.map((c) => ({
-    url: `${SITE_URL}/cities/${c.slug}`,
-    changeFrequency: "daily",
-    priority: 0.8,
-  }));
+  const cityPages: MetadataRoute.Sitemap = cities.flatMap((c) => [
+    { url: `${SITE_URL}/cities/${c.slug}`, changeFrequency: "daily" as const, priority: 0.8 },
+    { url: `${SITE_URL}/cities/${c.slug}/attractions`, changeFrequency: "weekly" as const, priority: 0.5 },
+  ]);
 
   const categoryPages: MetadataRoute.Sitemap = categories.map((c) => ({
     url: `${SITE_URL}/categories/${c.slug}`,
     changeFrequency: "daily",
     priority: 0.7,
+  }));
+
+  const attractionPages: MetadataRoute.Sitemap = attractions.map((a) => ({
+    url: `${SITE_URL}/cities/${a.citySlug}/attractions/${a.slug}`,
+    changeFrequency: "weekly",
+    priority: 0.6,
   }));
 
   const articlePages: MetadataRoute.Sitemap = articles.map((a) => ({
@@ -49,5 +58,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticPages, ...cityPages, ...categoryPages, ...articlePages];
+  const authorPages: MetadataRoute.Sitemap = authorSlugs.map((slug) => ({
+    url: `${SITE_URL}/author/${slug}`,
+    changeFrequency: "weekly",
+    priority: 0.4,
+  }));
+
+  return [...staticPages, ...cityPages, ...categoryPages, ...attractionPages, ...articlePages, ...authorPages];
 }

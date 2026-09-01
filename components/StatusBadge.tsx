@@ -1,10 +1,19 @@
 const STYLES: Record<string, string> = {
   draft: "bg-ink-100 text-ink-600 border-ink-200",
   pending: "bg-amber-50 text-amber-800 border-amber-200",
+  under_review: "bg-amber-50 text-amber-800 border-amber-200",
+  changes_requested: "bg-orange-50 text-orange-800 border-orange-200",
   approved: "bg-blue-50 text-blue-800 border-blue-200",
+  scheduled: "bg-purple-50 text-purple-800 border-purple-200",
   rejected: "bg-signal-light text-signal border-signal-border",
   published: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  unpublished: "bg-ink-100 text-ink-600 border-ink-200",
   suspended: "bg-orange-50 text-orange-800 border-orange-200",
+};
+
+const LABELS: Record<string, string> = {
+  under_review: "under review",
+  changes_requested: "changes requested",
 };
 
 // A checkmark on "approved"/"published" makes the already-final state
@@ -17,7 +26,7 @@ export default function StatusBadge({ status }: { status: string }) {
   const style = STYLES[status] || "bg-ink-100 text-ink-700 border-ink-200";
   return (
     <span className={`inline-block shrink-0 whitespace-nowrap rounded border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${style}`}>
-      {status}
+      {LABELS[status] || status}
       {SUFFIX[status] || ""}
     </span>
   );

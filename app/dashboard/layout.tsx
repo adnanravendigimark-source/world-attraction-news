@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { SITE_NAME } from "@/lib/site";
 import DashboardLogoutButton from "@/components/dashboard/DashboardLogoutButton";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
+import NotificationBell from "@/components/dashboard/NotificationBell";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -20,7 +21,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </span>
           </Link>
           {session ? (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <NotificationBell />
               <span className="hidden text-xs text-ink-500 sm:inline">{session.email}</span>
               <DashboardLogoutButton />
             </div>
