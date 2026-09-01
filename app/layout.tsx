@@ -6,25 +6,32 @@ import { organizationJsonLd } from "@/lib/seo";
 import { getSettings } from "@/lib/settings";
 import Providers from "@/components/Providers";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
-  description: SITE_DESCRIPTION,
-};
+// Async because the Search Console verification code is admin-configured
+// (fetched from the database) rather than hardcoded — using Next's own
+// `verification.google` metadata field (instead of a hand-written <head>
+// element in the layout below) keeps <head> fully under Next's control, so
+// the title/meta tags it generates stay consistent between server and
+// client render. A manually-added <head> JSX element here previously caused
+// a "Text content does not match server-rendered HTML" hydration error on
+// <title> — don't reintroduce one.
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSettings();
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+    description: SITE_DESCRIPTION,
+    verification: settings.gscVerificationCode ? { google: settings.gscVerificationCode } : undefined,
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  // Real, admin-configured values only — Google Analytics and Search
-  // Console verification are inert until an admin sets them at
-  // /admin/seo. No hardcoded or placeholder IDs are ever shipped.
+  // Real, admin-configured values only — Google Analytics is inert until an
+  // admin sets a Measurement ID at /admin/seo. No hardcoded or placeholder
+  // IDs are ever shipped.
   const settings = await getSettings();
 
   return (
     <html lang="en">
-      <head>
-        {settings.gscVerificationCode && (
-          <meta name="google-site-verification" content={settings.gscVerificationCode} />
-        )}
-      </head>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
         <script
