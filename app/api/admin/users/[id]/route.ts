@@ -35,6 +35,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       ? body.status
       : undefined;
 
+  // Server-side enforcement of the same rule the UI already hides behind
+  // (UsersTable.tsx / UserDetailPanel.tsx don't render an Approve/Reject
+  // button for an unverified pending account) — never trust the client
+  // alone for a real business rule like this.
+  if (nextStatus && nextStatus !== "pending" && target.status === "pending" && !target.emailVerified) {
+    return NextResponse.json(
+      { error: "This account hasn't verified its email yet, so it can't be approved or rejected." },
+      { status: 400 }
+    );
+  }
+
   try {
     const updated = await updateUser(params.id, {
       role: nextRole,

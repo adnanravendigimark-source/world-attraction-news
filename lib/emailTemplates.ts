@@ -194,6 +194,25 @@ export function welcomeEmailTemplate(input: { displayName: string; dashboardUrl:
   return { subject: `Welcome to ${SITE_NAME}`, html, text: htmlToText(html) };
 }
 
+export function verifyEmailTemplate(input: { displayName: string; verifyUrl: string }): RenderedEmail {
+  const heading = `Verify your email, ${input.displayName || "there"}`;
+  const bodyHtml =
+    paragraph(
+      `Thanks for applying to become a contributor at ${escapeHtml(SITE_NAME)}. Before your application can be reviewed, please confirm this is really your email address.`
+    ) +
+    paragraph(`Click the button below to verify. This link expires in <strong>24 hours</strong>.`) +
+    paragraph(`Once verified, your application goes to our editorial team for approval — we'll email you again once there's a decision.`) +
+    paragraph(`If you didn't apply for a contributor account, you can safely ignore this email.`);
+  const html = renderEmailLayout({
+    previewText: "Confirm your email to continue your contributor application.",
+    heading,
+    bodyHtml,
+    ctaLabel: "Verify Email Address",
+    ctaUrl: input.verifyUrl,
+  });
+  return { subject: `Verify your email — ${SITE_NAME}`, html, text: htmlToText(html) };
+}
+
 export function passwordResetEmailTemplate(input: { resetUrl: string }): RenderedEmail {
   const heading = "Reset your password";
   const bodyHtml =

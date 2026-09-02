@@ -107,6 +107,9 @@ async function createTables() {
       avatar_url TEXT NOT NULL DEFAULT '',
       reset_token TEXT,
       reset_token_expires TIMESTAMPTZ,
+      email_verified BOOLEAN NOT NULL DEFAULT false,
+      email_verify_token TEXT,
+      email_verify_token_expires TIMESTAMPTZ,
       last_login_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       approved_at TIMESTAMPTZ
@@ -484,6 +487,27 @@ async function createPhase6EventsTable() {
   await sql`CREATE INDEX IF NOT EXISTS events_date_idx ON events (event_date)`;
   await sql`CREATE INDEX IF NOT EXISTS events_city_idx ON events (city_id)`;
   console.log("Phase 6 table ready.");
+}
+
+// Email verification for password signups — a new contributor account
+// isn't shown to admins for approval until the person has clicked the
+// link in their verification email (Google signups skip this: Google
+// already verified the email before this app ever creates the account).
+//
+// Safe to run against a database that already has real users in it: the
+// column is added with DEFAULT true first (so every existing account —
+// which never had a "verify your email" step in the first place — reads
+// as already verified and isn't retroactively locked out), and only then
+// is the column default flipped to false so every NEW row from this point
+// forward starts unverified until the real registerContributor()/
+// findOrCreateGoogleUser() INSERTs explicitly set it.
+async function createPhase7EmailVerificationColumns() {
+  console.log("Ensuring Phase 7 (email verification) columns exist...");
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true`;
+  await sql`ALTER TABLE users ALTER COLUMN email_verified SET DEFAULT false`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token TEXT`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token_expires TIMESTAMPTZ`;
+  console.log("Phase 7 columns ready.");
 }
 
 // Every user row needs a unique slug for /author/[slug] — including
@@ -888,6 +912,7 @@ async function main() {
   await addPhase4Columns();
   await createPhase5SecurityTables();
   await createPhase6EventsTable();
+  await createPhase7EmailVerificationColumns();
   await backfillUserSlugs();
   await seedCities();
   await seedCategories();

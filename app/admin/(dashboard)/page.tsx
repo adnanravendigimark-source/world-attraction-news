@@ -55,8 +55,13 @@ export default async function AdminOverviewPage() {
   ]);
   const articles = [...nonDraftArticles, ...draftArticles];
 
+  // A password signup that hasn't clicked its verification link yet isn't
+  // "pending your review" — it isn't a real application yet, just an
+  // unconfirmed email address. Google signups are always emailVerified
+  // from the moment they're created (see lib/users.ts), so this only ever
+  // excludes unverified password accounts.
   const usersByStatus = {
-    pending: users.filter((u) => u.status === "pending").length,
+    pending: users.filter((u) => u.status === "pending" && u.emailVerified).length,
     approved: users.filter((u) => u.status === "approved").length,
     rejected: users.filter((u) => u.status === "rejected").length,
     suspended: users.filter((u) => u.status === "suspended").length,
@@ -78,7 +83,7 @@ export default async function AdminOverviewPage() {
     .filter((a) => a.status === "published")
     .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
     .slice(0, 5);
-  const pendingUsers = users.filter((u) => u.status === "pending").slice(0, 5);
+  const pendingUsers = users.filter((u) => u.status === "pending" && u.emailVerified).slice(0, 5);
 
   return (
     <div className="space-y-8">

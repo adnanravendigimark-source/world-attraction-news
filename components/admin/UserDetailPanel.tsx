@@ -10,7 +10,7 @@ import { useToast } from "@/components/ToastProvider";
 // Same rules as components/admin/UsersTable.tsx — an already-approved user
 // only ever gets Suspend (never Reject again); kept as a small local
 // function here rather than a shared import since it's pure and trivial.
-function actionsFor(status: string): {
+function actionsFor(status: string, emailVerified: boolean): {
   label: string;
   nextStatus: string;
   className: string;
@@ -19,6 +19,9 @@ function actionsFor(status: string): {
 }[] {
   switch (status) {
     case "pending":
+      // Same email-verification gate as UsersTable.tsx — an unconfirmed
+      // signup isn't a real application to approve or reject yet.
+      if (!emailVerified) return [];
       return [
         {
           label: "Approve",
@@ -152,8 +155,14 @@ export default function UserDetailPanel({ user: initialUser }: { user: SafeUser 
         <StatusBadge status={user.status} />
       </div>
 
+      {user.status === "pending" && !user.emailVerified && (
+        <p className="mt-3 rounded-lg border border-dashed border-ink-300 bg-paper-50 px-3 py-2 text-xs text-ink-500">
+          Awaiting email verification — this application won't be reviewable until they confirm their email address.
+        </p>
+      )}
+
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {actionsFor(user.status).map((a) => (
+        {actionsFor(user.status, user.emailVerified).map((a) => (
           <button
             key={a.label}
             disabled={busy}

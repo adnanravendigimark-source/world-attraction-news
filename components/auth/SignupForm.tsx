@@ -3,9 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import GoogleButton from "./GoogleButton";
+import Turnstile from "@/components/Turnstile";
+
+const TURNSTILE_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export default function SignupForm() {
   const [form, setForm] = useState({ displayName: "", email: "", password: "", bio: "" });
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -18,7 +22,7 @@ export default function SignupForm() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, turnstileToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
@@ -34,9 +38,10 @@ export default function SignupForm() {
     return (
       <div className="text-center">
         <p className="text-2xl">✅</p>
-        <h2 className="mt-2 text-base font-bold text-ink-900">Application received</h2>
+        <h2 className="mt-2 text-base font-bold text-ink-900">Check your email</h2>
         <p className="mt-2 text-sm text-ink-600">
-          Your account is pending admin approval. You'll be able to log in once it's approved.
+          We sent a verification link to <strong>{form.email}</strong>. Click it to confirm your address — your
+          application goes to our editorial team for approval right after.
         </p>
         <Link href="/login" className="mt-4 inline-block text-sm font-semibold text-signal hover:underline">
           Go to Log In →
@@ -102,9 +107,13 @@ export default function SignupForm() {
           />
         </div>
 
+        {TURNSTILE_ENABLED && (
+          <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
+        )}
+
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || (TURNSTILE_ENABLED && !turnstileToken)}
           className="w-full rounded-md bg-signal py-2.5 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
         >
           {submitting ? "Submitting..." : "Submit Application"}

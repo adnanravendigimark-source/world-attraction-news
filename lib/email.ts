@@ -14,6 +14,7 @@ import { Resend } from "resend";
 import { SITE_NAME, CONTACT_EMAIL } from "./site";
 import {
   welcomeEmailTemplate,
+  verifyEmailTemplate,
   passwordResetEmailTemplate,
   articleSubmittedEmailTemplate,
   articleApprovedEmailTemplate,
@@ -96,6 +97,15 @@ async function sendRendered(to: string, rendered: RenderedEmail, replyTo?: strin
 
 export async function sendWelcomeEmail(to: string, displayName: string): Promise<boolean> {
   return sendRendered(to, welcomeEmailTemplate({ displayName, dashboardUrl: "/login" }));
+}
+
+// Sent right after password signup, in place of sendWelcomeEmail — the
+// "pending approval" welcome email only goes out once they've actually
+// verified via this link (see /api/auth/verify-email, which calls
+// sendWelcomeEmail itself once the token is consumed). Google signups
+// never need this — see findOrCreateGoogleUser in lib/users.ts.
+export async function sendVerifyEmail(to: string, input: { displayName: string; verifyUrl: string }): Promise<boolean> {
+  return sendRendered(to, verifyEmailTemplate(input));
 }
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {

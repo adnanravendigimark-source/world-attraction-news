@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { registerContributor } from "@/lib/users";
-import { sendWelcomeEmail } from "@/lib/email";
+import { registerContributor, setEmailVerifyToken } from "@/lib/users";
+import { sendVerifyEmail } from "@/lib/email";
+import { generateVerifyToken } from "@/lib/tokens";
+import { turnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
 import { dbErrorMessage } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
@@ -9,6 +11,14 @@ export const dynamic = "force-dynamic";
 // Public contributor signup — always creates role "contributor", status
 // "pending". There is no way to reach role "admin" through this endpoint;
 // admins can only be promoted from the Admin Panel by an existing admin.
+//
+// Password signups additionally require email verification before an
+// admin ever sees the application (see lib/users.ts's emailVerified
+// column and /api/auth/verify-email) — this route creates the account,
+// generates a verify token, and emails a verify link instead of the
+// "you're pending approval" welcome email; that welcome email only goes
+// out once the link is clicked. Google signups skip all of this, since
+// Google already verified the email before the account was ever created.
 export async function POST(req: Request) {
   // Limits automated mass account creation — 5 signups per hour per IP.
   const ip = getClientIp(req);
@@ -27,6 +37,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
+  if (turnstileConfigured()) {
+    const verified = await verifyTurnstileToken(body.turnstileToken, ip);
+    if (!verified) {
+      return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
+    }
+  }
+
   const email = (body.email || "").trim();
   const password = body.password || "";
   const displayName = (body.displayName || "").trim();
@@ -42,8 +59,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Enter your name." }, { status: 400 });
   }
 
+  let user;
   try {
-    await registerContributor({ email, password, displayName, bio });
+    user = await registerContributor({ email, password, displayName, bio });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (message.includes("already exists")) {
@@ -53,12 +71,16 @@ export async function POST(req: Request) {
   }
 
   // Fire only after the account row exists. Never allowed to fail the
-  // signup response itself — sendWelcomeEmail already never throws, but
+  // signup response itself — sendVerifyEmail already never throws, but
   // this extra try/catch is defense in depth.
   try {
-    await sendWelcomeEmail(email, displayName);
+    const { raw, hash, expiresAt } = generateVerifyToken();
+    await setEmailVerifyToken(user.id, hash, expiresAt);
+    const appUrl = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+    const verifyUrl = `${appUrl}/verify-email?token=${raw}`;
+    await sendVerifyEmail(email, { displayName, verifyUrl });
   } catch (err) {
-    console.error("[signup] welcome email failed:", err);
+    console.error("[signup] verify email failed:", err);
   }
 
   return NextResponse.json({ ok: true });

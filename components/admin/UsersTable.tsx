@@ -13,7 +13,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function actionsFor(status: string): {
+function actionsFor(status: string, emailVerified: boolean): {
   label: string;
   nextStatus: string;
   className: string;
@@ -22,6 +22,11 @@ function actionsFor(status: string): {
 }[] {
   switch (status) {
     case "pending":
+      // Not shown to admins as a reviewable application until the person
+      // has clicked the verification link in their signup email (see
+      // lib/users.ts's emailVerified column) — approving/rejecting an
+      // unconfirmed email address isn't a real decision to make yet.
+      if (!emailVerified) return [];
       return [
         {
           label: "Approve Writer",
@@ -166,6 +171,12 @@ function UserRow({
         </div>
       </div>
 
+      {user.status === "pending" && !user.emailVerified && (
+        <p className="rounded-lg border border-dashed border-ink-300 bg-paper-50 px-3 py-2 text-xs text-ink-500">
+          Awaiting email verification — this application won't be reviewable until they confirm their email address.
+        </p>
+      )}
+
       {user.bio && (
         <p className="text-xs text-ink-700 bg-paper-50 p-3 rounded-lg border border-ink-100 leading-relaxed">
           {user.bio}
@@ -178,7 +189,7 @@ function UserRow({
       </p>
 
       <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-ink-100">
-        {actionsFor(user.status).map((a) => (
+        {actionsFor(user.status, user.emailVerified).map((a) => (
           <button
             key={a.label}
             disabled={busy}

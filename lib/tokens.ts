@@ -15,6 +15,17 @@ export function hashResetToken(raw: string): string {
   return crypto.createHash("sha256").update(raw).digest("hex");
 }
 
+// Email-verification tokens for password signups — same shape and same
+// "only the hash is ever stored" principle as the reset token above, just
+// a longer expiry since verifying isn't as time-sensitive as a password
+// reset (someone might not check their inbox for a day).
+export function generateVerifyToken(): { raw: string; hash: string; expiresAt: Date } {
+  const raw = crypto.randomBytes(32).toString("hex");
+  const hash = crypto.createHash("sha256").update(raw).digest("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  return { raw, hash, expiresAt };
+}
+
 // Random, unguessable value used as the Google OAuth `state` parameter —
 // stored in a short-lived cookie and compared to what Google echoes back
 // on the callback, so a callback request that didn't originate from our

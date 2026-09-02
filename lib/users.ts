@@ -1,5 +1,8 @@
 import { sql } from "./db";
 import { hashPassword, verifyPassword } from "./passwords";
+// hashResetToken is a generic SHA-256 hash, reused as-is for
+// email-verification tokens too (see consumeEmailVerifyToken below) — no
+// need for a second, functionally-identical hashing helper.
 import { hashResetToken } from "./tokens";
 
 export type UserRole = "admin" | "contributor";
@@ -24,6 +27,7 @@ export interface User {
   authProvider: AuthProvider;
   googleId: string | null;
   avatarUrl: string;
+  emailVerified: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   approvedAt: string | null;
@@ -43,6 +47,7 @@ export interface SafeUser {
   authProvider: AuthProvider;
   googleId: string | null;
   avatarUrl: string;
+  emailVerified: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   approvedAt: string | null;
@@ -73,6 +78,7 @@ function rowToUser(row: any): User {
     authProvider: (row.auth_provider as AuthProvider) || "password",
     googleId: row.google_id,
     avatarUrl: row.avatar_url || "",
+    emailVerified: Boolean(row.email_verified),
     lastLoginAt: row.last_login_at
       ? row.last_login_at instanceof Date
         ? row.last_login_at.toISOString()
@@ -214,10 +220,16 @@ export async function findOrCreateGoogleUser(profile: {
 
   const byEmail = await findUserByEmail(profile.email);
   if (byEmail) {
+    // Google has already verified this email address, so linking a Google
+    // ID to an existing password-based account (which may still be
+    // unverified, e.g. they never clicked the link) is itself sufficient
+    // proof — mark it verified here too rather than leaving them stuck
+    // behind a verification email they no longer need.
     const rows = await sql`
       UPDATE users
       SET google_id = ${profile.googleId},
-          avatar_url = CASE WHEN avatar_url = '' THEN ${profile.avatarUrl} ELSE avatar_url END
+          avatar_url = CASE WHEN avatar_url = '' THEN ${profile.avatarUrl} ELSE avatar_url END,
+          email_verified = true
       WHERE id = ${byEmail.id}
       RETURNING *
     `;
@@ -226,8 +238,8 @@ export async function findOrCreateGoogleUser(profile: {
 
   const slug = await generateUniqueUserSlug(profile.name, profile.email);
   const rows = await sql`
-    INSERT INTO users (email, password_hash, role, status, display_name, bio, auth_provider, google_id, avatar_url, slug)
-    VALUES (${profile.email}, NULL, 'contributor', 'pending', ${profile.name || profile.email}, '', 'google', ${profile.googleId}, ${profile.avatarUrl}, ${slug})
+    INSERT INTO users (email, password_hash, role, status, display_name, bio, auth_provider, google_id, avatar_url, slug, email_verified)
+    VALUES (${profile.email}, NULL, 'contributor', 'pending', ${profile.name || profile.email}, '', 'google', ${profile.googleId}, ${profile.avatarUrl}, ${slug}, true)
     RETURNING *
   `;
   return { user: rowToUser(rows[0]), isNewAccount: true };
@@ -364,4 +376,37 @@ export async function consumePasswordResetToken(rawToken: string, newPassword: s
     WHERE id = ${rows[0].id}
   `;
   return true;
+}
+
+// --- Email verification ---------------------------------------------------
+// Password signups aren't shown to admins for approval until this
+// completes (see the emailVerified filtering in the Admin Panel's Overview
+// and Users pages) — Google signups skip it entirely since Google already
+// verified the email (see findOrCreateGoogleUser above).
+
+// Called right after registerContributor() with the id it just returned —
+// unlike setPasswordResetToken, no re-lookup-by-email is needed since the
+// caller already has the fresh user row.
+export async function setEmailVerifyToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+  await sql`
+    UPDATE users SET email_verify_token = ${tokenHash}, email_verify_token_expires = ${expiresAt.toISOString()}
+    WHERE id = ${userId}
+  `;
+}
+
+export async function consumeEmailVerifyToken(rawToken: string): Promise<SafeUser | undefined> {
+  const tokenHash = hashResetToken(rawToken);
+  const rows = await sql`
+    SELECT * FROM users
+    WHERE email_verify_token = ${tokenHash} AND email_verify_token_expires > now()
+    LIMIT 1
+  `;
+  if (!rows.length) return undefined;
+  const updated = await sql`
+    UPDATE users
+    SET email_verified = true, email_verify_token = NULL, email_verify_token_expires = NULL
+    WHERE id = ${rows[0].id}
+    RETURNING *
+  `;
+  return toSafe(rowToUser(updated[0]));
 }

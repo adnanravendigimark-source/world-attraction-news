@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSessionToken, SESSION_COOKIE_NAME, type Session } from "@/lib/auth";
 import { verifyUserCredentials, findUserByEmail, touchLastLogin } from "@/lib/users";
+import { turnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
 import { DB_ERROR_MESSAGE } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
@@ -26,12 +27,21 @@ export async function POST(req: Request) {
 
   let email = "";
   let password = "";
+  let turnstileToken = "";
   try {
     const body = await req.json();
     email = (body.email || "").trim();
     password = body.password || "";
+    turnstileToken = body.turnstileToken || "";
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  if (turnstileConfigured()) {
+    const verified = await verifyTurnstileToken(turnstileToken, ip);
+    if (!verified) {
+      return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
+    }
   }
 
   let user;
@@ -57,6 +67,17 @@ export async function POST(req: Request) {
   }
 
   if (user.status === "pending") {
+    // A password account that hasn't clicked its verification link yet
+    // never even reaches an admin's queue (see the emailVerified filtering
+    // in the Admin Panel) — so "awaiting admin approval" would be
+    // misleading here. Google accounts are always emailVerified from the
+    // moment they're created, so they never hit this branch.
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        { error: "Please verify your email first — check your inbox for the verification link we sent when you signed up." },
+        { status: 403 }
+      );
+    }
     return NextResponse.json(
       { error: "Your account is still awaiting admin approval. You'll be able to log in once it's approved." },
       { status: 403 }
