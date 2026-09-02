@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Container from "@/components/Container";
+import NewsletterForm from "@/components/NewsletterForm";
+import EmptyState from "@/components/EmptyState";
 
 export interface DestinationCity {
   id: string;
@@ -18,118 +20,27 @@ export interface DestinationCity {
   isPopular?: boolean;
 }
 
-const DEFAULT_DESTINATIONS: DestinationCity[] = [
-  {
-    id: "barcelona",
-    slug: "barcelona",
-    name: "Barcelona",
-    country: "Spain",
-    region: "Europe",
-    intro:
-      "News and visitor updates from Barcelona's landmark attractions, museums, and parks — from Gaudi's Sagrada Familia to Park Güell.",
-    heroImage: "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=800&q=80",
-    articleCount: 28,
-    isPopular: true,
-  },
-  {
-    id: "amsterdam",
-    slug: "amsterdam",
-    name: "Amsterdam",
-    country: "Netherlands",
-    region: "Europe",
-    intro:
-      "News and visitor updates from Amsterdam's museums and canal-side attractions — the Anne Frank House, Van Gogh Museum, and historic waterways.",
-    heroImage: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?auto=format&fit=crop&w=800&q=80",
-    articleCount: 22,
-  },
-  {
-    id: "paris",
-    slug: "paris",
-    name: "Paris",
-    country: "France",
-    region: "Europe",
-    intro:
-      "News and visitor updates from Paris's landmark attractions — the Eiffel Tower, the Louvre, Disneyland Paris, and historic palaces.",
-    heroImage: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
-    articleCount: 20,
-  },
-  {
-    id: "rome",
-    slug: "rome",
-    name: "Rome",
-    country: "Italy",
-    region: "Europe",
-    intro:
-      "News and visitor updates from Rome's ancient sites and museums — the Colosseum, the Roman Forum, Vatican City, and iconic fountains.",
-    heroImage: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=800&q=80",
-    articleCount: 18,
-  },
-  {
-    id: "london",
-    slug: "london",
-    name: "London",
-    country: "United Kingdom",
-    region: "Europe",
-    intro:
-      "News and visitor updates from London's landmark attractions — the Tower of London, the British Museum, London Eye, and West End theatres.",
-    heroImage: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80",
-    articleCount: 17,
-  },
-  {
-    id: "orlando",
-    slug: "orlando",
-    name: "Orlando",
-    country: "United States",
-    region: "North America",
-    intro:
-      "Theme park capital of the world, home to Walt Disney World, Universal Orlando Resort, Epic Universe, and SeaWorld.",
-    heroImage: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&q=80",
-    articleCount: 34,
-    isPopular: true,
-  },
-  {
-    id: "tokyo",
-    slug: "tokyo",
-    name: "Tokyo",
-    country: "Japan",
-    region: "Asia",
-    intro:
-      "Cutting-edge theme parks and cultural attractions including Tokyo Disneyland, Tokyo DisneySea, and Studio Ghibli Museum.",
-    heroImage: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=800&q=80",
-    articleCount: 15,
-  },
-  {
-    id: "singapore",
-    slug: "singapore",
-    name: "Singapore",
-    country: "Singapore",
-    region: "Asia",
-    intro:
-      "World-class gardens and entertainment hubs including Gardens by the Bay, Universal Studios Singapore, and Jewel Changi.",
-    heroImage: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=800&q=80",
-    articleCount: 12,
-  },
-  {
-    id: "dubai",
-    slug: "dubai",
-    name: "Dubai",
-    country: "United Arab Emirates",
-    region: "Asia",
-    intro:
-      "Architectural marvels and mega theme parks including Burj Khalifa, Dubai Parks and Resorts, and Museum of the Future.",
-    heroImage: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=800&q=80",
-    articleCount: 14,
-  },
-];
+// Real country -> continent lookup used only to group the site's actual
+// cities for the region filter — not fabricated destination data. Any
+// country not listed here falls back to "Other" rather than being silently
+// (and incorrectly) lumped into Europe.
+const COUNTRY_TO_REGION: Record<string, string> = {
+  Spain: "Europe", France: "Europe", Italy: "Europe", "United Kingdom": "Europe",
+  Netherlands: "Europe", Germany: "Europe", Portugal: "Europe", Greece: "Europe",
+  Austria: "Europe", Switzerland: "Europe", Belgium: "Europe", Ireland: "Europe",
+  "United States": "North America", Canada: "North America", Mexico: "North America",
+  Japan: "Asia", Singapore: "Asia", "United Arab Emirates": "Asia", China: "Asia",
+  Thailand: "Asia", "South Korea": "Asia", India: "Asia", Indonesia: "Asia",
+  Brazil: "South America", Argentina: "South America", Peru: "South America", Chile: "South America",
+  Australia: "Oceania", "New Zealand": "Oceania",
+  Egypt: "Africa", Morocco: "Africa", "South Africa": "Africa", Kenya: "Africa",
+};
 
-const REGIONS = [
-  { id: "Europe", label: "Europe", count: 5 },
-  { id: "North America", label: "North America", count: 1 },
-  { id: "Asia", label: "Asia", count: 3 },
-  { id: "South America", label: "South America", count: 0 },
-  { id: "Oceania", label: "Oceania", count: 0 },
-  { id: "Africa", label: "Africa", count: 0 },
-];
+function regionForCountry(country: string): string {
+  return COUNTRY_TO_REGION[country] || "Other";
+}
+
+const REGION_ORDER = ["Europe", "North America", "Asia", "South America", "Oceania", "Africa", "Other"];
 
 export default function DestinationsClient({
   dbCities = [],
@@ -139,16 +50,19 @@ export default function DestinationsClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("popular");
-  const [subscribed, setSubscribed] = useState(false);
 
-  // Combine db cities with mock items if db has fewer items
-  const allDestinations = dbCities.length > 0
-    ? dbCities.map((c) => ({
-        ...c,
-        region: c.region || (c.country === "United States" ? "North America" : c.country === "Japan" || c.country === "Singapore" || c.country === "United Arab Emirates" ? "Asia" : "Europe"),
-        articleCount: c.articleCount || 12,
-      }))
-    : DEFAULT_DESTINATIONS;
+  const allDestinations = useMemo(
+    () => dbCities.map((c) => ({ ...c, region: c.region || regionForCountry(c.country) })),
+    [dbCities]
+  );
+
+  // Real counts computed from the actual city list — no static/fabricated
+  // numbers.
+  const regions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const d of allDestinations) counts.set(d.region, (counts.get(d.region) || 0) + 1);
+    return REGION_ORDER.filter((r) => counts.has(r)).map((r) => ({ id: r, label: r, count: counts.get(r) || 0 }));
+  }, [allDestinations]);
 
   const toggleRegion = (regionId: string) => {
     setSelectedRegions((prev) =>
@@ -156,22 +70,34 @@ export default function DestinationsClient({
     );
   };
 
-  const filteredDestinations = allDestinations.filter((d) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!d.name.toLowerCase().includes(q) && !d.country.toLowerCase().includes(q)) {
+  const filteredDestinations = useMemo(() => {
+    const filtered = allDestinations.filter((d) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!d.name.toLowerCase().includes(q) && !d.country.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      if (selectedRegions.length > 0 && !selectedRegions.includes(d.region)) {
         return false;
       }
-    }
-    if (selectedRegions.length > 0 && d.region) {
-      if (!selectedRegions.includes(d.region)) {
-        return false;
-      }
-    }
-    return true;
-  });
+      return true;
+    });
 
-  const totalDispatches = allDestinations.reduce((acc, curr) => acc + (curr.articleCount || 0), 0);
+    const sorted = [...filtered];
+    if (sortBy === "alpha") {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === "dispatches") {
+      sorted.sort((a, b) => (b.articleCount || 0) - (a.articleCount || 0));
+    } else {
+      // "popular" — admin-featured cities first, then by real article count.
+      sorted.sort((a, b) => {
+        if (Boolean(b.isPopular) !== Boolean(a.isPopular)) return b.isPopular ? 1 : -1;
+        return (b.articleCount || 0) - (a.articleCount || 0);
+      });
+    }
+    return sorted;
+  }, [allDestinations, searchQuery, selectedRegions, sortBy]);
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527] pb-16">
@@ -221,32 +147,9 @@ export default function DestinationsClient({
               <p className="mt-1 text-[11px] text-slate-500 leading-normal">
                 Stay updated on city guides, theme park openings, and travel updates.
               </p>
-              {subscribed ? (
-                <div className="mt-2.5 p-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded text-center">
-                  ✓ Subscribed successfully!
-                </div>
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setSubscribed(true);
-                  }}
-                  className="mt-2.5 flex gap-1.5"
-                >
-                  <input
-                    type="email"
-                    required
-                    placeholder="Enter your email"
-                    className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-md bg-[#DC2626] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
-                  >
-                    SUBSCRIBE
-                  </button>
-                </form>
-              )}
+              <div className="mt-2.5">
+                <NewsletterForm source="destinations" variant="light" />
+              </div>
             </div>
           </div>
         </Container>
@@ -302,7 +205,7 @@ export default function DestinationsClient({
                     Filter by Region
                   </h3>
                   <div className="space-y-2">
-                    {REGIONS.map((r) => (
+                    {regions.map((r) => (
                       <label key={r.id} className="flex items-center justify-between text-xs text-slate-700 cursor-pointer hover:text-slate-900">
                         <div className="flex items-center gap-2">
                           <input
@@ -362,6 +265,12 @@ export default function DestinationsClient({
               </div>
 
               {/* Grid */}
+              {filteredDestinations.length === 0 ? (
+                <EmptyState
+                  title="No destinations match your filters"
+                  description="Try a different search term or clear the region filter."
+                />
+              ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredDestinations.map((city) => (
                   <div
@@ -370,12 +279,19 @@ export default function DestinationsClient({
                   >
                     {/* Photo with Overlay */}
                     <div className="relative h-48 w-full overflow-hidden bg-slate-900">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={city.heroImage || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80"}
-                        alt={city.heroImageAlt || city.name}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
+                      {city.heroImage ? (
+                        <Image
+                          src={city.heroImage}
+                          alt={city.heroImageAlt || city.name}
+                          fill
+                          sizes="(min-width: 1024px) 33vw, 50vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-[#0B1527] text-xs font-semibold text-white/40">
+                          No image
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
                       {/* Badges */}
@@ -388,7 +304,7 @@ export default function DestinationsClient({
                           <span />
                         )}
                         <span className="rounded-full bg-black/60 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-white border border-white/10">
-                          {city.articleCount || 15} dispatches
+                          {city.articleCount ?? 0} {city.articleCount === 1 ? "dispatch" : "dispatches"}
                         </span>
                       </div>
 
@@ -422,6 +338,7 @@ export default function DestinationsClient({
                   </div>
                 ))}
               </div>
+              )}
             </div>
           </div>
         </Container>
@@ -449,32 +366,9 @@ export default function DestinationsClient({
             </div>
 
             {/* Right Form */}
-            {subscribed ? (
-              <div className="p-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg text-center px-4">
-                ✓ Subscribed to destination dispatches!
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSubscribed(true);
-                }}
-                className="flex w-full md:w-auto items-center gap-2"
-              >
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter your email address"
-                  className="w-full md:w-72 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="rounded-lg bg-[#DC2626] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm shrink-0"
-                >
-                  SUBSCRIBE
-                </button>
-              </form>
-            )}
+            <div className="w-full md:w-auto">
+              <NewsletterForm source="destinations-footer" variant="light" />
+            </div>
           </div>
         </Container>
       </section>

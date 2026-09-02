@@ -1,30 +1,35 @@
 import type { Metadata } from "next";
-import LatestNewsClient, { ArticleItem } from "./LatestNewsClient";
-import { getPublishedArticlesPage } from "@/lib/articles";
+import LatestNewsClient from "./LatestNewsClient";
+import { getPublishedArticlesPage, getTrendingArticles, type ArticleSort } from "@/lib/articles";
+import { getCitiesWithArticleCounts } from "@/lib/cities";
+import { getCategories } from "@/lib/categories";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return "May 14, 2025";
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(new Date(iso));
-  } catch {
-    return "May 14, 2025";
-  }
+export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 10;
+
+interface LatestNewsSearchParams {
+  city?: string;
+  category?: string;
+  q?: string;
+  page?: string;
+  sort?: string;
 }
 
-export const dynamic = "force-dynamic";
+function toSort(value: string | undefined): ArticleSort {
+  return value === "oldest" || value === "popular" ? value : "latest";
+}
 
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: { city?: string; category?: string; q?: string; page?: string };
+  searchParams: LatestNewsSearchParams;
 }): Promise<Metadata> {
-  const isFiltered = Boolean(searchParams?.city || searchParams?.category || searchParams?.q || (searchParams?.page && searchParams.page !== "1"));
+  const isFiltered = Boolean(
+    searchParams?.city || searchParams?.category || searchParams?.q || (searchParams?.page && searchParams.page !== "1")
+  );
   return buildMetadata({
     title: `Latest News — Real-Time Attraction News & Openings | ${SITE_NAME}`,
     description: "Stay updated with real-time attraction news, openings, ticket updates, and travel stories from around the world.",
@@ -41,37 +46,42 @@ const breadcrumbs = [
 export default async function LatestNewsPage({
   searchParams,
 }: {
-  searchParams: { city?: string; category?: string; q?: string; page?: string };
+  searchParams: LatestNewsSearchParams;
 }) {
   const page = Math.max(1, Number(searchParams?.page) || 1);
-  const result = await getPublishedArticlesPage({
-    citySlug: searchParams?.city,
-    categorySlug: searchParams?.category,
-    query: searchParams?.q,
-    page,
-    pageSize: 10,
-  });
+  const sort = toSort(searchParams?.sort);
 
-  const { articles, total } = result;
-
-  const mappedArticles: ArticleItem[] = articles.map((a) => ({
-    id: a.id,
-    slug: a.slug,
-    citySlug: a.citySlug,
-    cityName: a.cityName?.toUpperCase() || "THEME PARKS",
-    categoryName: a.categoryName?.toUpperCase() || "LATEST WIRE",
-    title: a.title,
-    excerpt: a.excerpt,
-    authorName: a.authorName || "Attraction News Team",
-    publishedAt: formatDate(a.publishedAt),
-    readingTimeMinutes: a.readingTimeMinutes || 3,
-    image: a.image || undefined,
-    imageAlt: a.imageAlt || a.title,
-  }));
+  const [result, trending, cities, categories] = await Promise.all([
+    getPublishedArticlesPage({
+      citySlug: searchParams?.city,
+      categorySlug: searchParams?.category,
+      query: searchParams?.q,
+      page,
+      pageSize: PAGE_SIZE,
+      sort,
+    }),
+    getTrendingArticles(5),
+    getCitiesWithArticleCounts(),
+    getCategories(),
+  ]);
 
   return (
     <>
-      <LatestNewsClient initialArticles={mappedArticles} totalCount={total} />
+      <LatestNewsClient
+        articles={result.articles}
+        total={result.total}
+        page={result.page}
+        totalPages={result.totalPages}
+        trending={trending}
+        cities={cities.map((c) => ({ slug: c.slug, name: c.name }))}
+        categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
+        currentFilters={{
+          city: searchParams?.city || "",
+          category: searchParams?.category || "",
+          q: searchParams?.q || "",
+          sort,
+        }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(breadcrumbs)) }}

@@ -268,6 +268,8 @@ export async function getRelatedByAttractionPublishedArticles(
 // Paginated published-article listing — used by /latest-news and
 // /categories/[slug], which both need a real total count for "page X of Y"
 // / "load more" rather than just a capped list.
+export type ArticleSort = "latest" | "oldest" | "popular";
+
 export async function getPublishedArticlesPage(opts: {
   citySlug?: string;
   categorySlug?: string;
@@ -275,6 +277,7 @@ export async function getPublishedArticlesPage(opts: {
   query?: string;
   page?: number;
   pageSize?: number;
+  sort?: ArticleSort;
 } = {}): Promise<{ articles: ArticleWithRelations[]; total: number; page: number; pageSize: number; totalPages: number }> {
   const page = Math.max(1, opts.page ?? 1);
   const pageSize = opts.pageSize ?? 12;
@@ -311,8 +314,19 @@ export async function getPublishedArticlesPage(opts: {
     const countRows = await sql(countQuery, params);
     const total = countRows[0]?.count ?? 0;
 
+    // "popular" ranks by the same honest, real signals used elsewhere on the
+    // site (real view count, then the admin's own quality score) rather than
+    // a fabricated popularity number — see getTrendingArticles() above for
+    // the same philosophy.
+    const orderBy =
+      opts.sort === "oldest"
+        ? "a.published_at ASC"
+        : opts.sort === "popular"
+        ? "a.view_count DESC, a.score DESC NULLS LAST, a.published_at DESC"
+        : "a.published_at DESC";
+
     const pageParams = [...params, pageSize, (page - 1) * pageSize];
-    const query = `${JOIN_SELECT} WHERE ${where} ORDER BY a.published_at DESC LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`;
+    const query = `${JOIN_SELECT} WHERE ${where} ORDER BY ${orderBy} LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`;
     const rows = await sql(query, pageParams);
 
     return { articles: rows.map(rowToArticleWithRelations), total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
