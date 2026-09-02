@@ -285,19 +285,23 @@ export async function updateUser(
   return toSafe(rowToUser(rows[0]));
 }
 
-// Self-service profile update (display name + bio only) — a contributor
-// editing their own account from /dashboard/profile. Never touches role,
-// status, or email — those stay admin/signup-only.
+// Self-service profile update (display name + bio + avatar) — a
+// contributor editing their own account from /dashboard/profile. Never
+// touches role, status, or email — those stay admin/signup-only.
+// avatarUrl is `undefined` to mean "leave unchanged" (matches
+// displayName/bio's own convention here) — pass an empty string to
+// explicitly clear it back to no avatar.
 export async function updateOwnProfile(
   id: string,
-  updates: { displayName?: string; bio?: string }
+  updates: { displayName?: string; bio?: string; avatarUrl?: string }
 ): Promise<SafeUser> {
   const current = await findUserById(id);
   if (!current) throw new Error("User not found.");
   const rows = await sql`
     UPDATE users
     SET display_name = ${updates.displayName ?? current.displayName},
-        bio = ${updates.bio ?? current.bio}
+        bio = ${updates.bio ?? current.bio},
+        avatar_url = ${updates.avatarUrl !== undefined ? updates.avatarUrl : current.avatarUrl}
     WHERE id = ${id}
     RETURNING *
   `;

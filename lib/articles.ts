@@ -906,7 +906,18 @@ export interface PointsSummary {
 }
 
 export function summarizePoints(articles: Article[]): PointsSummary {
-  const scored = articles.filter((a) => a.score !== null);
+  // Only counts a score while it still reflects the article's current,
+  // "live" outcome:
+  //   - 'rejected' work never earns quality points, even if the admin
+  //     recorded a score alongside the rejection feedback -- that score
+  //     is context for the contributor on why it was rejected, not a
+  //     points-worthy result.
+  //   - 'pending' means it's back in the review queue after being
+  //     edited/resubmitted (see submitDraftForReview), which does NOT
+  //     clear a prior review's score -- so a 'pending' article's score,
+  //     if any, is stale leftover from a past rejection until the new
+  //     review lands, not a real evaluation of the current draft.
+  const scored = articles.filter((a) => a.score !== null && a.status !== "rejected" && a.status !== "pending");
   const totalPoints = scored.reduce((sum, a) => sum + (a.score || 0), 0);
   const publishedCount = articles.filter((a) => a.status === "published").length;
   return {

@@ -19,15 +19,16 @@ export default async function PointsPage() {
 
   const articles = await getArticlesByAuthor(session.userId);
   const points = summarizePoints(articles);
-  // A resubmitted article (rejected -> edited -> sent back for review)
-  // goes back to 'pending' without clearing its old score/feedback — that
-  // history intentionally survives so it's still visible elsewhere until
-  // the new review overwrites it, but showing it here as a *current*
-  // ledger entry would read as "this is your score" for a review that's
-  // no longer the current one. Same exclusion the dashboard overview's
-  // Editor Feedback panel already applies to its own list.
+  // Same "live score only" rule as summarizePoints above:
+  //   - 'rejected' articles don't count as quality points, even if scored
+  //     alongside the rejection feedback.
+  //   - a resubmitted article (rejected -> edited -> sent back for
+  //     review) goes back to 'pending' without clearing its old score —
+  //     that history intentionally survives elsewhere until the new
+  //     review overwrites it, but showing it here would read as "this is
+  //     your current score" for a review that's no longer current.
   const scoredArticles = articles
-    .filter((a) => a.score !== null && a.status !== "pending")
+    .filter((a) => a.score !== null && a.status !== "pending" && a.status !== "rejected")
     .sort((a, b) => new Date(b.reviewedAt || 0).getTime() - new Date(a.reviewedAt || 0).getTime());
 
   return (

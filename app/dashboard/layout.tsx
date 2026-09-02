@@ -1,12 +1,19 @@
 import Link from "next/link";
+import Image from "next/image";
 import Logo from "@/components/Logo";
 import { getSession } from "@/lib/session";
+import { findUserById } from "@/lib/users";
 import DashboardLogoutButton from "@/components/dashboard/DashboardLogoutButton";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import NotificationBell from "@/components/dashboard/NotificationBell";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
+  // Just for the header's avatar — the session token itself only carries
+  // displayName/email (see lib/auth.ts's Session), so a real avatar
+  // upload wouldn't show up here without this extra read. Cheap (one
+  // indexed lookup) and skipped entirely when logged out.
+  const avatarUrl = session ? (await findUserById(session.userId).catch(() => undefined))?.avatarUrl : undefined;
 
   return (
     <div className="min-h-screen bg-slate-50 text-[#0B1527] flex flex-col antialiased">
@@ -40,8 +47,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <NotificationBell />
 
               <div className="flex items-center gap-2 border-l border-slate-200 pl-3 sm:pl-4">
-                <div className="h-6 w-6 rounded-full bg-[#0B1527] text-white flex items-center justify-center font-bold text-[9px]">
-                  {session.displayName?.slice(0, 2).toUpperCase() || "AN"}
+                <div className="h-6 w-6 shrink-0 overflow-hidden rounded-full bg-[#0B1527] text-white flex items-center justify-center font-bold text-[9px]">
+                  {avatarUrl ? (
+                    <Image src={avatarUrl} alt="" width={24} height={24} className="h-full w-full object-cover" />
+                  ) : (
+                    session.displayName?.slice(0, 2).toUpperCase() || "AN"
+                  )}
                 </div>
                 <span className="hidden sm:inline font-semibold text-xs text-slate-800">
                   {session.displayName || session.email}

@@ -12,8 +12,14 @@ function formatDate(iso: string | null) {
 
 export default async function AdminPointsPage() {
   const articles = await getAllArticles();
+  // Same "live score only" rule as the contributor's own Points page
+  // (lib/articles.ts's summarizePoints) — a 'rejected' article's score
+  // isn't a points-worthy result, and a resubmitted 'pending' article's
+  // score is stale leftover from before it was edited, so both are
+  // excluded here to actually match the "same data" this page claims to
+  // mirror.
   const scored = articles
-    .filter((a) => a.score !== null)
+    .filter((a) => a.score !== null && a.status !== "pending" && a.status !== "rejected")
     .sort((a, b) => new Date(b.reviewedAt || 0).getTime() - new Date(a.reviewedAt || 0).getTime());
 
   const byAuthor = new Map<string, { name: string; email: string; articles: typeof scored }>();

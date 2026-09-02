@@ -20,8 +20,14 @@ export async function PATCH(req: Request) {
   const bio = (body.bio || "").trim();
   if (!displayName) return NextResponse.json({ error: "Enter your name." }, { status: 400 });
 
+  // avatarUrl is only ever set here to a URL our own upload route just
+  // returned (or "" to remove it) — see components/dashboard/AvatarUploadField.tsx.
+  // Never accepted as an arbitrary pasted URL, same rule as every other
+  // image field in this app.
+  const avatarUrl = body.avatarUrl !== undefined ? String(body.avatarUrl) : undefined;
+
   try {
-    const user = await updateOwnProfile(session.userId, { displayName, bio });
+    const user = await updateOwnProfile(session.userId, { displayName, bio, avatarUrl });
     return NextResponse.json({ ok: true, user });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
