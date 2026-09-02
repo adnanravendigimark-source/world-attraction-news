@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { registerContributor, setEmailVerifyToken } from "@/lib/users";
 import { sendVerifyEmail } from "@/lib/email";
 import { generateVerifyToken } from "@/lib/tokens";
-import { turnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
+import { recaptchaConfigured, verifyRecaptchaToken } from "@/lib/recaptcha";
 import { dbErrorMessage } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
@@ -37,8 +37,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  if (turnstileConfigured()) {
-    const verified = await verifyTurnstileToken(body.turnstileToken, ip);
+  if (recaptchaConfigured()) {
+    const verified = await verifyRecaptchaToken(body.recaptchaToken, ip);
     if (!verified) {
       return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
     }

@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import GoogleButton from "./GoogleButton";
-import Turnstile from "@/components/Turnstile";
+import Recaptcha from "@/components/Recaptcha";
 
-const TURNSTILE_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   google_not_configured: "Google Sign-In isn't configured on this site yet. Use email and password instead.",
@@ -23,8 +23,8 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const [turnstileFailed, setTurnstileFailed] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState("");
+  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
   const [error, setError] = useState(GOOGLE_ERROR_MESSAGES[searchParams.get("error") || ""] || "");
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,7 +36,7 @@ export default function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, turnstileToken }),
+        body: JSON.stringify({ email, password, recaptchaToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid email or password.");
@@ -87,14 +87,14 @@ export default function LoginForm() {
             className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
           />
         </div>
-        {TURNSTILE_ENABLED && !turnstileFailed && (
-          <Turnstile
-            onVerify={setTurnstileToken}
-            onExpire={() => setTurnstileToken("")}
-            onError={() => setTurnstileFailed(true)}
+        {RECAPTCHA_ENABLED && !recaptchaFailed && (
+          <Recaptcha
+            onVerify={setRecaptchaToken}
+            onExpire={() => setRecaptchaToken("")}
+            onError={() => setRecaptchaFailed(true)}
           />
         )}
-        {turnstileFailed && (
+        {recaptchaFailed && (
           <p className="rounded border border-ink-200 bg-ink-50 p-2.5 text-xs text-ink-500">
             Couldn't load our spam-verification widget, so we're skipping it this time — you can still log in.
           </p>
@@ -102,7 +102,7 @@ export default function LoginForm() {
 
         <button
           type="submit"
-          disabled={submitting || (TURNSTILE_ENABLED && !turnstileFailed && !turnstileToken)}
+          disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
           className="w-full rounded-md bg-signal py-2.5 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
         >
           {submitting ? "Logging in..." : "Log In"}

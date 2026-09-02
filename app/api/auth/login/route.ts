@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSessionToken, SESSION_COOKIE_NAME, type Session } from "@/lib/auth";
 import { verifyUserCredentials, findUserByEmail, touchLastLogin } from "@/lib/users";
-import { turnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
+import { recaptchaConfigured, verifyRecaptchaToken } from "@/lib/recaptcha";
 import { DB_ERROR_MESSAGE } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
@@ -27,18 +27,18 @@ export async function POST(req: Request) {
 
   let email = "";
   let password = "";
-  let turnstileToken = "";
+  let recaptchaToken = "";
   try {
     const body = await req.json();
     email = (body.email || "").trim();
     password = body.password || "";
-    turnstileToken = body.turnstileToken || "";
+    recaptchaToken = body.recaptchaToken || "";
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  if (turnstileConfigured()) {
-    const verified = await verifyTurnstileToken(turnstileToken, ip);
+  if (recaptchaConfigured()) {
+    const verified = await verifyRecaptchaToken(recaptchaToken, ip);
     if (!verified) {
       return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
     }

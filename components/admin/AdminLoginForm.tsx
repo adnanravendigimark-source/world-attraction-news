@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Recaptcha from "@/components/Recaptcha";
+
+const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
 
 export default function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [recaptchaToken, setRecaptchaToken] = useState("");
+  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -19,7 +24,7 @@ export default function AdminLoginForm() {
       const res = await fetch("/api/auth/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, recaptchaToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid email or password.");
@@ -55,9 +60,23 @@ export default function AdminLoginForm() {
           className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
         />
       </div>
+
+      {RECAPTCHA_ENABLED && !recaptchaFailed && (
+        <Recaptcha
+          onVerify={setRecaptchaToken}
+          onExpire={() => setRecaptchaToken("")}
+          onError={() => setRecaptchaFailed(true)}
+        />
+      )}
+      {recaptchaFailed && (
+        <p className="rounded border border-ink-800 bg-ink-800/50 p-2.5 text-xs text-ink-300">
+          Couldn't load our spam-verification widget, so we're skipping it this time — you can still log in.
+        </p>
+      )}
+
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
         className="w-full rounded-md bg-ink-900 py-2.5 text-sm font-semibold text-white hover:bg-ink-800 disabled:opacity-60"
       >
         {submitting ? "Logging in..." : "Log In"}

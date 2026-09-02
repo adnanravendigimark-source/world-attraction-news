@@ -3,14 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import GoogleButton from "./GoogleButton";
-import Turnstile from "@/components/Turnstile";
+import Recaptcha from "@/components/Recaptcha";
 
-const TURNSTILE_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
 
 export default function SignupForm() {
   const [form, setForm] = useState({ displayName: "", email: "", password: "", bio: "" });
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const [turnstileFailed, setTurnstileFailed] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState("");
+  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -23,7 +23,7 @@ export default function SignupForm() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, turnstileToken }),
+        body: JSON.stringify({ ...form, recaptchaToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
@@ -108,14 +108,14 @@ export default function SignupForm() {
           />
         </div>
 
-        {TURNSTILE_ENABLED && !turnstileFailed && (
-          <Turnstile
-            onVerify={setTurnstileToken}
-            onExpire={() => setTurnstileToken("")}
-            onError={() => setTurnstileFailed(true)}
+        {RECAPTCHA_ENABLED && !recaptchaFailed && (
+          <Recaptcha
+            onVerify={setRecaptchaToken}
+            onExpire={() => setRecaptchaToken("")}
+            onError={() => setRecaptchaFailed(true)}
           />
         )}
-        {turnstileFailed && (
+        {recaptchaFailed && (
           <p className="rounded border border-ink-200 bg-ink-50 p-2.5 text-xs text-ink-500">
             Couldn't load our spam-verification widget, so we're skipping it this time — you can still submit.
           </p>
@@ -123,7 +123,7 @@ export default function SignupForm() {
 
         <button
           type="submit"
-          disabled={submitting || (TURNSTILE_ENABLED && !turnstileFailed && !turnstileToken)}
+          disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
           className="w-full rounded-md bg-signal py-2.5 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
         >
           {submitting ? "Submitting..." : "Submit Application"}
