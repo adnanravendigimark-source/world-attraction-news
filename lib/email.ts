@@ -30,13 +30,14 @@ import {
 // with a 403 ("Domain not verified"). Until a real domain is bought and
 // verified in Resend (Domains -> Add Domain, then set RESEND_FROM_EMAIL
 // below), this falls back to Resend's own sandbox sender
-// (onboarding@resend.com), which works with zero setup for ANY Resend
-// account — the one real limitation is that the sandbox sender can only
-// deliver to the email address the Resend account itself is signed up
-// with, not to arbitrary recipients. That's exactly what you want for
-// testing right now; switch RESEND_FROM_EMAIL once real users need real
-// emails.
-const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || `${SITE_NAME} <onboarding@resend.com>`;
+// (onboarding@resend.dev — the ".dev" is correct and required; Resend does
+// NOT own/verify "resend.com" for this purpose, only "resend.dev"), which
+// works with zero setup for ANY Resend account — the one real limitation
+// is that the sandbox sender can only deliver to the email address the
+// Resend account itself is signed up with, not to arbitrary recipients.
+// That's exactly what you want for testing right now; switch
+// RESEND_FROM_EMAIL once real users need real emails.
+const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || `${SITE_NAME} <onboarding@resend.dev>`;
 
 let resendClient: Resend | null = null;
 function getResendClient(): Resend | null {
