@@ -25,6 +25,19 @@ interface EditorValue {
 const AUTOSAVE_DELAY_MS = 2500;
 const EDITABLE_STATUSES = ["draft", "pending", "rejected", "changes_requested"];
 
+// Same word-count/reading-time math as RichTextEditor's onUpdate handler,
+// just runnable against raw HTML up front (before the editor instance
+// exists) rather than only through its live onUpdate callback.
+function computeStats(html: string) {
+  const text = html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  return {
+    words,
+    characters: text.length,
+    readingTimeMinutes: words ? Math.max(1, Math.round(words / 200)) : 0,
+  };
+}
+
 export default function ArticleEditor({
   articleId,
   initial,
@@ -58,7 +71,12 @@ export default function ArticleEditor({
     metaDescription: initial?.metaDescription || "",
     focusKeyword: initial?.focusKeyword || "",
   });
-  const [stats, setStats] = useState({ words: 0, characters: 0, readingTimeMinutes: 0 });
+  // Seed from the initial content so opening an existing draft shows its
+  // real word count immediately — TipTap's onUpdate (which normally drives
+  // this) only fires on further edits, never on the initial mount, so
+  // without this a draft with 2,000 words already written would read
+  // "0 words" until you typed a single character.
+  const [stats, setStats] = useState(() => computeStats(initial?.contentHtml || ""));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
   const [preview, setPreview] = useState(false);
@@ -73,6 +91,9 @@ export default function ArticleEditor({
   idRef.current = id;
 
   const editable = !currentStatus || EDITABLE_STATUSES.includes(currentStatus);
+  // A subset of "editable" — pending is editable (small fixes before
+  // review) but not (re)submittable, since it's already in the queue.
+  const canSubmit = !currentStatus || currentStatus === "draft" || currentStatus === "rejected" || currentStatus === "changes_requested";
   const attractionsForCity = attractions.filter((a) => a.cityId === form.cityId);
 
   const save = useCallback(
@@ -135,20 +156,31 @@ export default function ArticleEditor({
   async function handleManualSave() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     await save(form);
-    toast.success("Article saved as draft.");
+    toast.success(currentStatus && currentStatus !== "draft" ? "Changes saved." : "Article saved as draft.");
   }
 
+  // Mirrors the /submit route's own minimums (lib/dashboard/articles/[id]/submit's
+  // route.ts) so a contributor sees the real reason up front instead of an
+  // unnecessary round trip that 400s with the same message.
   async function handleSubmit(confirmDespiteFlag = false) {
-    if (!form.title.trim()) {
-      toast.error("Please enter an article title.");
+    if (form.title.trim().length < 8) {
+      toast.error("Title must be at least 8 characters.");
       return;
     }
     if (!form.cityId) {
       toast.error("Please select a destination city.");
       return;
     }
-    if (!form.contentHtml.trim() || form.contentHtml.replace(/<[^>]*>/g, "").trim().length < 50) {
-      toast.error("Please write article content (at least 50 characters).");
+    if (!form.excerpt.trim()) {
+      toast.error("Add a short summary/excerpt.");
+      return;
+    }
+    if (form.contentHtml.replace(/<[^>]*>/g, "").trim().length < 200) {
+      toast.error("Article body must contain at least 200 characters of actual written content.");
+      return;
+    }
+    if (!form.image) {
+      toast.error("Upload a cover image.");
       return;
     }
 
@@ -250,7 +282,7 @@ export default function ArticleEditor({
               onClick={handleManualSave}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
-              Save Draft
+              {currentStatus && currentStatus !== "draft" ? "Save Changes" : "Save Draft"}
             </button>
           )}
 
@@ -265,7 +297,11 @@ export default function ArticleEditor({
             {preview ? "Edit Mode" : "Preview"}
           </button>
 
-          {editable && (
+          {/* Submit/Resubmit only makes sense from draft, rejected, or
+              changes_requested — a "pending" article is already sitting in
+              the review queue, so showing an active Submit button there
+              would just 409 against /submit's own guard when clicked. */}
+          {canSubmit && (
             <button
               type="button"
               disabled={submitting}
@@ -278,6 +314,11 @@ export default function ArticleEditor({
                   ? "Resubmit"
                   : "Submit Article →"}
             </button>
+          )}
+          {editable && !canSubmit && (
+            <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
+              Awaiting editorial review
+            </span>
           )}
         </div>
       </div>
@@ -393,7 +434,7 @@ export default function ArticleEditor({
                 <RichTextEditor
                   value={form.contentHtml}
                   onChange={(html) => handleChange("contentHtml", html)}
-                  uploadUrl="/api/media/upload"
+                  uploadUrl="/api/dashboard/upload"
                   onStatsChange={setStats}
                 />
               </div>
@@ -493,7 +534,7 @@ export default function ArticleEditor({
               label="Upload Photo"
               value={form.image}
               onChange={(url) => handleChange("image", url)}
-              uploadUrl="/api/media/upload"
+              uploadUrl="/api/dashboard/upload"
             />
             {form.image && (
               <div>
