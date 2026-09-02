@@ -1,5 +1,11 @@
 import { sql } from "./db";
-import { sendNotificationEmail } from "./email";
+import {
+  sendNotificationEmail,
+  sendArticleSubmittedEmail,
+  sendArticleApprovedEmail,
+  sendArticleRejectedEmail,
+  sendArticlePublishedEmail,
+} from "./email";
 
 // In-app + (best-effort) emailed notifications. Every notification is a
 // real row in the database, created at the moment the real event happens
@@ -50,6 +56,14 @@ function rowToNotification(row: any): Notification {
 // throws back to the caller: notifications are important but must never
 // block the actual workflow action (approve/reject/publish/etc.) that
 // triggered them.
+//
+// `sendEmail`, if provided, is used instead of the generic notification
+// template — this is how the dedicated, richer templates (article
+// submitted/approved/rejected/published) get wired in below without this
+// function needing to know about any of them. It must resolve to whether
+// the email actually sent (never throw) — same contract as every
+// `send*Email` function in lib/email.ts except sendNotificationEmail
+// itself, which is the fallback used when no override is given.
 export async function createNotification(input: {
   userId: string;
   userEmail: string;
@@ -57,11 +71,16 @@ export async function createNotification(input: {
   title: string;
   body: string;
   link?: string;
+  sendEmail?: () => Promise<boolean>;
 }): Promise<void> {
   let emailSent = false;
   try {
-    await sendNotificationEmail(input.userEmail, input.title, input.body, input.link || "");
-    emailSent = true;
+    if (input.sendEmail) {
+      emailSent = await input.sendEmail();
+    } else {
+      await sendNotificationEmail(input.userEmail, input.title, input.body, input.link || "");
+      emailSent = true;
+    }
   } catch (err) {
     console.error("[notifications] failed to send email:", err);
   }
@@ -132,13 +151,15 @@ export async function notifyAccountRejected(user: { id: string; email: string; d
 }
 
 export async function notifyArticleSubmitted(user: { id: string; email: string }, article: { id: string; title: string }) {
+  const link = `/dashboard/articles/${article.id}`;
   await createNotification({
     userId: user.id,
     userEmail: user.email,
     type: "article_submitted",
     title: "Article submitted for review",
     body: `"${article.title}" has been submitted and is now in the review queue.`,
-    link: `/dashboard/articles/${article.id}`,
+    link,
+    sendEmail: () => sendArticleSubmittedEmail(user.email, { title: article.title, dashboardUrl: link }),
   });
 }
 
@@ -168,14 +189,22 @@ export async function notifyChangesRequested(
   });
 }
 
-export async function notifyArticleApproved(user: { id: string; email: string }, article: { id: string; title: string }) {
+export async function notifyArticleApproved(
+  user: { id: string; email: string },
+  article: { id: string; title: string },
+  review?: { score?: number | null; feedback?: string }
+) {
+  const link = `/dashboard/articles/${article.id}`;
+  const score = review?.score ?? null;
+  const feedback = review?.feedback || "";
   await createNotification({
     userId: user.id,
     userEmail: user.email,
     type: "article_approved",
     title: "Your article was approved",
-    body: `"${article.title}" was approved and is now ready to be scheduled or published.`,
-    link: `/dashboard/articles/${article.id}`,
+    body: `"${article.title}" was approved${score !== null ? ` (score: ${score}/10)` : ""} and is now ready to be scheduled or published.${feedback ? ` Editor's feedback: ${feedback}` : ""}`,
+    link,
+    sendEmail: () => sendArticleApprovedEmail(user.email, { title: article.title, score, feedback, dashboardUrl: link }),
   });
 }
 
@@ -184,13 +213,15 @@ export async function notifyArticleRejected(
   article: { id: string; title: string },
   feedback: string
 ) {
+  const link = `/dashboard/articles/${article.id}`;
   await createNotification({
     userId: user.id,
     userEmail: user.email,
     type: "article_rejected",
     title: "Your article was rejected",
     body: `"${article.title}" was rejected${feedback ? `: ${feedback}` : "."}`,
-    link: `/dashboard/articles/${article.id}`,
+    link,
+    sendEmail: () => sendArticleRejectedEmail(user.email, { title: article.title, feedback, dashboardUrl: link }),
   });
 }
 
@@ -213,6 +244,7 @@ export async function notifyArticlePublished(user: { id: string; email: string }
     title: "Your article is now live",
     body: `"${article.title}" has been published to the public site.`,
     link: article.url,
+    sendEmail: () => sendArticlePublishedEmail(user.email, { title: article.title, url: article.url }),
   });
 }
 

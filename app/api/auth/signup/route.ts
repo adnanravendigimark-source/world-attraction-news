@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { registerContributor } from "@/lib/users";
+import { sendWelcomeEmail } from "@/lib/email";
 import { dbErrorMessage } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
@@ -49,6 +50,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: message }, { status: 409 });
     }
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
+  }
+
+  // Fire only after the account row exists. Never allowed to fail the
+  // signup response itself — sendWelcomeEmail already never throws, but
+  // this extra try/catch is defense in depth.
+  try {
+    await sendWelcomeEmail(email, displayName);
+  } catch (err) {
+    console.error("[signup] welcome email failed:", err);
   }
 
   return NextResponse.json({ ok: true });

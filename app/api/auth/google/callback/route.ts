@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { exchangeGoogleCode, googleOAuthConfigured } from "@/lib/googleAuth";
 import { findOrCreateGoogleUser, touchLastLogin } from "@/lib/users";
 import { createSessionToken, SESSION_COOKIE_NAME, type Session } from "@/lib/auth";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -37,12 +38,24 @@ export async function GET(req: Request) {
       return redirectTo("/login?error=google_email_unverified");
     }
 
-    const { user } = await findOrCreateGoogleUser({
+    const { user, isNewAccount } = await findOrCreateGoogleUser({
       googleId: profile.googleId,
       email: profile.email,
       name: profile.name,
       avatarUrl: profile.avatarUrl,
     });
+
+    // Only after the account row exists — same welcome email as
+    // password-based signup, since a new Google contributor account still
+    // lands in "pending" and needs the same "you're pending approval"
+    // notice.
+    if (isNewAccount) {
+      try {
+        await sendWelcomeEmail(user.email, user.displayName);
+      } catch (err) {
+        console.error("[google oauth callback] welcome email failed:", err);
+      }
+    }
 
     if (user.role !== "contributor" || user.status !== "approved") {
       const errorParam =

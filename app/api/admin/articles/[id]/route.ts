@@ -108,12 +108,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       );
 
       if (author) {
-        if (status === "approved") await notifyArticleApproved({ id: author.id, email: author.email }, { id: article.id, title: article.title });
-        else if (status === "rejected") await notifyArticleRejected({ id: author.id, email: author.email }, { id: article.id, title: article.title }, feedback);
-        else await notifyChangesRequested({ id: author.id, email: author.email }, { id: article.id, title: article.title }, feedback);
+        if (status === "approved") {
+          // Score + feedback are embedded directly in the approval email
+          // (see lib/emailTemplates.ts's articleApprovedEmailTemplate) —
+          // no separate "scored" notification/email needed on top of it.
+          await notifyArticleApproved({ id: author.id, email: author.email }, { id: article.id, title: article.title }, { score, feedback });
+        } else if (status === "rejected") {
+          await notifyArticleRejected({ id: author.id, email: author.email }, { id: article.id, title: article.title }, feedback);
+        } else {
+          await notifyChangesRequested({ id: author.id, email: author.email }, { id: article.id, title: article.title }, feedback);
+        }
         if (score !== null) {
           await logActivity(session, "article_scored", { type: "article", id: article.id, label: article.title }, { score });
-          await notifyArticleScored({ id: author.id, email: author.email }, { id: article.id, title: article.title }, score);
+          if (status !== "approved") {
+            await notifyArticleScored({ id: author.id, email: author.email }, { id: article.id, title: article.title }, score);
+          }
         }
       }
       return NextResponse.json({ ok: true, article });

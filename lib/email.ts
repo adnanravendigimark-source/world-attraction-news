@@ -1,85 +1,128 @@
-// Email delivery abstraction. This project ships with no email provider
-// wired up by default (no such service was part of the original request),
-// so this falls back to logging the email to the server console — real
-// enough to develop and test the reset-password flow end-to-end locally,
-// but reset links will NOT actually be emailed until a provider is
-// configured.
+// Centralized email delivery. Every outbound email in the app — signup
+// welcome, password reset, article submitted/approved/rejected/published,
+// the generic notification fallback, and the internal contact-form alert —
+// goes through the single sendEmail() below, using the Resend SDK
+// (https://resend.com). Branded HTML/text content is built in
+// lib/emailTemplates.ts; this file only knows how to deliver it.
 //
-// To send real emails, set RESEND_API_KEY in your .env (a free account at
-// https://resend.com works) — this uses their HTTP API directly with
-// fetch(), no extra dependency required. Swap this file for a different
-// provider's HTTP API the same way if you'd rather use one of those.
-import { SITE_NAME, CONTACT_EMAIL, SITE_URL } from "./site";
+// RESEND_API_KEY lives in server-only environment variables (see
+// .env.example) and is never imported by client code — every function here
+// runs in API routes / server actions only. Without it set, emails are
+// logged to the server console instead of sent — safe for local dev, not
+// for production.
+import { Resend } from "resend";
+import { SITE_NAME, CONTACT_EMAIL } from "./site";
+import {
+  welcomeEmailTemplate,
+  passwordResetEmailTemplate,
+  articleSubmittedEmailTemplate,
+  articleApprovedEmailTemplate,
+  articleRejectedEmailTemplate,
+  articlePublishedEmailTemplate,
+  genericNotificationEmailTemplate,
+  contactNotificationEmailTemplate,
+  type RenderedEmail,
+} from "./emailTemplates";
 
-export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
-  const subject = `Reset your ${SITE_NAME} password`;
-  const html = `
-    <p>Someone requested a password reset for your ${SITE_NAME} contributor account.</p>
-    <p><a href="${resetUrl}">Click here to reset your password</a> (link expires in 1 hour).</p>
-    <p>If you didn't request this, you can safely ignore this email.</p>
-  `;
+const FROM_ADDRESS = `${SITE_NAME} <${CONTACT_EMAIL}>`;
 
+let resendClient: Resend | null = null;
+function getResendClient(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn(
-      `[email] RESEND_API_KEY is not set — password reset email NOT sent. Reset link for ${to}:\n${resetUrl}`
-    );
-    return;
-  }
+  if (!apiKey) return null;
+  if (!resendClient) resendClient = new Resend(apiKey);
+  return resendClient;
+}
 
+// The one real delivery path in the app. Never throws — every failure
+// (missing API key, network error, Resend-side rejection) is logged and
+// swallowed here so a broken email provider can never take down the
+// signup/reset/review/publish flow that triggered it. Returns whether the
+// email actually sent, for callers (like lib/notifications.ts) that want
+// to record that outcome.
+async function sendEmail(input: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+}): Promise<boolean> {
+  const client = getResendClient();
+  if (!client) {
+    console.warn(`[email] RESEND_API_KEY is not set — "${input.subject}" NOT sent to ${input.to}. Logging instead:\n${input.text}`);
+    return false;
+  }
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: `${SITE_NAME} <${CONTACT_EMAIL}>`,
-        to: [to],
-        subject,
-        html,
-      }),
+    const { error } = await client.emails.send({
+      from: FROM_ADDRESS,
+      to: [input.to],
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      ...(input.replyTo ? { replyTo: input.replyTo } : {}),
     });
-    if (!res.ok) {
-      console.error("[email] Resend API error:", res.status, await res.text().catch(() => ""));
+    if (error) {
+      console.error("[email] Resend API error:", error);
+      return false;
     }
+    return true;
   } catch (err) {
     console.error("[email] Failed to send via Resend:", err);
+    return false;
   }
 }
 
-// Generic workflow-notification email — used by lib/notifications.ts for
-// every event in the notification system (account approved/rejected,
-// article submitted/reviewed/scored/published/unpublished, etc.). Same
-// graceful-degradation pattern as every other email in this file: without
-// RESEND_API_KEY, it logs instead of sending rather than pretending to
-// have sent something it didn't.
+async function sendRendered(to: string, rendered: RenderedEmail, replyTo?: string): Promise<boolean> {
+  return sendEmail({ to, subject: rendered.subject, html: rendered.html, text: rendered.text, replyTo });
+}
+
+// --- Public, typed senders — one per email the app sends ----------------
+// Adding a future notification type is just: write a template function in
+// lib/emailTemplates.ts, then a one-line wrapper here that calls
+// sendRendered(). No other file needs to know about Resend.
+
+export async function sendWelcomeEmail(to: string, displayName: string): Promise<boolean> {
+  return sendRendered(to, welcomeEmailTemplate({ displayName, dashboardUrl: "/login" }));
+}
+
+export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
+  await sendRendered(to, passwordResetEmailTemplate({ resetUrl }));
+}
+
+export async function sendArticleSubmittedEmail(to: string, input: { title: string; dashboardUrl: string }): Promise<boolean> {
+  return sendRendered(to, articleSubmittedEmailTemplate(input));
+}
+
+export async function sendArticleApprovedEmail(
+  to: string,
+  input: { title: string; score: number | null; feedback: string; dashboardUrl: string }
+): Promise<boolean> {
+  return sendRendered(to, articleApprovedEmailTemplate(input));
+}
+
+export async function sendArticleRejectedEmail(
+  to: string,
+  input: { title: string; feedback: string; dashboardUrl: string }
+): Promise<boolean> {
+  return sendRendered(to, articleRejectedEmailTemplate(input));
+}
+
+export async function sendArticlePublishedEmail(to: string, input: { title: string; url: string }): Promise<boolean> {
+  return sendRendered(to, articlePublishedEmailTemplate(input));
+}
+
+// Generic workflow-notification email — used by lib/notifications.ts as the
+// fallback for any notification type that doesn't have a dedicated
+// template above (account approved/rejected, under review, changes
+// requested, standalone score update, unpublished). Unlike every other
+// function in this file, this one *throws* on failure rather than
+// swallowing it — lib/notifications.ts relies on that to know whether to
+// record `email_sent = true` on the notification row, and already wraps
+// this call in its own try/catch.
 export async function sendNotificationEmail(to: string, title: string, body: string, link: string): Promise<void> {
-  const fullLink = link ? (link.startsWith("http") ? link : `${SITE_URL}${link}`) : "";
-  const html = `
-    <p>${body}</p>
-    ${fullLink ? `<p><a href="${fullLink}">View it on ${SITE_NAME}</a></p>` : ""}
-  `;
-
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn(`[email] RESEND_API_KEY is not set — notification "${title}" NOT emailed to ${to} (saved in-app only).`);
-    throw new Error("RESEND_API_KEY not configured");
-  }
-
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: `${SITE_NAME} <${CONTACT_EMAIL}>`,
-      to: [to],
-      subject: `${title} — ${SITE_NAME}`,
-      html,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    console.error("[email] Resend API error:", res.status, text);
-    throw new Error(`Resend API error: ${res.status}`);
-  }
+  const rendered = genericNotificationEmailTemplate({ title, body, link });
+  const sent = await sendEmail({ to, subject: rendered.subject, html: rendered.html, text: rendered.text });
+  if (!sent) throw new Error("Email delivery failed or RESEND_API_KEY not configured");
 }
 
 // Notifies the editorial inbox of a new /contact submission. The message
@@ -93,36 +136,6 @@ export async function sendContactNotificationEmail(input: {
   subject: string;
   message: string;
 }): Promise<void> {
-  const subject = `[Contact form] ${input.subject || "New message"}`;
-  const html = `
-    <p><strong>From:</strong> ${input.name} (${input.email})</p>
-    <p><strong>Subject:</strong> ${input.subject || "(none)"}</p>
-    <p><strong>Message:</strong></p>
-    <p>${input.message.replace(/\n/g, "<br />")}</p>
-  `;
-
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn(`[email] RESEND_API_KEY is not set — contact form notification NOT emailed (message was still saved).`);
-    return;
-  }
-
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: `${SITE_NAME} <${CONTACT_EMAIL}>`,
-        to: [CONTACT_EMAIL],
-        reply_to: input.email,
-        subject,
-        html,
-      }),
-    });
-    if (!res.ok) {
-      console.error("[email] Resend API error:", res.status, await res.text().catch(() => ""));
-    }
-  } catch (err) {
-    console.error("[email] Failed to send via Resend:", err);
-  }
+  const rendered = contactNotificationEmailTemplate(input);
+  await sendEmail({ to: CONTACT_EMAIL, subject: rendered.subject, html: rendered.html, text: rendered.text, replyTo: input.email });
 }
