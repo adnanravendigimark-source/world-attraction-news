@@ -22,6 +22,7 @@ const CONTENT_NAV: AdminNavItem[] = [
   { href: "/admin/cities", label: "Destinations / Cities", icon: "pin" },
   { href: "/admin/attractions", label: "Landmarks / Venues", icon: "flag" },
   { href: "/admin/categories", label: "Beats / Categories", icon: "tag" },
+  { href: "/admin/events", label: "Calendar Events", icon: "calendar" },
   { href: "/admin/media", label: "Media Library", icon: "image" },
 ];
 
@@ -52,6 +53,7 @@ function NavIcon({ name }: { name: string }) {
     search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm10 2-4.35-4.35",
     clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3.5 2",
     gear: "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM19.4 13a7.4 7.4 0 0 0 .06-1 7.4 7.4 0 0 0-.06-1l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L14.9 3h-4l-.4 2.4a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.5 11a7.4 7.4 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.4h4l.4-2.4a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5-2.1-1.6Z",
+    calendar: "M4 5h16v14H4zM4 9h16M8 3v4M16 3v4M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01",
   };
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">

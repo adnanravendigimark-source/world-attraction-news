@@ -1,225 +1,150 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Container from "@/components/Container";
+import EmptyState from "@/components/EmptyState";
+import NewsletterForm from "@/components/NewsletterForm";
+import type { EventItem, EventType } from "@/lib/events";
 
-interface CalendarEvent {
-  id: string;
-  day: number;
-  title: string;
-  location: string;
-  type: "festival" | "opening" | "exhibition" | "special" | "celebration";
-  color: string;
-  dotColor: string;
+const EVENT_TYPES: { value: EventType; label: string; emoji: string; dotColor: string }[] = [
+  { value: "festival", label: "Festival", emoji: "🌸", dotColor: "bg-pink-500" },
+  { value: "opening", label: "New Opening", emoji: "🎢", dotColor: "bg-amber-500" },
+  { value: "exhibition", label: "Exhibition", emoji: "🎨", dotColor: "bg-blue-500" },
+  { value: "special", label: "Special Event", emoji: "🎆", dotColor: "bg-purple-500" },
+  { value: "celebration", label: "Celebration", emoji: "🎉", dotColor: "bg-cyan-500" },
+];
+
+function dotColorFor(type: EventType): string {
+  return EVENT_TYPES.find((t) => t.value === type)?.dotColor || "bg-slate-400";
 }
 
-const MAY_2025_EVENTS: CalendarEvent[] = [
-  {
-    id: "star-wars-edge",
-    day: 3,
-    title: "Star Wars: Galaxy's Edge Preview",
-    location: "Disneyland, CA",
-    type: "special",
-    color: "text-purple-600",
-    dotColor: "bg-purple-500",
-  },
-  {
-    id: "night-lights",
-    day: 4,
-    title: "Night Lights Festival",
-    location: "Gardens by the Bay, Singapore",
-    type: "festival",
-    color: "text-emerald-600",
-    dotColor: "bg-emerald-500",
-  },
-  {
-    id: "harry-potter-season",
-    day: 7,
-    title: "Harry Potter™ Season Celebration",
-    location: "Universal Orlando",
-    type: "celebration",
-    color: "text-blue-600",
-    dotColor: "bg-blue-500",
-  },
-  {
-    id: "epcot-flower",
-    day: 10,
-    title: "Epcot International Flower & Garden Festival",
-    location: "Orlando, FL",
-    type: "festival",
-    color: "text-pink-600",
-    dotColor: "bg-pink-500",
-  },
-  {
-    id: "anne-frank",
-    day: 12,
-    title: "Anne Frank House Exhibit Opening",
-    location: "Amsterdam",
-    type: "opening",
-    color: "text-amber-600",
-    dotColor: "bg-amber-500",
-  },
-  {
-    id: "cannes-film",
-    day: 15,
-    title: "Cannes Film Festival",
-    location: "Cannes, France",
-    type: "special",
-    color: "text-purple-600",
-    dotColor: "bg-purple-500",
-  },
-  {
-    id: "vivid-sydney",
-    day: 17,
-    title: "Vivid Sydney 2025",
-    location: "Sydney, Australia",
-    type: "festival",
-    color: "text-emerald-600",
-    dotColor: "bg-emerald-500",
-  },
-  {
-    id: "tower-london",
-    day: 20,
-    title: "Tower of London History Weekend",
-    location: "London, UK",
-    type: "exhibition",
-    color: "text-blue-600",
-    dotColor: "bg-blue-500",
-  },
-  {
-    id: "park-ride-night",
-    day: 23,
-    title: "Park & Ride Night Europa-Park",
-    location: "Rust, Germany",
-    type: "special",
-    color: "text-amber-600",
-    dotColor: "bg-amber-500",
-  },
-  {
-    id: "memorial-day",
-    day: 25,
-    title: "Memorial Day Weekend Events",
-    location: "Various Parks, USA",
-    type: "celebration",
-    color: "text-pink-600",
-    dotColor: "bg-pink-500",
-  },
-  {
-    id: "tivoli-gardens",
-    day: 28,
-    title: "Tivoli Gardens Opening Day",
-    location: "Copenhagen, Denmark",
-    type: "opening",
-    color: "text-emerald-600",
-    dotColor: "bg-emerald-500",
-  },
-  {
-    id: "la-merce",
-    day: 31,
-    title: "La Mercè Festival",
-    location: "Barcelona, Spain",
-    type: "festival",
-    color: "text-blue-600",
-    dotColor: "bg-blue-500",
-  },
-];
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
 
-const EVENT_TYPES = [
-  { id: "festival", label: "Festival", emoji: "🌸", color: "text-pink-500" },
-  { id: "opening", label: "Opening", emoji: "🎢", color: "text-amber-500" },
-  { id: "exhibition", label: "Exhibition", emoji: "🎨", color: "text-blue-500" },
-  { id: "special", label: "Special Event", emoji: "🎆", color: "text-purple-500" },
-  { id: "celebration", label: "Celebration", emoji: "🎉", color: "text-cyan-500" },
-];
+interface CityOption {
+  slug: string;
+  name: string;
+  country: string;
+}
 
-const DESTINATIONS = [
-  "All Destinations",
-  "Orlando, USA",
-  "Paris, France",
-  "Tokyo, Japan",
-  "Singapore",
-  "London, UK",
-  "Dubai, UAE",
-  "Amsterdam, Netherlands",
-  "Sydney, Australia",
-  "Copenhagen, Denmark",
-  "Barcelona, Spain",
-];
+export default function CalendarClient({
+  monthEvents,
+  listEvents,
+  cities,
+  year,
+  month,
+  daysInMonth,
+  monthLabel,
+  todayISO,
+  realYear,
+  realMonth,
+  view,
+  tab,
+  currentFilters,
+}: {
+  monthEvents: EventItem[];
+  listEvents: EventItem[];
+  cities: CityOption[];
+  year: number;
+  month: number;
+  daysInMonth: number;
+  monthLabel: string;
+  todayISO: string;
+  realYear: number;
+  realMonth: number;
+  view: "month" | "list";
+  tab: "upcoming" | "past";
+  currentFilters: { city: string; type: string; q: string };
+}) {
+  const router = useRouter();
+  const [searchDraft, setSearchDraft] = useState(currentFilters.q);
 
-export default function CalendarClient() {
-  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
-  const [viewMode, setViewMode] = useState<"month" | "list">("month");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [selectedDest, setSelectedDest] = useState("All Destinations");
-  const [selectedDate, setSelectedDate] = useState("");
-  const [monthName, setMonthName] = useState("May 2025");
-  const [subscribed, setSubscribed] = useState(false);
+  function buildUrl(overrides: Record<string, string | number | undefined>) {
+    const params = new URLSearchParams();
+    const next = {
+      year: String(year),
+      month: String(month),
+      view,
+      tab,
+      city: currentFilters.city,
+      type: currentFilters.type,
+      q: currentFilters.q,
+      ...Object.fromEntries(Object.entries(overrides).map(([k, v]) => [k, v === undefined ? "" : String(v)])),
+    };
+    // Only include non-default, non-empty params to keep URLs clean.
+    if (next.year && Number(next.year) !== realYear) params.set("year", next.year);
+    if (next.month && Number(next.month) !== realMonth) params.set("month", next.month);
+    if (next.view && next.view !== "month") params.set("view", next.view);
+    if (next.tab && next.tab !== "upcoming") params.set("tab", next.tab);
+    if (next.city) params.set("city", next.city);
+    if (next.type) params.set("type", next.type);
+    if (next.q) params.set("q", next.q);
+    const qs = params.toString();
+    return `/calendar${qs ? `?${qs}` : ""}`;
+  }
 
-  const toggleType = (typeId: string) => {
-    setSelectedTypes((prev) =>
-      prev.includes(typeId) ? prev.filter((t) => t !== typeId) : [...prev, typeId]
-    );
-  };
+  function navigate(overrides: Record<string, string | number | undefined>) {
+    router.push(buildUrl(overrides));
+  }
 
-  const resetFilters = () => {
-    setSearchQuery("");
-    setSelectedTypes([]);
-    setSelectedDest("All Destinations");
-    setSelectedDate("");
-  };
-
-  // Filter events
-  const filteredEvents = MAY_2025_EVENTS.filter((e) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!e.title.toLowerCase().includes(q) && !e.location.toLowerCase().includes(q)) {
-        return false;
-      }
+  function goToMonth(y: number, m: number) {
+    let ny = y;
+    let nm = m;
+    if (nm < 1) {
+      nm = 12;
+      ny -= 1;
+    } else if (nm > 12) {
+      nm = 1;
+      ny += 1;
     }
-    if (selectedTypes.length > 0 && !selectedTypes.includes(e.type)) {
-      return false;
-    }
-    if (selectedDest !== "All Destinations") {
-      const city = selectedDest.split(",")[0].toLowerCase();
-      if (!e.location.toLowerCase().includes(city)) {
-        return false;
-      }
-    }
-    return true;
-  });
+    navigate({ year: ny, month: nm, view: "month" });
+  }
 
-  const getEventForDay = (day: number) => {
-    return filteredEvents.find((e) => e.day === day);
-  };
+  function applyFilters() {
+    navigate({ q: searchDraft });
+  }
 
-  // Calendar days setup: May 2025 starts on Thursday (index 4)
-  // Previous month days to display: 27, 28, 29, 30
-  // Days of May: 1 to 31
-  const prevMonthDays = [27, 28, 29, 30];
-  const currentMonthDays = Array.from({ length: 31 }, (_, i) => i + 1);
+  function resetFilters() {
+    setSearchDraft("");
+    navigate({ city: "", type: "", q: "" });
+  }
+
+  function jumpToDate(dateValue: string) {
+    if (!dateValue) return;
+    const [y, m] = dateValue.split("-").map(Number);
+    goToMonth(y, m);
+  }
+
+  // Real month-grid math for the given year/month — works for any month,
+  // not just a hardcoded one.
+  const startWeekday = new Date(year, month - 1, 1).getDay(); // 0 = Sun
+  const daysInPrevMonth = new Date(year, month - 1, 0).getDate();
+  const leadingDays = Array.from({ length: startWeekday }, (_, i) => daysInPrevMonth - startWeekday + i + 1);
+  const currentMonthDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const totalCells = leadingDays.length + currentMonthDays.length;
+  const trailingCount = (7 - (totalCells % 7)) % 7;
+  const trailingDays = Array.from({ length: trailingCount }, (_, i) => i + 1);
+
+  function eventsForDay(day: number): EventItem[] {
+    const iso = `${year}-${pad(month)}-${pad(day)}`;
+    return monthEvents.filter((e) => iso >= e.eventDate && iso <= (e.endDate || e.eventDate));
+  }
+
+  const activeList = view === "list" ? listEvents : [];
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527]">
-      {/* =========================================
-          1. HERO HEADER BANNER (Cappadocia Hot Air Balloons)
-      ========================================= */}
       <section className="relative w-full overflow-hidden bg-gradient-to-r from-amber-50 via-white to-orange-50/30 border-b border-slate-200 min-h-[220px] sm:min-h-[250px] flex items-center">
-        {/* Background Image on Right */}
-        <div 
+        <div
           className="absolute inset-0 z-0 bg-cover bg-right sm:bg-[center_35%] bg-no-repeat"
-          style={{
-            backgroundImage: `url('/images/cappadocia-balloons.jpg')`,
-          }}
+          style={{ backgroundImage: `url('/images/cappadocia-balloons.jpg')` }}
         />
-
-        {/* Gradient Blend: Solid White on Left fading smoothly to photo on Right */}
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 35% via-white/70 55% to-transparent 80% z-10 hidden sm:block pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-white via-white/90 to-white/40 z-10 sm:hidden pointer-events-none" />
 
-        {/* Text Content */}
         <Container className="relative z-20 py-8 sm:py-12">
           <div className="max-w-xl">
             <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#0B1527]">
@@ -232,46 +157,37 @@ export default function CalendarClient() {
         </Container>
       </section>
 
-      {/* =========================================
-          2. TWO-COLUMN MAIN CONTENT AREA
-      ========================================= */}
       <section className="py-8 sm:py-12 bg-slate-50/40">
         <Container>
           <div className="grid gap-8 lg:grid-cols-12 items-start">
-            {/* Left Column (68%): Calendar Grid */}
             <div className="lg:col-span-8 flex flex-col gap-5">
-              {/* Upcoming / Past Toggle */}
+              {/* Upcoming / Past Toggle — applies to List view */}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setTab("upcoming")}
+                  onClick={() => navigate({ tab: "upcoming" })}
                   className={`px-4 py-2 rounded-md text-[11px] font-black uppercase tracking-wider transition-all ${
-                    tab === "upcoming"
-                      ? "bg-[#0B1527] text-white shadow-sm"
-                      : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                    tab === "upcoming" ? "bg-[#0B1527] text-white shadow-sm" : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
                   }`}
                 >
                   UPCOMING EVENTS
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTab("past")}
+                  onClick={() => navigate({ tab: "past" })}
                   className={`px-4 py-2 rounded-md text-[11px] font-black uppercase tracking-wider transition-all ${
-                    tab === "past"
-                      ? "bg-[#0B1527] text-white shadow-sm"
-                      : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                    tab === "past" ? "bg-[#0B1527] text-white shadow-sm" : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
                   }`}
                 >
                   PAST EVENTS
                 </button>
               </div>
 
-              {/* Month & View Mode Toolbar */}
               <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {}}
+                    onClick={() => goToMonth(realYear, realMonth)}
                     className="px-3 py-1.5 rounded-md border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     TODAY
@@ -280,6 +196,7 @@ export default function CalendarClient() {
                     <button
                       type="button"
                       aria-label="Previous Month"
+                      onClick={() => goToMonth(year, month - 1)}
                       className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
                     >
                       ‹
@@ -287,28 +204,23 @@ export default function CalendarClient() {
                     <button
                       type="button"
                       aria-label="Next Month"
+                      onClick={() => goToMonth(year, month + 1)}
                       className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
                     >
                       ›
                     </button>
                   </div>
-                  <div className="font-sans text-sm sm:text-base font-black text-[#0B1527] ml-2 flex items-center gap-1 cursor-pointer">
-                    <span>{monthName}</span>
-                    <svg className="h-3.5 w-3.5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
+                  <div className="font-sans text-sm sm:text-base font-black text-[#0B1527] ml-2">
+                    <span>{monthLabel}</span>
                   </div>
                 </div>
 
-                {/* Month / List Toggle */}
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setViewMode("month")}
+                    onClick={() => navigate({ view: "month" })}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                      viewMode === "month"
-                        ? "bg-[#0B1527] text-white shadow-sm"
-                        : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                      view === "month" ? "bg-[#0B1527] text-white shadow-sm" : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
                     }`}
                   >
                     <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
@@ -318,11 +230,9 @@ export default function CalendarClient() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setViewMode("list")}
+                    onClick={() => navigate({ view: "list" })}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                      viewMode === "list"
-                        ? "bg-[#0B1527] text-white shadow-sm"
-                        : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                      view === "list" ? "bg-[#0B1527] text-white shadow-sm" : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
                     }`}
                   >
                     <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
@@ -333,10 +243,8 @@ export default function CalendarClient() {
                 </div>
               </div>
 
-              {/* Month View: Calendar Grid */}
-              {viewMode === "month" ? (
+              {view === "month" ? (
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  {/* Days Header */}
                   <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-[11px] font-black uppercase tracking-wider text-slate-600 py-2.5">
                     <div>SUN</div>
                     <div>MON</div>
@@ -347,19 +255,17 @@ export default function CalendarClient() {
                     <div>SAT</div>
                   </div>
 
-                  {/* 35 Cells Grid (5 Rows x 7 Cols) */}
                   <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 text-xs">
-                    {/* Previous Month Muted Days (27, 28, 29, 30) */}
-                    {prevMonthDays.map((day) => (
+                    {leadingDays.map((day) => (
                       <div key={`prev-${day}`} className="min-h-[85px] sm:min-h-[105px] p-2 bg-slate-50/40 text-slate-300 font-medium">
                         <span>{day}</span>
                       </div>
                     ))}
 
-                    {/* Current Month Days (1 to 31) */}
                     {currentMonthDays.map((day) => {
-                      const event = getEventForDay(day);
-                      const isToday = day === 14;
+                      const dayEvents = eventsForDay(day);
+                      const iso = `${year}-${pad(month)}-${pad(day)}`;
+                      const isToday = iso === todayISO;
 
                       return (
                         <div
@@ -378,71 +284,82 @@ export default function CalendarClient() {
                             )}
                           </div>
 
-                          {event && (
+                          {dayEvents.length > 0 && (
                             <div className="mt-1 flex flex-col gap-0.5">
-                              <div className="flex items-start gap-1">
-                                <span className={`h-1.5 w-1.5 rounded-full ${event.dotColor} shrink-0 mt-1`} />
-                                <span className="text-[10px] sm:text-[11px] font-bold text-slate-900 leading-tight line-clamp-2">
-                                  {event.title}
-                                </span>
-                              </div>
-                              <span className="text-[9px] text-slate-500 pl-2.5 truncate font-medium">
-                                {event.location}
-                              </span>
+                              {dayEvents.slice(0, 2).map((event) => (
+                                <div key={event.id} className="flex items-start gap-1">
+                                  <span className={`h-1.5 w-1.5 rounded-full ${dotColorFor(event.eventType)} shrink-0 mt-1`} />
+                                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-900 leading-tight line-clamp-2">
+                                    {event.title}
+                                  </span>
+                                </div>
+                              ))}
+                              {dayEvents.length > 2 && (
+                                <span className="text-[9px] text-slate-500 pl-2.5 font-semibold">+{dayEvents.length - 2} more</span>
+                              )}
                             </div>
                           )}
                         </div>
                       );
                     })}
+
+                    {trailingDays.map((day) => (
+                      <div key={`next-${day}`} className="min-h-[85px] sm:min-h-[105px] p-2 bg-slate-50/40 text-slate-300 font-medium">
+                        <span>{day}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              ) : activeList.length === 0 ? (
+                <EmptyState
+                  title={tab === "upcoming" ? "No upcoming events yet" : "No past events on record"}
+                  description={
+                    currentFilters.city || currentFilters.type || currentFilters.q
+                      ? "No events match your current filters. Try clearing them."
+                      : "Check back soon — new events are added regularly."
+                  }
+                  actionLabel={currentFilters.city || currentFilters.type || currentFilters.q ? "Clear filters" : undefined}
+                  actionHref={currentFilters.city || currentFilters.type || currentFilters.q ? "/calendar" : undefined}
+                />
               ) : (
-                /* List View */
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-                  {filteredEvents.map((evt) => (
-                    <div key={evt.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center gap-3.5">
-                        <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-slate-100 text-[#0B1527] shrink-0 font-bold">
-                          <span className="text-[9px] uppercase tracking-wider text-slate-500">MAY</span>
-                          <span className="text-base font-black text-[#0B1527]">{evt.day}</span>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className={`h-2 w-2 rounded-full ${evt.dotColor}`} />
-                            <h3 className="font-bold text-sm text-[#0B1527]">{evt.title}</h3>
+                  {activeList.map((evt) => {
+                    const d = new Date(`${evt.eventDate}T00:00:00`);
+                    return (
+                      <div key={evt.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3.5">
+                          <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-slate-100 text-[#0B1527] shrink-0 font-bold">
+                            <span className="text-[9px] uppercase tracking-wider text-slate-500">
+                              {d.toLocaleDateString("en-US", { month: "short" })}
+                            </span>
+                            <span className="text-base font-black text-[#0B1527]">{d.getDate()}</span>
                           </div>
-                          <p className="text-xs text-slate-500 mt-0.5">{evt.location}</p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className={`h-2 w-2 rounded-full ${dotColorFor(evt.eventType)}`} />
+                              <h3 className="font-bold text-sm text-[#0B1527]">{evt.title}</h3>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {evt.location || evt.cityName || ""}
+                            </p>
+                          </div>
                         </div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 shrink-0">
+                          {evt.eventType}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
-                        {evt.type}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
-
-              {/* View Full Calendar Button */}
-              <div className="mt-2 text-center">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#0B1527] hover:border-[#DC2626] hover:text-[#DC2626] shadow-sm transition-all"
-                >
-                  <span>VIEW FULL CALENDAR</span>
-                  <span aria-hidden="true">→</span>
-                </button>
-              </div>
             </div>
 
-            {/* Right Column (32%): Filter Sidebar & Newsletter */}
             <div className="lg:col-span-4 flex flex-col gap-6">
-              {/* FILTER EVENTS Card */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
                 <h2 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-4">
                   FILTER EVENTS
                 </h2>
 
-                {/* Search Events */}
                 <div className="mb-4">
                   <label htmlFor="search-events" className="block text-xs font-bold text-slate-700 mb-1.5">
                     Search Events
@@ -451,82 +368,75 @@ export default function CalendarClient() {
                     <input
                       id="search-events"
                       type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      value={searchDraft}
+                      onChange={(e) => setSearchDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") applyFilters();
+                      }}
                       placeholder="Search for events, places..."
                       className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 pl-9 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none"
                     />
-                    <svg
-                      className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
+                    <svg className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="11" cy="11" r="7" />
                       <path strokeLinecap="round" d="m21 21-4.3-4.3" />
                     </svg>
                   </div>
                 </div>
 
-                {/* Event Type */}
                 <div className="mb-4">
-                  <label className="block text-xs font-bold text-slate-700 mb-2">
+                  <label htmlFor="type-select" className="block text-xs font-bold text-slate-700 mb-2">
                     Event Type
                   </label>
-                  <div className="space-y-2">
+                  <select
+                    id="type-select"
+                    value={currentFilters.type}
+                    onChange={(e) => navigate({ type: e.target.value })}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none"
+                  >
+                    <option value="">All Types</option>
                     {EVENT_TYPES.map((t) => (
-                      <label key={t.id} className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 hover:text-slate-900">
-                        <input
-                          type="checkbox"
-                          checked={selectedTypes.includes(t.id)}
-                          onChange={() => toggleType(t.id)}
-                          className="h-3.5 w-3.5 rounded border-slate-300 text-[#DC2626] focus:ring-[#DC2626]"
-                        />
-                        <span>{t.emoji}</span>
-                        <span>{t.label}</span>
-                      </label>
+                      <option key={t.value} value={t.value}>
+                        {t.emoji} {t.label}
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
 
-                {/* Destination Dropdown */}
                 <div className="mb-4">
                   <label htmlFor="destination-select" className="block text-xs font-bold text-slate-700 mb-1.5">
                     Destination
                   </label>
                   <select
                     id="destination-select"
-                    value={selectedDest}
-                    onChange={(e) => setSelectedDest(e.target.value)}
+                    value={currentFilters.city}
+                    onChange={(e) => navigate({ city: e.target.value })}
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none"
                   >
-                    {DESTINATIONS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
+                    <option value="">All Destinations</option>
+                    {cities.map((c) => (
+                      <option key={c.slug} value={c.slug}>
+                        {c.name}, {c.country}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* Date Picker */}
                 <div className="mb-5">
                   <label htmlFor="date-select" className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Date
+                    Jump to Month
                   </label>
                   <input
                     id="date-select"
                     type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
+                    onChange={(e) => jumpToDate(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none"
                   />
                 </div>
 
-                {/* Actions */}
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
+                    onClick={applyFilters}
                     className="w-full rounded-lg bg-[#DC2626] py-2.5 text-xs font-black uppercase tracking-wider text-white shadow hover:bg-[#B91C1C] transition-colors"
                   >
                     APPLY FILTERS
@@ -541,51 +451,22 @@ export default function CalendarClient() {
                 </div>
               </div>
 
-              {/* "Never Miss an Event" Newsletter Card */}
               <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                <div className="relative h-36 w-full bg-slate-900">
-                  <Image
-                    src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80"
-                    alt="Attraction Lights at Night"
-                    fill
-                    sizes="(min-width: 1024px) 30vw, 100vw"
-                    className="object-cover opacity-90"
-                  />
-                </div>
                 <div className="p-5">
-                  <h3 className="font-sans text-sm font-black text-[#0B1527]">
-                    Never Miss an Event
-                  </h3>
+                  <h3 className="font-sans text-sm font-black text-[#0B1527]">Never Miss an Event</h3>
                   <p className="mt-1 text-xs text-slate-600 leading-relaxed">
                     Subscribe to get the latest attraction events and opening dates delivered to your inbox.
                   </p>
-                  {subscribed ? (
-                    <div className="mt-3 p-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded text-center">
-                      ✓ Subscribed! You will receive weekly dispatches.
-                    </div>
-                  ) : (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        setSubscribed(true);
-                      }}
-                      className="mt-3 flex gap-2"
-                    >
-                      <input
-                        type="email"
-                        required
-                        placeholder="Enter your email address"
-                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none"
-                      />
-                      <button
-                        type="submit"
-                        className="rounded-md bg-[#DC2626] px-4 py-2 text-xs font-black uppercase text-white hover:bg-[#B91C1C] shadow transition-colors"
-                      >
-                        SUBSCRIBE
-                      </button>
-                    </form>
-                  )}
+                  <div className="mt-3">
+                    <NewsletterForm source="calendar" variant="light" />
+                  </div>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center">
+                <p className="text-xs text-slate-500">
+                  Run a destination or attraction? <Link href="/write-for-us" className="font-bold text-[#DC2626] hover:underline">Submit your event</Link> to have it featured here.
+                </p>
               </div>
             </div>
           </div>
