@@ -617,6 +617,13 @@ export async function submitDraftForReview(
   id: string,
   moderation: { score: number; flag: boolean; signals: ModerationSignals }
 ): Promise<Article> {
+  // 'rejected' is included alongside 'draft'/'changes_requested' — every
+  // surface that shows a rejected article (dashboard article detail page,
+  // the edit page, ArticleEditor's own "Resubmit" button/confirm copy)
+  // treats it as resubmittable, so the actual state transition here has
+  // to honor that too. A prior rejection's score/feedback intentionally
+  // survive the resubmit (not cleared here) so the contributor can still
+  // see what the last review said until the new review overwrites it.
   const rows = await sql`
     UPDATE articles
     SET status = 'pending',
@@ -626,7 +633,7 @@ export async function submitDraftForReview(
         originality_flag = ${moderation.flag},
         moderation_signals = ${JSON.stringify(moderation.signals)},
         updated_at = now()
-    WHERE id = ${id} AND status IN ('draft', 'changes_requested')
+    WHERE id = ${id} AND status IN ('draft', 'changes_requested', 'rejected')
     RETURNING *
   `;
   if (!rows.length) throw new Error("This article can't be submitted from its current status.");

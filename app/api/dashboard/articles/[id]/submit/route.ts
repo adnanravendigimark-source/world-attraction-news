@@ -25,7 +25,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!article || article.authorId !== session.userId) {
     return NextResponse.json({ error: "Article not found." }, { status: 404 });
   }
-  if (article.status !== "draft" && article.status !== "changes_requested") {
+  // 'rejected' is resubmittable too — the dashboard article detail page,
+  // edit page, and ArticleEditor's own "Resubmit" button/confirm dialog
+  // all treat a rejected article as something the contributor can revise
+  // and send back for review, so the guard here has to allow it (see the
+  // matching WHERE clause in lib/articles.ts's submitDraftForReview).
+  if (article.status !== "draft" && article.status !== "changes_requested" && article.status !== "rejected") {
     return NextResponse.json({ error: "This article has already been submitted." }, { status: 409 });
   }
 
@@ -81,7 +86,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       contentHtml: updated.contentHtml,
       image: updated.image,
       imageAlt: updated.imageAlt,
-      changeSummary: article.status === "changes_requested" ? "Resubmitted after changes requested" : "Submitted for review",
+      changeSummary:
+        article.status === "changes_requested"
+          ? "Resubmitted after changes requested"
+          : article.status === "rejected"
+            ? "Resubmitted after rejection"
+            : "Submitted for review",
     });
 
     await notifyArticleSubmitted({ id: session.userId, email: session.email }, { id: updated.id, title: updated.title });
