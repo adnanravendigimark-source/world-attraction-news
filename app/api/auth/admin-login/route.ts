@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   }
 
   if (recaptchaConfigured()) {
-    const verified = await verifyRecaptchaToken(recaptchaToken, ip, "admin_login");
+    const verified = await verifyRecaptchaToken(recaptchaToken, ip);
     if (!verified) {
       return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
     }

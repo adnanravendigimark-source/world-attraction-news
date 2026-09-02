@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import GoogleButton from "./GoogleButton";
-import { getRecaptchaToken } from "@/lib/recaptchaClient";
+import Recaptcha from "@/components/Recaptcha";
+
+const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   google_not_configured: "Google Sign-In isn't configured on this site yet. Use email and password instead.",
@@ -21,6 +23,8 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [recaptchaToken, setRecaptchaToken] = useState("");
+  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
   const [error, setError] = useState(GOOGLE_ERROR_MESSAGES[searchParams.get("error") || ""] || "");
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,10 +33,6 @@ export default function LoginForm() {
     setSubmitting(true);
     setError("");
     try {
-      // reCAPTCHA v3 is invisible — no widget to wait on, just fetch a
-      // fresh token right before submitting. null (script blocked/timed
-      // out) is fine; the server fails open on a missing token too.
-      const recaptchaToken = await getRecaptchaToken("login");
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,24 +87,26 @@ export default function LoginForm() {
             className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
           />
         </div>
+        {RECAPTCHA_ENABLED && !recaptchaFailed && (
+          <Recaptcha
+            onVerify={setRecaptchaToken}
+            onExpire={() => setRecaptchaToken("")}
+            onError={() => setRecaptchaFailed(true)}
+          />
+        )}
+        {recaptchaFailed && (
+          <p className="rounded border border-ink-200 bg-ink-50 p-2.5 text-xs text-ink-500">
+            Couldn't load our spam-verification widget, so we're skipping it this time — you can still log in.
+          </p>
+        )}
+
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
           className="w-full rounded-md bg-signal py-2.5 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
         >
           {submitting ? "Logging in..." : "Log In"}
         </button>
-        <p className="text-center text-[10px] text-ink-400">
-          This site is protected by reCAPTCHA and the Google{" "}
-          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline">
-            Privacy Policy
-          </a>{" "}
-          and{" "}
-          <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="underline">
-            Terms of Service
-          </a>{" "}
-          apply.
-        </p>
       </form>
 
       <p className="text-center text-xs text-ink-500">
