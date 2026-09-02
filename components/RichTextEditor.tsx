@@ -15,7 +15,7 @@ import FigureImage from "@/lib/figureImage";
 export default function RichTextEditor({
   value,
   onChange,
-  placeholder = "Start writing your dispatch...",
+  placeholder = "Start writing your article here...",
   uploadUrl,
   onStatsChange,
 }: {
@@ -107,47 +107,59 @@ export default function RichTextEditor({
     if (editor && value !== editor.getHTML() && !editor.isFocused) {
       editor.commands.setContent(value || "", false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [editor, value]);
 
   if (!editor) return null;
 
   const btn = (active: boolean, extra = "") =>
-    `inline-flex items-center justify-center rounded-md px-2.5 py-1.5 text-xs font-semibold transition-all ${
+    `inline-flex items-center justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
       active
-        ? "bg-ink-950 text-white shadow-subtle"
-        : "text-ink-700 hover:bg-paper-200/80 hover:text-ink-950"
+        ? "bg-[#DC2626] text-white shadow-2xs font-bold"
+        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
     } ${extra}`;
 
-  const imageSelected = editor.isActive("image");
-
   return (
-    <div className="rounded-2xl border border-ink-200/80 bg-white shadow-card overflow-hidden transition-all focus-within:border-ink-400 focus-within:shadow-lift">
-      {/* Sticky Minimalist Toolbar */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-1 border-b border-ink-200/80 bg-paper-50/95 backdrop-blur-sm px-3 py-2">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden transition-all focus-within:border-slate-300">
+      {/* TipTap Formatting Toolbar */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50/95 backdrop-blur-xs px-3 py-1.5">
+        {/* Undo / Redo */}
         <button
           type="button"
           className={btn(false)}
           onClick={() => editor.chain().focus().undo().run()}
-          title="Undo"
+          title="Undo (Ctrl+Z)"
         >
-          ↺
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a5 5 0 015 5v2M3 10l6-6M3 10l6 6" />
+          </svg>
         </button>
         <button
           type="button"
           className={btn(false)}
           onClick={() => editor.chain().focus().redo().run()}
-          title="Redo"
+          title="Redo (Ctrl+Y)"
         >
-          ↻
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a5 5 0 00-5 5v2m15-7l-6-6m6 6l-6 6" />
+          </svg>
         </button>
-        
-        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
 
+        <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
+
+        {/* Headings */}
+        <button
+          type="button"
+          className={btn(editor.isActive("paragraph"))}
+          onClick={() => editor.chain().focus().setParagraph().run()}
+          title="Normal Paragraph"
+        >
+          Normal
+        </button>
         <button
           type="button"
           className={btn(editor.isActive("heading", { level: 2 }))}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          title="Heading 2"
         >
           H2
         </button>
@@ -155,17 +167,19 @@ export default function RichTextEditor({
           type="button"
           className={btn(editor.isActive("heading", { level: 3 }))}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          title="Heading 3"
         >
           H3
         </button>
 
-        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
+        <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
 
+        {/* Text Formats */}
         <button
           type="button"
           className={btn(editor.isActive("bold"))}
           onClick={() => editor.chain().focus().toggleBold().run()}
-          title="Bold"
+          title="Bold (Ctrl+B)"
         >
           <strong>B</strong>
         </button>
@@ -173,7 +187,7 @@ export default function RichTextEditor({
           type="button"
           className={btn(editor.isActive("italic"))}
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          title="Italic"
+          title="Italic (Ctrl+I)"
         >
           <em>I</em>
         </button>
@@ -181,18 +195,27 @@ export default function RichTextEditor({
           type="button"
           className={btn(editor.isActive("underline"))}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
-          title="Underline"
+          title="Underline (Ctrl+U)"
         >
           <u>U</u>
         </button>
+        <button
+          type="button"
+          className={btn(editor.isActive("strike"))}
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          title="Strikethrough"
+        >
+          <s>S</s>
+        </button>
 
-        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
+        <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
 
+        {/* Lists & Quotes */}
         <button
           type="button"
           className={btn(editor.isActive("bulletList"))}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
-          title="Bullet list"
+          title="Bullet List"
         >
           • List
         </button>
@@ -200,7 +223,7 @@ export default function RichTextEditor({
           type="button"
           className={btn(editor.isActive("orderedList"))}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          title="Numbered list"
+          title="Numbered List"
         >
           1. List
         </button>
@@ -208,7 +231,7 @@ export default function RichTextEditor({
           type="button"
           className={btn(editor.isActive("blockquote"))}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          title="Quote"
+          title="Blockquote"
         >
           “ Quote
         </button>
@@ -216,23 +239,29 @@ export default function RichTextEditor({
           type="button"
           className={btn(editor.isActive("link"))}
           onClick={() => {
-            const url = window.prompt("Enter link URL:");
-            if (url) editor.chain().focus().setLink({ href: url }).run();
+            const currentHref = editor.getAttributes("link").href;
+            const url = window.prompt("Enter link URL:", currentHref || "");
+            if (url === null) return;
+            if (url === "") {
+              editor.chain().focus().unsetLink().run();
+            } else {
+              editor.chain().focus().setLink({ href: url }).run();
+            }
           }}
-          title="Add link"
+          title="Insert / Edit Link"
         >
           🔗 Link
         </button>
 
-        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
-
         {uploadUrl && (
           <>
+            <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
             <button
               type="button"
               disabled={uploading}
               className={btn(false, uploading ? "animate-pulse" : "")}
               onClick={() => fileInputRef.current?.click()}
+              title="Insert Image in Body"
             >
               {uploading ? "Uploading..." : "📷 Photo"}
             </button>
@@ -249,75 +278,14 @@ export default function RichTextEditor({
             />
           </>
         )}
-
-        {imageSelected && (
-          <>
-            <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
-            <button
-              type="button"
-              className={btn(false)}
-              onClick={() => editor.chain().focus().updateFigureImage({ align: "left" }).run()}
-              title="Align left"
-            >
-              Left
-            </button>
-            <button
-              type="button"
-              className={btn(false)}
-              onClick={() => editor.chain().focus().updateFigureImage({ align: "center" }).run()}
-              title="Align center"
-            >
-              Center
-            </button>
-            <button
-              type="button"
-              className={btn(false)}
-              onClick={() => editor.chain().focus().updateFigureImage({ align: "full" }).run()}
-              title="Full width"
-            >
-              Full
-            </button>
-            <button
-              type="button"
-              className={btn(false)}
-              onClick={() => {
-                const caption = window.prompt("Image caption (optional):");
-                if (caption !== null) editor.chain().focus().updateFigureImage({ caption }).run();
-              }}
-            >
-              Caption
-            </button>
-          </>
-        )}
-
-        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
-        
-        <button
-          type="button"
-          className={btn(false)}
-          onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-        >
-          ⊞ Table
-        </button>
-
-        {editor.isActive("table") && (
-          <>
-            <button type="button" className={btn(false)} onClick={() => editor.chain().focus().addRowAfter().run()}>
-              +Row
-            </button>
-            <button type="button" className={btn(false)} onClick={() => editor.chain().focus().addColumnAfter().run()}>
-              +Col
-            </button>
-            <button type="button" className={btn(false, "text-signal")} onClick={() => editor.chain().focus().deleteTable().run()}>
-              ✕ Table
-            </button>
-          </>
-        )}
       </div>
 
-      {/* Editor Content Surface */}
-      <div className="editor-body px-6 sm:px-10 py-6 min-h-[420px]">
-        <EditorContent editor={editor} />
+      {/* Editor Content Writing Surface */}
+      <div className="p-4 sm:p-6 min-h-[350px]">
+        <EditorContent
+          editor={editor}
+          className="prose prose-slate max-w-none focus:outline-none text-slate-800 text-sm sm:text-base leading-relaxed"
+        />
       </div>
     </div>
   );

@@ -48,11 +48,10 @@ export default function ArticlesList({ articles }: { articles: ArticleWithRelati
           <button
             key={t}
             onClick={() => setFilter(t)}
-            className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all ${
-              filter === t
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all ${filter === t
                 ? "border-ink-950 bg-ink-950 text-white shadow-card"
                 : "border-ink-200 bg-white text-ink-700 hover:border-ink-400"
-            }`}
+              }`}
           >
             {TAB_LABELS[t] || t}
             {counts[t] > 0 && <span className="ml-1.5 opacity-70 font-mono text-[11px]">({counts[t]})</span>}

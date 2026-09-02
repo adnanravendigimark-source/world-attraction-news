@@ -22,7 +22,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 // resubmits it — see updateOwnArticle). Which one runs is decided by the
 // article's *current* status in the database, never anything the client
 // claims.
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+//
+// Exported as PATCH (not PUT) because that's the only method
+// components/dashboard/ArticleEditor.tsx's autosave/manual-save actually
+// sends — a PUT-only handler here means every save silently 405s.
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -80,6 +84,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     contentHtml: contentHtml || undefined,
     cityId,
     categoryId: body.categoryId !== undefined ? body.categoryId : undefined,
+    attractionId: body.attractionId !== undefined ? body.attractionId : undefined,
     image: body.image || undefined,
     imageAlt: body.imageAlt !== undefined ? body.imageAlt : undefined,
     metaTitle: body.metaTitle !== undefined ? body.metaTitle : undefined,

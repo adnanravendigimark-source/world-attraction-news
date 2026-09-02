@@ -100,9 +100,8 @@ export default function NotificationsList({ initial }: { initial: Notification[]
             key={n.id}
             type="button"
             onClick={() => handleItemClick(n)}
-            className={`block w-full rounded-lg border p-4 text-left transition-colors ${
-              !n.readAt ? "border-signal/30 bg-signal-light/40 hover:border-signal/60" : "border-ink-200 bg-white hover:border-ink-400"
-            }`}
+            className={`block w-full rounded-lg border p-4 text-left transition-colors ${!n.readAt ? "border-signal/30 bg-signal-light/40 hover:border-signal/60" : "border-ink-200 bg-white hover:border-ink-400"
+              }`}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="flex items-center gap-2">

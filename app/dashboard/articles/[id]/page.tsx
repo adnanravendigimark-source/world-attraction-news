@@ -6,7 +6,10 @@ import { getArticleById } from "@/lib/articles";
 import StatusBadge from "@/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Article Details", robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: "Article Details | Dashboard",
+  robots: { index: false, follow: false },
+};
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
@@ -23,70 +26,92 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
   if (article.status === "draft") redirect(`/dashboard/articles/${article.id}/edit`);
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <Link href="/dashboard/articles" className="text-xs font-semibold text-ink-500 hover:underline">
-        ← Back to My Articles
-      </Link>
-
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <h1 className="font-serif text-2xl font-bold text-ink-900">{article.title}</h1>
-        <StatusBadge status={article.status} />
+    <div className="max-w-3xl space-y-6">
+      {/* Breadcrumb */}
+      <div>
+        <Link
+          href="/dashboard/articles"
+          className="text-xs font-semibold text-slate-500 hover:text-[#DC2626] transition-colors"
+        >
+          ← Back to My Articles
+        </Link>
       </div>
-      <p className="mt-1.5 text-xs text-ink-500">
-        {article.cityName}
-        {article.categoryName ? ` · ${article.categoryName}` : ""} · Submitted {formatDate(article.submittedAt)}
-        {article.reviewedAt ? ` · Reviewed ${formatDate(article.reviewedAt)}` : ""}
-        {article.publishedAt ? ` · Published ${formatDate(article.publishedAt)}` : ""}
-      </p>
 
-      {article.status === "changes_requested" && (
-        <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
-          <p className="font-semibold">An editor requested changes on this article.</p>
-          {article.adminFeedback && <p className="mt-1.5">{article.adminFeedback}</p>}
+      {/* Header Info */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{article.title}</h1>
+          <StatusBadge status={article.status} />
         </div>
-      )}
 
-      {(article.score !== null || article.adminFeedback) && (
-        <div className="mt-4 rounded-lg border border-ink-200 bg-white p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-ink-500">Editorial Review</h2>
-            {article.score !== null && <span className="rounded bg-ink-900 px-2 py-0.5 text-xs font-bold text-white">{article.score}/10</span>}
+        <p className="text-xs text-slate-500 font-medium">
+          <span className="font-semibold text-slate-700">{article.cityName || "Global"} Bureau</span>
+          {article.categoryName ? ` · ${article.categoryName}` : ""}
+          {article.submittedAt ? ` · Submitted ${formatDate(article.submittedAt)}` : ""}
+          {article.reviewedAt ? ` · Reviewed ${formatDate(article.reviewedAt)}` : ""}
+          {article.publishedAt ? ` · Published ${formatDate(article.publishedAt)}` : ""}
+        </p>
+
+        {/* Changes requested notice */}
+        {article.status === "changes_requested" && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900">
+            <p className="font-bold">An editor requested revisions on this article:</p>
+            {article.adminFeedback && <p className="mt-1 leading-relaxed">{article.adminFeedback}</p>}
           </div>
-          {article.adminFeedback && <p className="mt-2 text-sm leading-relaxed text-ink-700">{article.adminFeedback}</p>}
-        </div>
-      )}
-
-      {article.status === "scheduled" && article.scheduledAt && (
-        <div className="mt-4 rounded-lg border border-purple-200 bg-purple-50 p-4 text-xs text-purple-900">
-          Scheduled to publish automatically on {new Date(article.scheduledAt).toLocaleString()}.
-        </div>
-      )}
-
-      {article.originalityFlag && (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
-          This article was flagged by our originality check for containing content similar to other articles on the
-          site. It's included here so editors can review the actual submitted text alongside that flag.
-        </div>
-      )}
-
-      <div className="mt-6 flex items-center gap-4">
-        {(article.status === "rejected" || article.status === "changes_requested") && (
-          <Link href={`/dashboard/articles/${article.id}/edit`} className="text-sm font-semibold text-signal hover:underline">
-            Edit &amp; Resubmit →
-          </Link>
         )}
-        {article.status === "published" && (
-          <Link href={`/cities/${article.citySlug}/${article.slug}`} target="_blank" className="text-sm font-semibold text-signal hover:underline">
-            View Live →
-          </Link>
+
+        {/* Editorial Review & Score */}
+        {(article.score !== null || article.adminFeedback) && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Editorial Review</h2>
+              {article.score !== null && (
+                <span className="rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-xs font-mono font-bold text-amber-900">
+                  ★ Score: {article.score}/10
+                </span>
+              )}
+            </div>
+            {article.adminFeedback && (
+              <p className="mt-2 text-xs leading-relaxed text-slate-700 italic">"{article.adminFeedback}"</p>
+            )}
+          </div>
         )}
+
+        {/* Action Buttons */}
+        <div className="pt-2 flex items-center gap-3">
+          {(article.status === "rejected" || article.status === "changes_requested") && (
+            <Link
+              href={`/dashboard/articles/${article.id}/edit`}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold text-white hover:bg-[#B91C1C] transition-colors"
+            >
+              <span>Edit &amp; Resubmit</span>
+              <span>→</span>
+            </Link>
+          )}
+          {article.status === "published" && (
+            <Link
+              href={`/latest-news/${article.slug}`}
+              target="_blank"
+              className="inline-flex items-center gap-1 rounded-lg bg-[#0B1527] px-4 py-2 text-xs font-bold text-white hover:bg-[#DC2626] transition-colors"
+            >
+              <span>Open Live Story</span>
+              <span>↗</span>
+            </Link>
+          )}
+        </div>
       </div>
 
-      {article.image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={article.image} alt={article.imageAlt} className="mt-6 w-full rounded-lg object-cover" />
-      )}
-      <div className="article-body mt-6" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
+      {/* Cover Image & Article Preview Body */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xs space-y-4">
+        {article.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={article.image} alt={article.imageAlt || "Cover"} className="w-full rounded-lg object-cover max-h-96" />
+        )}
+        <div
+          className="prose prose-slate max-w-none text-slate-800 text-sm sm:text-base leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: article.contentHtml }}
+        />
+      </div>
     </div>
   );
 }

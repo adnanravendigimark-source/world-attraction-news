@@ -50,7 +50,7 @@ export default function ArticleEditor({
     excerpt: initial?.excerpt || "",
     contentHtml: initial?.contentHtml || "",
     cityId: initial?.cityId || cities[0]?.id || "",
-    categoryId: initial?.categoryId ?? null,
+    categoryId: initial?.categoryId ?? (categories[0]?.id || null),
     attractionId: initial?.attractionId ?? null,
     image: initial?.image || "",
     imageAlt: initial?.imageAlt || "",
@@ -65,7 +65,7 @@ export default function ArticleEditor({
   const [submitting, setSubmitting] = useState(false);
   const [confirmFlag, setConfirmFlag] = useState<{ matches: { title: string; similarity: number }[] } | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [seoOpen, setSeoOpen] = useState(false);
 
   const dirtyRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -73,81 +73,92 @@ export default function ArticleEditor({
   idRef.current = id;
 
   const editable = !currentStatus || EDITABLE_STATUSES.includes(currentStatus);
-  const plainTextLength = form.contentHtml.replace(/<[^>]*>/g, "").trim().length;
   const attractionsForCity = attractions.filter((a) => a.cityId === form.cityId);
 
-  const save = useCallback(async (value: EditorValue) => {
-    if (!value.cityId) return;
-    setSaveState("saving");
-    setSaveError("");
-    try {
-      if (!idRef.current) {
-        if (!value.title.trim()) {
-          setSaveState("idle");
-          return;
+  const save = useCallback(
+    async (value: EditorValue) => {
+      if (!value.cityId) return;
+      setSaveState("saving");
+      setSaveError("");
+      try {
+        if (!idRef.current) {
+          if (!value.title.trim()) {
+            setSaveState("idle");
+            return;
+          }
+          const res = await fetch("/api/dashboard/articles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: value.title, cityId: value.cityId, categoryId: value.categoryId }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Couldn't create draft.");
+          idRef.current = data.article.id;
+          setId(data.article.id);
+          setCurrentStatus("draft");
         }
-        const res = await fetch("/api/dashboard/articles", {
-          method: "POST",
+        const res = await fetch(`/api/dashboard/articles/${idRef.current}`, {
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: value.title, cityId: value.cityId, categoryId: value.categoryId }),
+          body: JSON.stringify(value),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Couldn't create draft.");
-        idRef.current = data.article.id;
-        setId(data.article.id);
-        setCurrentStatus("draft");
+        if (!res.ok) throw new Error(data.error || "Couldn't save changes.");
+        setSaveState("saved");
+        dirtyRef.current = false;
+      } catch (err) {
+        setSaveState("error");
+        setSaveError(err instanceof Error ? err.message : "Save failed.");
       }
-      const res = await fetch(`/api/dashboard/articles/${idRef.current}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(value),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't save.");
-      setCurrentStatus(data.article.status);
-      setSaveState("saved");
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Couldn't save.");
-      setSaveState("error");
-    }
-  }, []);
+    },
+    []
+  );
 
+  // Autosave handler
   useEffect(() => {
-    if (!editable || !dirtyRef.current) return;
+    if (!editable) return;
+    if (!dirtyRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       save(form);
-      dirtyRef.current = false;
     }, AUTOSAVE_DELAY_MS);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [form, editable, save]);
 
-  function update(patch: Partial<EditorValue>) {
+  function handleChange<K extends keyof EditorValue>(key: K, value: EditorValue[K]) {
     dirtyRef.current = true;
-    setForm((f) => ({ ...f, ...patch }));
+    setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleManualSave() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    dirtyRef.current = false;
     await save(form);
+    toast.success("Article saved as draft.");
   }
 
   async function handleSubmit(confirmDespiteFlag = false) {
-    if (form.title.trim().length < 8) return toast.error("Title must be at least 8 characters.");
-    if (!form.cityId) return toast.error("Select which destination bureau this article covers.");
-    if (!form.excerpt.trim()) return toast.error("Add a short summary / excerpt.");
-    if (plainTextLength < 200) return toast.error("Article body must contain at least 200 characters of written content.");
-    if (!form.image) return toast.error("Upload a cover image for the dispatch.");
+    if (!form.title.trim()) {
+      toast.error("Please enter an article title.");
+      return;
+    }
+    if (!form.cityId) {
+      toast.error("Please select a destination city.");
+      return;
+    }
+    if (!form.contentHtml.trim() || form.contentHtml.replace(/<[^>]*>/g, "").trim().length < 50) {
+      toast.error("Please write article content (at least 50 characters).");
+      return;
+    }
 
     if (!confirmDespiteFlag) {
       const isResubmit = currentStatus === "rejected" || currentStatus === "changes_requested";
       const ok = await confirm({
-        title: isResubmit ? "Resubmit dispatch for editorial review?" : "Submit dispatch for review?",
-        description: "An editor will review it, assign quality scoring, and schedule publication.",
-        confirmLabel: isResubmit ? "Resubmit" : "Submit Dispatch",
+        title: isResubmit ? "Resubmit this article for review?" : "Submit this article for editorial review?",
+        description:
+          "Our newsroom editors will review your article for accuracy, factual consistency, and quality.",
+        confirmLabel: isResubmit ? "Resubmit Article" : "Submit for Review",
       });
       if (!ok) return;
     }
@@ -163,7 +174,7 @@ export default function ArticleEditor({
         body: JSON.stringify({ confirmDespiteFlag }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't submit.");
+      if (!res.ok) throw new Error(data.error || "Couldn't submit article.");
 
       if (data.needsConfirmation) {
         setConfirmFlag({ matches: data.originality?.matches || [] });
@@ -171,11 +182,11 @@ export default function ArticleEditor({
         return;
       }
 
-      toast.success("Dispatch submitted to the editorial desk.");
+      toast.success("Article submitted to the editorial desk!");
       router.push("/dashboard/articles");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
+      toast.error(err instanceof Error ? err.message : "Submission failed.");
       setSubmitting(false);
     }
   }
@@ -183,7 +194,7 @@ export default function ArticleEditor({
   async function handleDeleteDraft() {
     if (!idRef.current) return;
     const ok = await confirm({
-      title: "Discard this draft dispatch?",
+      title: "Discard this draft article?",
       description: "This action cannot be undone.",
       confirmLabel: "Discard Draft",
       danger: true,
@@ -206,38 +217,38 @@ export default function ArticleEditor({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Top Sticky Utility Header */}
-      <div className="sticky top-16 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-200/80 bg-white/95 backdrop-blur-md px-5 py-3 shadow-card">
-        <div className="flex items-center gap-3">
+    <div className="space-y-5">
+      {/* Top Action Bar */}
+      <div className="sticky top-14 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/95 backdrop-blur-md px-4 py-2.5 shadow-2xs">
+        {/* Status & Wordcount */}
+        <div className="flex items-center gap-2.5">
           <StatusBadge status={currentStatus || "draft"} />
-          <span className="h-4 w-px bg-ink-200" aria-hidden="true" />
-          <span className="font-mono text-xs text-ink-500">
+          <span className="h-3.5 w-px bg-slate-200" aria-hidden="true" />
+          <span className="text-xs text-slate-500 font-medium">
             {stats.words} words · {stats.readingTimeMinutes || 1} min read
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Autosave & Actions */}
+        <div className="flex items-center gap-2.5">
           {saveState === "saving" && (
-            <span className="flex items-center gap-1.5 text-xs text-ink-400">
-              <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+            <span className="flex items-center gap-1.5 text-xs text-slate-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626] animate-pulse" />
               Autosaving...
             </span>
           )}
           {saveState === "saved" && (
-            <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
-              <span>✓</span> Saved
-            </span>
+            <span className="text-xs font-semibold text-emerald-700">✓ Saved</span>
           )}
           {saveState === "error" && (
-            <span className="text-xs font-bold text-signal">{saveError}</span>
+            <span className="text-xs font-bold text-[#DC2626]">{saveError}</span>
           )}
 
           {editable && (
             <button
               type="button"
               onClick={handleManualSave}
-              className="text-xs font-bold text-ink-700 hover:text-signal transition-colors"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Save Draft
             </button>
@@ -246,26 +257,12 @@ export default function ArticleEditor({
           <button
             type="button"
             onClick={() => setPreview((v) => !v)}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-              preview
-                ? "border-ink-900 bg-ink-900 text-white"
-                : "border-ink-200 bg-paper-100 text-ink-700 hover:bg-paper-200"
-            }`}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${preview
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+              }`}
           >
             {preview ? "Edit Mode" : "Preview"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSidebarOpen((v) => !v)}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-              sidebarOpen
-                ? "border-ink-900 bg-paper-200 text-ink-950"
-                : "border-ink-200 bg-white text-ink-700 hover:bg-paper-100"
-            }`}
-            title="Toggle Metadata Sidebar"
-          >
-            ⚙ Settings
           </button>
 
           {editable && (
@@ -273,42 +270,36 @@ export default function ArticleEditor({
               type="button"
               disabled={submitting}
               onClick={() => handleSubmit(false)}
-              className="rounded-lg bg-signal px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark hover:shadow-lift transition-all disabled:opacity-60"
+              className="rounded-lg bg-[#DC2626] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
             >
               {submitting
                 ? "Submitting..."
                 : currentStatus === "rejected" || currentStatus === "changes_requested"
-                ? "Resubmit"
-                : "Submit"}
+                  ? "Resubmit"
+                  : "Submit Article →"}
             </button>
           )}
         </div>
       </div>
 
-      {/* Rejection / Changes notice */}
+      {/* Rejection / Changes Notice Banner */}
       {(currentStatus === "rejected" || currentStatus === "changes_requested") && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50/90 p-4 text-xs text-rose-900 shadow-subtle">
-          <p className="font-bold">Editorial Desk Notice:</p>
-          <p className="mt-1">
-            Revisions were requested on this submission. Update your draft according to the feedback, then resubmit.
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900">
+          <p className="font-bold">Editorial Review Notice:</p>
+          <p className="mt-0.5 text-rose-800">
+            Revisions were requested on this submission. Please update your draft per editor notes and resubmit.
           </p>
         </div>
       )}
 
-      {/* Originality overlap modal / warning */}
+      {/* Originality overlap warning */}
       {confirmFlag && (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900 shadow-lift">
-          <div className="flex items-center gap-2">
-            <span className="font-bold">⚠ Content Overlap Detected</span>
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-amber-800">
-            Our originality verification noticed similarities with{" "}
-            {confirmFlag.matches.length
-              ? confirmFlag.matches.map((m) => `"${m.title}" (${Math.round(m.similarity * 100)}% match)`).join(", ")
-              : "existing site coverage"}
-            . If this is common factual phrasing, you may submit anyway for manual review.
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900">
+          <p className="font-bold mb-1">⚠ Content Overlap Detected</p>
+          <p className="text-amber-800 leading-relaxed mb-3">
+            Our originality verification noticed similarities with existing coverage. If this is standard factual phrasing, you may submit anyway for editor review.
           </p>
-          <div className="mt-4 flex gap-2.5">
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={() => {
@@ -316,271 +307,277 @@ export default function ArticleEditor({
                 setSubmitting(true);
                 handleSubmit(true);
               }}
-              className="rounded-lg bg-amber-700 px-4 py-2 text-xs font-bold text-white hover:bg-amber-800"
+              className="rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-800"
             >
-              Submit Anyway for Editor Review
+              Submit for Manual Review
             </button>
             <button
               type="button"
               onClick={() => setConfirmFlag(null)}
-              className="rounded-lg border border-amber-300 bg-white px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100"
+              className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
             >
-              Review &amp; Edit Content
+              Edit Content
             </button>
           </div>
         </div>
       )}
 
-      {/* Main Canvas & Metadata Sidebar Grid */}
-      <div className="grid gap-6 lg:grid-cols-12 items-start">
-        {/* Left / Center Writing Canvas */}
-        <div className={`${sidebarOpen ? "lg:col-span-8" : "lg:col-span-12"} space-y-6 transition-all`}>
+      {/* Main 2-Column Layout */}
+      <div className="grid gap-5 lg:grid-cols-12 items-start">
+        {/* Left Column: Writing Canvas (8 cols) */}
+        <div className="lg:col-span-8 space-y-4">
           {preview ? (
-            <div className="rounded-2xl border border-ink-200/80 bg-white p-8 shadow-card">
-              <div className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-signal mb-2">
+            /* Preview Mode */
+            <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xs space-y-4">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
                 <span>Preview Mode</span>
               </div>
-              <h1 className="font-serif text-3xl sm:text-4xl font-black text-ink-950 leading-tight">
-                {form.title || "Untitled Dispatch"}
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 leading-tight">
+                {form.title || "Untitled Article"}
               </h1>
+              {form.excerpt && (
+                <p className="text-sm text-slate-600 font-medium leading-relaxed italic border-l-2 border-[#DC2626] pl-3">
+                  {form.excerpt}
+                </p>
+              )}
               {form.image && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={form.image}
                   alt={form.imageAlt || "Cover"}
-                  className="mt-6 w-full rounded-xl object-cover aspect-[16/9] shadow-subtle"
+                  className="w-full rounded-lg object-cover max-h-96"
                 />
               )}
-              {form.excerpt && (
-                <p className="mt-6 font-serif text-base italic text-ink-600 border-l-2 border-signal pl-4 py-1">
-                  {form.excerpt}
-                </p>
-              )}
-              <div className="article-body mt-8 border-t border-ink-100 pt-6" dangerouslySetInnerHTML={{ __html: form.contentHtml }} />
+              <div
+                className="prose prose-slate max-w-none text-slate-800 text-sm sm:text-base leading-relaxed pt-3"
+                dangerouslySetInnerHTML={{ __html: form.contentHtml || "<p>No content written yet.</p>" }}
+              />
             </div>
           ) : (
-            <div className="rounded-2xl border border-ink-200/80 bg-white p-6 sm:p-10 shadow-card space-y-6">
-              {/* Frameless Notion-Style Headline */}
-              <div>
+            /* Edit Mode Canvas */
+            <div className="space-y-4">
+              {/* Title Input */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Article Title *
+                </label>
                 <input
-                  disabled={!editable}
+                  type="text"
+                  required
                   value={form.title}
-                  onChange={(e) => update({ title: e.target.value })}
-                  className="w-full font-serif text-2xl sm:text-4xl font-black tracking-tight text-ink-950 placeholder:text-ink-300 focus:outline-none disabled:bg-transparent"
-                  placeholder="Article Headline..."
+                  onChange={(e) => handleChange("title", e.target.value)}
+                  placeholder="Enter a compelling article headline..."
+                  className="w-full text-lg sm:text-xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none"
                 />
               </div>
 
-              {/* Excerpt Lead */}
-              <div>
+              {/* Excerpt / Summary Input */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Short Excerpt / Lead Summary
+                </label>
                 <textarea
-                  disabled={!editable}
                   rows={2}
                   value={form.excerpt}
-                  onChange={(e) => update({ excerpt: e.target.value })}
-                  className="w-full font-sans text-sm text-ink-700 placeholder:text-ink-400 border-b border-ink-100 pb-3 focus:outline-none focus:border-signal disabled:bg-transparent resize-none leading-relaxed"
-                  placeholder="Short editorial summary or lead paragraph..."
+                  onChange={(e) => handleChange("excerpt", e.target.value)}
+                  placeholder="Write a brief 1-2 sentence overview of the story..."
+                  className="w-full text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
                 />
               </div>
 
-              {/* Rich Canvas Body */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-ink-400">
-                    Dispatch Content
-                  </span>
-                  <span className={`text-[11px] font-mono ${plainTextLength < 200 ? "text-signal font-bold" : "text-ink-400"}`}>
-                    {plainTextLength} chars {plainTextLength < 200 ? `(min 200 required)` : ""}
-                  </span>
-                </div>
-                {editable ? (
-                  <RichTextEditor
-                    value={form.contentHtml}
-                    onChange={(html) => update({ contentHtml: html })}
-                    uploadUrl="/api/dashboard/upload"
-                    onStatsChange={setStats}
-                    placeholder="Write your on-the-ground report here..."
-                  />
-                ) : (
-                  <div
-                    className="article-body rounded-xl border border-ink-200 bg-paper-50 p-6"
-                    dangerouslySetInnerHTML={{ __html: form.contentHtml }}
-                  />
-                )}
+              {/* TipTap Rich Text Editor */}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
+                  Article Body *
+                </label>
+                <RichTextEditor
+                  value={form.contentHtml}
+                  onChange={(html) => handleChange("contentHtml", html)}
+                  uploadUrl="/api/media/upload"
+                  onStatsChange={setStats}
+                />
               </div>
-            </div>
-          )}
-
-          {/* Bottom Actions */}
-          {editable && (
-            <div className="flex items-center justify-between border-t border-ink-200/80 pt-4">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => handleSubmit(false)}
-                  className="rounded-xl bg-signal px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark hover:shadow-lift transition-all disabled:opacity-60"
-                >
-                  {submitting ? "Submitting..." : "Submit Dispatch"}
-                </button>
-              </div>
-
-              {currentStatus === "draft" && id && (
-                <button
-                  type="button"
-                  disabled={deleting}
-                  onClick={handleDeleteDraft}
-                  className="text-xs font-bold text-ink-400 hover:text-signal transition-colors"
-                >
-                  {deleting ? "Discarding..." : "Discard Draft"}
-                </button>
-              )}
             </div>
           )}
         </div>
 
-        {/* Right Metadata Drawer / Settings */}
-        {sidebarOpen && (
-          <div className="lg:col-span-4 rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-6">
-            <div className="border-b border-ink-100 pb-3">
-              <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">Editorial Metadata</p>
-              <h3 className="font-serif text-lg font-black text-ink-900">Publishing Settings</h3>
-            </div>
+        {/* Right Column: Settings & Metadata Sidebar (4 cols) */}
+        <div className="lg:col-span-4 space-y-4">
+          {/* Destination & Category Settings */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-2">
+              Story Organization
+            </h3>
 
-            {/* Destination Selection */}
+            {/* City */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1.5">
-                Destination Bureau
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                Destination City *
               </label>
               <select
-                disabled={!editable}
                 value={form.cityId}
-                onChange={(e) => update({ cityId: e.target.value, attractionId: null })}
-                className="w-full rounded-lg border border-ink-200 bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-900 focus:border-signal focus:outline-none"
+                onChange={(e) => {
+                  // Switching cities invalidates any previously-selected
+                  // landmark from the old city — clear it rather than
+                  // silently saving a city/attraction pair that don't
+                  // match (the dropdown below only ever shows landmarks
+                  // for the *new* city, so a stale id would otherwise
+                  // persist invisibly).
+                  const nextCityId = e.target.value;
+                  dirtyRef.current = true;
+                  setForm((prev) => ({
+                    ...prev,
+                    cityId: nextCityId,
+                    attractionId: attractions.some((a) => a.id === prev.attractionId && a.cityId === nextCityId)
+                      ? prev.attractionId
+                      : null,
+                  }));
+                }}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
               >
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}, {c.country}
+                    {c.name} ({c.country})
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Category Beat */}
+            {/* Category */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
                 Category Beat
               </label>
               <select
-                disabled={!editable}
                 value={form.categoryId || ""}
-                onChange={(e) => update({ categoryId: e.target.value || null })}
-                className="w-full rounded-lg border border-ink-200 bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-900 focus:border-signal focus:outline-none"
+                onChange={(e) => handleChange("categoryId", e.target.value || null)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
               >
-                <option value="">No category selected</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
+                <option value="">Select a category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
                   </option>
                 ))}
               </select>
             </div>
 
             {/* Specific Attraction */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1.5">
-                Specific Landmark (Optional)
-              </label>
-              <select
-                disabled={!editable}
-                value={form.attractionId || ""}
-                onChange={(e) => update({ attractionId: e.target.value || null })}
-                className="w-full rounded-lg border border-ink-200 bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-900 focus:border-signal focus:outline-none"
-              >
-                <option value="">General City Coverage</option>
-                {attractionsForCity.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Cover Image Upload */}
-            <div className="border-t border-ink-100 pt-4">
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-2">
-                Cover Photography
-              </label>
-              {editable ? (
-                <ImageUploadField
-                  label="Cover Photography"
-                  value={form.image}
-                  onChange={(url) => update({ image: url })}
-                  uploadUrl="/api/dashboard/upload"
-                />
-              ) : (
-                form.image && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={form.image} alt={form.imageAlt} className="h-32 w-full rounded-lg object-cover" />
-                )
-              )}
-
-              {editable && form.image && (
-                <div className="mt-3">
-                  <label className="block text-[10px] font-bold uppercase text-ink-500 mb-1">
-                    Photo Credit / Alt Text
-                  </label>
-                  <input
-                    value={form.imageAlt}
-                    onChange={(e) => update({ imageAlt: e.target.value })}
-                    placeholder="Describe image or attribute source"
-                    className="w-full rounded-lg border border-ink-200 px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* SEO Metadata Accordion */}
-            {editable && (
-              <details className="border-t border-ink-100 pt-4 group">
-                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-ink-700 hover:text-signal list-none flex items-center justify-between">
-                  <span>SEO &amp; Search Optimization</span>
-                  <span className="text-ink-400 group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-ink-500 mb-1">Meta Title</label>
-                    <input
-                      value={form.metaTitle}
-                      onChange={(e) => update({ metaTitle: e.target.value })}
-                      placeholder="Custom search headline"
-                      className="w-full rounded-lg border border-ink-200 px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-ink-500 mb-1">Meta Description</label>
-                    <textarea
-                      rows={2}
-                      value={form.metaDescription}
-                      onChange={(e) => update({ metaDescription: e.target.value })}
-                      placeholder="Search snippet summary"
-                      className="w-full rounded-lg border border-ink-200 px-3 py-1.5 text-xs focus:border-signal focus:outline-none resize-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-ink-500 mb-1">Focus Keyword</label>
-                    <input
-                      value={form.focusKeyword}
-                      onChange={(e) => update({ focusKeyword: e.target.value })}
-                      placeholder="e.g. Disneyland Paris Tickets"
-                      className="w-full rounded-lg border border-ink-200 px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </details>
+            {attractionsForCity.length > 0 && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  Specific Landmark (Optional)
+                </label>
+                <select
+                  value={form.attractionId || ""}
+                  onChange={(e) => handleChange("attractionId", e.target.value || null)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                >
+                  <option value="">None (City-Wide Story)</option>
+                  {attractionsForCity.map((att) => (
+                    <option key={att.id} value={att.id}>
+                      {att.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
-        )}
+
+          {/* Cover Photo */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-2">
+              Featured Cover Image
+            </h3>
+            <ImageUploadField
+              label="Upload Photo"
+              value={form.image}
+              onChange={(url) => handleChange("image", url)}
+              uploadUrl="/api/media/upload"
+            />
+            {form.image && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  Image Alt Description
+                </label>
+                <input
+                  type="text"
+                  value={form.imageAlt}
+                  onChange={(e) => handleChange("imageAlt", e.target.value)}
+                  placeholder="e.g. Universal Epic Universe Celestial Park Entrance"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* SEO & Metadata (Collapsible) */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setSeoOpen(!seoOpen)}
+              className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-800 cursor-pointer"
+            >
+              <span>SEO &amp; Meta Settings</span>
+              <span className="text-slate-400">{seoOpen ? "▲" : "▼"}</span>
+            </button>
+
+            {seoOpen && (
+              <div className="mt-3.5 space-y-3 pt-3 border-t border-slate-100">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Meta Title
+                  </label>
+                  <input
+                    type="text"
+                    value={form.metaTitle}
+                    onChange={(e) => handleChange("metaTitle", e.target.value)}
+                    placeholder="Search engine title..."
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Meta Description
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={form.metaDescription}
+                    onChange={(e) => handleChange("metaDescription", e.target.value)}
+                    placeholder="Search snippet summary..."
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Focus Keyword
+                  </label>
+                  <input
+                    type="text"
+                    value={form.focusKeyword}
+                    onChange={(e) => handleChange("focusKeyword", e.target.value)}
+                    placeholder="e.g. epic universe, disney fireworks"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Discard Draft Option */}
+          {idRef.current && currentStatus === "draft" && (
+            <div className="pt-1">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDeleteDraft}
+                className="w-full rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {deleting ? "Discarding..." : "Discard Draft"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
