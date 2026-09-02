@@ -2,17 +2,13 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Recaptcha from "@/components/Recaptcha";
-
-const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
+import { getRecaptchaToken } from "@/lib/recaptchaClient";
 
 export default function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [recaptchaToken, setRecaptchaToken] = useState("");
-  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -21,6 +17,10 @@ export default function AdminLoginForm() {
     setSubmitting(true);
     setError("");
     try {
+      // reCAPTCHA v3 is invisible — no widget to wait on, just fetch a
+      // fresh token right before submitting. null (script blocked/timed
+      // out) is fine; the server fails open on a missing token too.
+      const recaptchaToken = await getRecaptchaToken("admin_login");
       const res = await fetch("/api/auth/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -61,26 +61,24 @@ export default function AdminLoginForm() {
         />
       </div>
 
-      {RECAPTCHA_ENABLED && !recaptchaFailed && (
-        <Recaptcha
-          onVerify={setRecaptchaToken}
-          onExpire={() => setRecaptchaToken("")}
-          onError={() => setRecaptchaFailed(true)}
-        />
-      )}
-      {recaptchaFailed && (
-        <p className="rounded border border-ink-800 bg-ink-800/50 p-2.5 text-xs text-ink-300">
-          Couldn't load our spam-verification widget, so we're skipping it this time — you can still log in.
-        </p>
-      )}
-
       <button
         type="submit"
-        disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
+        disabled={submitting}
         className="w-full rounded-md bg-ink-900 py-2.5 text-sm font-semibold text-white hover:bg-ink-800 disabled:opacity-60"
       >
         {submitting ? "Logging in..." : "Log In"}
       </button>
+      <p className="text-center text-[10px] text-ink-500">
+        This site is protected by reCAPTCHA and the Google{" "}
+        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline">
+          Privacy Policy
+        </a>{" "}
+        and{" "}
+        <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="underline">
+          Terms of Service
+        </a>{" "}
+        apply.
+      </p>
     </form>
   );
 }

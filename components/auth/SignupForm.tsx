@@ -3,14 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import GoogleButton from "./GoogleButton";
-import Recaptcha from "@/components/Recaptcha";
-
-const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
+import { getRecaptchaToken } from "@/lib/recaptchaClient";
 
 export default function SignupForm() {
   const [form, setForm] = useState({ displayName: "", email: "", password: "", bio: "" });
-  const [recaptchaToken, setRecaptchaToken] = useState("");
-  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -20,6 +16,10 @@ export default function SignupForm() {
     setSubmitting(true);
     setError("");
     try {
+      // reCAPTCHA v3 is invisible — no widget to wait on, just fetch a
+      // fresh token right before submitting. null (script blocked/timed
+      // out) is fine; the server fails open on a missing token too.
+      const recaptchaToken = await getRecaptchaToken("signup");
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,26 +108,24 @@ export default function SignupForm() {
           />
         </div>
 
-        {RECAPTCHA_ENABLED && !recaptchaFailed && (
-          <Recaptcha
-            onVerify={setRecaptchaToken}
-            onExpire={() => setRecaptchaToken("")}
-            onError={() => setRecaptchaFailed(true)}
-          />
-        )}
-        {recaptchaFailed && (
-          <p className="rounded border border-ink-200 bg-ink-50 p-2.5 text-xs text-ink-500">
-            Couldn't load our spam-verification widget, so we're skipping it this time — you can still submit.
-          </p>
-        )}
-
         <button
           type="submit"
-          disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
+          disabled={submitting}
           className="w-full rounded-md bg-signal py-2.5 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
         >
           {submitting ? "Submitting..." : "Submit Application"}
         </button>
+        <p className="text-center text-[10px] text-ink-400">
+          This site is protected by reCAPTCHA and the Google{" "}
+          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline">
+            Privacy Policy
+          </a>{" "}
+          and{" "}
+          <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="underline">
+            Terms of Service
+          </a>{" "}
+          apply.
+        </p>
       </form>
 
       <p className="text-center text-xs text-ink-500">
