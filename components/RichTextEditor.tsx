@@ -12,18 +12,10 @@ import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
 import FigureImage from "@/lib/figureImage";
 
-// Shared write/edit surface for both the contributor dashboard and the
-// admin article editor — outputs sanitized-by-construction HTML (Tiptap's
-// own schema, no raw paste-through) stored as articles.content_html and
-// rendered on the public article page via the matching .article-body CSS
-// class. Every image enters through an actual file upload (click-to-browse,
-// drag-and-drop, or paste-from-clipboard-file) via `uploadUrl` — there is
-// no toolbar action, attribute, or paste path that accepts a pasted
-// external image URL as the source of an in-content image.
 export default function RichTextEditor({
   value,
   onChange,
-  placeholder = "Write the article here...",
+  placeholder = "Start writing your dispatch...",
   uploadUrl,
   onStatsChange,
 }: {
@@ -54,7 +46,11 @@ export default function RichTextEditor({
       if (onStatsChange) {
         const text = editor.getText().trim();
         const words = text ? text.split(/\s+/).length : 0;
-        onStatsChange({ words, characters: text.length, readingTimeMinutes: words ? Math.max(1, Math.round(words / 200)) : 0 });
+        onStatsChange({
+          words,
+          characters: text.length,
+          readingTimeMinutes: words ? Math.max(1, Math.round(words / 200)) : 0,
+        });
       }
     },
     editorProps: {
@@ -92,8 +88,11 @@ export default function RichTextEditor({
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Upload failed.");
         const chain = editor.chain().focus();
-        if (pos !== undefined) chain.insertContentAt(pos, { type: "image", attrs: { src: data.url, alt: "", align: "center" } });
-        else chain.setFigureImage({ src: data.url, alt: "" });
+        if (pos !== undefined) {
+          chain.insertContentAt(pos, { type: "image", attrs: { src: data.url, alt: "", align: "center" } });
+        } else {
+          chain.setFigureImage({ src: data.url, alt: "" });
+        }
         chain.run();
       } catch (err) {
         window.alert(err instanceof Error ? err.message : "Image upload failed.");
@@ -114,73 +113,128 @@ export default function RichTextEditor({
   if (!editor) return null;
 
   const btn = (active: boolean, extra = "") =>
-    `rounded px-2 py-1 text-xs font-semibold ${active ? "bg-ink-900 text-white" : "text-ink-600 hover:bg-ink-100"} ${extra}`;
+    `inline-flex items-center justify-center rounded-md px-2.5 py-1.5 text-xs font-semibold transition-all ${
+      active
+        ? "bg-ink-950 text-white shadow-subtle"
+        : "text-ink-700 hover:bg-paper-200/80 hover:text-ink-950"
+    } ${extra}`;
 
   const imageSelected = editor.isActive("image");
 
   return (
-    <div className="rounded-lg border border-ink-200 bg-white">
-      <div className="flex flex-wrap items-center gap-1 border-b border-ink-200 p-2">
-        <button type="button" className={btn(false)} onClick={() => editor.chain().focus().undo().run()} title="Undo">
-          ↺ Undo
+    <div className="rounded-2xl border border-ink-200/80 bg-white shadow-card overflow-hidden transition-all focus-within:border-ink-400 focus-within:shadow-lift">
+      {/* Sticky Minimalist Toolbar */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-1 border-b border-ink-200/80 bg-paper-50/95 backdrop-blur-sm px-3 py-2">
+        <button
+          type="button"
+          className={btn(false)}
+          onClick={() => editor.chain().focus().undo().run()}
+          title="Undo"
+        >
+          ↺
         </button>
-        <button type="button" className={btn(false)} onClick={() => editor.chain().focus().redo().run()} title="Redo">
-          ↻ Redo
+        <button
+          type="button"
+          className={btn(false)}
+          onClick={() => editor.chain().focus().redo().run()}
+          title="Redo"
+        >
+          ↻
         </button>
-        <span className="mx-1 h-5 w-px bg-ink-200" />
+        
+        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
 
-        <button type="button" className={btn(editor.isActive("heading", { level: 1 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-          H1
-        </button>
-        <button type="button" className={btn(editor.isActive("heading", { level: 2 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+        <button
+          type="button"
+          className={btn(editor.isActive("heading", { level: 2 }))}
+          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+        >
           H2
         </button>
-        <button type="button" className={btn(editor.isActive("heading", { level: 3 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+        <button
+          type="button"
+          className={btn(editor.isActive("heading", { level: 3 }))}
+          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        >
           H3
         </button>
-        <span className="mx-1 h-5 w-px bg-ink-200" />
 
-        <button type="button" className={btn(editor.isActive("bold"))} onClick={() => editor.chain().focus().toggleBold().run()}>
-          Bold
-        </button>
-        <button type="button" className={btn(editor.isActive("italic"))} onClick={() => editor.chain().focus().toggleItalic().run()}>
-          Italic
-        </button>
-        <button type="button" className={btn(editor.isActive("underline"))} onClick={() => editor.chain().focus().toggleUnderline().run()}>
-          Underline
-        </button>
-        <span className="mx-1 h-5 w-px bg-ink-200" />
+        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
 
-        <button type="button" className={btn(editor.isActive("bulletList"))} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-          Bullets
+        <button
+          type="button"
+          className={btn(editor.isActive("bold"))}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          title="Bold"
+        >
+          <strong>B</strong>
         </button>
-        <button type="button" className={btn(editor.isActive("orderedList"))} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-          Numbered
+        <button
+          type="button"
+          className={btn(editor.isActive("italic"))}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          title="Italic"
+        >
+          <em>I</em>
         </button>
-        <button type="button" className={btn(editor.isActive("blockquote"))} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-          Quote
+        <button
+          type="button"
+          className={btn(editor.isActive("underline"))}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          title="Underline"
+        >
+          <u>U</u>
+        </button>
+
+        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
+
+        <button
+          type="button"
+          className={btn(editor.isActive("bulletList"))}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          title="Bullet list"
+        >
+          • List
+        </button>
+        <button
+          type="button"
+          className={btn(editor.isActive("orderedList"))}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          title="Numbered list"
+        >
+          1. List
+        </button>
+        <button
+          type="button"
+          className={btn(editor.isActive("blockquote"))}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          title="Quote"
+        >
+          “ Quote
         </button>
         <button
           type="button"
           className={btn(editor.isActive("link"))}
           onClick={() => {
-            const url = window.prompt("Link URL (used in-content only — not as an article source)");
+            const url = window.prompt("Enter link URL:");
             if (url) editor.chain().focus().setLink({ href: url }).run();
           }}
+          title="Add link"
         >
-          Link
+          🔗 Link
         </button>
-        <span className="mx-1 h-5 w-px bg-ink-200" />
+
+        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
 
         {uploadUrl && (
           <>
             <button
               type="button"
               disabled={uploading}
-              className={btn(false)}
+              className={btn(false, uploading ? "animate-pulse" : "")}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? "Uploading..." : "🖼 Image"}
+              {uploading ? "Uploading..." : "📷 Photo"}
             </button>
             <input
               ref={fileInputRef}
@@ -198,23 +252,36 @@ export default function RichTextEditor({
 
         {imageSelected && (
           <>
-            <button type="button" className={btn(false)} onClick={() => editor.chain().focus().updateFigureImage({ align: "left" }).run()} title="Align left">
-              ⬅
+            <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
+            <button
+              type="button"
+              className={btn(false)}
+              onClick={() => editor.chain().focus().updateFigureImage({ align: "left" }).run()}
+              title="Align left"
+            >
+              Left
             </button>
-            <button type="button" className={btn(false)} onClick={() => editor.chain().focus().updateFigureImage({ align: "center" }).run()} title="Align center">
-              ⬍
+            <button
+              type="button"
+              className={btn(false)}
+              onClick={() => editor.chain().focus().updateFigureImage({ align: "center" }).run()}
+              title="Align center"
+            >
+              Center
             </button>
-            <button type="button" className={btn(false)} onClick={() => editor.chain().focus().updateFigureImage({ align: "right" }).run()} title="Align right">
-              ➡
-            </button>
-            <button type="button" className={btn(false)} onClick={() => editor.chain().focus().updateFigureImage({ align: "full" }).run()} title="Full width">
-              ↔
+            <button
+              type="button"
+              className={btn(false)}
+              onClick={() => editor.chain().focus().updateFigureImage({ align: "full" }).run()}
+              title="Full width"
+            >
+              Full
             </button>
             <button
               type="button"
               className={btn(false)}
               onClick={() => {
-                const caption = window.prompt("Image caption (optional)");
+                const caption = window.prompt("Image caption (optional):");
                 if (caption !== null) editor.chain().focus().updateFigureImage({ caption }).run();
               }}
             >
@@ -223,14 +290,16 @@ export default function RichTextEditor({
           </>
         )}
 
-        <span className="mx-1 h-5 w-px bg-ink-200" />
+        <span className="mx-1 h-4 w-px bg-ink-200" aria-hidden="true" />
+        
         <button
           type="button"
           className={btn(false)}
           onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
         >
-          Table
+          ⊞ Table
         </button>
+
         {editor.isActive("table") && (
           <>
             <button type="button" className={btn(false)} onClick={() => editor.chain().focus().addRowAfter().run()}>
@@ -239,13 +308,15 @@ export default function RichTextEditor({
             <button type="button" className={btn(false)} onClick={() => editor.chain().focus().addColumnAfter().run()}>
               +Col
             </button>
-            <button type="button" className={btn(false)} onClick={() => editor.chain().focus().deleteTable().run()}>
-              Delete Table
+            <button type="button" className={btn(false, "text-signal")} onClick={() => editor.chain().focus().deleteTable().run()}>
+              ✕ Table
             </button>
           </>
         )}
       </div>
-      <div className="editor-body px-4 py-3">
+
+      {/* Editor Content Surface */}
+      <div className="editor-body px-6 sm:px-10 py-6 min-h-[420px]">
         <EditorContent editor={editor} />
       </div>
     </div>

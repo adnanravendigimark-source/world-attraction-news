@@ -10,7 +10,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <>
-      <PublicHeader />
+      <PublicHeader cities={cityLinks} categories={categoryLinks} />
       <main>{children}</main>
       <PublicFooter cities={cityLinks} categories={categoryLinks} />
     </>

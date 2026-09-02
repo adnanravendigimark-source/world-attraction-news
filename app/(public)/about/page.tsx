@@ -1,124 +1,227 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Container from "@/components/Container";
-import Breadcrumbs from "@/components/Breadcrumbs";
 import { getCities } from "@/lib/cities";
-import { buildMetadata } from "@/lib/seo";
-import { SITE_NAME } from "@/lib/site";
+import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { SITE_NAME, SITE_TAGLINE, CONTACT_EMAIL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = buildMetadata({
-  title: `About Us | ${SITE_NAME}`,
-  description: "How Attraction Travel News works — city-based contributors, editorial review, and no aggregated links.",
+  title: `About Us — Global Attraction Intelligence & Newsroom | ${SITE_NAME}`,
+  description: `${SITE_NAME} — ${SITE_TAGLINE}. Independent on-the-ground reporting on attractions, theme parks, and historic landmarks worldwide.`,
   path: "/about",
 });
 
-const breadcrumbs = [{ name: "Home", path: "/" }, { name: "About", path: "/about" }];
+const breadcrumbs = [
+  { name: "Home", path: "/" },
+  { name: "About Us", path: "/about" },
+];
 
 export default async function AboutPage() {
   const cities = await getCities();
 
   return (
-    <Container className="py-10 sm:py-14">
-      <Breadcrumbs items={breadcrumbs} />
-      <h1 className="mt-3 font-serif text-2xl font-bold text-ink-900 sm:text-3xl">About {SITE_NAME}</h1>
+    <div className="bg-white min-h-screen text-[#0B1527] pb-16">
+      {/* =========================================
+          1. BREADCRUMBS & HERO HEADER
+      ========================================= */}
+      <div className="border-b border-slate-100 bg-white pt-5 pb-8">
+        <Container>
+          {/* Breadcrumbs */}
+          <nav className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-4">
+            <Link href="/" className="hover:text-slate-900 transition-colors">
+              Home
+            </Link>
+            <span>&gt;</span>
+            <span className="text-slate-800">About Us</span>
+          </nav>
 
-      <div className="article-body mt-6 max-w-prose">
-        <p>
-          {SITE_NAME} is a city-based news portal covering attractions, theme parks, museums, and tourist sites
-          around the world. Every article is organized under the city it's about, and written by an approved local
-          contributor rather than aggregated from other outlets.
-        </p>
-
-        <h2>What we cover</h2>
-        <p>
-          New ride and exhibit openings, ticket and pricing changes, closures and renovations, seasonal events, and
-          practical visitor updates for attractions in the cities we operate in. Coverage is always about a specific
-          city's attractions — this isn't a general travel-tips blog.
-        </p>
-
-        <h2>Global coverage, one city at a time</h2>
-        <p>
-          {SITE_NAME} grows city by city. Each city page is run by contributors who actually live there or visit
-          regularly, rather than one central desk writing about places nobody on staff has been to.
-          {cities.length > 0 && (
-            <>
-              {" "}Right now that's{" "}
-              {cities.map((c, i) => (
-                <span key={c.id}>
-                  <Link href={`/cities/${c.slug}`} className="text-signal hover:underline">
-                    {c.name}
-                  </Link>
-                  {i < cities.length - 2 ? ", " : i === cities.length - 2 ? ", and " : ""}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            {/* Left Title & Tagline */}
+            <div className="max-w-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
+                <span className="text-[11px] font-black uppercase tracking-widest text-[#DC2626]">
+                  ABOUT {SITE_NAME.toUpperCase()}
                 </span>
-              ))}
-              {" "}— see the full, current list on the{" "}
-              <Link href="/cities" className="text-signal hover:underline">
-                Cities page
-              </Link>
-              , which updates automatically as new cities are added.
-            </>
-          )}
-        </p>
+              </div>
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#0B1527]">
+                About Our Newsroom
+              </h1>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                {SITE_TAGLINE}. Delivering verified reporting, opening dates, and intelligence on theme parks and cultural landmarks globally.
+              </p>
+            </div>
 
-        <h2>How articles get published</h2>
-        <p>
-          Anyone can apply to become a contributor. Every application is reviewed by our editorial team, and an
-          applicant can't log in or submit anything until their account is approved. Once approved, a contributor
-          can write about any city on the site — they choose which city each article belongs to when they submit
-          it.
-        </p>
-        <p>
-          Every submitted article is written directly on the site — we don't accept links to external articles or
-          aggregate content from other outlets. An editor reads the full submission, checks it for originality,
-          scores it out of 10, and either publishes it, sends it back with feedback, or declines it. See{" "}
-          <Link href="/write-for-us" className="text-signal hover:underline">
-            Write for Us
-          </Link>{" "}
-          for the full editorial process, and our{" "}
-          <Link href="/editorial-policy" className="text-signal hover:underline">
-            Editorial Policy
-          </Link>{" "}
-          for how we handle corrections and standards.
-        </p>
+            {/* Right: Get Dispatches Box */}
+            <div className="relative rounded-xl border border-rose-100/80 bg-rose-50/40 p-4 sm:p-5 lg:w-[380px] overflow-hidden">
+              <div className="absolute right-2 -bottom-4 opacity-15 pointer-events-none">
+                <svg className="w-32 h-32 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+              </div>
 
-        <h2>Editorial independence</h2>
-        <p>
-          {SITE_NAME} is not affiliated with, endorsed by, or operated by any of the attractions, parks, or venues
-          covered on this site. Coverage decisions are made independently by our editorial team and contributors,
-          and we don't accept payment in exchange for coverage.
-        </p>
-
-        <h2>Why readers use {SITE_NAME}</h2>
-        <p>
-          Every published article has gone through a real review process — no unreviewed submissions, no
-          content-farmed listicles, no fake bylines. If you want to know whether a ticket price changed, an exhibit
-          closed, or a new attraction opened in a city we cover, this is written by someone with an actual reason to
-          know.
-        </p>
+              <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527]">
+                Connect With Us
+              </h3>
+              <p className="mt-1 text-[11px] text-slate-500 leading-normal">
+                Press inquiries, bureau partnerships, or news tips: reach out to our editorial desk.
+              </p>
+              <div className="mt-2.5">
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-[#DC2626] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
+                >
+                  <span>Email Editorial Desk</span>
+                  <span aria-hidden="true">→</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </Container>
       </div>
 
-      <div className="mt-8 rounded-lg border border-ink-200 bg-white p-6">
-        <h2 className="font-serif text-lg font-bold text-ink-900">Interested in contributing?</h2>
-        <p className="mt-2 text-sm text-ink-600">
-          If you want to write about attraction news in any of our covered cities, read how it works and apply.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link
-            href="/write-for-us"
-            className="inline-flex items-center gap-1.5 rounded-md border border-ink-300 px-4 py-2 text-sm font-semibold text-ink-700 hover:border-ink-900"
-          >
-            How It Works
-          </Link>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-1.5 rounded-md bg-signal px-4 py-2 text-sm font-semibold text-white hover:bg-signal-dark"
-          >
-            Apply to Become a Contributor →
-          </Link>
-        </div>
-      </div>
-    </Container>
+      {/* =========================================
+          2. STATS & MISSION CARDS
+      ========================================= */}
+      <section className="py-10">
+        <Container>
+          {/* Key Stats Strip */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+            <div className="p-5 rounded-2xl border border-slate-200 bg-white text-center shadow-sm">
+              <p className="text-2xl sm:text-3xl font-black text-[#DC2626]">6+</p>
+              <p className="text-xs font-bold text-slate-600 mt-1 uppercase tracking-wider">Global City Bureaus</p>
+            </div>
+            <div className="p-5 rounded-2xl border border-slate-200 bg-white text-center shadow-sm">
+              <p className="text-2xl sm:text-3xl font-black text-[#0B1527]">100%</p>
+              <p className="text-xs font-bold text-slate-600 mt-1 uppercase tracking-wider">Independent Coverage</p>
+            </div>
+            <div className="p-5 rounded-2xl border border-slate-200 bg-white text-center shadow-sm">
+              <p className="text-2xl sm:text-3xl font-black text-[#DC2626]">24/7</p>
+              <p className="text-xs font-bold text-slate-600 mt-1 uppercase tracking-wider">Continuous Wire</p>
+            </div>
+            <div className="p-5 rounded-2xl border border-slate-200 bg-white text-center shadow-sm">
+              <p className="text-2xl sm:text-3xl font-black text-[#0B1527]">0</p>
+              <p className="text-xs font-bold text-slate-600 mt-1 uppercase tracking-wider">Sponsored Reviews</p>
+            </div>
+          </div>
+
+          {/* Core Content Grid */}
+          <div className="grid gap-8 lg:grid-cols-12 items-start">
+            <div className="lg:col-span-8 flex flex-col gap-8">
+              {/* Pillar 1 */}
+              <div className="p-6 sm:p-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-[#DC2626] font-bold text-sm">
+                    01
+                  </span>
+                  <h2 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527]">
+                    Our Philosophy &amp; Mission
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                  {SITE_NAME} was established to solve a critical issue in modern travel journalism: automated AI aggregation and undisclosed promotional listicles. We run an independent global newsroom dedicated exclusively to verified reporting on attraction expansions, opening calendars, ticket pricing, and visitor intelligence.
+                </p>
+              </div>
+
+              {/* Pillar 2 */}
+              <div className="p-6 sm:p-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-[#DC2626] font-bold text-sm">
+                    02
+                  </span>
+                  <h2 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527]">
+                    Global Bureaus &amp; Local Correspondents
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal mb-4">
+                  Rather than reporting remotely from a single desk, our dispatches are anchored in local tourist hubs. Each destination bureau provides first-hand coverage authored by correspondents living and researching in those regions.
+                </p>
+
+                {cities.length > 0 && (
+                  <div className="pt-4 border-t border-slate-100">
+                    <p className="text-xs font-bold text-slate-700 mb-2.5 uppercase tracking-wider">Active Destination Bureaus:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {cities.map((c) => (
+                        <Link
+                          key={c.id}
+                          href={`/cities/${c.slug}`}
+                          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 hover:border-[#DC2626] hover:text-[#DC2626] hover:bg-white transition-all"
+                        >
+                          {c.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pillar 3 */}
+              <div className="p-6 sm:p-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-[#DC2626] font-bold text-sm">
+                    03
+                  </span>
+                  <h2 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527]">
+                    Strict Editorial Independence
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                  We do not accept paid reviews, undisclosed press trips, or sponsored placements. Every dispatch published undergoes rigorous editorial fact-checking, photo verification, and scoring before syndication.
+                </p>
+              </div>
+            </div>
+
+            {/* Right Sidebar: Join Network */}
+            <div className="lg:col-span-4 flex flex-col gap-6">
+              <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-2">
+                  Write for Attraction News
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                  Are you an attraction researcher, local correspondent, or travel journalist? Join our global contributor network.
+                </p>
+                <div className="flex flex-col gap-2.5">
+                  <Link
+                    href="/write-for-us"
+                    className="w-full text-center rounded-lg bg-[#DC2626] py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
+                  >
+                    View Guidelines &amp; Perks
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="w-full text-center rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-700 hover:bg-white hover:border-slate-400 transition-colors"
+                  >
+                    Apply as Contributor
+                  </Link>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
+                <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527] mb-2">
+                  Editorial Desk Contact
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-3">
+                  For press kits, corrections, or scoops:
+                </p>
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="text-xs font-bold text-[#DC2626] hover:underline break-all"
+                >
+                  {CONTACT_EMAIL}
+                </a>
+              </div>
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(breadcrumbs)) }}
+      />
+    </div>
   );
 }

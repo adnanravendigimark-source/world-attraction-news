@@ -37,7 +37,7 @@ export default function CategoriesManager({
       setName("");
       setSlug("");
       setDescription("");
-      toast.success("Category added.");
+      toast.success("Coverage beat added.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -72,9 +72,9 @@ export default function CategoriesManager({
 
   async function handleDelete(id: string) {
     const ok = await confirm({
-      title: "Delete this category?",
-      description: "Articles using it will become uncategorized.",
-      confirmLabel: "Delete",
+      title: "Delete this coverage category?",
+      description: "Articles in this category will remain intact as uncategorized.",
+      confirmLabel: "Delete Category",
       danger: true,
     });
     if (!ok) return;
@@ -83,81 +83,89 @@ export default function CategoriesManager({
       const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Couldn't delete this category.");
+        throw new Error(data.error || "Couldn't delete category.");
       }
       setCategories((prev) => prev.filter((c) => c.id !== id));
       toast.success("Category deleted.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't delete this category.");
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div>
-      <div className="space-y-2">
+    <div className="space-y-6">
+      <div className="border-b border-ink-100 pb-4">
+        <h2 className="font-serif text-xl font-black text-ink-950">Editorial Categories ({categories.length})</h2>
+        <p className="mt-0.5 text-xs text-ink-500">Manage beats, theme park sections, and article categories.</p>
+      </div>
+
+      <div className="space-y-3">
         {categories.map((c) => (
-          <div key={c.id} className="rounded-lg border border-ink-200 bg-white p-3.5">
+          <div key={c.id} className="rounded-2xl border border-ink-200/80 bg-white p-5 shadow-card">
             {editingId === c.id ? (
-              <div className="space-y-2">
-                <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     value={editValue.name}
                     onChange={(e) => setEditValue({ ...editValue, name: e.target.value })}
-                    placeholder="Name"
-                    className="rounded-md border border-ink-300 px-3 py-2 text-sm"
+                    placeholder="Category Name"
+                    className="rounded-lg border border-ink-300 px-3 py-2 text-xs font-semibold"
                   />
                   <input
                     value={editValue.slug}
                     onChange={(e) => setEditValue({ ...editValue, slug: e.target.value.toLowerCase() })}
-                    placeholder="slug"
-                    className="rounded-md border border-ink-300 px-3 py-2 text-sm"
+                    placeholder="Slug"
+                    className="rounded-lg border border-ink-300 px-3 py-2 text-xs font-mono"
                   />
                 </div>
                 <textarea
                   value={editValue.description}
                   onChange={(e) => setEditValue({ ...editValue, description: e.target.value })}
-                  placeholder="Short description (optional)"
+                  placeholder="Category description"
                   rows={2}
-                  className="w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs resize-none"
                 />
                 <div className="flex gap-2">
                   <button
                     disabled={busy}
                     onClick={() => handleSaveEdit(c.id)}
-                    className="rounded-md bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800 disabled:opacity-60"
+                    className="rounded-xl bg-ink-950 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-signal transition-all disabled:opacity-60"
                   >
                     Save
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
-                    className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                    className="rounded-xl border border-ink-300 px-4 py-2 text-xs font-bold text-ink-700 hover:bg-paper-100"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-ink-900">{c.name}</p>
-                  <p className="text-xs text-ink-500">
-                    /{c.slug} · {articleCounts[c.id] || 0} article{(articleCounts[c.id] || 0) === 1 ? "" : "s"}
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-serif text-base font-bold text-ink-950">{c.name}</h3>
+                    <span className="font-mono text-xs text-ink-400">/categories/{c.slug}</span>
+                  </div>
+                  <p className="mt-0.5 font-mono text-[11px] text-ink-500">
+                    {articleCounts[c.id] || 0} published dispatches
                   </p>
-                  {c.description && <p className="mt-1 text-xs text-ink-600">{c.description}</p>}
+                  {c.description && <p className="mt-1.5 text-xs text-ink-600 leading-relaxed">{c.description}</p>}
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => startEdit(c)}
-                    className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                    className="rounded-lg border border-ink-300 bg-paper-50 px-3 py-1.5 text-xs font-bold text-ink-800 hover:bg-paper-100 transition-all"
                   >
                     Edit
                   </button>
                   <button
                     disabled={busy}
                     onClick={() => handleDelete(c.id)}
-                    className="rounded-md px-3 py-1.5 text-xs font-semibold text-ink-400 hover:text-signal disabled:opacity-60"
+                    className="rounded-lg px-3 py-1.5 text-xs font-bold text-ink-400 hover:text-signal transition-all disabled:opacity-60"
                   >
                     Delete
                   </button>
@@ -168,31 +176,39 @@ export default function CategoriesManager({
         ))}
       </div>
 
-      <div className="mt-6 rounded-lg border border-dashed border-ink-300 bg-white p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Add a Category</p>
-        <div className="mt-2 space-y-2">
-          <input
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-"));
-            }}
-            placeholder="Category name"
-            className="w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
-          />
+      <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-6 shadow-subtle">
+        <p className="text-xs font-mono font-bold uppercase tracking-widest text-signal mb-2">Create New Beat</p>
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-"));
+              }}
+              placeholder="e.g. Theme Parks & Coasters"
+              className="rounded-lg border border-ink-300 px-3 py-2 text-xs font-semibold"
+            />
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="theme-parks-coasters"
+              className="rounded-lg border border-ink-300 px-3 py-2 text-xs font-mono"
+            />
+          </div>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Short description (optional)"
+            placeholder="Brief scope of this category beat..."
             rows={2}
-            className="w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs resize-none"
           />
           <button
             disabled={busy || !name || !slug}
             onClick={handleCreate}
-            className="rounded-md bg-signal px-4 py-2 text-xs font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
+            className="rounded-xl bg-signal px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark transition-all disabled:opacity-60"
           >
-            Add
+            Add Category Beat
           </button>
         </div>
       </div>

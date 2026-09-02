@@ -214,6 +214,15 @@ export async function getPublishedArticleBySlug(
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
 }
 
+export async function getPublishedArticleByAnySlug(
+  slug: string
+): Promise<ArticleWithRelations | undefined> {
+  await publishDueScheduledArticles();
+  const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.slug = $1 LIMIT 1`;
+  const rows = await sql(query, [slug]);
+  return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
+}
+
 // Real page-view counter — called exactly once per real render of the
 // public article page (see app/(public)/cities/[citySlug]/[articleSlug]/
 // page.tsx). Never seeded, never fabricated. Best-effort: a failure here

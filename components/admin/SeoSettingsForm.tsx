@@ -26,7 +26,7 @@ export default function SeoSettingsForm({ initial }: { initial: SiteSettings }) 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      toast.success("SEO settings saved.");
+      toast.success("SEO settings updated.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -35,80 +35,89 @@ export default function SeoSettingsForm({ initial }: { initial: SiteSettings }) 
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Default Meta Description</label>
-        <textarea
-          value={form.defaultMetaDescription}
-          onChange={(e) => setForm({ ...form, defaultMetaDescription: e.target.value })}
-          rows={2}
-          placeholder="Used as a fallback wherever a page doesn't set its own description."
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-5">
+        <div className="border-b border-ink-100 pb-3">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">Meta Optimization</p>
+          <h3 className="font-serif text-lg font-black text-ink-950">Global SEO Defaults</h3>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1.5">
+            Default Search Snippet / Meta Description
+          </label>
+          <textarea
+            value={form.defaultMetaDescription}
+            onChange={(e) => setForm({ ...form, defaultMetaDescription: e.target.value })}
+            rows={2}
+            placeholder="Used as a global fallback description for social scrapers and search indexes..."
+            className="w-full rounded-lg border border-ink-200 bg-paper-50 p-3 text-xs text-ink-800 focus:border-signal focus:outline-none resize-none leading-relaxed"
+          />
+        </div>
+
+        <ImageUploadField
+          label="Default Open Graph / Social Share Card (1200x630)"
+          value={form.defaultOgImage}
+          onChange={(url) => setForm({ ...form, defaultOgImage: url })}
+          uploadUrl="/api/admin/upload"
         />
+
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1.5">
+            Global Robots Indexing Directive
+          </label>
+          <select
+            value={form.robotsDefault}
+            onChange={(e) => setForm({ ...form, robotsDefault: e.target.value as "index" | "noindex" })}
+            className="rounded-lg border border-ink-200 bg-paper-50 px-3 py-2 text-xs font-semibold"
+          >
+            <option value="index">Index, Follow (Recommended for search visibility)</option>
+            <option value="noindex">Noindex, Nofollow (Staging / Private mode)</option>
+          </select>
+        </div>
       </div>
 
-      <ImageUploadField
-        label="Default Open Graph / Social Share Image"
-        value={form.defaultOgImage}
-        onChange={(url) => setForm({ ...form, defaultOgImage: url })}
-        uploadUrl="/api/admin/upload"
-      />
+      <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-5">
+        <div className="border-b border-ink-100 pb-3">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">Telemetry</p>
+          <h3 className="font-serif text-lg font-black text-ink-950">Analytics &amp; Search Console Verification</h3>
+        </div>
 
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Default Robots Directive</label>
-        <select
-          value={form.robotsDefault}
-          onChange={(e) => setForm({ ...form, robotsDefault: e.target.value as "index" | "noindex" })}
-          className="mt-1.5 w-full max-w-xs rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
-        >
-          <option value="index">Index, Follow (default)</option>
-          <option value="noindex">Noindex, Nofollow</option>
-        </select>
-        <p className="mt-1 text-[11px] text-ink-400">
-          Applies only where a page doesn't already set its own robots directive. Dashboard and Admin pages are
-          always noindex regardless of this setting.
-        </p>
-      </div>
-
-      <div className="border-t border-ink-100 pt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-ink-500">Analytics & Search Console</p>
-        <p className="mt-1 text-[11px] text-ink-400">
-          Optional — leave blank until you've created these in Google. Once set, they're wired into every public
-          page automatically (no code changes needed).
-        </p>
-        <div className="mt-3 space-y-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-              Google Analytics Measurement ID
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1.5">
+              Google Analytics 4 Measurement ID
             </label>
             <input
               value={form.gaMeasurementId}
               onChange={(e) => setForm({ ...form, gaMeasurementId: e.target.value.trim() })}
               placeholder="G-XXXXXXXXXX"
-              className="mt-1.5 w-full max-w-xs rounded-md border border-ink-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-ink-200 bg-paper-50 px-3 py-2 text-xs font-mono focus:border-signal focus:outline-none"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-              Google Search Console Verification Code
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1.5">
+              Google Search Console Verification Token
             </label>
             <input
               value={form.gscVerificationCode}
               onChange={(e) => setForm({ ...form, gscVerificationCode: e.target.value.trim() })}
-              placeholder="Content value from the HTML tag verification method"
-              className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+              placeholder="google-site-verification token"
+              className="w-full rounded-lg border border-ink-200 bg-paper-50 px-3 py-2 text-xs font-mono focus:border-signal focus:outline-none"
             />
           </div>
         </div>
       </div>
 
-      <button
-        disabled={busy}
-        onClick={handleSave}
-        className="rounded-md bg-signal px-4 py-2 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
-      >
-        {busy ? "Saving..." : "Save SEO Settings"}
-      </button>
+      <div className="pt-2">
+        <button
+          disabled={busy}
+          onClick={handleSave}
+          className="rounded-xl bg-signal px-6 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark hover:shadow-lift transition-all disabled:opacity-60"
+        >
+          {busy ? "Saving..." : "Save SEO Settings"}
+        </button>
+      </div>
     </div>
   );
 }

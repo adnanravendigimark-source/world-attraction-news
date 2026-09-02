@@ -9,17 +9,10 @@ import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
 function formatDate(iso: string) {
-  if (!iso) return "";
+  if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Which actions are valid from a given status — the single source of truth
-// so the UI can never show an action that doesn't make sense for the
-// user's current (database-persisted) state. "Approved" never gets an
-// Approve button again; "rejected"/"suspended" get an Approve button to
-// reverse the decision. An already-approved user only ever gets Suspend —
-// Reject is reserved for a registration that was never approved in the
-// first place, not for taking access away from an active contributor.
 function actionsFor(status: string): {
   label: string;
   nextStatus: string;
@@ -31,28 +24,28 @@ function actionsFor(status: string): {
     case "pending":
       return [
         {
-          label: "Approve",
+          label: "Approve Writer",
           nextStatus: "approved",
-          className: "bg-emerald-600 text-white hover:bg-emerald-700",
-          confirmTitle: "Approve this user?",
-          confirmDescription: "They'll be able to log in and submit articles immediately.",
+          className: "bg-emerald-700 text-white hover:bg-emerald-800",
+          confirmTitle: "Approve this correspondent?",
+          confirmDescription: "They will be able to log in and submit articles immediately.",
         },
         {
-          label: "Reject",
+          label: "Reject Application",
           nextStatus: "rejected",
-          className: "border border-signal-border bg-signal-light text-signal-dark hover:bg-signal-border",
+          className: "border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100",
           confirmTitle: "Reject this registration?",
-          confirmDescription: "They won't be able to log in until an admin approves them.",
+          confirmDescription: "They will not receive access to the writer workspace.",
         },
       ];
     case "approved":
       return [
         {
-          label: "Suspend",
+          label: "Suspend Access",
           nextStatus: "suspended",
-          className: "border border-orange-300 bg-orange-50 text-orange-800 hover:bg-orange-100",
-          confirmTitle: "Suspend this user?",
-          confirmDescription: "They'll be blocked from logging in immediately, until reactivated.",
+          className: "border border-orange-300 bg-orange-50 text-orange-900 hover:bg-orange-100",
+          confirmTitle: "Suspend this contributor?",
+          confirmDescription: "They will be temporarily blocked from logging in.",
         },
       ];
     case "rejected":
@@ -60,9 +53,9 @@ function actionsFor(status: string): {
         {
           label: "Approve",
           nextStatus: "approved",
-          className: "bg-emerald-600 text-white hover:bg-emerald-700",
-          confirmTitle: "Approve this user?",
-          confirmDescription: "They'll be able to log in and submit articles immediately.",
+          className: "bg-emerald-700 text-white hover:bg-emerald-800",
+          confirmTitle: "Approve this contributor?",
+          confirmDescription: "They will be able to log in and submit articles.",
         },
       ];
     case "suspended":
@@ -70,16 +63,16 @@ function actionsFor(status: string): {
         {
           label: "Reactivate",
           nextStatus: "approved",
-          className: "bg-emerald-600 text-white hover:bg-emerald-700",
-          confirmTitle: "Reactivate this user?",
-          confirmDescription: "They'll be able to log in again immediately.",
+          className: "bg-emerald-700 text-white hover:bg-emerald-800",
+          confirmTitle: "Reactivate this account?",
+          confirmDescription: "Access will be restored immediately.",
         },
         {
           label: "Reject",
           nextStatus: "rejected",
-          className: "border border-signal-border bg-signal-light text-signal-dark hover:bg-signal-border",
+          className: "border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100",
           confirmTitle: "Reject this user?",
-          confirmDescription: "They won't be able to log in until an admin approves them again.",
+          confirmDescription: "They will not be able to log in.",
         },
       ];
     default:
@@ -117,28 +110,28 @@ function UserRow({
       title: a.confirmTitle,
       description: a.confirmDescription,
       confirmLabel: a.label,
-      danger: a.label === "Reject" || a.label === "Suspend",
+      danger: a.label.includes("Reject") || a.label.includes("Suspend"),
     });
     if (!ok) return;
-    run({ status: a.nextStatus }, `${user.displayName || user.email}: ${a.label.toLowerCase()}d.`);
+    run({ status: a.nextStatus }, `${user.displayName || user.email}: ${a.label}.`);
   }
 
   async function handleDemote() {
     const ok = await confirm({
       title: "Demote to contributor?",
-      description: "They'll lose admin access immediately.",
+      description: "They will lose administrative access.",
       confirmLabel: "Demote",
       danger: true,
     });
     if (!ok) return;
-    run({ role: "contributor" }, `${user.displayName || user.email} demoted to contributor.`);
+    run({ role: "contributor" }, `${user.displayName || user.email} demoted.`);
   }
 
   async function handleDelete() {
     const ok = await confirm({
       title: `Delete ${user.email}?`,
-      description: "This permanently deletes the account and cannot be undone.",
-      confirmLabel: "Delete",
+      description: "This permanently removes the account.",
+      confirmLabel: "Delete User",
       danger: true,
     });
     if (!ok) return;
@@ -154,58 +147,66 @@ function UserRow({
   }
 
   return (
-    <div className="rounded-lg border border-ink-200 bg-white p-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+    <div className="rounded-2xl border border-ink-200/80 bg-white p-5 shadow-card space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Link href={`/admin/users/${user.id}`} className="text-sm font-bold text-ink-900 hover:text-signal hover:underline">
-            {user.displayName || "(no name)"}
+          <Link
+            href={`/admin/users/${user.id}`}
+            className="font-serif text-base font-bold text-ink-950 hover:text-signal transition-colors"
+          >
+            {user.displayName || "(Unnamed Contributor)"}
           </Link>
-          <p className="text-xs text-ink-500">{user.email}</p>
+          <p className="font-mono text-xs text-ink-500">{user.email}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded bg-ink-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink-700">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-paper-200 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-ink-700">
             {user.role}
           </span>
           <StatusBadge status={user.status} />
         </div>
       </div>
 
-      {user.bio && <p className="mt-2 text-xs text-ink-600">{user.bio}</p>}
-      <p className="mt-1 text-[11px] text-ink-400">
+      {user.bio && (
+        <p className="text-xs text-ink-700 bg-paper-50 p-3 rounded-lg border border-ink-100 leading-relaxed">
+          {user.bio}
+        </p>
+      )}
+
+      <p className="font-mono text-[11px] text-ink-400">
         Applied {formatDate(user.createdAt)}
-        {user.lastLoginAt ? ` · Last login ${formatDate(user.lastLoginAt)}` : " · Never logged in"}
+        {user.lastLoginAt ? ` · Active ${formatDate(user.lastLoginAt)}` : " · No login recorded"}
       </p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-ink-100">
         {actionsFor(user.status).map((a) => (
           <button
             key={a.label}
             disabled={busy}
             onClick={() => handleAction(a)}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${a.className}`}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all disabled:opacity-50 ${a.className}`}
           >
             {a.label}
           </button>
         ))}
         <Link
           href={`/admin/users/${user.id}`}
-          className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+          className="rounded-lg border border-ink-300 bg-paper-50 px-3 py-1.5 text-xs font-bold text-ink-700 hover:bg-paper-100 transition-all"
         >
-          View Details
+          View Profile &amp; History
         </Link>
         {user.role !== "contributor" && (
           <button
             disabled={busy}
             onClick={handleDemote}
-            className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50"
+            className="rounded-lg border border-ink-300 px-3 py-1.5 text-xs font-bold text-ink-700 hover:bg-paper-100 disabled:opacity-50"
           >
-            Demote to Contributor
+            Demote
           </button>
         )}
         <button
           disabled={busy}
           onClick={handleDelete}
-          className="ml-auto rounded-md px-3 py-1.5 text-xs font-semibold text-ink-400 hover:bg-ink-50 hover:text-signal disabled:opacity-50"
+          className="ml-auto rounded-lg px-3 py-1.5 text-xs font-bold text-ink-400 hover:text-signal disabled:opacity-50"
         >
           Delete
         </button>
@@ -218,9 +219,29 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
   const [users, setUsers] = useState(initialUsers);
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("status");
-  const [filter, setFilter] = useState<string>(statusFilter || "all");
+  const [filter, setFilter] = useState(statusFilter || "all");
   const [query, setQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
+
+  const counts = {
+    pending: users.filter((u) => u.status === "pending").length,
+    approved: users.filter((u) => u.status === "approved").length,
+    rejected: users.filter((u) => u.status === "rejected").length,
+    suspended: users.filter((u) => u.status === "suspended").length,
+  };
+
+  const filtered = useMemo(() => {
+    let list = filter === "all" ? users : users.filter((u) => u.status === filter);
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      list = list.filter(
+        (u) =>
+          u.email.toLowerCase().includes(q) ||
+          (u.displayName && u.displayName.toLowerCase().includes(q)) ||
+          (u.bio && u.bio.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [users, filter, query]);
 
   async function handleUpdate(id: string, updates: any) {
     const res = await fetch(`/api/admin/users/${id}`, {
@@ -229,74 +250,57 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
       body: JSON.stringify(updates),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Something went wrong.");
+    if (!res.ok) throw new Error(data.error || "Failed to update user.");
     setUsers((prev) => prev.map((u) => (u.id === id ? data.user : u)));
   }
 
   async function handleDelete(id: string) {
     const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Couldn't delete this user.");
-    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to delete user.");
     setUsers((prev) => prev.filter((u) => u.id !== id));
   }
 
-  const filtered = useMemo(() => {
-    let list = filter === "all" ? users : users.filter((u) => u.status === filter);
-    if (query.trim()) {
-      const q = query.trim().toLowerCase();
-      list = list.filter((u) => u.displayName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-    }
-    if (dateFrom) {
-      const from = new Date(dateFrom).getTime();
-      list = list.filter((u) => new Date(u.createdAt).getTime() >= from);
-    }
-    return list;
-  }, [users, filter, query, dateFrom]);
-
-  const pendingCount = users.filter((u) => u.status === "pending").length;
-
   return (
-    <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          {(["all", "pending", "approved", "rejected", "suspended"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                filter === f ? "border-ink-900 bg-ink-900 text-white" : "border-ink-200 bg-white text-ink-600 hover:border-ink-400"
-              }`}
-            >
-              {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
-              {f === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
-            </button>
-          ))}
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-ink-100 pb-4">
+        <div>
+          <h2 className="font-serif text-xl font-black text-ink-950">Correspondents &amp; Users ({users.length})</h2>
+          <p className="mt-0.5 text-xs text-ink-500">Manage writer applications, authorizations, and editorial roles.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or email..."
-            className="w-56 rounded-md border border-ink-300 px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
-          />
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            title="Joined on or after"
-            className="rounded-md border border-ink-300 px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
-          />
-        </div>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search writers by name, email..."
+          className="w-full sm:w-64 rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {(["all", "pending", "approved", "rejected", "suspended"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all ${
+              filter === s
+                ? "border-ink-950 bg-ink-950 text-white shadow-card"
+                : "border-ink-200 bg-white text-ink-700 hover:border-ink-400"
+            }`}
+          >
+            {s.charAt(0).toUpperCase() + s.slice(1)}
+            {s !== "all" && counts[s] > 0 && <span className="ml-1.5 font-mono text-[10px]">({counts[s]})</span>}
+          </button>
+        ))}
       </div>
 
       {filtered.length === 0 ? (
-        <p className="mt-6 text-sm text-ink-500">No users match this filter.</p>
+        <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-12 text-center text-xs text-ink-500">
+          No users match this filter.
+        </div>
       ) : (
-        <div className="mt-4 space-y-3">
-          {filtered.map((u) => (
-            <UserRow key={u.id} user={u} onUpdate={handleUpdate} onDelete={handleDelete} />
+        <div className="space-y-3">
+          {filtered.map((user) => (
+            <UserRow key={user.id} user={user} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       )}

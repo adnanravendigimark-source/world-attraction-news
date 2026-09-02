@@ -14,7 +14,6 @@ const TABS = [
   "all",
   "draft",
   "pending",
-  "under_review",
   "changes_requested",
   "approved",
   "scheduled",
@@ -22,90 +21,138 @@ const TABS = [
   "rejected",
 ] as const;
 
-function tabLabel(t: string) {
-  if (t === "all") return "All";
-  return t
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
+const TAB_LABELS: Record<string, string> = {
+  all: "All Dispatches",
+  draft: "Drafts",
+  pending: "Under Review",
+  changes_requested: "Changes Requested",
+  approved: "Approved",
+  scheduled: "Scheduled",
+  published: "Published",
+  rejected: "Rejected",
+};
 
 export default function ArticlesList({ articles }: { articles: ArticleWithRelations[] }) {
   const [filter, setFilter] = useState<(typeof TABS)[number]>("all");
 
-  const counts = Object.fromEntries(TABS.map((t) => [t, t === "all" ? articles.length : articles.filter((a) => a.status === t).length]));
+  const counts = Object.fromEntries(
+    TABS.map((t) => [t, t === "all" ? articles.length : articles.filter((a) => a.status === t).length])
+  );
   const filtered = filter === "all" ? articles : articles.filter((a) => a.status === filter);
 
   return (
-    <div>
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-6">
+      {/* Category / Status Tabs */}
+      <div className="flex flex-wrap gap-2 border-b border-ink-100 pb-4">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setFilter(t)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
-              filter === t ? "border-ink-900 bg-ink-900 text-white" : "border-ink-200 bg-white text-ink-600 hover:border-ink-400"
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all ${
+              filter === t
+                ? "border-ink-950 bg-ink-950 text-white shadow-card"
+                : "border-ink-200 bg-white text-ink-700 hover:border-ink-400"
             }`}
           >
-            {tabLabel(t)}
-            {counts[t] > 0 ? ` (${counts[t]})` : ""}
+            {TAB_LABELS[t] || t}
+            {counts[t] > 0 && <span className="ml-1.5 opacity-70 font-mono text-[11px]">({counts[t]})</span>}
           </button>
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-dashed border-ink-300 bg-white p-10 text-center">
-          <p className="text-sm text-ink-500">Nothing here yet.</p>
-          <Link href="/dashboard/articles/new" className="mt-3 inline-block text-sm font-semibold text-signal hover:underline">
-            Write a new article →
+        <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-12 text-center shadow-subtle">
+          <p className="font-serif text-base font-bold text-ink-800">No dispatches in this view.</p>
+          <p className="mt-1 text-xs text-ink-500">Draft a new story to submit to the editorial desk.</p>
+          <Link
+            href="/dashboard/articles/new"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-signal px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark"
+          >
+            + Write New Dispatch
           </Link>
         </div>
       ) : (
-        <div className="mt-4 space-y-3">
+        <div className="space-y-4">
           {filtered.map((a) => (
-            <div key={a.id} className="rounded-lg border border-ink-200 bg-white p-4 sm:p-5">
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <h2 className="font-serif text-base font-bold text-ink-900">{a.title || "Untitled draft"}</h2>
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge status={a.status} />
+            <div
+              key={a.id}
+              className="rounded-2xl border border-ink-200/80 bg-white p-5 sm:p-6 shadow-card transition-all hover:shadow-lift"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="font-serif text-lg font-black text-ink-950">
+                  {a.title || "Untitled Draft"}
+                </h3>
+                <div className="flex items-center gap-3">
                   {a.score !== null && (
-                    <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-ink-600">Score: {a.score}/10</span>
+                    <span className="rounded-md bg-amber-100 px-2 py-0.5 font-mono text-xs font-bold text-amber-900">
+                      Score: {a.score}/10
+                    </span>
                   )}
+                  <StatusBadge status={a.status} />
                 </div>
               </div>
-              {a.excerpt && <p className="mt-1.5 line-clamp-2 text-xs text-ink-600">{a.excerpt}</p>}
-              <div className="mt-2 text-[11px] text-ink-400">
-                {a.cityName} · Updated {formatDate(a.updatedAt)}
-                {a.status !== "draft" && a.submittedAt ? ` · Submitted ${formatDate(a.submittedAt)}` : ""}
-                {a.publishedAt ? ` · Published ${formatDate(a.publishedAt)}` : ""}
+
+              {a.excerpt && (
+                <p className="mt-2 line-clamp-2 text-xs sm:text-sm text-ink-600 leading-relaxed">
+                  {a.excerpt}
+                </p>
+              )}
+
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] font-mono text-ink-400 border-t border-ink-100 pt-3">
+                <span className="font-bold text-ink-700 font-sans">{a.cityName} Bureau</span>
+                <span>·</span>
+                <span>Updated {formatDate(a.updatedAt)}</span>
+                {a.publishedAt && (
+                  <>
+                    <span>·</span>
+                    <span className="text-emerald-700 font-semibold">Published {formatDate(a.publishedAt)}</span>
+                  </>
+                )}
               </div>
 
               {a.adminFeedback && (
-                <div className="mt-3 rounded border border-ink-200 bg-ink-50 p-3 text-xs text-ink-700">
-                  <span className="font-semibold text-ink-800">Editor feedback: </span>
-                  {a.adminFeedback}
+                <div className="mt-3.5 rounded-xl border border-ink-200 bg-paper-100 p-3.5 text-xs text-ink-800">
+                  <div className="flex items-center gap-1.5 text-signal font-bold uppercase text-[10px] font-mono mb-1">
+                    <span>Editorial Desk Feedback</span>
+                  </div>
+                  <p className="leading-relaxed font-sans text-ink-700">"{a.adminFeedback}"</p>
                 </div>
               )}
 
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-4 flex flex-wrap items-center gap-4 pt-2">
                 {a.status === "draft" && (
-                  <Link href={`/dashboard/articles/${a.id}/edit`} className="text-xs font-semibold text-signal hover:underline">
-                    Continue Writing →
+                  <Link
+                    href={`/dashboard/articles/${a.id}/edit`}
+                    className="inline-flex items-center gap-1 rounded-lg bg-ink-900 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-signal transition-all"
+                  >
+                    <span>Continue Writing</span>
+                    <span>→</span>
                   </Link>
                 )}
                 {(a.status === "rejected" || a.status === "changes_requested") && (
-                  <Link href={`/dashboard/articles/${a.id}/edit`} className="text-xs font-semibold text-signal hover:underline">
-                    Edit &amp; Resubmit →
+                  <Link
+                    href={`/dashboard/articles/${a.id}/edit`}
+                    className="inline-flex items-center gap-1 rounded-lg bg-signal px-3.5 py-1.5 text-xs font-bold text-white hover:bg-signal-dark transition-all shadow-subtle"
+                  >
+                    <span>Edit &amp; Resubmit</span>
+                    <span>→</span>
                   </Link>
                 )}
                 {a.status !== "draft" && (
-                  <Link href={`/dashboard/articles/${a.id}`} className="text-xs font-semibold text-ink-600 hover:underline">
-                    View Details →
+                  <Link
+                    href={`/dashboard/articles/${a.id}`}
+                    className="text-xs font-bold text-ink-700 hover:text-signal transition-colors"
+                  >
+                    View Status &amp; Revisions →
                   </Link>
                 )}
                 {a.status === "published" && (
-                  <Link href={`/cities/${a.citySlug}/${a.slug}`} target="_blank" className="text-xs font-semibold text-signal hover:underline">
-                    View Live →
+                  <Link
+                    href={`/cities/${a.citySlug}/${a.slug}`}
+                    target="_blank"
+                    className="text-xs font-bold text-signal hover:underline ml-auto"
+                  >
+                    Open Live Story ↗
                   </Link>
                 )}
               </div>

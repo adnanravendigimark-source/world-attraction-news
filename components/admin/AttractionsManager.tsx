@@ -28,16 +28,16 @@ function AttractionFormFields({
   cities: City[];
 }) {
   return (
-    <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">City</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Destination City</label>
           <select
             value={value.cityId}
             onChange={(e) => onChange({ ...value, cityId: e.target.value })}
-            className="mt-1.5 w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-xs font-semibold focus:border-signal focus:outline-none"
           >
-            <option value="">Select a city...</option>
+            <option value="">Select destination bureau...</option>
             {cities.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}, {c.country}
@@ -46,64 +46,66 @@ function AttractionFormFields({
           </select>
         </div>
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Attraction Name</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Landmark / Venue Name</label>
           <input
             value={value.name}
             onChange={(e) => onChange({ ...value, name: e.target.value })}
-            placeholder="e.g. Rijksmuseum"
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+            placeholder="e.g. Louvre Museum"
+            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs font-semibold focus:border-signal focus:outline-none"
           />
         </div>
       </div>
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Description</label>
+        <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Venue Description</label>
         <textarea
           value={value.description}
           onChange={(e) => onChange({ ...value, description: e.target.value })}
           rows={2}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+          placeholder="Brief description of the landmark..."
+          className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs focus:border-signal focus:outline-none resize-none leading-relaxed"
         />
       </div>
       <ImageUploadField
-        label="Hero Image"
+        label="Cover Image"
         value={value.heroImage}
         onChange={(url) => onChange({ ...value, heroImage: url })}
         uploadUrl="/api/admin/upload"
       />
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Hero Image Alt Text</label>
+        <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Hero Image Alt Text</label>
         <input
           value={value.heroImageAlt}
           onChange={(e) => onChange({ ...value, heroImageAlt: e.target.value })}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+          placeholder="Describe image or credit photographer"
+          className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs focus:border-signal focus:outline-none"
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Meta Title</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Meta Title</label>
           <input
             value={value.metaTitle}
             onChange={(e) => onChange({ ...value, metaTitle: e.target.value })}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs focus:border-signal focus:outline-none"
           />
         </div>
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Sort Order</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Sort Order</label>
           <input
             type="number"
             value={value.sortOrder}
             onChange={(e) => onChange({ ...value, sortOrder: Number(e.target.value) })}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs font-mono focus:border-signal focus:outline-none"
           />
         </div>
       </div>
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Meta Description</label>
+        <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Meta Description</label>
         <textarea
           value={value.metaDescription}
           onChange={(e) => onChange({ ...value, metaDescription: e.target.value })}
           rows={2}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs focus:border-signal focus:outline-none resize-none"
         />
       </div>
     </div>
@@ -128,14 +130,21 @@ export default function AttractionsManager({
   const [editValue, setEditValue] = useState<typeof EMPTY>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
+  const [selectedCityId, setSelectedCityId] = useState("");
 
-  const filtered = query.trim()
-    ? attractions.filter(
-        (a) => a.name.toLowerCase().includes(query.trim().toLowerCase()) || a.cityName.toLowerCase().includes(query.trim().toLowerCase())
-      )
-    : attractions;
+  const filtered = attractions.filter((a) => {
+    if (selectedCityId && a.cityId !== selectedCityId) return false;
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      return a.name.toLowerCase().includes(q) || a.cityName.toLowerCase().includes(q);
+    }
+    return true;
+  });
 
   async function handleCreate() {
+    if (!newAttraction.cityId) return toast.error("Select a destination city first.");
+    if (!newAttraction.name.trim()) return toast.error("Provide a landmark name.");
+
     setBusy(true);
     try {
       const res = await fetch("/api/admin/attractions", {
@@ -148,7 +157,7 @@ export default function AttractionsManager({
       setAttractions((prev) => [...prev, data.attraction]);
       setCreating(false);
       setNewAttraction(EMPTY);
-      toast.success("Attraction added.");
+      toast.success("Landmark registered.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -156,18 +165,9 @@ export default function AttractionsManager({
     }
   }
 
-  function startEdit(a: AttractionWithCity) {
-    setEditingId(a.id);
-    setEditValue({
-      cityId: a.cityId,
-      name: a.name,
-      description: a.description,
-      heroImage: a.heroImage,
-      heroImageAlt: a.heroImageAlt,
-      metaTitle: a.metaTitle,
-      metaDescription: a.metaDescription,
-      sortOrder: a.sortOrder,
-    });
+  function startEdit(attraction: AttractionWithCity) {
+    setEditingId(attraction.id);
+    setEditValue({ ...attraction });
   }
 
   async function handleSaveEdit(id: string) {
@@ -182,7 +182,7 @@ export default function AttractionsManager({
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
       setAttractions((prev) => prev.map((a) => (a.id === id ? data.attraction : a)));
       setEditingId(null);
-      toast.success("Attraction updated.");
+      toast.success("Landmark updated.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -192,8 +192,8 @@ export default function AttractionsManager({
 
   async function handleDelete(id: string) {
     const ok = await confirm({
-      title: "Delete this attraction?",
-      description: "This cannot be undone.",
+      title: "Delete this landmark?",
+      description: "Articles tagged with this landmark will remain under the destination city.",
       confirmLabel: "Delete",
       danger: true,
     });
@@ -202,9 +202,9 @@ export default function AttractionsManager({
     try {
       const res = await fetch(`/api/admin/attractions/${id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't delete this attraction.");
+      if (!res.ok) throw new Error(data.error || "Couldn't delete landmark.");
       setAttractions((prev) => prev.filter((a) => a.id !== id));
-      toast.success("Attraction deleted.");
+      toast.success("Landmark deleted.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -213,65 +213,85 @@ export default function AttractionsManager({
   }
 
   return (
-    <div>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search attractions or cities..."
-        className="mb-4 w-full max-w-xs rounded-md border border-ink-300 px-3 py-1.5 text-xs focus:border-signal focus:outline-none sm:w-64"
-      />
-
-      {cities.length === 0 && <p className="mb-4 text-sm text-ink-500">Add a city first before creating attractions.</p>}
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-ink-100 pb-4">
+        <div>
+          <h2 className="font-serif text-xl font-black text-ink-950">Landmarks &amp; Venues ({attractions.length})</h2>
+          <p className="mt-0.5 text-xs text-ink-500">Manage cultural sites, museums, and theme park venue dossiers.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedCityId}
+            onChange={(e) => setSelectedCityId(e.target.value)}
+            className="rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold"
+          >
+            <option value="">All Destinations</option>
+            {cities.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search landmarks..."
+            className="w-48 rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
+          />
+        </div>
+      </div>
 
       <div className="space-y-3">
         {filtered.length === 0 && (
-          <p className="text-sm text-ink-500">
-            {attractions.length === 0 ? "No attractions yet — add your first one below." : `No attractions match "${query}".`}
-          </p>
+          <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-8 text-center text-xs text-ink-500">
+            No landmarks found.
+          </div>
         )}
-        {filtered.map((a) => (
-          <div key={a.id} className="rounded-lg border border-ink-200 bg-white p-4">
-            {editingId === a.id ? (
-              <div>
+        {filtered.map((attraction) => (
+          <div key={attraction.id} className="rounded-2xl border border-ink-200/80 bg-white p-5 shadow-card">
+            {editingId === attraction.id ? (
+              <div className="space-y-4">
                 <AttractionFormFields value={editValue} onChange={setEditValue} cities={cities} />
-                <div className="mt-3 flex gap-2">
+                <div className="flex gap-2 pt-2 border-t border-ink-100">
                   <button
                     disabled={busy}
-                    onClick={() => handleSaveEdit(a.id)}
-                    className="rounded-md bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-800 disabled:opacity-60"
+                    onClick={() => handleSaveEdit(attraction.id)}
+                    className="rounded-xl bg-ink-950 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-signal transition-all disabled:opacity-60"
                   >
-                    Save
+                    Save Changes
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
-                    className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                    className="rounded-xl border border-ink-300 px-4 py-2 text-xs font-bold text-ink-700 hover:bg-paper-100"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-ink-900">{a.name}</p>
-                  <p className="text-xs text-ink-500">
-                    {a.cityName} · /cities/{a.citySlug}/attractions/{a.slug}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-ink-400">
-                    {articleCounts[a.id] || 0} published article{(articleCounts[a.id] || 0) === 1 ? "" : "s"}
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-serif text-lg font-black text-ink-950">{attraction.name}</h3>
+                    <span className="rounded bg-paper-200 px-2 py-0.5 font-mono text-[10px] font-bold text-ink-800">
+                      {attraction.cityName}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 font-mono text-[11px] text-ink-400">
+                    /cities/{attraction.citySlug}/attractions/{attraction.slug} · {articleCounts[attraction.id] || 0} reports
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => startEdit(a)}
-                    className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                    onClick={() => startEdit(attraction)}
+                    className="rounded-lg border border-ink-300 bg-paper-50 px-3 py-1.5 text-xs font-bold text-ink-800 hover:bg-paper-100 transition-all"
                   >
                     Edit
                   </button>
                   <button
                     disabled={busy}
-                    onClick={() => handleDelete(a.id)}
-                    className="rounded-md px-3 py-1.5 text-xs font-semibold text-ink-400 hover:text-signal disabled:opacity-60"
+                    onClick={() => handleDelete(attraction.id)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-bold text-ink-400 hover:text-signal transition-all disabled:opacity-60"
                   >
                     Delete
                   </button>
@@ -282,24 +302,25 @@ export default function AttractionsManager({
         ))}
       </div>
 
-      <div className="mt-6 rounded-lg border border-dashed border-ink-300 bg-white p-4">
+      <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-6 shadow-subtle">
         {creating ? (
-          <div>
+          <div className="space-y-4">
+            <h3 className="font-serif text-base font-black text-ink-950">Register New Landmark</h3>
             <AttractionFormFields value={newAttraction} onChange={setNewAttraction} cities={cities} />
-            <div className="mt-3 flex gap-2">
+            <div className="flex gap-2 pt-2 border-t border-ink-100">
               <button
-                disabled={busy || !newAttraction.cityId || !newAttraction.name}
+                disabled={busy}
                 onClick={handleCreate}
-                className="rounded-md bg-signal px-3 py-1.5 text-xs font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
+                className="rounded-xl bg-signal px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark transition-all disabled:opacity-60"
               >
-                Create Attraction
+                Create Landmark
               </button>
               <button
                 onClick={() => {
                   setCreating(false);
                   setNewAttraction(EMPTY);
                 }}
-                className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                className="rounded-xl border border-ink-300 px-4 py-2 text-xs font-bold text-ink-700 hover:bg-paper-100"
               >
                 Cancel
               </button>
@@ -307,11 +328,10 @@ export default function AttractionsManager({
           </div>
         ) : (
           <button
-            disabled={cities.length === 0}
             onClick={() => setCreating(true)}
-            className="text-sm font-semibold text-signal hover:underline disabled:opacity-40"
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-signal hover:underline"
           >
-            + Add an Attraction
+            <span>+ Register New Landmark / Venue</span>
           </button>
         )}
       </div>

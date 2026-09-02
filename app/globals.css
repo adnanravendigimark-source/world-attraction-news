@@ -1,29 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..800;1,6..72,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 html {
   scroll-behavior: smooth;
+  color-scheme: light;
 }
 
 body {
-  background-color: #fbf9f5;
-  color: #151310;
+  background-color: #FAF9F5;
+  color: #111318;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
-  background-color: #f3c3cb;
-  color: #8c0e21;
+  background-color: #FAC5CA;
+  color: #9E1D2A;
 }
 
-/* Subtle, CSS-only entrance animation for above-the-fold hero content —
-   deliberately small/short (no scroll-triggered JS, no layout shift) so it
-   reads as "polished" rather than "flashy" and never costs a meaningful
-   Core Web Vitals hit. */
+/* Custom editorial scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F5F3EB;
+}
+::-webkit-scrollbar-thumb {
+  background: #D6D9E0;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B0B6C3;
+}
+
+/* Animations */
 @keyframes fade-in-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -32,63 +52,92 @@ body {
 }
 
 .animate-fade-in-up {
-  animation: fade-in-up 0.5s ease-out both;
+  animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes pulse-gentle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 2.5s infinite ease-in-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-in-up {
+  .animate-fade-in-up,
+  .animate-pulse-gentle {
     animation: none;
   }
 }
 
-/* Long-form article typography — serif headlines/body for a readable,
-   editorial feel distinct from the sans-only informational sites. */
+/* Editorial Article Typography */
 .article-body {
   max-width: 100%;
-  color: #26221d;
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
-  font-size: 1.09rem;
+  color: #1C1F27;
+  font-family: "Newsreader", Georgia, Cambria, "Times New Roman", serif;
+  font-size: 1.18rem;
   line-height: 1.85;
+  letter-spacing: -0.003em;
+}
+
+.article-body > p:first-of-type::first-letter {
+  float: left;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 4rem;
+  line-height: 0.82;
+  font-weight: 700;
+  margin-right: 0.65rem;
+  margin-top: 0.15rem;
+  color: #111318;
 }
 
 .article-body h1 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 1.75rem;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 1.85rem;
   font-weight: 800;
-  color: #151310;
-  margin-top: 1.5rem;
+  color: #111318;
+  margin-top: 2rem;
   margin-bottom: 1rem;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
 }
 
 .article-body h2 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 1.4rem;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 1.5rem;
   font-weight: 800;
-  color: #151310;
-  margin-top: 2.25rem;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.01em;
+  color: #111318;
+  margin-top: 2.5rem;
+  margin-bottom: 0.85rem;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
 }
 
 .article-body h3 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 1.15rem;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #26221d;
-  margin-top: 1.75rem;
-  margin-bottom: 0.5rem;
+  color: #1C1F27;
+  margin-top: 2rem;
+  margin-bottom: 0.6rem;
+  letter-spacing: -0.01em;
 }
 
 .article-body p {
-  margin-bottom: 1.15rem;
+  margin-bottom: 1.35rem;
 }
 
 .article-body ul,
 .article-body ol {
-  margin-bottom: 1.25rem;
-  padding-left: 1.4rem;
+  margin-bottom: 1.5rem;
+  padding-left: 1.5rem;
 }
 
 .article-body ul {
@@ -100,54 +149,59 @@ body {
 }
 
 .article-body li {
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.45rem;
 }
 
 .article-body li::marker {
-  color: #b3122a;
+  color: #C22938;
+  font-weight: 700;
 }
 
 .article-body strong {
-  color: #151310;
+  color: #0A0B0E;
   font-weight: 700;
 }
 
 .article-body a {
-  color: #b3122a;
+  color: #C22938;
   text-decoration: underline;
   text-underline-offset: 3px;
+  transition: color 0.15s ease;
 }
 
 .article-body a:hover {
-  color: #8c0e21;
+  color: #9E1D2A;
 }
 
 .article-body blockquote {
-  border-left: 3px solid #b3122a;
-  padding-left: 1rem;
-  margin: 1.5rem 0;
-  color: #524a42;
+  border-left: 3px solid #C22938;
+  padding: 0.6rem 0 0.6rem 1.35rem;
+  margin: 2rem 0;
+  color: #414756;
   font-style: italic;
+  font-size: 1.25rem;
+  line-height: 1.6;
+  background: rgba(194, 41, 56, 0.03);
+  border-radius: 0 0.5rem 0.5rem 0;
 }
 
 .article-body img {
-  border-radius: 0.5rem;
-  margin: 1.5rem 0;
+  border-radius: 0.625rem;
+  margin: 2rem 0;
   max-width: 100%;
   height: auto;
+  box-shadow: 0 4px 14px rgba(17, 19, 24, 0.08);
 }
 
-/* Captioned/aligned in-content images (lib/figureImage.ts) — a plain
-   .article-body img above still covers legacy content saved before this
-   extension existed. */
+/* Captioned in-content figures */
 .article-body figure[data-figure-image],
 .editor-body figure[data-figure-image] {
-  margin: 1.5rem 0;
+  margin: 2rem 0;
 }
 
 .article-body figure[data-figure-image] img,
 .editor-body figure[data-figure-image] img {
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   max-width: 100%;
   height: auto;
   display: block;
@@ -163,15 +217,17 @@ body {
 .article-body figure.img-align-left,
 .editor-body figure.img-align-left {
   float: left;
-  max-width: 50%;
-  margin-right: 1.5rem;
+  max-width: 48%;
+  margin-right: 1.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .article-body figure.img-align-right,
 .editor-body figure.img-align-right {
   float: right;
-  max-width: 50%;
-  margin-left: 1.5rem;
+  max-width: 48%;
+  margin-left: 1.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .article-body figure.img-align-full,
@@ -181,10 +237,10 @@ body {
 
 .article-body figcaption,
 .editor-body figcaption {
-  margin-top: 0.5rem;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 0.8rem;
-  color: #7a7266;
+  margin-top: 0.6rem;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.82rem;
+  color: #7E8799;
   text-align: center;
 }
 
@@ -192,44 +248,50 @@ body {
 .editor-body table {
   width: 100%;
   border-collapse: collapse;
-  margin: 1.5rem 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 0.9rem;
+  margin: 2rem 0;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.92rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
 }
 
 .article-body th,
 .article-body td,
 .editor-body th,
 .editor-body td {
-  border: 1px solid #e4ded3;
-  padding: 0.5rem 0.75rem;
+  border: 1px solid #EAE5D9;
+  padding: 0.65rem 0.9rem;
   text-align: left;
 }
 
 .article-body th,
 .editor-body th {
-  background-color: #f5f1e8;
+  background-color: #F5F3EB;
   font-weight: 700;
+  color: #111318;
 }
 
-/* Tiptap editor (dashboard + admin article editor) shares the same reading
-   typography so what a contributor sees while writing matches the
-   published output. */
+/* Tiptap Contributor & Admin CMS Editor */
 .editor-body .ProseMirror {
-  min-height: 320px;
+  min-height: 380px;
   outline: none;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.15rem;
+  line-height: 1.8;
+  color: #1C1F27;
 }
 
 .editor-body .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #b3a99a;
+  color: #B0B6C3;
   pointer-events: none;
   height: 0;
+  font-style: italic;
 }
 
 .editor-body .ProseMirror .selectedCell {
-  background-color: rgba(179, 18, 42, 0.08);
+  background-color: rgba(194, 41, 56, 0.08);
 }
 
 .editor-body .ProseMirror figure[data-figure-image] {
@@ -237,7 +299,7 @@ body {
 }
 
 .editor-body .ProseMirror figure[data-figure-image].ProseMirror-selectednode {
-  outline: 2px solid #b3122a;
+  outline: 2px solid #C22938;
   outline-offset: 2px;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
 }

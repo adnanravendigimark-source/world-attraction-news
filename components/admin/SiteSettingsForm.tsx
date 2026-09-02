@@ -33,7 +33,7 @@ export default function SiteSettingsForm({ initial, cities }: { initial: SiteSet
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      toast.success("Site settings saved.");
+      toast.success("Publication settings saved.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -42,63 +42,71 @@ export default function SiteSettingsForm({ initial, cities }: { initial: SiteSet
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Homepage Intro Override</label>
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-4">
+        <div className="border-b border-ink-100 pb-3">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">Editorial Hero</p>
+          <h3 className="font-serif text-lg font-black text-ink-950">Homepage Intro Override</h3>
+        </div>
         <textarea
           value={form.homepageIntroOverride}
           onChange={(e) => setForm({ ...form, homepageIntroOverride: e.target.value })}
           rows={3}
-          placeholder="Leave blank to use the default homepage intro copy."
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+          placeholder="Leave blank to use default publication mission statement..."
+          className="w-full rounded-lg border border-ink-200 bg-paper-50 p-3 text-xs text-ink-800 focus:border-signal focus:outline-none resize-none leading-relaxed"
         />
-        <p className="mt-1 text-[11px] text-ink-400">When set, replaces the intro text under the homepage hero.</p>
       </div>
 
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Featured Cities</label>
-        <p className="mt-1 text-[11px] text-ink-400">Shown in the homepage's featured cities section, in the order selected.</p>
-        {cities.length === 0 ? (
-          <p className="mt-2 text-xs text-ink-400">No cities yet — add some in City Management first.</p>
-        ) : (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {cities.map((c) => {
-              const active = form.featuredCitySlugs.includes(c.slug);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleCity(c.slug)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                    active ? "border-signal bg-signal text-white" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-50"
-                  }`}
-                >
-                  {c.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
+      <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-4">
+        <div className="border-b border-ink-100 pb-3">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">Curated Bureaus</p>
+          <h3 className="font-serif text-lg font-black text-ink-950">Featured Destination Bureaus</h3>
+        </div>
+        <p className="text-xs text-ink-500">Pick which destination bureaus appear prominently on the homepage.</p>
+        <div className="flex flex-wrap gap-2">
+          {cities.map((c) => {
+            const active = form.featuredCitySlugs.includes(c.slug);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggleCity(c.slug)}
+                className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all ${
+                  active
+                    ? "border-signal bg-signal text-white shadow-card"
+                    : "border-ink-200 bg-paper-50 text-ink-700 hover:border-ink-400"
+                }`}
+              >
+                {c.name} {active ? "✓" : "+"}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Content Moderation Note</label>
+      <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-4">
+        <div className="border-b border-ink-100 pb-3">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">Editorial Guidelines</p>
+          <h3 className="font-serif text-lg font-black text-ink-950">Internal Newsroom Rubric Note</h3>
+        </div>
         <textarea
           value={form.moderationNote}
           onChange={(e) => setForm({ ...form, moderationNote: e.target.value })}
           rows={2}
-          placeholder="Internal note shown to admins on the Article Review page — e.g. current review guidelines."
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+          placeholder="Guidance note displayed to editors on the review workbench..."
+          className="w-full rounded-lg border border-ink-200 bg-paper-50 p-3 text-xs text-ink-800 focus:border-signal focus:outline-none resize-none"
         />
       </div>
 
-      <button
-        disabled={busy}
-        onClick={handleSave}
-        className="rounded-md bg-signal px-4 py-2 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
-      >
-        {busy ? "Saving..." : "Save Site Settings"}
-      </button>
+      <div className="pt-2">
+        <button
+          disabled={busy}
+          onClick={handleSave}
+          className="rounded-xl bg-signal px-6 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark hover:shadow-lift transition-all disabled:opacity-60"
+        >
+          {busy ? "Saving..." : "Save Settings"}
+        </button>
+      </div>
     </div>
   );
 }
