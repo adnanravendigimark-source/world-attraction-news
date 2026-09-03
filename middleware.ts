@@ -2,17 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
 // Gates:
-//   /dashboard/*      -> any logged-in "contributor" (approved, checked at
+//   /contributor/*     -> any logged-in "contributor" (approved, checked at
 //                         login time — the session itself is only ever
 //                         issued to an approved contributor or an admin)
 //   /admin/*           -> role "admin" only
-//   /api/dashboard/*   -> same as /dashboard
+//   /api/dashboard/*   -> same as /contributor (the API routes kept their
+//                         original /api/dashboard/* path — only the
+//                         contributor-facing pages moved to /contributor —
+//                         see components/dashboard/*.tsx for the fetch()
+//                         call sites)
 //   /api/admin/*       -> same as /admin
 // The contributor-facing auth pages (/login, /signup, /pending-approval,
-// /forgot-password, /reset-password) live OUTSIDE /dashboard on purpose —
+// /forgot-password, /reset-password) live OUTSIDE /contributor on purpose —
 // they need to be reachable while logged out, and putting them under
-// /dashboard would mean special-casing them here. Only the admin login
+// /contributor would mean special-casing them here. Only the admin login
 // stays under /admin and needs that special-case.
+//
+// The legacy /dashboard/* routes (see app/dashboard/**) are plain
+// redirect() stubs that forward old bookmarks to /contributor/* — they
+// carry no protected data themselves, so /dashboard is deliberately left
+// OUT of the protected areas below. Middleware just lets the request
+// through to the stub, which redirects to the real /contributor/* path,
+// which then gets gated on its own merits by the isContributorArea check.
 const PUBLIC_PATHS = ["/admin/login"];
 
 function withNoIndex(res: NextResponse) {
@@ -33,9 +44,9 @@ function withNoCache(res: NextResponse) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const isDashboardArea = pathname.startsWith("/dashboard") || pathname.startsWith("/api/dashboard");
+  const isContributorArea = pathname.startsWith("/contributor") || pathname.startsWith("/api/dashboard");
   const isAdminArea = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
-  const isProtectedArea = isDashboardArea || isAdminArea;
+  const isProtectedArea = isContributorArea || isAdminArea;
 
   if (!isProtectedArea) {
     return withNoCache(NextResponse.next());
@@ -66,7 +77,7 @@ export async function middleware(req: NextRequest) {
     return withNoCache(withNoIndex(NextResponse.redirect(new URL("/", req.url))));
   }
 
-  if (isDashboardArea && session.role !== "contributor" && session.role !== "admin") {
+  if (isContributorArea && session.role !== "contributor" && session.role !== "admin") {
     if (isApi) {
       return withNoCache(withNoIndex(NextResponse.json({ error: "Unauthorized" }, { status: 401 })));
     }

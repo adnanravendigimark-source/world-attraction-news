@@ -37,7 +37,7 @@ export default function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid email or password.");
-      router.push(searchParams?.get("next") || "/dashboard");
+      router.push(searchParams?.get("next") || "/contributor/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

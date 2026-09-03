@@ -85,7 +85,7 @@ export async function GET(req: Request) {
       cityId: user.cityId,
     };
     const token = await createSessionToken(session, 60 * 60 * 24 * 7); // 7 days — matches cookie maxAge below
-    const res = redirectTo("/dashboard");
+    const res = redirectTo("/contributor/dashboard");
     res.cookies.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: "lax",

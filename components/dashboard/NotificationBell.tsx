@@ -84,7 +84,7 @@ export default function NotificationBell() {
       <button
         type="button"
         onClick={handleOpen}
-        className="relative rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+        className="relative rounded-lg p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
         aria-label="Notifications"
       >
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -92,48 +92,48 @@ export default function NotificationBell() {
           <path d="M10 19a2 2 0 0 0 4 0" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-signal px-1 text-[9px] font-bold text-white">
+          <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#DC2626] px-1 text-[9px] font-bold text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-80 max-w-[90vw] rounded-lg border border-ink-200 bg-white shadow-lift">
-          <div className="flex items-center justify-between border-b border-ink-100 px-3 py-2.5">
-            <p className="text-xs font-bold uppercase tracking-wide text-ink-500">Notifications</p>
+        <div className="absolute right-0 z-40 mt-2 w-80 max-w-[90vw] rounded-2xl border border-slate-200/90 bg-white shadow-lg">
+          <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Notifications</p>
             {unreadCount > 0 && (
-              <button type="button" onClick={handleMarkAllRead} className="text-[11px] font-semibold text-signal hover:underline">
+              <button type="button" onClick={handleMarkAllRead} className="text-[11px] font-semibold text-[#DC2626] hover:underline cursor-pointer">
                 Mark all read
               </button>
             )}
           </div>
           <div className="max-h-96 overflow-y-auto">
-            {loading && !loaded && <p className="px-3 py-6 text-center text-xs text-ink-400">Loading...</p>}
-            {error && <p className="px-3 py-6 text-center text-xs text-signal">Couldn't load notifications.</p>}
+            {loading && !loaded && <p className="px-3 py-6 text-center text-xs text-slate-400">Loading...</p>}
+            {error && <p className="px-3 py-6 text-center text-xs text-[#DC2626]">Couldn't load notifications.</p>}
             {!loading && !error && loaded && notifications.length === 0 && (
-              <p className="px-3 py-6 text-center text-xs text-ink-400">You're all caught up.</p>
+              <p className="px-3 py-6 text-center text-xs text-slate-400">You're all caught up.</p>
             )}
             {notifications.map((n) => (
               <button
                 key={n.id}
                 type="button"
                 onClick={() => handleItemClick(n)}
-                className={`block w-full border-b border-ink-50 px-3 py-2.5 text-left text-xs last:border-0 hover:bg-ink-50 ${
-                  !n.readAt ? "bg-signal-light/40" : ""
+                className={`block w-full border-b border-slate-50 px-3.5 py-2.5 text-left text-xs last:border-0 hover:bg-slate-50 cursor-pointer ${
+                  !n.readAt ? "bg-rose-50/40" : ""
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className={`font-semibold ${!n.readAt ? "text-ink-900" : "text-ink-600"}`}>{n.title}</p>
-                  {!n.readAt && <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-signal" />}
+                  <p className={`font-semibold ${!n.readAt ? "text-slate-900" : "text-slate-600"}`}>{n.title}</p>
+                  {!n.readAt && <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#DC2626]" />}
                 </div>
-                {n.body && <p className="mt-0.5 line-clamp-2 text-ink-500">{n.body}</p>}
-                <p className="mt-1 text-[10px] text-ink-400">{formatDate(n.createdAt)}</p>
+                {n.body && <p className="mt-0.5 line-clamp-2 text-slate-500">{n.body}</p>}
+                <p className="mt-1 text-[10px] text-slate-400">{formatDate(n.createdAt)}</p>
               </button>
             ))}
           </div>
-          <div className="border-t border-ink-100 px-3 py-2 text-center">
-            <Link href="/dashboard/notifications" onClick={() => setOpen(false)} className="text-[11px] font-semibold text-signal hover:underline">
+          <div className="border-t border-slate-100 px-3 py-2 text-center">
+            <Link href="/contributor/notifications" onClick={() => setOpen(false)} className="text-[11px] font-semibold text-[#DC2626] hover:underline">
               View all
             </Link>
           </div>

@@ -11,7 +11,7 @@ import {
 // real row in the database, created at the moment the real event happens
 // (approval, rejection, submission, review, scoring, publish/unpublish) —
 // never simulated or backfilled. The dashboard's Notification Center
-// (components/dashboard/NotificationCenter.tsx) reads this table directly.
+// (components/contributor/NotificationCenter.tsx) reads this table directly.
 export type NotificationType =
   | "account_approved"
   | "account_rejected"
@@ -136,7 +136,7 @@ export async function notifyAccountApproved(user: { id: string; email: string; d
     type: "account_approved",
     title: "Your account has been approved",
     body: `Welcome, ${user.displayName || user.email} — you can now log in and start writing articles.`,
-    link: "/dashboard",
+    link: "/contributor",
   });
 }
 
@@ -151,7 +151,7 @@ export async function notifyAccountRejected(user: { id: string; email: string; d
 }
 
 export async function notifyArticleSubmitted(user: { id: string; email: string }, article: { id: string; title: string }) {
-  const link = `/dashboard/articles/${article.id}`;
+  const link = `/contributor/articles/${article.id}`;
   await createNotification({
     userId: user.id,
     userEmail: user.email,
@@ -170,7 +170,7 @@ export async function notifyArticleUnderReview(user: { id: string; email: string
     type: "article_under_review",
     title: "Your article is now under review",
     body: `An editor has started reviewing "${article.title}".`,
-    link: `/dashboard/articles/${article.id}`,
+    link: `/contributor/articles/${article.id}`,
   });
 }
 
@@ -185,7 +185,7 @@ export async function notifyChangesRequested(
     type: "changes_requested",
     title: "Changes requested on your article",
     body: `An editor requested changes on "${article.title}"${feedback ? `: ${feedback}` : "."} You can edit and resubmit it.`,
-    link: `/dashboard/articles/${article.id}/edit`,
+    link: `/contributor/articles/${article.id}/edit`,
   });
 }
 
@@ -194,7 +194,7 @@ export async function notifyArticleApproved(
   article: { id: string; title: string },
   review?: { score?: number | null; feedback?: string }
 ) {
-  const link = `/dashboard/articles/${article.id}`;
+  const link = `/contributor/articles/${article.id}`;
   const score = review?.score ?? null;
   const feedback = review?.feedback || "";
   await createNotification({
@@ -213,7 +213,7 @@ export async function notifyArticleRejected(
   article: { id: string; title: string },
   feedback: string
 ) {
-  const link = `/dashboard/articles/${article.id}`;
+  const link = `/contributor/articles/${article.id}`;
   await createNotification({
     userId: user.id,
     userEmail: user.email,
@@ -232,7 +232,7 @@ export async function notifyArticleScored(user: { id: string; email: string }, a
     type: "article_scored",
     title: "Your article was scored",
     body: `"${article.title}" received a score of ${score}/10.`,
-    link: `/dashboard/articles/${article.id}`,
+    link: `/contributor/articles/${article.id}`,
   });
 }
 
@@ -255,6 +255,6 @@ export async function notifyArticleUnpublished(user: { id: string; email: string
     type: "article_unpublished",
     title: "Your article was unpublished",
     body: `"${article.title}" has been taken down from the public site.`,
-    link: `/dashboard/articles/${article.id}`,
+    link: `/contributor/articles/${article.id}`,
   });
 }

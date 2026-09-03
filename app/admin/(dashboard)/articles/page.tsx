@@ -34,7 +34,7 @@ export default async function AdminArticlesPage() {
           </p>
         </div>
         <Link
-          href="/dashboard/articles/new"
+          href="/contributor/articles/new"
           className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#DC2626] px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-colors self-start sm:self-auto"
         >
           <span>+ Write Article</span>

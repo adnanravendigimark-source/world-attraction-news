@@ -8,15 +8,16 @@ interface NavItem {
   href: string;
   label: string;
   icon: string;
+  badge?: number;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "home" },
-  { href: "/dashboard/articles/new", label: "Write Article", icon: "pencil" },
-  { href: "/dashboard/articles", label: "My Articles", icon: "doc" },
-  { href: "/dashboard/points", label: "Points & Scores", icon: "star" },
-  { href: "/dashboard/notifications", label: "Notifications", icon: "bell" },
-  { href: "/dashboard/profile", label: "Profile Settings", icon: "user" },
+const BASE_NAV_ITEMS: NavItem[] = [
+  { href: "/contributor/dashboard", label: "Dashboard", icon: "home" },
+  { href: "/contributor/articles/new", label: "Write Article", icon: "pencil" },
+  { href: "/contributor/articles", label: "My Articles", icon: "doc" },
+  { href: "/contributor/points", label: "Points & Scores", icon: "star" },
+  { href: "/contributor/notifications", label: "Notifications", icon: "bell" },
+  { href: "/contributor/profile", label: "Profile Settings", icon: "user" },
 ];
 
 function NavIcon({ name }: { name: string }) {
@@ -29,70 +30,145 @@ function NavIcon({ name }: { name: string }) {
     user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
   };
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d={paths[name] || ""} />
     </svg>
   );
 }
 
-export default function DashboardSidebar() {
+export default function DashboardSidebar({ unreadCount = 0 }: { unreadCount?: number }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
-  // Picks the single most specific nav item for the current path, rather
-  // than letting every item independently test startsWith() — otherwise
-  // a route like /dashboard/articles/new matches both "Write Article"
-  // (exact) and "My Articles" (prefix) and both light up at once. The
-  // longest matching href wins, so a child route always defers to its
-  // own nav item over a shorter parent's.
-  const activeHref = NAV_ITEMS.reduce((best, item) => {
-    const matches = item.href === "/dashboard" ? pathname === "/dashboard" : pathname === item.href || pathname.startsWith(item.href + "/");
+  const navItems = BASE_NAV_ITEMS.map((item) =>
+    item.href === "/contributor/notifications" && unreadCount > 0 ? { ...item, badge: unreadCount } : item
+  );
+
+  const activeHref = navItems.reduce((best, item) => {
+    const matches =
+      item.href === "/contributor/dashboard"
+        ? pathname === "/contributor/dashboard"
+        : pathname === item.href || pathname.startsWith(item.href + "/");
     return matches && item.href.length > best.length ? item.href : best;
   }, "");
 
   return (
     <>
-      {/* Mobile Menu Toggle */}
-      <div className="md:hidden mb-4">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 shadow-2xs"
-        >
-          <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
-            <span>Dashboard Menu</span>
-          </span>
-          <span className="text-slate-400 text-xs">{open ? "▲" : "▼"}</span>
-        </button>
-      </div>
+      {/* Mobile Drawer Backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
 
-      {/* Clean Modern Sidebar */}
+      {/* Main Left Sidebar */}
       <aside
-        className={`w-full md:w-56 lg:w-60 shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs h-fit sticky top-20 ${
-          open ? "block" : "hidden md:block"
-        }`}
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col justify-between border-r border-slate-200/90 bg-white p-3.5 text-slate-700 transition-all duration-200 md:translate-x-0 ${
+          collapsed ? "w-18" : "w-60"
+        } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        <div className="space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const active = item.href === activeHref;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
-                  active
-                    ? "bg-[#DC2626] text-white shadow-2xs font-bold"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                <NavIcon name={item.icon} />
-                <span>{item.label}</span>
+        <div className="space-y-5">
+          {/* Logo & Hamburger Header */}
+          <div className="flex items-center justify-between px-1 pt-1">
+            {!collapsed && (
+              <Link href="/" className="flex items-center gap-1.5 min-w-0">
+                <span className="text-xl font-black text-[#DC2626]">A<span className="text-[#DC2626]">★</span></span>
+                <span className="text-sm font-bold tracking-tight text-slate-900 truncate">
+                  Attraction<span className="text-[#DC2626]"> News</span>
+                </span>
               </Link>
-            );
-          })}
+            )}
+
+            {/* Hamburger Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setMobileOpen(false);
+                } else {
+                  setCollapsed(!collapsed);
+                }
+              }}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer shrink-0 ${
+                collapsed ? "mx-auto" : ""
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Navigation Items */}
+          <nav className="space-y-1.5">
+            {navItems.map((item) => {
+              const active = item.href === activeHref;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  title={collapsed ? item.label : undefined}
+                  className={`flex items-center rounded-xl py-2.5 text-xs font-semibold transition-all ${
+                    collapsed ? "justify-center px-2" : "justify-between px-3.5"
+                  } ${
+                    active
+                      ? "bg-[#DC2626] text-white shadow-md font-bold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <NavIcon name={item.icon} />
+                    {!collapsed && <span>{item.label}</span>}
+                  </div>
+                  {!collapsed && item.badge && !active && (
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-50 text-[10px] font-bold text-[#DC2626] border border-rose-200">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
+
+        {/* Bottom Sidebar Widget */}
+        {!collapsed ? (
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs text-center space-y-3">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-xl text-[#DC2626]">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-900">Share Your Knowledge</h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                Your stories inspire millions of travelers every day.
+              </p>
+            </div>
+            <Link
+              href="/contributor/articles/new"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-[#DC2626] py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-all"
+            >
+              + WRITE NEW ARTICLE
+            </Link>
+          </div>
+        ) : (
+          <div className="flex justify-center pb-2">
+            <Link
+              href="/contributor/articles/new"
+              title="Write New Article"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#DC2626] text-white shadow-2xs hover:bg-[#B91C1C] transition-all"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </Link>
+          </div>
+        )}
       </aside>
     </>
   );
