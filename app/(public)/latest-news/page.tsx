@@ -28,7 +28,11 @@ export async function generateMetadata({
   searchParams: LatestNewsSearchParams;
 }): Promise<Metadata> {
   const isFiltered = Boolean(
-    searchParams?.city || searchParams?.category || searchParams?.q || (searchParams?.page && searchParams.page !== "1")
+    searchParams?.city ||
+      searchParams?.category ||
+      searchParams?.q ||
+      (searchParams?.page && searchParams.page !== "1") ||
+      (searchParams?.sort && searchParams.sort !== "latest")
   );
   return buildMetadata({
     title: `Latest News — Real-Time Attraction News & Openings | ${SITE_NAME}`,

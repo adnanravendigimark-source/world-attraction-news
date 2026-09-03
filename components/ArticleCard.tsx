@@ -18,7 +18,11 @@ export default function ArticleCard({
   rank?: number;
   showExcerpt?: boolean;
 }) {
-  const href = `/latest-news/${article.slug}`;
+  // Real article URL — /latest-news is the listing page, not an article
+  // namespace. This previously pointed at /latest-news/[slug], which 404s
+  // for every article; the correct route (see the Phase 3 URL restructure)
+  // is /cities/[citySlug]/[slug].
+  const href = `/cities/${article.citySlug}/${article.slug}`;
 
   // Compact wire-feed variant (used in top stories lists, sidebar, trending)
   if (size === "compact") {

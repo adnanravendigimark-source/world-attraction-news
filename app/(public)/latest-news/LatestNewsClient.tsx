@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,6 +49,18 @@ export default function LatestNewsClient({
   const [q, setQ] = useState(currentFilters.q);
   const [city, setCity] = useState(currentFilters.city);
   const [category, setCategory] = useState(currentFilters.category);
+
+  // Re-sync the uncommitted form fields whenever the server-confirmed
+  // filters change from outside this form itself (browser back/forward,
+  // or a link elsewhere on the site landing on a pre-filtered URL) — this
+  // component instance persists across client-side navigations within the
+  // same route, so without this the inputs could silently show stale
+  // values that no longer match the URL/results actually being displayed.
+  useEffect(() => {
+    setQ(currentFilters.q);
+    setCity(currentFilters.city);
+    setCategory(currentFilters.category);
+  }, [currentFilters.q, currentFilters.city, currentFilters.category]);
 
   function navigate(next: Partial<Filters & { page: number }>) {
     const merged = {
