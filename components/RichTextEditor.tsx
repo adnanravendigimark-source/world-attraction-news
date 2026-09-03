@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import HeadingExtension, { type Level } from "@tiptap/extension-heading";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -12,23 +13,25 @@ import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
 import FigureImage from "@/lib/figureImage";
 import InlineImageModal, { type InlineImageData } from "@/components/dashboard/InlineImageModal";
+import InlineLinkModal from "@/components/dashboard/InlineLinkModal";
 
-// This same editor backs both the Contributor "Write Article" page
-// (components/dashboard/ArticleEditor.tsx, always omits `allowLinks`) and
-// the Admin "Review Article" panel (components/admin/ArticleReviewPanel.tsx,
-// passes `allowLinks`). By default (allowLinks=false/omitted) the Link
-// extension is never added to the `extensions` list below — contributor
-// articles must never contain a hyperlink (product requirement: no outbound
-// links from contributor content). Without the Link extension registered,
-// the editor's schema has no "link" mark at all, so there is no toolbar
-// button, no keyboard shortcut, and no programmatic way to create one from
-// inside the editor. `transformPastedHTML` below is the second half of that
-// guarantee: it strips any <a> tag out of pasted HTML (from another blog,
-// Word, Google Docs, etc.) before Tiptap's parser ever sees it, keeping the
-// link's visible text but discarding the href and the tag itself. Belt and
-// suspenders — the missing schema mark alone would already drop the href on
-// parse, but stripping the tag up front means no HTML link markup can
-// survive into the stored contentHtml under any circumstance. The server
+// Same editor design/toolbar/interaction as the Sagrada/Amsterdam admin
+// editors (components/admin/TiptapArticleEditor.tsx there) — ported
+// directly, restyled to this app's slate/red tokens. It backs both the
+// Contributor "Write Article" page (components/dashboard/ArticleEditor.tsx,
+// always omits `allowLinks`) and the Admin "Review Article" panel
+// (components/admin/ArticleReviewPanel.tsx, passes `allowLinks`).
+//
+// By default (allowLinks=false/omitted) the Link extension is never added
+// to the `extensions` list below — contributor articles must never contain
+// a hyperlink (product requirement: no outbound links from contributor
+// content). Without the Link extension registered, the editor's schema has
+// no "link" mark at all, so there is no toolbar button, no keyboard
+// shortcut, and no programmatic way to create one from inside the editor.
+// `transformPastedHTML` below is the second half of that guarantee: it
+// strips any <a> tag out of pasted HTML (from another blog, Word, Google
+// Docs, etc.) before Tiptap's parser ever sees it, keeping the link's
+// visible text but discarding the href and the tag itself. The server
 // applies the same restriction independently (see stripLinkTags in
 // lib/sanitizeHtml.ts, used by lib/articles.ts on every contributor write
 // path) so a request that bypasses this editor entirely still can't smuggle
@@ -49,125 +52,188 @@ function stripLinks(html: string): string {
   }
 }
 
+function normalizeUrl(raw: string): string {
+  const url = raw.trim();
+  if (!url) return url;
+  if (/^([a-z][a-z0-9+.-]*:|\/\/|\/|#)/i.test(url)) return url;
+  return `https://${url}`;
+}
+
+// Restrict headings to the allowed levels for this field, and map any
+// out-of-schema pasted heading down to a sensible in-schema level instead of
+// losing it (an H1 becomes H2 when H1 isn't allowed, since the article's own
+// title already IS the page's H1; H4-H6 become H3, the smallest heading the
+// site styles).
+const Heading = HeadingExtension.extend({
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      levels: [2, 3] as Level[],
+    };
+  },
+  parseHTML() {
+    const allowed = (this.options.levels as number[]) || [2, 3];
+    return [1, 2, 3, 4, 5, 6].map((tagLevel) => {
+      let level: number;
+      if (tagLevel === 1) level = allowed.includes(1) ? 1 : 2;
+      else if (tagLevel === 2) level = 2;
+      else level = 3;
+      return { tag: `h${tagLevel}`, attrs: { level } };
+    });
+  },
+});
+
+// Adds "target"/"rel" as real per-link attributes (not just a site-wide
+// default) so the "No follow" / "Open in new tab" choices in
+// InlineLinkModal apply per link. Only ever registered when allowLinks.
+const LinkWithAttrs = Link.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      target: {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.getAttribute("target"),
+        renderHTML: (attrs: Record<string, any>) => (attrs.target ? { target: attrs.target } : {}),
+      },
+      rel: {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.getAttribute("rel"),
+        renderHTML: (attrs: Record<string, any>) => (attrs.rel ? { rel: attrs.rel } : {}),
+      },
+    };
+  },
+});
+
+const ToolbarButton = ({
+  label,
+  title,
+  active = false,
+  disabled = false,
+  onClick,
+}: {
+  label: React.ReactNode;
+  title: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    title={title}
+    disabled={disabled}
+    onMouseDown={(e) => e.preventDefault()}
+    onClick={onClick}
+    className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer ${
+      active ? "bg-[#DC2626] text-white shadow-2xs font-bold" : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+    }`}
+  >
+    {label}
+  </button>
+);
+
 export default function RichTextEditor({
   value,
   onChange,
   placeholder = "Start writing your article here...",
   uploadUrl,
-  onStatsChange,
+  allowedHeadings = [2, 3],
+  stickyOffset,
   allowLinks = false,
 }: {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
   uploadUrl?: string;
-  onStatsChange?: (stats: { words: number; characters: number; readingTimeMinutes: number }) => void;
+  allowedHeadings?: (1 | 2 | 3)[];
+  stickyOffset?: string;
   // Admin-only escape hatch (see the comment above stripLinks) — the
   // Contributor Write Article page never sets this, so it stays false there
   // by default with no way to override it from that surface.
   allowLinks?: boolean;
 }) {
-  // `null` pos = the modal is inserting a brand-new image (wherever the
-  // contributor's cursor was when they clicked "Photo"). A real number =
-  // editing the image node already sitting at that document position
-  // (opened by clicking an existing image, or automatically right after a
-  // drag-drop/paste upload so alt text gets a first-class prompt instead of
-  // silently staying blank).
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // `null` = the modal is inserting a brand-new image (wherever the
+  // cursor was when the toolbar's Image button was clicked). A real number
+  // = editing the image node already sitting at that document position
+  // (opened by clicking an existing image in the body).
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageModalInitial, setImageModalInitial] = useState<InlineImageData | undefined>(undefined);
   const editingImagePosRef = useRef<number | null>(null);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      Underline,
-      FigureImage,
-      Table.configure({ resizable: false }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      Placeholder.configure({ placeholder }),
-      ...(allowLinks
-        ? [Link.configure({ openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer nofollow" } })]
-        : []),
-    ],
-    content: value || "",
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
-      if (onStatsChange) {
-        const text = editor.getText().trim();
-        const words = text ? text.split(/\s+/).length : 0;
-        onStatsChange({
-          words,
-          characters: text.length,
-          readingTimeMinutes: words ? Math.max(1, Math.round(words / 200)) : 0,
-        });
-      }
-    },
-    editorProps: {
-      transformPastedHTML: allowLinks ? undefined : stripLinks,
-      handleClickOn(_view, pos, node) {
-        if (node.type.name === "image") {
-          editingImagePosRef.current = pos;
-          setImageModalInitial({ url: node.attrs.src || "", alt: node.attrs.alt || "", caption: node.attrs.caption || "" });
-          setImageModalOpen(true);
-          return true;
-        }
-        return false;
+  const editor = useEditor(
+    {
+      // Avoids a Tiptap/Next.js SSR hydration mismatch — the editor should
+      // only render its content after the client mounts.
+      immediatelyRender: false,
+      content: value || "",
+      editorProps: {
+        attributes: {
+          class:
+            "prose prose-slate max-w-none px-4 sm:px-6 py-4 sm:py-6 min-h-[350px] text-sm sm:text-base text-slate-800 leading-relaxed outline-none [&_img]:cursor-pointer [&_figure]:cursor-pointer",
+        },
+        transformPastedHTML: allowLinks ? undefined : stripLinks,
+        handleClickOn(_view, pos, node) {
+          if (node.type.name === "image") {
+            editingImagePosRef.current = pos;
+            setImageModalInitial({ url: node.attrs.src || "", alt: node.attrs.alt || "", caption: node.attrs.caption || "" });
+            setImageModalOpen(true);
+            return true;
+          }
+          return false;
+        },
       },
-      handleDrop(view, event) {
-        const files = event.dataTransfer?.files;
-        if (!uploadUrl || !files || !files.length) return false;
-        const file = Array.from(files).find((f) => f.type.startsWith("image/"));
-        if (!file) return false;
-        event.preventDefault();
-        const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
-        uploadAndInsertAt(file, coords?.pos ?? view.state.selection.from);
-        return true;
+      extensions: [
+        StarterKit.configure({ heading: false }),
+        Heading.configure({ levels: allowedHeadings.length ? allowedHeadings : [2, 3] }),
+        Underline,
+        FigureImage,
+        Placeholder.configure({ placeholder }),
+        Table.configure({ resizable: true }),
+        TableRow,
+        TableHeader,
+        TableCell,
+        ...(allowLinks ? [LinkWithAttrs.configure({ openOnClick: false, autolink: false })] : []),
+      ],
+      onUpdate: ({ editor }: { editor: Editor }) => {
+        onChangeRef.current(editor.getHTML());
       },
-      handlePaste(_view, event) {
-        const files = event.clipboardData?.files;
-        if (!uploadUrl || !files || !files.length) return false;
-        const file = Array.from(files).find((f) => f.type.startsWith("image/"));
-        if (!file) return false;
-        event.preventDefault();
-        uploadAndInsertAt(file);
-        return true;
-      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    immediatelyRender: false,
-  });
-
-  // Uploads a dropped/pasted image file, inserts it with blank alt/caption
-  // at an explicit, known position, then immediately opens the edit modal
-  // pre-targeted at that exact position so the contributor can add alt text
-  // right away instead of it silently staying blank forever.
-  const uploadAndInsertAt = useCallback(
-    async (file: File, pos?: number) => {
-      if (!editor || !uploadUrl) return;
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch(uploadUrl, { method: "POST", body: formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Upload failed.");
-
-        const insertPos = pos ?? editor.state.selection.from;
-        editor
-          .chain()
-          .focus()
-          .insertContentAt(insertPos, { type: "image", attrs: { src: data.url, alt: "", caption: "", align: "center" } })
-          .run();
-
-        editingImagePosRef.current = insertPos;
-        setImageModalInitial({ url: data.url, alt: "", caption: "" });
-        setImageModalOpen(true);
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : "Image upload failed.");
-      }
-    },
-    [editor, uploadUrl]
+    []
   );
+
+  // Forces every toolbar/status re-render on selection changes too (not
+  // just content changes), so the H2/H3/Bold/etc. active-state highlighting
+  // stays accurate as the cursor moves.
+  const [, forceRerender] = useState(0);
+  useEffect(() => {
+    if (!editor) return;
+    const rerender = () => forceRerender((n) => n + 1);
+    editor.on("selectionUpdate", rerender);
+    editor.on("transaction", rerender);
+    return () => {
+      editor.off("selectionUpdate", rerender);
+      editor.off("transaction", rerender);
+    };
+  }, [editor]);
+
+  const replaceNodeAt = useCallback((ed: Editor, pos: number, content: Record<string, any>) => {
+    ed.chain()
+      .focus()
+      .command(({ tr }: { tr: any }) => {
+        const current = tr.doc.nodeAt(pos);
+        if (!current) return false;
+        tr.delete(pos, pos + current.nodeSize);
+        return true;
+      })
+      .run();
+    ed.chain().focus().insertContentAt(pos, content).run();
+  }, []);
 
   function openNewImageModal() {
     editingImagePosRef.current = null;
@@ -186,18 +252,7 @@ export default function RichTextEditor({
     const attrs = { src: data.url, alt: data.alt, caption: data.caption, align: "center" };
 
     if (editingImagePosRef.current !== null) {
-      const pos = editingImagePosRef.current;
-      editor
-        .chain()
-        .focus()
-        .command(({ tr }) => {
-          const node = tr.doc.nodeAt(pos);
-          if (!node) return false;
-          tr.delete(pos, pos + node.nodeSize);
-          return true;
-        })
-        .run();
-      editor.chain().focus().insertContentAt(pos, { type: "image", attrs }).run();
+      replaceNodeAt(editor, editingImagePosRef.current, { type: "image", attrs });
     } else {
       editor.chain().focus().setFigureImage(attrs).run();
     }
@@ -220,184 +275,161 @@ export default function RichTextEditor({
     closeImageModal();
   }
 
+  function handleLinkInsert({ url, nofollow, newTab }: { url: string; nofollow: boolean; newTab: boolean }) {
+    if (!editor) return;
+    const normalized = normalizeUrl(url);
+    const attrs: { href: string; target: string | null; rel: string | null } = {
+      href: normalized,
+      target: null,
+      rel: null,
+    };
+    if (newTab) {
+      attrs.target = "_blank";
+      attrs.rel = nofollow ? "nofollow noopener noreferrer" : "noopener noreferrer";
+    } else if (nofollow) {
+      attrs.rel = "nofollow";
+    }
+
+    const { from, to } = editor.state.selection;
+    if (from === to) {
+      editor.chain().focus().insertContent({ type: "text", text: normalized, marks: [{ type: "link", attrs }] }).run();
+    } else {
+      editor.chain().focus().extendMarkRange("link").setLink(attrs).run();
+    }
+    setLinkModalOpen(false);
+  }
+
   useEffect(() => {
     if (editor && value !== editor.getHTML() && !editor.isFocused) {
       editor.commands.setContent(value || "", false);
     }
   }, [editor, value]);
 
-  if (!editor) return null;
+  const getFormatLabel = () => {
+    if (!editor) return "Paragraph (P)";
+    if (editor.isActive("heading", { level: 1 })) return "Heading 1 (H1)";
+    if (editor.isActive("heading", { level: 2 })) return "Heading 2 (H2)";
+    if (editor.isActive("heading", { level: 3 })) return "Heading 3 (H3)";
+    if (editor.isActive("bulletList")) return "Bullet List";
+    if (editor.isActive("orderedList")) return "Numbered List";
+    if (editor.isActive("blockquote")) return "Quote";
+    if (editor.isActive("table")) return "Table";
+    return "Paragraph (P)";
+  };
 
-  const btn = (active: boolean, extra = "") =>
-    `inline-flex items-center justify-center rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-      active
-        ? "bg-[#DC2626] text-white shadow-2xs font-bold"
-        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-    } ${extra}`;
+  if (!editor) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-400 min-h-[350px]">
+        Loading editor…
+      </div>
+    );
+  }
+
+  const inTable = editor.isActive("table");
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden transition-all focus-within:border-slate-300">
-      {/* TipTap Formatting Toolbar */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50/95 backdrop-blur-xs px-3 py-1.5">
-        {/* Undo / Redo */}
-        <button
-          type="button"
-          className={btn(false)}
-          onClick={() => editor.chain().focus().undo().run()}
-          title="Undo (Ctrl+Z)"
-        >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a5 5 0 015 5v2M3 10l6-6M3 10l6 6" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className={btn(false)}
-          onClick={() => editor.chain().focus().redo().run()}
-          title="Redo (Ctrl+Y)"
-        >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a5 5 0 00-5 5v2m15-7l-6-6m6 6l-6 6" />
-          </svg>
-        </button>
+      <div
+        className="sticky z-20 flex flex-wrap items-center justify-between gap-1 border-b border-slate-200 bg-slate-50/95 backdrop-blur-xs p-1.5"
+        style={{ top: stickyOffset || 0 }}
+      >
+        <div className="flex flex-wrap items-center gap-0.5">
+          {allowedHeadings.includes(1) && (
+            <ToolbarButton
+              label="H1"
+              title="Heading 1"
+              active={editor.isActive("heading", { level: 1 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            />
+          )}
+          {allowedHeadings.includes(2) && (
+            <ToolbarButton
+              label="H2"
+              title="Heading 2"
+              active={editor.isActive("heading", { level: 2 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            />
+          )}
+          {allowedHeadings.includes(3) && (
+            <ToolbarButton
+              label="H3"
+              title="Heading 3"
+              active={editor.isActive("heading", { level: 3 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            />
+          )}
+          <ToolbarButton
+            label="P"
+            title="Paragraph (normal text)"
+            active={editor.isActive("paragraph")}
+            onClick={() => editor.chain().focus().setParagraph().run()}
+          />
+          <span className="mx-1 h-4 w-px bg-slate-200" />
+          <ToolbarButton
+            label={<span className="font-bold">B</span>}
+            title="Bold"
+            active={editor.isActive("bold")}
+            onClick={() => editor.chain().focus().toggleBold().run()}
+          />
+          <ToolbarButton
+            label={<span className="italic">I</span>}
+            title="Italic"
+            active={editor.isActive("italic")}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+          />
+          <ToolbarButton
+            label={<span className="underline">U</span>}
+            title="Underline"
+            active={editor.isActive("underline")}
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+          />
+          <span className="mx-1 h-4 w-px bg-slate-200" />
+          <ToolbarButton
+            label="• List"
+            title="Bullet list"
+            active={editor.isActive("bulletList")}
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+          />
+          <ToolbarButton
+            label="1. List"
+            title="Numbered list"
+            active={editor.isActive("orderedList")}
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          />
+          <span className="mx-1 h-4 w-px bg-slate-200" />
+          {allowLinks && <ToolbarButton label="Link" title="Insert link" onClick={() => setLinkModalOpen(true)} />}
+          {uploadUrl && <ToolbarButton label="Image" title="Insert image" onClick={openNewImageModal} />}
+          <ToolbarButton
+            label="Table"
+            title="Insert 3×3 table"
+            onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+          />
+          {inTable && (
+            <>
+              <span className="mx-1 h-4 w-px bg-slate-200" />
+              <ToolbarButton label="+Row" title="Add row below" onClick={() => editor.chain().focus().addRowAfter().run()} />
+              <ToolbarButton label="+Col" title="Add column after" onClick={() => editor.chain().focus().addColumnAfter().run()} />
+              <ToolbarButton label="-Row" title="Delete current row" onClick={() => editor.chain().focus().deleteRow().run()} />
+              <ToolbarButton label="-Col" title="Delete current column" onClick={() => editor.chain().focus().deleteColumn().run()} />
+              <ToolbarButton label="Del Table" title="Delete table" onClick={() => editor.chain().focus().deleteTable().run()} />
+            </>
+          )}
+          <span className="mx-1 h-4 w-px bg-slate-200" />
+          <ToolbarButton
+            label="Clear"
+            title="Clear formatting"
+            onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
+          />
+        </div>
 
-        <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
-
-        {/* Headings */}
-        <button
-          type="button"
-          className={btn(editor.isActive("paragraph"))}
-          onClick={() => editor.chain().focus().setParagraph().run()}
-          title="Normal Paragraph"
-        >
-          Normal
-        </button>
-        <button
-          type="button"
-          className={btn(editor.isActive("heading", { level: 2 }))}
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          title="Heading 2"
-        >
-          H2
-        </button>
-        <button
-          type="button"
-          className={btn(editor.isActive("heading", { level: 3 }))}
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          title="Heading 3"
-        >
-          H3
-        </button>
-
-        <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
-
-        {/* Text Formats */}
-        <button
-          type="button"
-          className={btn(editor.isActive("bold"))}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          title="Bold (Ctrl+B)"
-        >
-          <strong>B</strong>
-        </button>
-        <button
-          type="button"
-          className={btn(editor.isActive("italic"))}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          title="Italic (Ctrl+I)"
-        >
-          <em>I</em>
-        </button>
-        <button
-          type="button"
-          className={btn(editor.isActive("underline"))}
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          title="Underline (Ctrl+U)"
-        >
-          <u>U</u>
-        </button>
-        <button
-          type="button"
-          className={btn(editor.isActive("strike"))}
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          title="Strikethrough"
-        >
-          <s>S</s>
-        </button>
-
-        <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
-
-        {/* Lists & Quotes */}
-        <button
-          type="button"
-          className={btn(editor.isActive("bulletList"))}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          title="Bullet List"
-        >
-          • List
-        </button>
-        <button
-          type="button"
-          className={btn(editor.isActive("orderedList"))}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          title="Numbered List"
-        >
-          1. List
-        </button>
-        <button
-          type="button"
-          className={btn(editor.isActive("blockquote"))}
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          title="Blockquote"
-        >
-          " Quote
-        </button>
-
-        {allowLinks && (
-          <>
-            <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
-            <button
-              type="button"
-              className={btn(editor.isActive("link"))}
-              onClick={() => {
-                const previousUrl = editor.getAttributes("link").href || "";
-                const url = window.prompt("Link URL (leave blank to remove)", previousUrl);
-                if (url === null) return;
-                if (!url.trim()) {
-                  editor.chain().focus().extendMarkRange("link").unsetLink().run();
-                  return;
-                }
-                editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
-              }}
-              title="Insert/Edit Link"
-            >
-              🔗 Link
-            </button>
-          </>
-        )}
-
-        {uploadUrl && (
-          <>
-            <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
-            <button
-              type="button"
-              className={btn(false)}
-              onClick={openNewImageModal}
-              title="Insert Image in Body"
-            >
-              📷 Photo
-            </button>
-          </>
-        )}
+        <div className="flex items-center gap-1.5 px-2 py-0.5 text-xs text-slate-500">
+          <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
+          <span>Current:</span>
+          <span className="font-semibold text-slate-800">{getFormatLabel()}</span>
+        </div>
       </div>
 
-      {/* Editor Content Writing Surface */}
-      <div className="p-4 sm:p-6 min-h-[350px]">
-        <EditorContent
-          editor={editor}
-          className="prose prose-slate max-w-none focus:outline-none text-slate-800 text-sm sm:text-base leading-relaxed"
-        />
-      </div>
+      <EditorContent editor={editor} />
 
       {imageModalOpen && uploadUrl && (
         <InlineImageModal
@@ -408,6 +440,7 @@ export default function RichTextEditor({
           onClose={closeImageModal}
         />
       )}
+      {linkModalOpen && <InlineLinkModal onInsert={handleLinkInsert} onClose={() => setLinkModalOpen(false)} />}
     </div>
   );
 }
