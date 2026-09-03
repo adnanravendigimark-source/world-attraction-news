@@ -1,30 +1,35 @@
 import { sql } from "./db";
 
-// Single-row site settings (id is always 1) — sitewide SEO fallbacks and a
-// small set of genuinely-wired public-content defaults, managed from
-// /admin/seo and /admin/settings. Per-page SEO (city/article meta title,
-// description, focus keyword) still lives on those records directly and
-// always wins over these fallbacks — this table only fills in what a page
-// didn't set itself.
+// Single-row site settings (id is always 1) — sitewide SEO fallbacks plus
+// the one genuinely-wired general site default (featured cities), managed
+// from /admin/seo and /admin/settings respectively. Per-page SEO
+// (city/article meta title, description, focus keyword) still lives on
+// those records directly and always wins over these fallbacks — this table
+// only fills in what a page didn't set itself.
+//
+// Two fields that used to live here — a "homepage intro override" and an
+// "internal newsroom rubric note" — were removed. Neither was ever read by
+// any page: the homepage has no rendered subtitle/tagline area to put an
+// intro override into, and nothing on the Article Review page displayed the
+// moderation note. Rather than keep a form field that silently saves into a
+// black hole, they were dropped. Their DB columns (homepage_intro_override,
+// moderation_note) are left in place, unused, exactly like any other
+// retired column — dropping a live column is a separate, deliberate call.
 export interface SiteSettings {
-  homepageIntroOverride: string;
   defaultMetaDescription: string;
   defaultOgImage: string;
   robotsDefault: "index" | "noindex";
   featuredCitySlugs: string[];
-  moderationNote: string;
   gaMeasurementId: string;
   gscVerificationCode: string;
   updatedAt: string;
 }
 
 const FALLBACK: SiteSettings = {
-  homepageIntroOverride: "",
   defaultMetaDescription: "",
   defaultOgImage: "",
   robotsDefault: "index",
   featuredCitySlugs: [],
-  moderationNote: "",
   gaMeasurementId: "",
   gscVerificationCode: "",
   updatedAt: "",
@@ -32,7 +37,6 @@ const FALLBACK: SiteSettings = {
 
 function rowToSettings(row: any): SiteSettings {
   return {
-    homepageIntroOverride: row.homepage_intro_override || "",
     defaultMetaDescription: row.default_meta_description || "",
     defaultOgImage: row.default_og_image || "",
     robotsDefault: row.robots_default === "noindex" ? "noindex" : "index",
@@ -40,7 +44,6 @@ function rowToSettings(row: any): SiteSettings {
       .split(",")
       .map((s: string) => s.trim())
       .filter(Boolean),
-    moderationNote: row.moderation_note || "",
     gaMeasurementId: row.ga_measurement_id || "",
     gscVerificationCode: row.gsc_verification_code || "",
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at || ""),
@@ -60,17 +63,30 @@ export async function getSettings(): Promise<SiteSettings> {
 
 export async function updateSettings(updates: Partial<Omit<SiteSettings, "updatedAt">>): Promise<SiteSettings> {
   const current = await getSettings();
-  const next = { ...current, ...updates };
+  // Per-field `??` merge, not `{ ...current, ...updates }` — the API route
+  // (deliberately) sends every field's key with an explicit `undefined`
+  // value for whatever the calling form didn't include, since
+  // SiteSettingsForm (/admin/settings) and SeoSettingsForm (/admin/seo)
+  // each only submit their own subset of these fields. An object spread
+  // would still overwrite `current`'s real value with `undefined` for every
+  // key present-but-undefined on `updates`, so saving one form would
+  // silently blank out the other form's fields on the very next save.
+  const next: Omit<SiteSettings, "updatedAt"> = {
+    defaultMetaDescription: updates.defaultMetaDescription ?? current.defaultMetaDescription,
+    defaultOgImage: updates.defaultOgImage ?? current.defaultOgImage,
+    robotsDefault: updates.robotsDefault ?? current.robotsDefault,
+    featuredCitySlugs: updates.featuredCitySlugs ?? current.featuredCitySlugs,
+    gaMeasurementId: updates.gaMeasurementId ?? current.gaMeasurementId,
+    gscVerificationCode: updates.gscVerificationCode ?? current.gscVerificationCode,
+  };
   const rows = await sql`
-    INSERT INTO settings (id, homepage_intro_override, default_meta_description, default_og_image, robots_default, featured_city_slugs, moderation_note, ga_measurement_id, gsc_verification_code, updated_at)
-    VALUES (1, ${next.homepageIntroOverride}, ${next.defaultMetaDescription}, ${next.defaultOgImage}, ${next.robotsDefault}, ${next.featuredCitySlugs.join(", ")}, ${next.moderationNote}, ${next.gaMeasurementId}, ${next.gscVerificationCode}, now())
+    INSERT INTO settings (id, default_meta_description, default_og_image, robots_default, featured_city_slugs, ga_measurement_id, gsc_verification_code, updated_at)
+    VALUES (1, ${next.defaultMetaDescription}, ${next.defaultOgImage}, ${next.robotsDefault}, ${next.featuredCitySlugs.join(", ")}, ${next.gaMeasurementId}, ${next.gscVerificationCode}, now())
     ON CONFLICT (id) DO UPDATE SET
-      homepage_intro_override = EXCLUDED.homepage_intro_override,
       default_meta_description = EXCLUDED.default_meta_description,
       default_og_image = EXCLUDED.default_og_image,
       robots_default = EXCLUDED.robots_default,
       featured_city_slugs = EXCLUDED.featured_city_slugs,
-      moderation_note = EXCLUDED.moderation_note,
       ga_measurement_id = EXCLUDED.ga_measurement_id,
       gsc_verification_code = EXCLUDED.gsc_verification_code,
       updated_at = now()

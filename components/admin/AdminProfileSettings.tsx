@@ -49,55 +49,62 @@ export default function AdminProfileSettings({
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Signed in as</p>
-        <p className="mt-1 text-sm text-ink-800">{email}</p>
+    <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+      <div className="border-b border-slate-100 pb-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">ACCOUNT</span>
+        <h3 className="text-sm font-bold text-slate-900 mt-0.5">Admin Profile</h3>
+        <p className="mt-1 text-xs text-slate-500">Signed in as {email}</p>
       </div>
 
       {isOwnerAccount && (
-        <p className="rounded border border-ink-200 bg-ink-50 p-3 text-xs text-ink-600">
-          This is the owner account, first set up via{" "}
-          <code className="rounded bg-ink-200 px-1 py-0.5">ADMIN_EMAIL</code> /{" "}
-          <code className="rounded bg-ink-200 px-1 py-0.5">ADMIN_PASSWORD</code> in your environment variables.
+        <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-600 leading-relaxed">
+          This is the owner account, first set up via <code className="rounded bg-slate-200 px-1 py-0.5">ADMIN_EMAIL</code>{" "}
+          / <code className="rounded bg-slate-200 px-1 py-0.5">ADMIN_PASSWORD</code> in your environment variables.
           Changing it below overrides that — you won't need to touch the environment variables or redeploy again.
         </p>
       )}
+
       <form onSubmit={handleSubmit} className="space-y-3">
-        <h3 className="text-sm font-bold text-ink-900">Change Password</h3>
+        <h4 className="text-xs font-bold text-slate-800">Change Password</h4>
         {hasPassword && (
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Current Password</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Current Password
+            </label>
             <input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="mt-1.5 w-full max-w-sm rounded-md border border-ink-300 px-3 py-2 text-sm"
+              className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
             />
           </div>
         )}
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">New Password</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            New Password
+          </label>
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="mt-1.5 w-full max-w-sm rounded-md border border-ink-300 px-3 py-2 text-sm"
+            className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
           />
         </div>
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Confirm New Password</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Confirm New Password
+          </label>
           <input
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="mt-1.5 w-full max-w-sm rounded-md border border-ink-300 px-3 py-2 text-sm"
+            className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
           />
         </div>
         <button
-          disabled={busy}
           type="submit"
-          className="rounded-md bg-signal px-4 py-2 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
+          disabled={busy}
+          className="rounded-xl bg-[#DC2626] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
         >
           {busy ? "Saving..." : "Update Password"}
         </button>

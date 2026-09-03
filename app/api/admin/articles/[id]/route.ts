@@ -82,12 +82,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       let score: number | null = null;
       if (body.score !== null && body.score !== undefined && body.score !== "") {
         const n = Number(body.score);
-        if (!Number.isFinite(n) || n < 0 || n > 10) {
-          return NextResponse.json({ error: "Score must be a number between 0 and 10." }, { status: 400 });
+        if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 10) {
+          return NextResponse.json({ error: "Score must be a whole number between 0 and 10." }, { status: 400 });
         }
         score = n;
       }
       const feedback = (body.feedback || "").trim();
+
+      // An article can legitimately be re-reviewed before it's published
+      // (e.g. an admin correcting a score) — that's allowed. But re-saving
+      // the same decision shouldn't re-notify/re-email the contributor or
+      // spam the activity log every time, so both are gated on something
+      // actually having changed compared to `before`.
+      const statusChanged = before.status !== status;
+      const scoreChanged = before.score !== score;
+
       const article = await reviewArticle(params.id, { status, score, feedback });
 
       await recordReview({
@@ -100,14 +109,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         moderationSignals: before.moderationSignals,
       });
 
-      await logActivity(
-        session,
-        status === "approved" ? "article_approved" : status === "rejected" ? "article_rejected" : "article_changes_requested",
-        { type: "article", id: article.id, label: article.title },
-        { score, hasFeedback: Boolean(feedback) }
-      );
+      if (statusChanged) {
+        await logActivity(
+          session,
+          status === "approved" ? "article_approved" : status === "rejected" ? "article_rejected" : "article_changes_requested",
+          { type: "article", id: article.id, label: article.title },
+          { score, hasFeedback: Boolean(feedback) }
+        );
+      }
 
-      if (author) {
+      if (author && statusChanged) {
         if (status === "approved") {
           // Score + feedback are embedded directly in the approval email
           // (see lib/emailTemplates.ts's articleApprovedEmailTemplate) —
@@ -118,11 +129,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         } else {
           await notifyChangesRequested({ id: author.id, email: author.email }, { id: article.id, title: article.title }, feedback);
         }
-        if (score !== null) {
-          await logActivity(session, "article_scored", { type: "article", id: article.id, label: article.title }, { score });
-          if (status !== "approved") {
-            await notifyArticleScored({ id: author.id, email: author.email }, { id: article.id, title: article.title }, score);
-          }
+      }
+
+      if (author && score !== null && scoreChanged) {
+        await logActivity(session, "article_scored", { type: "article", id: article.id, label: article.title }, { score });
+        // The approval email above already embeds the score — only send a
+        // separate "scored" notification when this save isn't also an
+        // approval email (either the status isn't "approved", or the
+        // status didn't change but the score itself was corrected).
+        if (status !== "approved" || !statusChanged) {
+          await notifyArticleScored({ id: author.id, email: author.email }, { id: article.id, title: article.title }, score);
         }
       }
       return NextResponse.json({ ok: true, article });

@@ -14,15 +14,18 @@ export default async function AdminPointsPage() {
     .filter((a) => a.score !== null && a.status !== "pending" && a.status !== "rejected")
     .sort((a, b) => new Date(b.reviewedAt || 0).getTime() - new Date(a.reviewedAt || 0).getTime());
 
-  const byAuthor = new Map<string, { name: string; email: string; articles: typeof scored }>();
+  const byAuthor = new Map<string, { id: string; name: string; email: string; articles: typeof scored }>();
   for (const a of scored) {
-    if (!byAuthor.has(a.authorEmail)) byAuthor.set(a.authorEmail, { name: a.authorName, email: a.authorEmail, articles: [] });
+    if (!byAuthor.has(a.authorEmail)) {
+      byAuthor.set(a.authorEmail, { id: a.authorId, name: a.authorName, email: a.authorEmail, articles: [] });
+    }
     byAuthor.get(a.authorEmail)!.articles.push(a);
   }
   const leaderboard = Array.from(byAuthor.values())
     .map((u) => {
       const summary = summarizePoints(u.articles);
       return {
+        id: u.id,
         name: u.name,
         email: u.email,
         scoredArticleCount: summary.scoredArticleCount,

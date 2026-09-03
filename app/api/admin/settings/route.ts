@@ -28,16 +28,24 @@ export async function PATCH(req: Request) {
   }
   try {
     const settings = await updateSettings({
-      homepageIntroOverride: body.homepageIntroOverride !== undefined ? body.homepageIntroOverride : undefined,
       defaultMetaDescription: body.defaultMetaDescription !== undefined ? body.defaultMetaDescription : undefined,
       defaultOgImage: body.defaultOgImage !== undefined ? body.defaultOgImage : undefined,
       robotsDefault: body.robotsDefault === "noindex" ? "noindex" : body.robotsDefault === "index" ? "index" : undefined,
       featuredCitySlugs: Array.isArray(body.featuredCitySlugs) ? body.featuredCitySlugs : undefined,
-      moderationNote: body.moderationNote !== undefined ? body.moderationNote : undefined,
       gaMeasurementId: body.gaMeasurementId !== undefined ? body.gaMeasurementId : undefined,
       gscVerificationCode: body.gscVerificationCode !== undefined ? body.gscVerificationCode : undefined,
     });
-    await logActivity(session, "settings_updated", { type: "settings", id: "1", label: "Site settings" });
+    const isSeoSave =
+      body.defaultMetaDescription !== undefined ||
+      body.defaultOgImage !== undefined ||
+      body.robotsDefault !== undefined ||
+      body.gaMeasurementId !== undefined ||
+      body.gscVerificationCode !== undefined;
+    await logActivity(session, "settings_updated", {
+      type: "settings",
+      id: "1",
+      label: isSeoSave ? "SEO settings" : "Site settings",
+    });
     return NextResponse.json({ ok: true, settings });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
