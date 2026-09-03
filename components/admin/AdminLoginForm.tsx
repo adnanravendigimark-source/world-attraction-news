@@ -2,17 +2,14 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Recaptcha from "@/components/Recaptcha";
-
-const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
+import { AuthRecaptcha, useAuthRecaptcha } from "@/components/auth/AuthRecaptcha";
 
 export default function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [recaptchaToken, setRecaptchaToken] = useState("");
-  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
+  const recaptcha = useAuthRecaptcha();
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -24,11 +21,11 @@ export default function AdminLoginForm() {
       const res = await fetch("/api/auth/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, recaptchaToken }),
+        body: JSON.stringify({ email, password, recaptchaToken: recaptcha.recaptchaToken }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Invalid email or password.");
-      router.push(searchParams.get("next") || "/admin");
+      if (!res.ok) throw new Error(data.error || "Invalid administrator credentials.");
+      router.push(searchParams?.get("next") || "/admin");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -39,47 +36,48 @@ export default function AdminLoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <p className="rounded border border-signal-border bg-signal-light p-2.5 text-xs text-signal-dark">{error}</p>}
+      {error && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-300">
+          {error}
+        </div>
+      )}
+
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Email</label>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+          Admin Email
+        </label>
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+          placeholder="admin@worldattractionnews.com"
+          className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:border-[#DC2626] focus:bg-slate-800 focus:outline-none transition-all"
         />
       </div>
+
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Password</label>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+          Password
+        </label>
         <input
           type="password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+          placeholder="••••••••••••"
+          className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:border-[#DC2626] focus:bg-slate-800 focus:outline-none transition-all"
         />
       </div>
 
-      {RECAPTCHA_ENABLED && !recaptchaFailed && (
-        <Recaptcha
-          onVerify={setRecaptchaToken}
-          onExpire={() => setRecaptchaToken("")}
-          onError={() => setRecaptchaFailed(true)}
-        />
-      )}
-      {recaptchaFailed && (
-        <p className="rounded border border-ink-800 bg-ink-800/50 p-2.5 text-xs text-ink-300">
-          Couldn't load our spam-verification widget, so we're skipping it this time — you can still log in.
-        </p>
-      )}
+      <AuthRecaptcha state={recaptcha} theme="dark" />
 
       <button
         type="submit"
-        disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
-        className="w-full rounded-md bg-ink-900 py-2.5 text-sm font-semibold text-white hover:bg-ink-800 disabled:opacity-60"
+        disabled={submitting || recaptcha.blocked}
+        className="w-full rounded-xl bg-[#DC2626] py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
       >
-        {submitting ? "Logging in..." : "Log In"}
+        {submitting ? "Authenticating..." : "Sign In to Admin CMS →"}
       </button>
     </form>
   );

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { updateUser, deleteUser, findUserById } from "@/lib/users";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { notifyAccountApproved, notifyAccountRejected } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,23 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         { type: "user", id: target.id, label: target.email },
         { from: target.role, to: nextRole }
       );
+    }
+
+    // Tell the contributor their status changed — otherwise an approval or
+    // rejection is silent and they have no way to know they can now log in
+    // (or that their application didn't go through). Best-effort: never
+    // blocks the response, since createNotification() itself never throws.
+    if (nextStatus && nextStatus !== target.status) {
+      const notifyUser = { id: target.id, email: target.email, displayName: target.displayName };
+      if (nextStatus === "approved") {
+        await notifyAccountApproved(notifyUser).catch((err) =>
+          console.error("[admin/users] failed to notify account approved:", err)
+        );
+      } else if (nextStatus === "rejected") {
+        await notifyAccountRejected(notifyUser).catch((err) =>
+          console.error("[admin/users] failed to notify account rejected:", err)
+        );
+      }
     }
 
     return NextResponse.json({ ok: true, user: updated });

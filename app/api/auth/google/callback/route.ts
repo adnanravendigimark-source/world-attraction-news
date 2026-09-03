@@ -12,6 +12,18 @@ function redirectTo(path: string) {
   return NextResponse.redirect(new URL(path, base));
 }
 
+// The `atn_oauth_state` cookie is single-use and only meant to live for the
+// ~10-minute round trip to Google and back (see app/api/auth/google/route.ts).
+// Every exit from this handler — success, a mismatched/missing state, a
+// denied consent screen, an unverified email, a pending/rejected account, or
+// an unexpected error — should consume it so a stale value can't be reused
+// on a retry and doesn't linger in the browser longer than it has to.
+function redirectAndClearState(path: string) {
+  const res = redirectTo(path);
+  res.cookies.set("atn_oauth_state", "", { path: "/", maxAge: 0 });
+  return res;
+}
+
 // Step 2 of the Google OAuth flow. Verifies the `state` cookie, exchanges
 // the authorization code for an identity token, then finds/creates/links
 // the account. A brand-new or still-pending account is sent to
@@ -24,18 +36,18 @@ export async function GET(req: Request) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
-  if (error) return redirectTo("/login?error=google_denied");
+  if (error) return redirectAndClearState("/login?error=google_denied");
 
   const cookieState = cookies().get("atn_oauth_state")?.value;
 
   if (!code || !state || !cookieState || state !== cookieState) {
-    return redirectTo("/login?error=google_state_mismatch");
+    return redirectAndClearState("/login?error=google_state_mismatch");
   }
 
   try {
     const profile = await exchangeGoogleCode(code);
     if (!profile.emailVerified) {
-      return redirectTo("/login?error=google_email_unverified");
+      return redirectAndClearState("/login?error=google_email_unverified");
     }
 
     const { user, isNewAccount } = await findOrCreateGoogleUser({
@@ -60,9 +72,7 @@ export async function GET(req: Request) {
     if (user.role !== "contributor" || user.status !== "approved") {
       const errorParam =
         user.status === "rejected" ? "account_rejected" : user.status === "suspended" ? "account_suspended" : "";
-      const res = redirectTo(errorParam ? `/login?error=${errorParam}` : "/pending-approval");
-      res.cookies.set("atn_oauth_state", "", { path: "/", maxAge: 0 });
-      return res;
+      return redirectAndClearState(errorParam ? `/login?error=${errorParam}` : "/pending-approval");
     }
 
     await touchLastLogin(user.id);
@@ -74,7 +84,7 @@ export async function GET(req: Request) {
       displayName: user.displayName,
       cityId: user.cityId,
     };
-    const token = await createSessionToken(session);
+    const token = await createSessionToken(session, 60 * 60 * 24 * 7); // 7 days — matches cookie maxAge below
     const res = redirectTo("/dashboard");
     res.cookies.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
@@ -90,6 +100,6 @@ export async function GET(req: Request) {
     // error from a schema that's missing the Phase 1 columns, etc.) shows
     // up in the terminal instead of only a generic message in the browser.
     console.error("[google oauth callback] failed:", err);
-    return redirectTo("/login?error=google_failed");
+    return redirectAndClearState("/login?error=google_failed");
   }
 }

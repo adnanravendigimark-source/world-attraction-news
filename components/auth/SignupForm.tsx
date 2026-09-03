@@ -3,14 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import GoogleButton from "./GoogleButton";
-import Recaptcha from "@/components/Recaptcha";
-
-const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
+import { AuthRecaptcha, useAuthRecaptcha } from "./AuthRecaptcha";
 
 export default function SignupForm() {
   const [form, setForm] = useState({ displayName: "", email: "", password: "", bio: "" });
-  const [recaptchaToken, setRecaptchaToken] = useState("");
-  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
+  const recaptcha = useAuthRecaptcha();
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -23,7 +20,7 @@ export default function SignupForm() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, recaptchaToken }),
+        body: JSON.stringify({ ...form, recaptchaToken: recaptcha.recaptchaToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
@@ -37,105 +34,109 @@ export default function SignupForm() {
 
   if (done) {
     return (
-      <div className="text-center">
-        <p className="text-2xl">✅</p>
-        <h2 className="mt-2 text-base font-bold text-ink-900">Check your email</h2>
-        <p className="mt-2 text-sm text-ink-600">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-6 text-center space-y-3">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xl font-bold">
+          ✓
+        </div>
+        <h2 className="text-base font-bold text-slate-900">Check your email</h2>
+        <p className="text-xs text-slate-600 leading-relaxed">
           We sent a verification link to <strong>{form.email}</strong>. Click it to confirm your address — your
-          application goes to our editorial team for approval right after.
+          application goes to our editorial desk for verification right after.
         </p>
-        <Link href="/login" className="mt-4 inline-block text-sm font-semibold text-signal hover:underline">
-          Go to Log In →
-        </Link>
+        <div className="pt-2">
+          <Link
+            href="/login"
+            className="inline-block rounded-xl bg-[#0B1527] px-4 py-2 text-xs font-bold text-white hover:bg-[#DC2626] transition-colors"
+          >
+            Go to Log In →
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      {error && <p className="rounded border border-signal-border bg-signal-light p-2.5 text-xs text-signal-dark">{error}</p>}
+    <div className="space-y-4">
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+          {error}
+        </div>
+      )}
 
       <GoogleButton label="Sign up with Google" />
 
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-ink-200" />
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-400">or</span>
-        <span className="h-px flex-1 bg-ink-200" />
+      <div className="flex items-center gap-3 py-1">
+        <span className="h-px flex-1 bg-slate-200" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">or with email</span>
+        <span className="h-px flex-1 bg-slate-200" />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Your Name</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Full Name *
+          </label>
           <input
             required
             value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+            placeholder="Marcus Vance"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
           />
         </div>
 
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Email</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Email Address *
+          </label>
           <input
             type="email"
             required
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+            placeholder="marcus@example.com"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
           />
         </div>
 
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Password</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Password *
+          </label>
           <input
             type="password"
             required
             minLength={8}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+            placeholder="At least 8 characters"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
           />
-          <p className="mt-1 text-[11px] text-ink-400">At least 8 characters.</p>
         </div>
 
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Short Bio (optional)</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Reporting Beat / Bio <span className="text-slate-400 font-normal">(Optional)</span>
+          </label>
           <textarea
+            rows={2}
             value={form.bio}
             onChange={(e) => setForm({ ...form, bio: e.target.value })}
-            rows={3}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+            placeholder="Tell us what destinations or attraction beats you plan to cover..."
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all resize-none leading-relaxed"
           />
         </div>
 
-        {RECAPTCHA_ENABLED && !recaptchaFailed && (
-          <Recaptcha
-            onVerify={setRecaptchaToken}
-            onExpire={() => setRecaptchaToken("")}
-            onError={() => setRecaptchaFailed(true)}
-          />
-        )}
-        {recaptchaFailed && (
-          <p className="rounded border border-ink-200 bg-ink-50 p-2.5 text-xs text-ink-500">
-            Couldn't load our spam-verification widget, so we're skipping it this time — you can still submit.
-          </p>
-        )}
+        <AuthRecaptcha state={recaptcha} />
 
         <button
           type="submit"
-          disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
-          className="w-full rounded-md bg-signal py-2.5 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
+          disabled={submitting || recaptcha.blocked}
+          className="w-full rounded-xl bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
         >
-          {submitting ? "Submitting..." : "Submit Application"}
+          {submitting ? "Submitting application..." : "Submit Correspondent Application →"}
         </button>
       </form>
-
-      <p className="text-center text-xs text-ink-500">
-        Already approved?{" "}
-        <Link href="/login" className="font-semibold text-signal hover:underline">
-          Log in
-        </Link>
-      </p>
     </div>
   );
 }

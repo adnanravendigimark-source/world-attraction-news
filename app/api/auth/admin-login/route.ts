@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
-  const token = await createSessionToken(session);
+  const token = await createSessionToken(session, 60 * 60 * 8); // 8 hours — matches cookie maxAge below
   const res = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,

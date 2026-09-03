@@ -44,8 +44,19 @@ async function sign(payload: string) {
   return toBase64Url(sigBuf);
 }
 
-export async function createSessionToken(session: Session): Promise<string> {
-  const payload = toBase64Url(JSON.stringify(session));
+// `maxAgeSeconds` bakes an expiry into the signed payload itself, matching
+// the cookie's own `maxAge` at each call site (7 days for contributor/Google
+// login, 8 hours for admin login). Without this, the cookie's browser-
+// enforced expiry was the *only* thing limiting a token's lifetime — a raw
+// token string copied out of the cookie (e.g. via an XSS bug, a leaked log
+// line, or a shared machine) would verify successfully forever if replayed
+// directly against the API, since verifySessionToken() never checked time.
+// Baking `exp` into the signed payload closes that: the signature covers
+// the expiry too, so it can't be stripped or extended without invalidating
+// the signature.
+export async function createSessionToken(session: Session, maxAgeSeconds: number): Promise<string> {
+  const exp = Math.floor(Date.now() / 1000) + maxAgeSeconds;
+  const payload = toBase64Url(JSON.stringify({ ...session, exp }));
   const sig = await sign(payload);
   return `${payload}.${sig}`;
 }
@@ -59,6 +70,9 @@ export async function verifySessionToken(token: string | undefined | null): Prom
   try {
     const parsed = JSON.parse(fromBase64Url(payload));
     if (!parsed?.userId || !parsed?.email || (parsed.role !== "admin" && parsed.role !== "contributor")) {
+      return null;
+    }
+    if (typeof parsed.exp === "number" && Math.floor(Date.now() / 1000) >= parsed.exp) {
       return null;
     }
     return {

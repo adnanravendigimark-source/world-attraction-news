@@ -4,18 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import GoogleButton from "./GoogleButton";
-import Recaptcha from "@/components/Recaptcha";
-
-const RECAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
+import { AuthRecaptcha, useAuthRecaptcha } from "./AuthRecaptcha";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
-  google_not_configured: "Google Sign-In isn't configured on this site yet. Use email and password instead.",
+  google_not_configured: "Google Sign-In is not configured on this environment. Use email and password.",
   google_denied: "Google sign-in was cancelled.",
-  google_state_mismatch: "Your Google sign-in attempt expired. Please try again.",
-  google_email_unverified: "Your Google account's email isn't verified, so we can't use it to sign in.",
-  google_failed: "Google sign-in failed. Please try again or use email and password.",
-  account_rejected: "Your account registration was not approved. Contact us if you think this is a mistake.",
-  account_suspended: "Your account has been suspended. Contact us if you think this is a mistake.",
+  google_state_mismatch: "Your sign-in attempt timed out. Please try again.",
+  google_email_unverified: "Your Google account email is not verified.",
+  google_failed: "Google sign-in failed. Please use email and password.",
+  account_rejected: "Your account registration was not approved.",
+  account_suspended: "Your account is temporarily suspended.",
 };
 
 export default function LoginForm() {
@@ -23,9 +21,8 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [recaptchaToken, setRecaptchaToken] = useState("");
-  const [recaptchaFailed, setRecaptchaFailed] = useState(false);
-  const [error, setError] = useState(GOOGLE_ERROR_MESSAGES[searchParams.get("error") || ""] || "");
+  const recaptcha = useAuthRecaptcha();
+  const [error, setError] = useState(GOOGLE_ERROR_MESSAGES[searchParams?.get("error") || ""] || "");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -36,11 +33,11 @@ export default function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, recaptchaToken }),
+        body: JSON.stringify({ email, password, recaptchaToken: recaptcha.recaptchaToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid email or password.");
-      router.push(searchParams.get("next") || "/dashboard");
+      router.push(searchParams?.get("next") || "/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -50,33 +47,43 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="space-y-5">
-      {error && <p className="rounded border border-signal-border bg-signal-light p-2.5 text-xs text-signal-dark">{error}</p>}
+    <div className="space-y-4">
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+          {error}
+        </div>
+      )}
 
       <GoogleButton label="Continue with Google" />
 
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-ink-200" />
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-400">or</span>
-        <span className="h-px flex-1 bg-ink-200" />
+      <div className="flex items-center gap-3 py-1">
+        <span className="h-px flex-1 bg-slate-200" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">or with email</span>
+        <span className="h-px flex-1 bg-slate-200" />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Email</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Email Address
+          </label>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+            placeholder="you@domain.com"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
           />
         </div>
+
         <div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Password</label>
-            <Link href="/forgot-password" className="text-[11px] font-semibold text-signal hover:underline">
-              Forgot password?
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+              Password
+            </label>
+            <Link href="/forgot-password" className="text-[11px] font-semibold text-[#DC2626] hover:underline">
+              Forgot?
             </Link>
           </div>
           <input
@@ -84,37 +91,21 @@ export default function LoginForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+            placeholder="••••••••••••"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
           />
         </div>
-        {RECAPTCHA_ENABLED && !recaptchaFailed && (
-          <Recaptcha
-            onVerify={setRecaptchaToken}
-            onExpire={() => setRecaptchaToken("")}
-            onError={() => setRecaptchaFailed(true)}
-          />
-        )}
-        {recaptchaFailed && (
-          <p className="rounded border border-ink-200 bg-ink-50 p-2.5 text-xs text-ink-500">
-            Couldn't load our spam-verification widget, so we're skipping it this time — you can still log in.
-          </p>
-        )}
+
+        <AuthRecaptcha state={recaptcha} />
 
         <button
           type="submit"
-          disabled={submitting || (RECAPTCHA_ENABLED && !recaptchaFailed && !recaptchaToken)}
-          className="w-full rounded-md bg-signal py-2.5 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
+          disabled={submitting || recaptcha.blocked}
+          className="w-full rounded-xl bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
         >
-          {submitting ? "Logging in..." : "Log In"}
+          {submitting ? "Signing in..." : "Sign In to Dashboard →"}
         </button>
       </form>
-
-      <p className="text-center text-xs text-ink-500">
-        Don't have an account?{" "}
-        <Link href="/signup" className="font-semibold text-signal hover:underline">
-          Apply here
-        </Link>
-      </p>
     </div>
   );
 }
