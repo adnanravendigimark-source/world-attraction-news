@@ -29,7 +29,7 @@ export default async function AdminSettingsPage() {
           <AdminProfileSettings
             email={session?.email || ""}
             isOwnerAccount={isOwnerAccount}
-            hasPassword={Boolean(dbUser?.passwordHash)}
+            hasPassword={isOwnerAccount ? true : Boolean(dbUser?.passwordHash)}
           />
         </div>
       </section>

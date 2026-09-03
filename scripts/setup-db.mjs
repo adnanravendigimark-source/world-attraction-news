@@ -510,6 +510,18 @@ async function createPhase7EmailVerificationColumns() {
   console.log("Phase 7 columns ready.");
 }
 
+// Phase 8: lets the .env ADMIN_EMAIL/ADMIN_PASSWORD "owner" account change
+// its own password from the Admin Panel (Settings) instead of only via
+// environment variables + redeploy. Empty string means "no override set
+// yet" — the owner login keeps falling back to ADMIN_PASSWORD from .env
+// until they set one here. See lib/settings.ts and
+// app/api/admin/profile/password/route.ts.
+async function createPhase8OwnerPasswordColumn() {
+  console.log("Ensuring Phase 8 (owner password override) column exists...");
+  await sql`ALTER TABLE settings ADD COLUMN IF NOT EXISTS owner_password_hash TEXT NOT NULL DEFAULT ''`;
+  console.log("Phase 8 column ready.");
+}
+
 // Every user row needs a unique slug for /author/[slug] — including
 // accounts created before this column existed. Idempotent: only touches
 // rows where slug IS NULL, so re-running never reshuffles an existing
@@ -913,13 +925,15 @@ async function main() {
   await createPhase5SecurityTables();
   await createPhase6EventsTable();
   await createPhase7EmailVerificationColumns();
+  await createPhase8OwnerPasswordColumn();
   await backfillUserSlugs();
   await seedCities();
   await seedCategories();
   await seedLaunchEditorsAndArticles();
   console.log("\nDone. Your database is ready.");
   console.log(
-    "\nReminder: the Admin Panel's first login uses ADMIN_EMAIL / ADMIN_PASSWORD from your .env — see README.md."
+    "\nReminder: the Admin Panel's first login uses ADMIN_EMAIL / ADMIN_PASSWORD from your .env — see README.md. " +
+      "You can change that password afterward from Admin -> Settings, no redeploy needed."
   );
 }
 

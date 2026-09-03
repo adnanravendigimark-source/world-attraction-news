@@ -40,6 +40,8 @@ npm run dev
 
 Use the `ADMIN_EMAIL` / `ADMIN_PASSWORD` from your `.env` to log in at `/admin/login` — this "owner" account always works, even before any row exists in the `users` table. From there, promote other users to admin at **Admin → Users** if you want more than one admin.
 
+Once logged in, change the owner password from **Admin → Settings** instead of editing `ADMIN_PASSWORD` and redeploying — it overrides the env value from then on (stored as a hash on the `settings` table). `ADMIN_PASSWORD` only matters for that very first login, before an override has been set.
+
 ### Important: don't reuse credentials from other projects
 
 If you've built other sites in this workspace, **do not** point this app's `DATABASE_URL` or `BLOB_READ_WRITE_TOKEN` at the same Neon project / Blob store those use — create new ones for this project. Reusing them would mean both apps read and write the same tables and files.
