@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ImageUploadField from "./ImageUploadField";
 import TiptapArticleEditor from "./TiptapArticleEditor";
+import ArticlePreviewModal from "./ArticlePreviewModal";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
 
@@ -110,6 +111,7 @@ export default function ArticleEditor({
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const [form, setForm] = useState<ArticleFormValues>({
     title: initial?.title || "",
@@ -149,6 +151,11 @@ export default function ArticleEditor({
 
   const wordCount = useMemo(() => stripHtml(form.contentHtml).split(/\s+/).filter(Boolean).length, [form.contentHtml]);
   const autoExcerpt = useMemo(() => excerptFromContent(form.contentHtml), [form.contentHtml]);
+  const previewCityName = useMemo(() => cities.find((c) => c.id === form.cityId)?.name || "", [cities, form.cityId]);
+  const previewCategoryName = useMemo(
+    () => categories.find((c) => c.id === form.categoryId)?.name || "",
+    [categories, form.categoryId]
+  );
 
   const saveDraft = useCallback(
     async (showNotification = true) => {
@@ -210,6 +217,20 @@ export default function ArticleEditor({
     },
     [form, autoExcerpt, toast]
   );
+
+  // Autosave: once there's a title to actually save (avoids persisting a
+  // blank "Untitled draft" row from an accidental click into another
+  // field), save silently a couple of seconds after the contributor stops
+  // typing/making changes. Manual "Save Draft" (toast on) still works the
+  // same as before; this just means a contributor who navigates away or
+  // loses their connection doesn't lose work in between manual saves.
+  useEffect(() => {
+    if (!dirty || saving || submitting || !form.title.trim()) return;
+    const t = setTimeout(() => {
+      saveDraft(false);
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [dirty, saving, submitting, form.title, saveDraft]);
 
   function findSubmitValidationError(): string | null {
     if (form.title.trim().length < 8) return "Title must be at least 8 characters.";
@@ -469,6 +490,13 @@ export default function ArticleEditor({
             </button>
             <button
               type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-900 transition hover:bg-stone-100 cursor-pointer"
+            >
+              Preview
+            </button>
+            <button
+              type="button"
               disabled={saving || submitting}
               onClick={() => saveDraft(true)}
               className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-900 transition hover:bg-stone-100 disabled:opacity-60 cursor-pointer"
@@ -486,6 +514,19 @@ export default function ArticleEditor({
           </div>
         </div>
       </div>
+
+      {previewOpen && (
+        <ArticlePreviewModal
+          title={form.title}
+          image={form.image}
+          imageAlt={form.imageAlt}
+          excerpt={form.excerpt || autoExcerpt}
+          contentHtml={form.contentHtml}
+          cityName={previewCityName}
+          categoryName={previewCategoryName}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 }

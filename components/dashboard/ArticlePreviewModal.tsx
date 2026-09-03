@@ -70,7 +70,7 @@ export default function ArticlePreviewModal({
           )}
 
           {contentHtml && contentHtml !== "<p></p>" ? (
-            <div className="article-body" dangerouslySetInnerHTML={{ __html: contentHtml }} />
+            <div className="rich-content article-body" dangerouslySetInnerHTML={{ __html: contentHtml }} />
           ) : (
             <p className="text-sm text-slate-400 italic">Nothing written yet.</p>
           )}

@@ -23,6 +23,34 @@ function normalizeUrl(raw: string): string {
   return `https://${url}`;
 }
 
+// Contributor articles must never contain a hyperlink (product requirement
+// — no outbound links from contributor content; see the same guarantee
+// previously enforced in components/RichTextEditor.tsx). When allowLinks is
+// false (the default — the Contributor "Write Article" page never passes
+// it), the Link extension below is never added to the schema, so there's
+// no mark to paste into in the first place; this strips any <a> tag out of
+// pasted HTML before Tiptap's parser sees it, keeping the visible text and
+// discarding the href. Admin's ArticleReviewPanel passes allowLinks so
+// editors keep the ability to add links while polishing a submission.
+// Server-side enforcement (stripLinkTags in lib/sanitizeHtml.ts, applied on
+// every contributor write path) is the independent second half of this
+// guarantee in case a request skips the editor entirely.
+function stripLinks(html: string): string {
+  if (typeof window === "undefined" || !html.includes("<a")) return html;
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    doc.querySelectorAll("a").forEach((a) => {
+      const parent = a.parentNode;
+      if (!parent) return;
+      while (a.firstChild) parent.insertBefore(a.firstChild, a);
+      parent.removeChild(a);
+    });
+    return doc.body.innerHTML;
+  } catch {
+    return html;
+  }
+}
+
 const Heading = HeadingExtension.extend({
   addOptions() {
     return {
@@ -132,6 +160,7 @@ export default function TiptapArticleEditor({
   allowedHeadings = [2, 3],
   stickyOffset,
   uploadUrl = "/api/dashboard/upload",
+  allowLinks = false,
 }: {
   value: string;
   onChange: (html: string) => void;
@@ -140,6 +169,10 @@ export default function TiptapArticleEditor({
   allowedHeadings?: (1 | 2 | 3)[];
   stickyOffset?: string;
   uploadUrl?: string;
+  // Admin-only escape hatch (see the comment above stripLinks) — the
+  // Contributor Write Article page never sets this, so it stays false there
+  // by default with no way to override it from that surface.
+  allowLinks?: boolean;
 }) {
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -159,6 +192,7 @@ export default function TiptapArticleEditor({
         class:
           "tiptap rich-content max-w-none px-3 py-2.5 text-sm text-stone-900 outline-none [&_img]:cursor-pointer [&_figure]:cursor-pointer",
       },
+      transformPastedHTML: allowLinks ? undefined : stripLinks,
       handleClickOn: (_view: any, pos: number, node: any) => {
         if (node.type.name === "image") {
           editingImageRef.current = { pos };
@@ -183,7 +217,6 @@ export default function TiptapArticleEditor({
       StarterKit.configure({ heading: false }),
       Heading.configure({ levels: allowedHeadings.length ? allowedHeadings : [2, 3] }),
       Underline,
-      LinkWithAttrs.configure({ openOnClick: false, autolink: false }),
       Image,
       Figure,
       Placeholder.configure({ placeholder }),
@@ -191,6 +224,7 @@ export default function TiptapArticleEditor({
       TableRow,
       TableHeader,
       TableCell,
+      ...(allowLinks ? [LinkWithAttrs.configure({ openOnClick: false, autolink: false })] : []),
     ],
     onUpdate: ({ editor }: { editor: Editor }) => {
       onChangeRef.current(editor.getHTML());
@@ -401,8 +435,14 @@ export default function TiptapArticleEditor({
             active={editor.isActive("orderedList")}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
           />
+          <ToolbarButton
+            label="Quote"
+            title="Blockquote"
+            active={editor.isActive("blockquote")}
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          />
           <span className="mx-1 h-4 w-px bg-stone-300" />
-          <ToolbarButton label="Link" title="Insert link" onClick={() => setLinkModalOpen(true)} />
+          {allowLinks && <ToolbarButton label="Link" title="Insert link" onClick={() => setLinkModalOpen(true)} />}
           <ToolbarButton label="Image" title="Insert image" onClick={openNewImageModal} />
           <ToolbarButton
             label="Table"
@@ -452,7 +492,7 @@ export default function TiptapArticleEditor({
           }}
         />
       )}
-      {linkModalOpen && (
+      {allowLinks && linkModalOpen && (
         <RichLinkModal onInsert={handleLinkInsert} onClose={() => setLinkModalOpen(false)} />
       )}
     </div>

@@ -494,15 +494,25 @@ async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function generateUniqueSlug(title: string, excludeId?: string): Promise<string> {
-  const base =
-    title
+// Normalizes free text (a title, or a contributor's own manually-typed
+// slug) into a URL-safe base — shared by generateUniqueSlug below so a
+// contributor's custom slug goes through the exact same rules a
+// title-derived one does (idempotent on an already-slug-shaped string, so
+// passing one back through here is a no-op besides the length cap).
+function slugifyText(text: string): string {
+  return (
+    text
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
-      .slice(0, 80) || "article";
+      .slice(0, 80) || "article"
+  );
+}
+
+export async function generateUniqueSlug(title: string, excludeId?: string): Promise<string> {
+  const base = slugifyText(title);
   let slug = base;
   let i = 2;
   while (await slugExists(slug, excludeId)) {
@@ -523,6 +533,7 @@ export async function generateUniqueSlug(title: string, excludeId?: string): Pro
 // fires.
 export async function createDraft(input: {
   title: string;
+  slug?: string;
   cityId: string;
   categoryId: string | null;
   attractionId?: string | null;
@@ -544,7 +555,7 @@ export async function createDraft(input: {
   metaDescription?: string;
   focusKeyword?: string;
 }): Promise<Article> {
-  const slug = await generateUniqueSlug(input.title || "untitled-draft");
+  const slug = await generateUniqueSlug(input.slug?.trim() || input.title || "untitled-draft");
   const safeContent = input.contentHtml ? sanitizeArticleHtml(input.contentHtml) : "";
   const { wordCount, readingTimeMinutes } = computeContentStats(safeContent);
   const rows = await sql`
@@ -571,6 +582,7 @@ export async function updateDraft(
   id: string,
   updates: {
     title?: string;
+    slug?: string;
     excerpt?: string;
     contentHtml?: string;
     cityId?: string;
@@ -587,7 +599,18 @@ export async function updateDraft(
   if (!current.length) throw new Error("Draft not found (it may have already been submitted).");
   const c = current[0];
   const nextTitle = updates.title ?? c.title;
-  const slug = updates.title && updates.title !== c.title ? await generateUniqueSlug(nextTitle, id) : c.slug;
+  // A contributor's own manually-edited slug (the "URL slug" field in
+  // ArticleEditor) takes priority over the title-derived default whenever
+  // they've actually changed it — previously this field was purely
+  // decorative: the API silently ignored body.slug and always recomputed
+  // from the title, so any manual edit was discarded on the very next save.
+  const clientSlug = updates.slug !== undefined ? slugifyText(updates.slug) : undefined;
+  const slug =
+    clientSlug && clientSlug !== c.slug
+      ? await generateUniqueSlug(clientSlug, id)
+      : !clientSlug && updates.title && updates.title !== c.title
+        ? await generateUniqueSlug(nextTitle, id)
+        : c.slug;
   const nextContent =
     updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
@@ -665,6 +688,7 @@ export async function updateOwnArticle(
   id: string,
   updates: {
     title?: string;
+    slug?: string;
     excerpt?: string;
     contentHtml?: string;
     cityId?: string;
@@ -681,7 +705,15 @@ export async function updateOwnArticle(
   if (!current.length) throw new Error("Article not found.");
   const c = current[0];
   const nextTitle = updates.title ?? c.title;
-  const slug = updates.title && updates.title !== c.title ? await generateUniqueSlug(nextTitle, id) : c.slug;
+  // See the matching comment in updateDraft above — same "manual slug edit
+  // wins if provided" rule applies here.
+  const clientSlug = updates.slug !== undefined ? slugifyText(updates.slug) : undefined;
+  const slug =
+    clientSlug && clientSlug !== c.slug
+      ? await generateUniqueSlug(clientSlug, id)
+      : !clientSlug && updates.title && updates.title !== c.title
+        ? await generateUniqueSlug(nextTitle, id)
+        : c.slug;
   const nextContent =
     updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);

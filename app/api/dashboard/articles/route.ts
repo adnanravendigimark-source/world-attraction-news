@@ -51,6 +51,7 @@ export async function POST(req: Request) {
     // title/city and waiting for a second round trip to save the rest.
     const article = await createDraft({
       title,
+      slug: body.slug !== undefined ? String(body.slug).trim() : undefined,
       cityId,
       categoryId,
       attractionId: body.attractionId ?? null,

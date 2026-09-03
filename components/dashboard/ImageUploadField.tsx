@@ -75,21 +75,17 @@ export default function ImageUploadField({
   return (
     <div>
       <label className="mb-1 block text-sm font-medium text-stone-700">{label}</label>
+      {/* Upload-only, by design — no text input for pasting an external
+          URL. Contributors upload real files; nothing is ever accepted as
+          a pasted external image link (see lib/blob.ts's uploadImage). */}
       <div className="flex flex-col gap-2 sm:flex-row">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="https://... or upload a file"
-          className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
-        />
         <button
           type="button"
           onClick={() => fileInput.current?.click()}
           disabled={uploading}
-          className="shrink-0 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-900 transition hover:bg-stone-100 disabled:opacity-60 cursor-pointer"
+          className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-900 transition hover:bg-stone-100 disabled:opacity-60 cursor-pointer sm:w-auto"
         >
-          {uploading ? "Uploading…" : "Upload"}
+          {uploading ? "Uploading…" : value ? "Replace image" : "Upload image"}
         </button>
         <input
           ref={fileInput}

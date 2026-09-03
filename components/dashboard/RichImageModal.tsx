@@ -114,24 +114,20 @@ export default function RichImageModal({
         <p className="mt-1 text-sm text-stone-500">
           {isEditing
             ? "Update the alt text (for SEO), caption, or replace the photo."
-            : "Upload a photo from your device, or paste an image URL."}
+            : "Upload a photo from your device."}
         </p>
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://... or upload a file"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
-          />
+        {/* Upload-only, by design — no text input for pasting an external
+            URL. Nothing is ever accepted as a pasted external image link
+            (see lib/blob.ts's uploadImage). */}
+        <div className="mt-4">
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
             disabled={uploading}
-            className="shrink-0 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:opacity-60"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:opacity-60"
           >
-            {uploading ? "Uploading…" : "Upload"}
+            {uploading ? "Uploading…" : url ? "Replace photo" : "Choose a photo to upload"}
           </button>
           <input
             ref={fileInput}

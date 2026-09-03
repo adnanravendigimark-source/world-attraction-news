@@ -478,6 +478,7 @@ export default function ArticleReviewPanel({
                 placeholder="Article content..."
                 minHeight="24rem"
                 stickyOffset="4rem"
+                allowLinks
               />
             </div>
 

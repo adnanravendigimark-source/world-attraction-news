@@ -49,6 +49,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   const title = body.title !== undefined ? String(body.title).trim() : undefined;
+  const slug = body.slug !== undefined ? String(body.slug).trim() : undefined;
   const excerpt = body.excerpt !== undefined ? String(body.excerpt).trim() : undefined;
   const contentHtml = body.contentHtml !== undefined ? String(body.contentHtml) : undefined;
 
@@ -80,6 +81,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const updates = {
     title: title || undefined,
+    slug: slug || undefined,
     excerpt: excerpt || undefined,
     contentHtml: contentHtml || undefined,
     cityId,

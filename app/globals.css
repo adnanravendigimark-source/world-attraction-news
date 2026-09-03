@@ -344,6 +344,13 @@ body {
 .rich-content u {
   text-decoration: underline;
 }
+.rich-content blockquote {
+  margin: 1em 0;
+  padding: 0.5em 0 0.5em 1.1em;
+  border-left: 3px solid #2563eb;
+  color: rgba(15, 23, 42, 0.75);
+  font-style: italic;
+}
 .rich-content img {
   max-width: 100%;
   border-radius: 1rem;

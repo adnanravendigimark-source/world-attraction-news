@@ -153,8 +153,12 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
             className="w-full max-h-[28rem] rounded-xl object-cover"
           />
         )}
+        {/* `.rich-content .article-body` — the same real typography this
+            content was written/previewed with (see ArticlePreviewModal.tsx
+            and ArticleReviewPanel.tsx). `prose prose-slate` is a no-op in
+            this project — @tailwindcss/typography isn't installed. */}
         <div
-          className="prose prose-slate max-w-none text-slate-800 text-sm sm:text-base leading-relaxed"
+          className="rich-content article-body text-slate-800"
           dangerouslySetInnerHTML={{ __html: article.contentHtml }}
         />
       </div>
