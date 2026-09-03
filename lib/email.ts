@@ -26,19 +26,11 @@ import {
 } from "./emailTemplates";
 
 // Resend requires the "from" address's domain to be verified in your
-// Resend account before it will send from it — attractionnews.com isn't a
-// real, owned, DNS-verified domain, so sending "from" it gets rejected
-// with a 403 ("Domain not verified"). Until a real domain is bought and
-// verified in Resend (Domains -> Add Domain, then set RESEND_FROM_EMAIL
-// below), this falls back to Resend's own sandbox sender
-// (onboarding@resend.dev — the ".dev" is correct and required; Resend does
-// NOT own/verify "resend.com" for this purpose, only "resend.dev"), which
-// works with zero setup for ANY Resend account — the one real limitation
-// is that the sandbox sender can only deliver to the email address the
-// Resend account itself is signed up with, not to arbitrary recipients.
-// That's exactly what you want for testing right now; switch
-// RESEND_FROM_EMAIL once real users need real emails.
-const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || `${SITE_NAME} <onboarding@resend.dev>`;
+// Resend account before it will send from it (Domains -> Add Domain in the
+// Resend dashboard) — until worldattractionnews.com is verified there,
+// sends will fail with a 403 ("Domain not verified"). RESEND_FROM_EMAIL can
+// still override this per-environment if needed.
+const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || `${SITE_NAME} <info@worldattractionnews.com>`;
 
 let resendClient: Resend | null = null;
 function getResendClient(): Resend | null {
