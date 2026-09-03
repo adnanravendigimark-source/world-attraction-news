@@ -4,7 +4,6 @@ import { getAllArticles, summarizePoints } from "@/lib/articles";
 import { getUsers } from "@/lib/users";
 import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
-import StatusBadge from "@/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
