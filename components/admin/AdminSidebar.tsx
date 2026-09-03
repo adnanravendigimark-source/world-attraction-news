@@ -2,58 +2,39 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 interface AdminNavItem {
   href: string;
   label: string;
   icon: string;
-  badge?: number;
-  highlight?: boolean;
 }
 
-const DESK_NAV: AdminNavItem[] = [
-  { href: "/admin", label: "Desk Overview", icon: "home" },
-  { href: "/admin/articles?status=pending", label: "Review Queue", icon: "inbox", highlight: true },
-  { href: "/admin/articles", label: "Articles Master", icon: "doc" },
-];
-
-const CONTENT_NAV: AdminNavItem[] = [
-  { href: "/admin/cities", label: "Destinations / Cities", icon: "pin" },
-  { href: "/admin/attractions", label: "Landmarks / Venues", icon: "flag" },
-  { href: "/admin/categories", label: "Beats / Categories", icon: "tag" },
-  { href: "/admin/events", label: "Calendar Events", icon: "calendar" },
+const NAV_ITEMS: AdminNavItem[] = [
+  { href: "/admin", label: "Overview", icon: "home" },
+  { href: "/admin/articles", label: "Articles", icon: "doc" },
+  { href: "/admin/cities", label: "Destinations", icon: "pin" },
+  { href: "/admin/attractions", label: "Attractions", icon: "flag" },
+  { href: "/admin/categories", label: "Categories", icon: "tag" },
+  { href: "/admin/events", label: "Events", icon: "calendar" },
   { href: "/admin/media", label: "Media Library", icon: "image" },
-];
-
-const NETWORK_NAV: AdminNavItem[] = [
-  { href: "/admin/users", label: "Contributors & Roles", icon: "user" },
-  { href: "/admin/points", label: "Quality Points Ledger", icon: "star" },
-  { href: "/admin/newsletter", label: "Newsletter Audience", icon: "mail" },
-];
-
-const OPS_NAV: AdminNavItem[] = [
-  { href: "/admin/seo", label: "SEO & Search Engine", icon: "search" },
-  { href: "/admin/activity", label: "Audit & Activity Log", icon: "clock" },
-  { href: "/admin/settings", label: "System Settings", icon: "gear" },
+  { href: "/admin/users", label: "Contributors", icon: "user" },
+  { href: "/admin/points", label: "Points Ledger", icon: "star" },
+  { href: "/admin/settings", label: "Settings & SEO", icon: "gear" },
 ];
 
 function NavIcon({ name }: { name: string }) {
   const paths: Record<string, string> = {
-    home: "M3 11.5 12 4l9 7.5M5 10v9h5v-5h4v5h5v-9",
-    inbox: "M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.375v4.875a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25v-4.875M2.25 13.5 4.5 4.5h15l2.25 9",
-    doc: "M7 3h7l5 5v13H7zM14 3v5h5M9 12h6M9 16h6",
-    pin: "M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Zm0-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
-    flag: "M5 21V4m0 0h13l-2.5 4L18 12H5",
-    tag: "M20.5 12.5 12 21l-9-9L12 3h8.5v8.5ZM16 8h.01",
-    image: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M9 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z",
-    user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0",
-    star: "M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2L6.6 19.3l1.3-6L3.3 9.2l6.1-.6Z",
-    mail: "M4 6h16v12H4zM4 7l8 6 8-6",
-    search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm10 2-4.35-4.35",
-    clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3.5 2",
-    gear: "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM19.4 13a7.4 7.4 0 0 0 .06-1 7.4 7.4 0 0 0-.06-1l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L14.9 3h-4l-.4 2.4a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.5 11a7.4 7.4 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.4h4l.4-2.4a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5-2.1-1.6Z",
-    calendar: "M4 5h16v14H4zM4 9h16M8 3v4M16 3v4M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01",
+    home: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+    doc: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    pin: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z",
+    flag: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9",
+    tag: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z",
+    calendar: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    image: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z",
+    user: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+    star: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
+    gear: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
   };
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -64,87 +45,57 @@ function NavIcon({ name }: { name: string }) {
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const currentStatus = searchParams?.get("status");
   const [open, setOpen] = useState(false);
 
-  function isActive(item: AdminNavItem) {
-    if (item.href === "/admin") return pathname === "/admin";
-    if (item.href === "/admin/articles?status=pending") {
-      return pathname === "/admin/articles" && currentStatus === "pending";
-    }
-    if (item.href === "/admin/articles") {
-      return pathname === "/admin/articles" && !currentStatus;
-    }
-    return pathname === item.href || (pathname.startsWith(item.href) && item.href !== "/admin");
+  function isItemActive(href: string) {
+    if (href === "/admin") return pathname === "/admin";
+    return pathname === href || pathname.startsWith(href + "/");
   }
-
-  const linkClass = (active: boolean) =>
-    `flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-bold transition-all ${
-      active
-        ? "bg-signal text-white shadow-card font-semibold"
-        : "text-ink-300 hover:bg-ink-900 hover:text-white"
-    }`;
-
-  const renderNavGroup = (title: string, items: AdminNavItem[]) => (
-    <div className="space-y-1 mb-5">
-      <p className="px-3 mb-1 text-[10px] font-mono font-bold uppercase tracking-widest text-ink-500">
-        {title}
-      </p>
-      {items.map((item) => {
-        const active = isActive(item);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setOpen(false)}
-            className={linkClass(active)}
-          >
-            <NavIcon name={item.icon} />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
-    </div>
-  );
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mb-4 inline-flex items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3.5 py-2 text-xs font-bold text-ink-200 shadow-subtle lg:hidden"
+      {/* Mobile Menu Toggle */}
+      <div className="lg:hidden mb-4">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 shadow-2xs"
+        >
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
+            <span>Admin Navigation</span>
+          </span>
+          <span className="text-slate-400 text-xs">{open ? "▲" : "▼"}</span>
+        </button>
+      </div>
+
+      {/* Clean Admin Sidebar */}
+      <aside
+        className={`w-full md:w-56 lg:w-60 shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs h-fit sticky top-20 ${
+          open ? "block" : "hidden lg:block"
+        }`}
       >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
-        </svg>
-        Admin CMS Menu
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setOpen(false)} />
-          <nav className="absolute inset-y-0 left-0 w-64 overflow-y-auto bg-ink-950 p-5 shadow-2xl border-r border-ink-800">
-            <div className="mb-4 flex items-center justify-between border-b border-ink-800 pb-3">
-              <span className="font-serif text-sm font-black text-white">Editorial CMS</span>
-              <button type="button" onClick={() => setOpen(false)} className="text-ink-400 hover:text-white">
-                ✕
-              </button>
-            </div>
-            {renderNavGroup("Editorial Desk", DESK_NAV)}
-            {renderNavGroup("Content & Taxonomy", CONTENT_NAV)}
-            {renderNavGroup("Network & Audience", NETWORK_NAV)}
-            {renderNavGroup("Operations", OPS_NAV)}
-          </nav>
+        <div className="space-y-1">
+          {NAV_ITEMS.map((item) => {
+            const active = isItemActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                  active
+                    ? "bg-[#DC2626] text-white shadow-2xs font-bold"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                <NavIcon name={item.icon} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </div>
-      )}
-
-      <nav className="hidden w-64 shrink-0 lg:block rounded-2xl border border-ink-800/80 bg-ink-950 p-4 shadow-card h-fit sticky top-24">
-        {renderNavGroup("Editorial Desk", DESK_NAV)}
-        {renderNavGroup("Content & Taxonomy", CONTENT_NAV)}
-        {renderNavGroup("Network & Audience", NETWORK_NAV)}
-        {renderNavGroup("Operations", OPS_NAV)}
-      </nav>
+      </aside>
     </>
   );
 }

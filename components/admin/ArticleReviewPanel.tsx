@@ -85,7 +85,6 @@ export default function ArticleReviewPanel({
   const toast = useToast();
   const [current, setCurrent] = useState(article);
   const [editMode, setEditMode] = useState(false);
-  const [preview, setPreview] = useState(false);
   const [edit, setEdit] = useState<EditState>(toEditState(article));
   const [score, setScore] = useState(article.score !== null ? String(article.score) : "");
   const [feedback, setFeedback] = useState(article.adminFeedback);
@@ -93,8 +92,6 @@ export default function ArticleReviewPanel({
   const [scheduledAt, setScheduledAt] = useState(toDatetimeLocalDefault());
   const [showRevisions, setShowRevisions] = useState(false);
   const [showModeration, setShowModeration] = useState(false);
-
-  const attractionsForCity = attractions.filter((a) => a.cityId === edit.cityId);
 
   async function patch(body: any) {
     setBusy(true);
@@ -119,7 +116,7 @@ export default function ArticleReviewPanel({
   async function handleStartReview() {
     try {
       await patch({ action: "start_review" });
-      toast.success("Marked as under review.");
+      toast.success("Marked as in active review.");
     } catch {}
   }
 
@@ -127,17 +124,17 @@ export default function ArticleReviewPanel({
     const copy = {
       approved: {
         title: "Approve this article?",
-        description: "It moves to the approved queue and becomes ready to schedule or publish.",
-        label: "Approve",
+        description: "This moves the article to approved status, making it ready to schedule or publish immediately.",
+        label: "Approve Article",
       },
       rejected: {
-        title: "Reject this article?",
-        description: "The contributor will see it as rejected.",
-        label: "Reject",
+        title: "Reject this article submission?",
+        description: "The contributor will be notified that their submission was rejected.",
+        label: "Reject Submission",
       },
       changes_requested: {
-        title: "Request changes on this article?",
-        description: "The contributor will receive your feedback and can revise and resubmit.",
+        title: "Request revisions from contributor?",
+        description: "The contributor will receive your feedback notes and can update and resubmit.",
         label: "Request Changes",
       },
     }[status];
@@ -159,63 +156,63 @@ export default function ArticleReviewPanel({
       });
       toast.success(
         status === "approved"
-          ? "Article approved."
+          ? "Article approved!"
           : status === "rejected"
           ? "Article rejected."
-          : "Changes requested — contributor notified."
+          : "Changes requested — author notified."
       );
     } catch {}
   }
 
   async function handlePublish() {
     const ok = await confirm({
-      title: "Publish this article immediately?",
-      description: "It will go live on the public site and city feed.",
-      confirmLabel: "Publish Now",
+      title: "Publish article live on World Attraction News?",
+      description: "It will go live immediately on the public homepage and city destinations wire.",
+      confirmLabel: "Publish Live Now",
     });
     if (!ok) return;
     try {
       await patch({ action: "publish" });
-      toast.success("Article is now live.");
+      toast.success("Article is now live on the site!");
     } catch {}
   }
 
   async function handleSchedule() {
     const when = new Date(scheduledAt);
     if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) {
-      toast.error("Choose a valid future date and time.");
+      toast.error("Please choose a valid future release time.");
       return;
     }
     const ok = await confirm({
       title: "Schedule publication?",
-      description: `It will publish automatically on ${when.toLocaleString()}.`,
-      confirmLabel: "Schedule Dispatch",
+      description: `The article will publish automatically on ${when.toLocaleString()}.`,
+      confirmLabel: "Schedule Release",
     });
     if (!ok) return;
     try {
       await patch({ action: "schedule", scheduledAt: when.toISOString() });
-      toast.success("Article scheduled.");
+      toast.success("Article scheduled for automated release.");
     } catch {}
   }
 
   async function handleCancelSchedule() {
     const ok = await confirm({
-      title: "Cancel this scheduled publish?",
-      description: "The article stays approved but will not auto-publish.",
+      title: "Cancel scheduled release?",
+      description: "The article stays in approved status but will not auto-publish.",
       confirmLabel: "Cancel Schedule",
       danger: true,
     });
     if (!ok) return;
     try {
       await patch({ action: "cancel_schedule" });
-      toast.success("Schedule cancelled.");
+      toast.success("Scheduled release cancelled.");
     } catch {}
   }
 
   async function handleUnpublish() {
     const ok = await confirm({
       title: "Unpublish this article?",
-      description: "It will be immediately taken down from the public site.",
+      description: "It will be taken down from the public site immediately.",
       confirmLabel: "Unpublish",
       danger: true,
     });
@@ -235,16 +232,16 @@ export default function ArticleReviewPanel({
 
   async function handleRestoreRevision(revisionId: number, label: string) {
     const ok = await confirm({
-      title: "Restore this version?",
-      description: `This replaces the current copy with the version from ${label}.`,
-      confirmLabel: "Restore Version",
+      title: "Restore this snapshot version?",
+      description: `This will replace current content with the version saved on ${label}.`,
+      confirmLabel: "Restore Snapshot",
       danger: true,
     });
     if (!ok) return;
     try {
       const saved = await patch({ action: "restore_revision", revisionId });
       setEdit(toEditState({ ...current, ...saved }));
-      toast.success("Version restored.");
+      toast.success("Version restored successfully.");
       router.refresh();
     } catch {}
   }
@@ -258,7 +255,7 @@ export default function ArticleReviewPanel({
       });
       setEdit(toEditState({ ...current, ...saved }));
       setEditMode(false);
-      toast.success("Editorial changes saved.");
+      toast.success("Editorial edits saved.");
       router.refresh();
     } catch {}
   }
@@ -266,7 +263,7 @@ export default function ArticleReviewPanel({
   async function handleDelete() {
     const ok = await confirm({
       title: "Permanently delete this article?",
-      description: "This cannot be undone.",
+      description: "This action cannot be undone.",
       confirmLabel: "Delete Permanently",
       danger: true,
     });
@@ -279,32 +276,35 @@ export default function ArticleReviewPanel({
       router.refresh();
     } else {
       setBusy(false);
-      toast.error("Couldn't delete this article.");
+      toast.error("Couldn't delete article.");
     }
   }
 
   if (current.status === "draft") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 max-w-3xl">
         <div className="flex items-center justify-between">
-          <Link href="/admin/articles" className="text-xs font-bold text-ink-500 hover:text-ink-900">
-            ← Back to Articles Master
+          <Link
+            href="/admin/articles"
+            className="text-xs font-semibold text-slate-500 hover:text-[#DC2626] transition-colors"
+          >
+            ← Back to Articles Queue
           </Link>
           <StatusBadge status={current.status} />
         </div>
-        <div className="rounded-2xl border border-ink-200/80 bg-white p-8 shadow-card">
-          <h1 className="font-serif text-2xl font-black text-ink-950">{current.title || "Untitled Draft"}</h1>
-          <p className="mt-1 text-xs text-ink-500 font-mono">
-            By {current.authorName} ({current.authorEmail}) · {current.cityName}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs space-y-3">
+          <h1 className="text-xl font-bold text-slate-900">{current.title || "Untitled Draft"}</h1>
+          <p className="text-xs text-slate-500 font-medium">
+            By {current.authorName} ({current.authorEmail}) · {current.cityName} Bureau
           </p>
-          <div className="mt-6 rounded-xl border border-ink-200 bg-paper-100 p-4 text-xs text-ink-700 leading-relaxed">
-            This is an unsubmitted draft currently in the contributor's private workspace. It enters the review queue once the contributor clicks Submit.
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700 leading-relaxed">
+            This article is currently an unsubmitted draft in the author's private desk. It will enter the active review queue once submitted.
           </div>
-          <div className="mt-6">
+          <div>
             <button
               disabled={busy}
               onClick={handleDelete}
-              className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-60"
+              className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-60 cursor-pointer"
             >
               Delete Draft
             </button>
@@ -326,242 +326,305 @@ export default function ArticleReviewPanel({
     : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Top Header & Fast Navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-ink-200/80 pb-4">
-        <Link href="/admin/articles" className="text-xs font-bold text-ink-500 hover:text-ink-900 transition-colors">
-          ← Back to Articles Queue
-        </Link>
+    <div className="space-y-4">
+      {/* Top Header & Breadcrumb */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-2 text-xs">
+          <Link
+            href="/admin/articles"
+            className="font-semibold text-slate-500 hover:text-[#DC2626] transition-colors"
+          >
+            ← Back to Queue
+          </Link>
+          <span className="text-slate-300">|</span>
+          <span className="text-slate-600 font-medium hidden sm:inline">
+            Verification &amp; Approval Desk
+          </span>
+        </div>
+
         <div className="flex items-center gap-2">
           {current.originalityFlag && (
-            <span className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase text-amber-900">
-              ⚠ Overlap Detected
+            <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+              ⚠ Overlap Flag
             </span>
           )}
           <StatusBadge status={current.status} />
+
+          {current.status === "published" && (
+            <Link
+              href={`/latest-news/${current.slug}`}
+              target="_blank"
+              className="rounded-lg bg-[#0B1527] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#DC2626] transition-colors"
+            >
+              Live Story ↗
+            </Link>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setEditMode(!editMode)}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+              editMode
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            {editMode ? "Reading View" : "✎ Direct Edit"}
+          </button>
         </div>
       </div>
 
-      {/* Main Review Workbench Layout */}
+      {/* Main Layout Grid */}
       <div className="grid gap-6 lg:grid-cols-12 items-start">
-        {/* Left Column: Article Content / Editor */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="rounded-2xl border border-ink-200/80 bg-white p-6 sm:p-8 shadow-card">
-            <div className="flex items-center justify-between gap-4 border-b border-ink-100 pb-4">
-              <div>
-                <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">
-                  {editMode ? "Editorial Edit Mode" : "Dispatch Verification"}
-                </p>
-                <h1 className="font-serif text-2xl sm:text-3xl font-black text-ink-950 mt-1">
-                  {editMode ? "Edit Dispatch Content" : current.title}
-                </h1>
+        {/* Left Column: Easy-to-Read Editorial Document (8 cols) */}
+        <div className="lg:col-span-8 space-y-4">
+          {!editMode ? (
+            /* Clean Magazine Reading Paper */
+            <article className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-10 shadow-2xs space-y-6">
+              {/* Category & Bureau Masthead */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#DC2626]">
+                  {current.cityName || "Global"} Bureau
+                </span>
+                {current.categoryName && (
+                  <span className="rounded-md bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    {current.categoryName}
+                  </span>
+                )}
+                {current.attractionName && (
+                  <span className="text-xs text-slate-500 font-medium">
+                    • {current.attractionName}
+                  </span>
+                )}
               </div>
-              {!editMode && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPreview((v) => !v)}
-                    className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-bold text-ink-700 hover:bg-paper-100"
-                  >
-                    {preview ? "Overview" : "Reader Preview"}
-                  </button>
-                  <button
-                    onClick={() => setEditMode(true)}
-                    className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-signal"
-                  >
-                    Direct Edit
-                  </button>
+
+              {/* Headline */}
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 leading-tight tracking-tight">
+                {current.title}
+              </h1>
+
+              {/* Author & Verification Meta Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-y border-slate-100 py-3 text-xs text-slate-600">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-full bg-[#0B1527] text-white flex items-center justify-center font-bold text-xs">
+                    {current.authorName?.charAt(0)?.toUpperCase() || "W"}
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 leading-none">{current.authorName}</p>
+                    <p className="text-[11px] text-slate-500 leading-tight mt-0.5">{current.authorEmail}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
+                  <span>📅 Submitted {formatDateTime(current.submittedAt || current.updatedAt)}</span>
+                  <span>•</span>
+                  <span>⏱ {current.readingTimeMinutes || 1} min read ({current.wordCount} words)</span>
+                </div>
+              </div>
+
+              {/* Cover Photo */}
+              {current.image && (
+                <div className="space-y-1.5">
+                  <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                    <Image
+                      src={current.image}
+                      alt={current.imageAlt || current.title}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                  </div>
+                  {current.imageAlt && (
+                    <p className="text-[11px] text-slate-500 italic px-1">
+                      Photo: {current.imageAlt}
+                    </p>
+                  )}
                 </div>
               )}
-            </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-mono text-ink-500 border-b border-ink-100 pb-4">
-              <span>By <strong>{current.authorName}</strong> ({current.authorEmail})</span>
-              <span>·</span>
-              <span className="font-bold text-signal">{current.cityName} Bureau</span>
-              {current.categoryName && <span>· Beat: {current.categoryName}</span>}
-              {current.attractionName && <span>· Venue: {current.attractionName}</span>}
-            </div>
+              {/* Lead Summary Excerpt */}
+              {current.excerpt && (
+                <div className="rounded-xl border-l-4 border-[#DC2626] bg-slate-50 p-4 text-base font-medium leading-relaxed text-slate-800 italic">
+                  "{current.excerpt}"
+                </div>
+              )}
 
-            {!editMode && !preview && (
-              <div className="my-4 grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-xl bg-paper-100 p-3 text-[11px] font-mono text-ink-700">
-                <div>Words: <strong className="text-ink-900">{current.wordCount}</strong></div>
-                <div>Read Time: <strong className="text-ink-900">{current.readingTimeMinutes || 1} min</strong></div>
-                <div>Views: <strong className="text-ink-900">{current.viewCount}</strong></div>
-                <div>Slug: <strong className="text-ink-900 truncate block">/{current.slug}</strong></div>
-              </div>
-            )}
+              {/* Formatted Article Body */}
+              <div
+                className="prose prose-slate prose-lg max-w-none text-slate-800 leading-relaxed pt-2 focus:outline-none"
+                dangerouslySetInnerHTML={{ __html: current.contentHtml }}
+              />
 
-            {!editMode ? (
-              <div className="space-y-6 mt-4">
-                {current.image && (
-                  <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-ink-200">
-                    <Image src={current.image} alt={current.imageAlt || current.title} fill className="object-cover" />
-                  </div>
-                )}
-                {current.excerpt && (
-                  <p className="font-serif text-base italic text-ink-700 border-l-2 border-signal pl-4 py-1 leading-relaxed">
-                    {current.excerpt}
-                  </p>
-                )}
-                <div className="article-body border-t border-ink-100 pt-6" dangerouslySetInnerHTML={{ __html: current.contentHtml }} />
-              </div>
-            ) : (
-              <div className="space-y-5 mt-6">
+              {/* Article Footer Verification Details */}
+              <div className="border-t border-slate-100 pt-4 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-ink-700 mb-1">Headline</label>
-                  <input
-                    value={edit.title}
-                    onChange={(e) => setEdit({ ...edit, title: e.target.value })}
-                    className="w-full rounded-lg border border-ink-300 px-3.5 py-2 text-base font-bold text-ink-950 focus:border-signal focus:outline-none"
-                  />
+                  Public Slug: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-mono">/latest-news/{current.slug}</code>
                 </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-bold uppercase text-ink-700 mb-1">Destination City</label>
-                    <select
-                      value={edit.cityId}
-                      onChange={(e) => setEdit({ ...edit, cityId: e.target.value, attractionId: null })}
-                      className="w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-xs font-semibold"
-                    >
-                      {cities.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase text-ink-700 mb-1">Category Beat</label>
-                    <select
-                      value={edit.categoryId || ""}
-                      onChange={(e) => setEdit({ ...edit, categoryId: e.target.value || null })}
-                      className="w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-xs font-semibold"
-                    >
-                      <option value="">None</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block text-xs font-bold uppercase text-ink-700 mb-1">Summary / Excerpt</label>
-                  <textarea
-                    rows={2}
-                    value={edit.excerpt}
-                    onChange={(e) => setEdit({ ...edit, excerpt: e.target.value })}
-                    className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs text-ink-800 focus:border-signal focus:outline-none resize-none leading-relaxed"
-                  />
+                  Lifetime Views: <strong className="text-slate-900">{current.viewCount}</strong>
                 </div>
+              </div>
+            </article>
+          ) : (
+            /* Direct Edit Form Mode */
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xs space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">DIRECT EDIT MODE</span>
+                <h2 className="text-xl font-bold text-slate-900 mt-0.5">Modify Article Fields</h2>
+              </div>
 
-                <ImageUploadField
-                  label="Cover Image"
-                  value={edit.image}
-                  onChange={(url) => setEdit({ ...edit, image: url })}
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Headline</label>
+                <input
+                  value={edit.title}
+                  onChange={(e) => setEdit({ ...edit, title: e.target.value })}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-base font-bold text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Destination City</label>
+                  <select
+                    value={edit.cityId}
+                    onChange={(e) => setEdit({ ...edit, cityId: e.target.value, attractionId: null })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800"
+                  >
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Category Beat</label>
+                  <select
+                    value={edit.categoryId || ""}
+                    onChange={(e) => setEdit({ ...edit, categoryId: e.target.value || null })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800"
+                  >
+                    <option value="">None</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Summary / Excerpt</label>
+                <textarea
+                  rows={2}
+                  value={edit.excerpt}
+                  onChange={(e) => setEdit({ ...edit, excerpt: e.target.value })}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
+                />
+              </div>
+
+              <ImageUploadField
+                label="Cover Image"
+                value={edit.image}
+                onChange={(url) => setEdit({ ...edit, image: url })}
+                uploadUrl="/api/admin/upload"
+              />
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Article Body</label>
+                <RichTextEditor
+                  value={edit.contentHtml}
+                  onChange={(html) => setEdit({ ...edit, contentHtml: html })}
                   uploadUrl="/api/admin/upload"
                 />
-
-                <div>
-                  <label className="block text-xs font-bold uppercase text-ink-700 mb-1">Body Copy</label>
-                  <RichTextEditor
-                    value={edit.contentHtml}
-                    onChange={(html) => setEdit({ ...edit, contentHtml: html })}
-                    uploadUrl="/api/admin/upload"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 pt-4 border-t border-ink-200">
-                  <button
-                    disabled={busy}
-                    onClick={handleSaveEdit}
-                    className="rounded-xl bg-ink-950 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-signal transition-all"
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEdit(toEditState(current));
-                      setEditMode(false);
-                    }}
-                    className="rounded-xl border border-ink-300 px-4 py-2.5 text-xs font-bold text-ink-700 hover:bg-paper-100"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
-            )}
-          </div>
+
+              <div className="flex items-center gap-2 pt-3 border-t border-slate-200">
+                <button
+                  disabled={busy}
+                  onClick={handleSaveEdit}
+                  className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all cursor-pointer"
+                >
+                  Save Editorial Changes
+                </button>
+                <button
+                  onClick={() => {
+                    setEdit(toEditState(current));
+                    setEditMode(false);
+                  }}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right Column: Review Action Console */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Review Decision Card */}
-          <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-5">
-            <div className="border-b border-ink-100 pb-3">
-              <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">
-                Editorial Evaluation
-              </p>
-              <h3 className="font-serif text-lg font-black text-ink-950">Review &amp; Scoring</h3>
+        {/* Right Column: Review & Action Panel (4 cols, Sticky) */}
+        <div className="lg:col-span-4 space-y-4 sticky top-14">
+          {/* Card 1: Review Decision & Quality Score */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+            <div className="border-b border-slate-100 pb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
+                DECISION CONSOLE
+              </span>
+              <h3 className="text-sm font-bold text-slate-900">Review &amp; Quality Scoring</h3>
             </div>
 
-            {/* Interactive 0-10 Score Selector */}
+            {/* Quality Score 0 - 10 */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-2">
-                Quality Score (0 – 10)
-              </label>
-              <div className="grid grid-cols-6 gap-1.5 mb-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold uppercase text-slate-700">
+                  Score Rating (0 – 10)
+                </label>
+                {score && (
+                  <span className="text-xs font-bold font-mono text-amber-700">
+                    ★ {score} / 10
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-6 gap-1 mb-2">
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => setScore(String(num))}
-                    className={`rounded-lg py-1.5 font-mono text-xs font-bold transition-all ${
+                    className={`rounded py-1 text-xs font-bold transition-all cursor-pointer ${
                       score === String(num)
-                        ? "bg-amber-600 text-white shadow-sm scale-105"
-                        : "bg-paper-100 text-ink-700 hover:bg-paper-200"
+                        ? "bg-amber-600 text-white shadow-2xs font-bold"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
                     {num}
                   </button>
                 ))}
               </div>
-              <input
-                type="number"
-                min={0}
-                max={10}
-                value={score}
-                onChange={(e) => setScore(e.target.value)}
-                placeholder="0-10"
-                className="w-full rounded-lg border border-ink-200 bg-paper-50 px-3 py-1.5 text-xs font-mono font-bold focus:border-signal focus:outline-none"
-              />
             </div>
 
-            {/* Editorial Feedback */}
+            {/* Feedback / Review Notes */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">
-                Editor Notes / Feedback
+              <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                Editorial Review Notes
               </label>
               <textarea
                 rows={3}
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
-                placeholder="Constructive feedback or change instructions for the author..."
-                className="w-full rounded-lg border border-ink-200 bg-paper-50 p-3 text-xs text-ink-800 focus:border-signal focus:outline-none resize-none leading-relaxed"
+                placeholder="Notes or revision instructions for author..."
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none resize-none leading-relaxed"
               />
             </div>
 
-            {/* Action Buttons */}
+            {/* Decision Buttons */}
             {PUBLISH_PIPELINE_STATUSES.includes(current.status) ? (
-              <div className="rounded-xl bg-emerald-50 p-3.5 border border-emerald-200 text-xs font-semibold text-emerald-900">
-                Status: <strong>{current.status.toUpperCase()}</strong>. Unpublish to return to review decisions.
+              <div className="rounded-lg bg-emerald-50 p-3 border border-emerald-200 text-xs font-semibold text-emerald-900">
+                Article is currently <strong>{current.status.toUpperCase()}</strong>.
               </div>
             ) : (
-              <div className="space-y-2 pt-2 border-t border-ink-100">
+              <div className="space-y-2 pt-1 border-t border-slate-100">
                 {current.status === "pending" && (
                   <button
                     disabled={busy}
                     onClick={handleStartReview}
-                    className="w-full rounded-xl border border-ink-300 bg-paper-100 py-2.5 text-xs font-bold text-ink-800 hover:bg-paper-200 transition-all disabled:opacity-60"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-100 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200 transition-all disabled:opacity-60 cursor-pointer"
                   >
                     Start Active Review
                   </button>
@@ -571,73 +634,73 @@ export default function ArticleReviewPanel({
                   <button
                     disabled={busy}
                     onClick={() => handleReview("approved")}
-                    className="rounded-xl bg-emerald-700 py-2 text-xs font-bold text-white shadow-subtle hover:bg-emerald-800 transition-all disabled:opacity-60"
+                    className="rounded-lg bg-emerald-700 py-2.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition-all disabled:opacity-60 cursor-pointer"
                   >
-                    Approve
+                    ✓ Approve
                   </button>
                   <button
                     disabled={busy}
                     onClick={() => handleReview("changes_requested")}
-                    className="rounded-xl border border-orange-300 bg-orange-50 py-2 text-xs font-bold text-orange-900 hover:bg-orange-100 transition-all disabled:opacity-60"
+                    className="rounded-lg border border-amber-300 bg-amber-50 py-2.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-all disabled:opacity-60 cursor-pointer"
                   >
-                    Revise
+                    ✎ Revise
                   </button>
                   <button
                     disabled={busy}
                     onClick={() => handleReview("rejected")}
-                    className="rounded-xl border border-rose-300 bg-rose-50 py-2 text-xs font-bold text-rose-900 hover:bg-rose-100 transition-all disabled:opacity-60"
+                    className="rounded-lg border border-rose-300 bg-rose-50 py-2.5 text-xs font-bold text-rose-900 hover:bg-rose-100 transition-all disabled:opacity-60 cursor-pointer"
                   >
-                    Reject
+                    ✕ Reject
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Publishing Console */}
-          <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-4">
-            <div className="border-b border-ink-100 pb-3">
-              <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">Distribution</p>
-              <h3 className="font-serif text-lg font-black text-ink-950">Publishing Controls</h3>
+          {/* Card 2: Publishing & Distribution */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
+            <div className="border-b border-slate-100 pb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">DISTRIBUTION</span>
+              <h3 className="text-sm font-bold text-slate-900">Publishing Controls</h3>
             </div>
 
             {current.status === "published" && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-900 border border-emerald-200">
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between rounded-lg bg-emerald-50 p-2.5 text-xs font-bold text-emerald-900 border border-emerald-200">
                   <span>● Live on Global Wire</span>
-                  <Link href={`/cities/${current.citySlug}/${current.slug}`} target="_blank" className="underline">
-                    View Live ↗
+                  <Link href={`/latest-news/${current.slug}`} target="_blank" className="underline">
+                    View Live Story ↗
                   </Link>
                 </div>
                 <button
                   disabled={busy}
                   onClick={handleUnpublish}
-                  className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2 text-xs font-bold text-rose-900 hover:bg-rose-100 transition-all disabled:opacity-60"
+                  className="w-full rounded-lg border border-rose-200 bg-rose-50 py-2 text-xs font-bold text-rose-900 hover:bg-rose-100 transition-all disabled:opacity-60 cursor-pointer"
                 >
-                  Unpublish Dispatch
+                  Unpublish Story
                 </button>
               </div>
             )}
 
             {current.status === "scheduled" && (
-              <div className="space-y-3">
-                <p className="rounded-xl bg-purple-50 p-3 text-xs font-bold text-purple-900 border border-purple-200">
+              <div className="space-y-2.5">
+                <p className="rounded-lg bg-purple-50 p-2.5 text-xs font-bold text-purple-900 border border-purple-200">
                   Scheduled for {formatDateTime(current.scheduledAt)}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     disabled={busy}
                     onClick={handlePublish}
-                    className="rounded-xl bg-ink-950 py-2 text-xs font-bold text-white hover:bg-signal transition-all"
+                    className="rounded-lg bg-slate-900 py-2 text-xs font-bold text-white hover:bg-[#DC2626] transition-all cursor-pointer"
                   >
                     Publish Now
                   </button>
                   <button
                     disabled={busy}
                     onClick={handleCancelSchedule}
-                    className="rounded-xl border border-ink-300 py-2 text-xs font-bold text-ink-700 hover:bg-paper-100 transition-all"
+                    className="rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
                   >
-                    Cancel Schedule
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -648,25 +711,25 @@ export default function ArticleReviewPanel({
                 <button
                   disabled={busy}
                   onClick={handlePublish}
-                  className="w-full rounded-xl bg-signal py-3 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark hover:shadow-lift transition-all"
+                  className="w-full rounded-lg bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer"
                 >
                   Publish Immediately →
                 </button>
-                <div className="border-t border-ink-100 pt-3">
-                  <label className="block text-[10px] font-mono font-bold uppercase text-ink-500 mb-1">
-                    Or Schedule for Future Release
+                <div className="border-t border-slate-100 pt-2.5">
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Or Schedule for Automated Release
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="datetime-local"
                       value={scheduledAt}
                       onChange={(e) => setScheduledAt(e.target.value)}
-                      className="flex-1 rounded-lg border border-ink-200 bg-paper-50 px-2 py-1.5 text-xs font-mono focus:outline-none"
+                      className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-mono focus:outline-none"
                     />
                     <button
                       disabled={busy}
                       onClick={handleSchedule}
-                      className="rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-xs font-bold text-ink-800 hover:bg-paper-100 transition-all"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer"
                     >
                       Schedule
                     </button>
@@ -676,35 +739,35 @@ export default function ArticleReviewPanel({
             )}
 
             {(current.status === "pending" || current.status === "under_review") && (
-              <p className="text-xs text-ink-500 leading-relaxed">
-                Approve this dispatch above to unlock live publishing &amp; scheduling controls.
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Approve this article above to unlock immediate live publishing and scheduling options.
               </p>
             )}
           </div>
 
-          {/* Editorial Placement Flags */}
-          <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card space-y-3">
-            <div className="border-b border-ink-100 pb-2">
-              <h4 className="font-serif text-sm font-black text-ink-950">Editorial Homepage Placement</h4>
+          {/* Card 3: Featured Homepage Placements */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-2.5">
+            <div className="border-b border-slate-100 pb-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Featured Placements</h4>
             </div>
             <div className="space-y-2">
               {(
                 [
-                  ["breaking", "Breaking Wire Banner"],
+                  ["breaking", "Breaking News Banner"],
                   ["featured", "Hero Featured Spotlight"],
                   ["editorsPick", "Editor's Pick Section"],
-                  ["trending", "Trending Carousel"],
+                  ["trending", "Trending Story"],
                 ] as const
               ).map(([key, label]) => {
                 const value = current[key];
                 return (
-                  <label key={key} className="flex items-center gap-2.5 text-xs font-semibold text-ink-800 cursor-pointer">
+                  <label key={key} className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={value}
                       disabled={busy}
                       onChange={(e) => handleEditorialFlag(key, e.target.checked)}
-                      className="h-4 w-4 rounded border-ink-300 text-signal focus:ring-signal"
+                      className="h-4 w-4 rounded border-slate-300 text-[#DC2626] focus:ring-[#DC2626]"
                     />
                     <span>{label}</span>
                   </label>
@@ -713,22 +776,22 @@ export default function ArticleReviewPanel({
             </div>
           </div>
 
-          {/* Moderation Signals */}
+          {/* Card 4: Automated Verification Signals */}
           {moderation && (
-            <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
               <button
                 type="button"
                 onClick={() => setShowModeration((v) => !v)}
-                className="flex w-full items-center justify-between text-left"
+                className="flex w-full items-center justify-between text-left cursor-pointer"
               >
-                <h4 className="font-serif text-sm font-black text-ink-950">
-                  Automated Signals {moderationWarningCount > 0 && <span className="text-signal">({moderationWarningCount})</span>}
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Automated Signals {moderationWarningCount > 0 && <span className="text-[#DC2626]">({moderationWarningCount})</span>}
                 </h4>
-                <span className="text-xs text-ink-400 font-bold">{showModeration ? "▲ Hide" : "▼ Details"}</span>
+                <span className="text-xs text-slate-400 font-bold">{showModeration ? "▲" : "▼"}</span>
               </button>
 
               {showModeration && (
-                <div className="mt-4 space-y-2 text-xs">
+                <div className="mt-3 space-y-2 text-xs pt-2 border-t border-slate-100">
                   {[
                     {
                       label: "Content Similarity",
@@ -744,17 +807,18 @@ export default function ArticleReviewPanel({
                   ].map((row) => (
                     <div
                       key={row.label}
-                      className={`rounded-xl border p-3 ${
-                        row.flag ? "border-amber-300 bg-amber-50 text-amber-900" : "border-ink-100 bg-paper-50 text-ink-700"
+                      className={`rounded-lg border p-2.5 ${
+                        row.flag ? "border-amber-300 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-700"
                       }`}
                     >
-                      <p className="font-bold text-xs">{row.flag ? "⚠ " : "✓ "}{row.label}</p>
+                      <div className="flex items-center justify-between font-bold text-[11px]">
+                        <span>{row.label}</span>
+                        <span>{row.flag ? "⚠ Flagged" : "✓ Clear"}</span>
+                      </div>
                       {row.reasons && row.reasons.length > 0 && (
-                        <ul className="mt-1.5 list-disc pl-4 text-[11px] text-ink-600 space-y-0.5">
-                          {row.reasons.map((r, i) => (
-                            <li key={i}>{r}</li>
-                          ))}
-                        </ul>
+                        <p className="mt-1 text-[10px] text-amber-800 leading-tight">
+                          {row.reasons.join(", ")}
+                        </p>
                       )}
                     </div>
                   ))}
@@ -763,31 +827,34 @@ export default function ArticleReviewPanel({
             </div>
           )}
 
-          {/* Revision History */}
-          {revisions.length > 0 && (
-            <div className="rounded-2xl border border-ink-200/80 bg-white p-6 shadow-card">
+          {/* Card 5: Version Snapshots */}
+          {revisions && revisions.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
               <button
                 type="button"
                 onClick={() => setShowRevisions((v) => !v)}
-                className="flex w-full items-center justify-between text-left"
+                className="flex w-full items-center justify-between text-left cursor-pointer"
               >
-                <h4 className="font-serif text-sm font-black text-ink-950">Revision Diff History ({revisions.length})</h4>
-                <span className="text-xs text-ink-400 font-bold">{showRevisions ? "▲ Hide" : "▼ Show"}</span>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Version History ({revisions.length})
+                </h4>
+                <span className="text-xs text-slate-400 font-bold">{showRevisions ? "▲" : "▼"}</span>
               </button>
+
               {showRevisions && (
-                <div className="mt-4 space-y-2.5">
-                  {revisions.map((r) => (
-                    <div key={r.id} className="rounded-xl border border-ink-100 bg-paper-50 p-3 text-xs">
-                      <p className="font-bold text-ink-900">{r.changeSummary || "Saved changes"}</p>
-                      <p className="mt-0.5 font-mono text-[10px] text-ink-400">
-                        {r.editorEmail || "Editor"} · {formatDateTime(r.createdAt)}
-                      </p>
+                <div className="mt-3 space-y-2 pt-2 border-t border-slate-100">
+                  {revisions.map((rev) => (
+                    <div key={rev.id} className="flex items-center justify-between text-xs p-2 rounded bg-slate-50 border border-slate-200">
+                      <div>
+                        <p className="font-semibold text-slate-800">{rev.changeSummary || "Revision Snapshot"}</p>
+                        <p className="text-[10px] text-slate-400">{formatDateTime(rev.createdAt)}</p>
+                      </div>
                       <button
-                        disabled={busy}
-                        onClick={() => handleRestoreRevision(r.id, formatDateTime(r.createdAt))}
-                        className="mt-2 text-xs font-bold text-signal hover:underline disabled:opacity-60"
+                        type="button"
+                        onClick={() => handleRestoreRevision(rev.id, formatDateTime(rev.createdAt))}
+                        className="text-[11px] font-bold text-[#DC2626] hover:underline cursor-pointer"
                       >
-                        Restore Version →
+                        Restore
                       </button>
                     </div>
                   ))}
@@ -796,14 +863,14 @@ export default function ArticleReviewPanel({
             </div>
           )}
 
-          {/* Delete Danger */}
-          <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-5">
+          {/* Danger Zone: Delete Article */}
+          <div className="pt-1">
             <button
               disabled={busy}
               onClick={handleDelete}
-              className="w-full rounded-xl border border-rose-300 bg-white py-2 text-xs font-bold text-rose-800 hover:bg-rose-50 transition-all disabled:opacity-60"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              Delete Article Permanently
+              Permanently Delete Article
             </button>
           </div>
         </div>
