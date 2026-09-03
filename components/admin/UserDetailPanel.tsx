@@ -50,24 +50,6 @@ export default function UserDetailPanel({ user: initialUser }: { user: SafeUser 
     await run({ status }, `User marked as ${status}.`);
   }
 
-  async function handleRoleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const role = e.target.value;
-    const ok = await confirm({
-      title: `Change role to ${role}?`,
-      description:
-        role === "admin"
-          ? "Admins have full access to edit/publish any article and manage users."
-          : role === "editor"
-          ? "Editors can review and approve submissions."
-          : "Contributors can draft and submit articles for review.",
-      confirmLabel: "Change Role",
-      danger: role === "admin",
-    });
-    if (!ok) return;
-
-    await run({ role }, `Role updated to ${role}.`);
-  }
-
   async function handleDelete() {
     const ok = await confirm({
       title: "Permanently delete this user?",
@@ -95,19 +77,19 @@ export default function UserDetailPanel({ user: initialUser }: { user: SafeUser 
 
   return (
     <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-      {/* Role Selector */}
+      {/* Role — read-only. Every account is created as "contributor" at
+          signup (password or Google); "admin" is only ever granted via the
+          env-driven owner account or a direct database change, never from
+          this page — there's no role-change control here by design. */}
       <div className="flex items-center gap-2">
-        <label className="text-xs font-bold uppercase text-slate-700">Role &amp; Permissions:</label>
-        <select
-          disabled={busy}
-          value={user.role}
-          onChange={handleRoleChange}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none"
+        <span className="text-xs font-bold uppercase text-slate-700">Role:</span>
+        <span
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+            user.role === "admin" ? "bg-purple-50 text-purple-700 border border-purple-200" : "bg-blue-50 text-blue-700 border border-blue-200"
+          }`}
         >
-          <option value="contributor">Contributor (Writer)</option>
-          <option value="editor">Editor (Reviewer)</option>
-          <option value="admin">Admin (Full Access)</option>
-        </select>
+          {user.role === "admin" ? "Administrator" : "Contributor"}
+        </span>
       </div>
 
       {/* Action Buttons */}

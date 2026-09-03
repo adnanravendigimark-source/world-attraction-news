@@ -7,10 +7,16 @@ import { notifyAccountApproved, notifyAccountRejected } from "@/lib/notification
 
 export const dynamic = "force-dynamic";
 
-// Approve/reject/suspend/reactivate a registration, or promote/demote a
-// role — from the Admin Panel's Users page. Contributors aren't tied to a
-// single city, so approval doesn't require (or accept) a city assignment —
-// they choose which city each article belongs to when they submit it.
+// Approve/reject/suspend/reactivate a registration from the Admin Panel's
+// Users page. Contributors aren't tied to a single city, so approval
+// doesn't require (or accept) a city assignment — they choose which city
+// each article belongs to when they submit it.
+//
+// Deliberately does NOT accept a `role` field. Every account is created as
+// "contributor" at signup (password or Google — see registerContributor/
+// findOrCreateGoogleUser in lib/users.ts, both hardcode it), and "admin" is
+// only ever the env-driven owner account or a direct database change —
+// this page never offers a way to change a user's role.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session || session.role !== "admin") {
@@ -27,7 +33,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const target = await findUserById(params.id).catch(() => undefined);
   if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
-  const nextRole = body.role === "admin" || body.role === "contributor" ? body.role : undefined;
   const nextStatus =
     body.status === "pending" ||
     body.status === "approved" ||
@@ -49,7 +54,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     const updated = await updateUser(params.id, {
-      role: nextRole,
       status: nextStatus,
       displayName: body.displayName !== undefined ? body.displayName : undefined,
       bio: body.bio !== undefined ? body.bio : undefined,
@@ -67,14 +71,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         actionByStatus[nextStatus] || "user_status_changed",
         { type: "user", id: target.id, label: target.email },
         { from: target.status, to: nextStatus }
-      );
-    }
-    if (nextRole && nextRole !== target.role) {
-      await logActivity(
-        session,
-        nextRole === "admin" ? "user_promoted_admin" : "user_demoted_contributor",
-        { type: "user", id: target.id, label: target.email },
-        { from: target.role, to: nextRole }
       );
     }
 
