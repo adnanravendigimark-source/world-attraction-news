@@ -47,10 +47,14 @@ export async function getCityById(id: string): Promise<City | undefined> {
   return rows.length ? rowToCity(rows[0]) : undefined;
 }
 
-// Real "popularity" ranking for the homepage's Popular Cities section and
-// the /cities index — ordered by published article count (a genuine
+// Real "popularity" ranking for the homepage's Popular Destinations section
+// and the /cities index — ordered by published article count (a genuine
 // database aggregate), not a fabricated ranking. Cities with zero published
-// articles yet still come back (count 0) so a brand-new city isn't hidden.
+// articles yet still come back (count 0) so a brand-new city isn't hidden,
+// they just sort to the back. (This ORDER BY previously sorted by
+// sort_order/name only, contradicting this function's own name and this
+// comment — /cities' client already re-sorts by articleCount itself so it
+// wasn't visibly broken there, but the homepage reads this order directly.)
 export async function getCitiesWithArticleCounts(): Promise<(City & { articleCount: number })[]> {
   try {
     const rows = await sql`
@@ -58,7 +62,7 @@ export async function getCitiesWithArticleCounts(): Promise<(City & { articleCou
       FROM cities c
       LEFT JOIN articles a ON a.city_id = c.id
       GROUP BY c.id
-      ORDER BY c.sort_order ASC, c.name ASC
+      ORDER BY article_count DESC, c.sort_order ASC, c.name ASC
     `;
     return rows.map((r: any) => ({ ...rowToCity(r), articleCount: r.article_count }));
   } catch {
