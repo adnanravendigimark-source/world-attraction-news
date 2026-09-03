@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getAllArticles, summarizePoints } from "@/lib/articles";
+import { getAllArticles, getDraftArticleCount, summarizePoints } from "@/lib/articles";
 import { getUsers } from "@/lib/users";
 import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
@@ -55,14 +55,20 @@ function StatCard({
 }
 
 export default async function AdminOverviewPage() {
-  const [nonDraftArticles, draftArticles, users, cities, categories] = await Promise.all([
+  // getAllArticles() (no filter) never includes drafts (see its own
+  // comment in lib/articles.ts), so drafts need a second read — but only a
+  // COUNT, not full joined rows, since nothing here displays a draft list,
+  // just its number. This also avoids running
+  // publishDueScheduledArticles()'s UPDATE a second time in the same
+  // request (getAllArticles() already ran it once) and avoids fetching
+  // every draft's content_html just to read an array's .length.
+  const [nonDraftArticles, draftCount, users, cities, categories] = await Promise.all([
     getAllArticles(),
-    getAllArticles("draft"),
+    getDraftArticleCount(),
     getUsers(),
     getCities(),
     getCategories(),
   ]);
-  const articles = [...nonDraftArticles, ...draftArticles];
 
   const usersByStatus = {
     pending: users.filter((u) => u.status === "pending" && u.emailVerified).length,
@@ -72,7 +78,7 @@ export default async function AdminOverviewPage() {
   };
 
   const articlesByStatus = {
-    draft: draftArticles.length,
+    draft: draftCount,
     pending: nonDraftArticles.filter((a) => a.status === "pending").length,
     changes_requested: nonDraftArticles.filter((a) => a.status === "changes_requested").length,
     approved: nonDraftArticles.filter((a) => a.status === "approved").length,
@@ -80,7 +86,11 @@ export default async function AdminOverviewPage() {
     published: nonDraftArticles.filter((a) => a.status === "published").length,
   };
 
-  const points = summarizePoints(articles);
+  // Drafts never carry a score (only submitted/reviewed articles do), so
+  // leaving them out of summarizePoints()'s input changes nothing about the
+  // totals — it just avoids fetching their full rows only to have every one
+  // of them filtered straight back out again.
+  const points = summarizePoints(nonDraftArticles);
 
   const awaitingReview = nonDraftArticles.filter((a) => a.status === "pending").slice(0, 6);
   const recentlyPublished = [...nonDraftArticles]
@@ -88,6 +98,7 @@ export default async function AdminOverviewPage() {
     .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
     .slice(0, 5);
   const pendingUsers = users.filter((u) => u.status === "pending" && u.emailVerified).slice(0, 4);
+  const totalArticles = nonDraftArticles.length + draftCount;
 
   return (
     <div className="space-y-5">
@@ -153,7 +164,7 @@ export default async function AdminOverviewPage() {
           label="Live Articles"
           value={articlesByStatus.published}
           href="/admin/articles?status=published"
-          sub={`${articles.length} total articles`}
+          sub={`${totalArticles} total articles`}
           icon={
             <svg className="h-3.5 w-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

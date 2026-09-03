@@ -4,7 +4,7 @@ Latest news from attractions around the world — a city-based news portal with 
 
 - **Public website** — homepage news feed, per-city pages, per-article pages, category filtering.
 - **Contributor dashboard** (`/contributor/dashboard`) — approved contributors submit and track their own city's articles. Old `/dashboard/*` bookmarks still work — they redirect to the matching `/contributor/*` path.
-- **Admin panel** (`/admin`) — manage users, articles, cities, categories, and publishing.
+- **Admin panel** (`/admin/overview`) — manage users, articles, cities, categories, and publishing.
 
 Built as a fresh Next.js 14 App Router project with its own theme, brand, and page structure — this is a separate codebase from any other site in this workspace, sharing only general technical lessons (image optimization, the Neon caching gotcha below, SEO structure, and auth patterns).
 

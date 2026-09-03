@@ -463,6 +463,30 @@ export async function getAllArticles(statusFilter?: ArticleStatus): Promise<Arti
   }
 }
 
+// Count-only variants for places that just need a number (the Admin
+// Overview's draft tile, the Admin header's action badge) rather than full
+// joined rows with content_html — avoids paying for a JOIN_SELECT (and, for
+// the "draft" case, a redundant publishDueScheduledArticles() run — see
+// getAllArticles() above, which already ran it once per request) just to
+// read an array's .length.
+export async function getDraftArticleCount(): Promise<number> {
+  try {
+    const rows = await sql`SELECT COUNT(*)::int AS count FROM articles WHERE status = 'draft'`;
+    return Number(rows[0]?.count || 0);
+  } catch {
+    return 0;
+  }
+}
+
+export async function getPendingArticleCount(): Promise<number> {
+  try {
+    const rows = await sql`SELECT COUNT(*)::int AS count FROM articles WHERE status = 'pending'`;
+    return Number(rows[0]?.count || 0);
+  } catch {
+    return 0;
+  }
+}
+
 async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
   const rows = excludeId
     ? await sql`SELECT id FROM articles WHERE slug = ${slug} AND id != ${excludeId} LIMIT 1`

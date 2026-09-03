@@ -25,7 +25,7 @@ export default function AdminLoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid administrator credentials.");
-      router.push(searchParams?.get("next") || "/admin");
+      router.push(searchParams?.get("next") || "/admin/overview");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

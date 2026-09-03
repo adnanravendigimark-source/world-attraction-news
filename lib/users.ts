@@ -102,6 +102,21 @@ export async function getUsers(): Promise<User[]> {
   }
 }
 
+// Count-only — used by the Admin header's action badge, which renders on
+// every admin page (via the shared dashboard layout), so it deliberately
+// avoids getUsers()'s full SELECT * across every user just to read one
+// number. Mirrors the same "pending AND verified" definition the Admin
+// Overview page and the Users page both use for what counts as a real,
+// actionable pending application (an unverified signup isn't one yet).
+export async function getPendingContributorCount(): Promise<number> {
+  try {
+    const rows = await sql`SELECT COUNT(*)::int AS count FROM users WHERE status = 'pending' AND email_verified = true`;
+    return Number(rows[0]?.count || 0);
+  } catch {
+    return 0;
+  }
+}
+
 export async function getContributors(): Promise<User[]> {
   const rows = await sql`SELECT * FROM users WHERE role = 'contributor' ORDER BY created_at DESC`;
   return rows.map(rowToUser);
