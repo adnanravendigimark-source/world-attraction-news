@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Logo from "@/components/Logo";
 
 interface NavItem {
   href: string;
@@ -73,11 +74,12 @@ export default function DashboardSidebar({ unreadCount = 0 }: { unreadCount?: nu
           {/* Logo & Hamburger Header */}
           <div className="flex items-center justify-between px-1 pt-1">
             {!collapsed && (
-              <Link href="/" className="flex items-center gap-1.5 min-w-0">
-                <span className="text-xl font-black text-[#DC2626]">A<span className="text-[#DC2626]">★</span></span>
-                <span className="text-sm font-bold tracking-tight text-slate-900 truncate">
-                  Attraction<span className="text-[#DC2626]"> News</span>
-                </span>
+              <Link href="/" className="flex items-center gap-2 min-w-0">
+                <Logo variant="mark" className="h-7 w-7 shrink-0" />
+                <div className="flex flex-col min-w-0 leading-none">
+                  <span className="text-xs font-bold tracking-tight text-slate-900 truncate">World Attraction</span>
+                  <span className="text-[10px] font-bold text-[#DC2626] leading-none mt-0.5">News</span>
+                </div>
               </Link>
             )}
 

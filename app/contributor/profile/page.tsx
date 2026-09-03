@@ -40,7 +40,7 @@ export default async function ProfilePage() {
             Profile Settings
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Manage your public byline attribution, correspondent biography, and account credentials.
+            Manage your public profile, bio, and account credentials.
           </p>
         </div>
       </div>
@@ -67,9 +67,9 @@ export default async function ProfilePage() {
       {/* Public Profile Form Card */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs space-y-4">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">Public Byline Details</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">Public Profile</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Your name, avatar photo, and reporting bio appear on your published dispatches.
+            Your name, avatar photo, and bio appear on your published articles.
           </p>
         </div>
 
@@ -83,7 +83,7 @@ export default async function ProfilePage() {
           <p className="text-xs text-slate-500 mt-0.5">
             {user.authProvider === "google"
               ? "You sign in with Google. You can set a password if you would like to sign in with email as well."
-              : "Update your password to keep your writer workspace secure."}
+              : "Update your password to keep your account secure."}
           </p>
         </div>
 

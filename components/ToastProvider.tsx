@@ -58,8 +58,8 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
           <div
             key={t.id}
             role="status"
-            className={`pointer-events-auto flex w-full max-w-sm items-start gap-2.5 rounded-md px-4 py-3 text-sm font-semibold text-white shadow-lift ${
-              t.kind === "success" ? "bg-emerald-600" : "bg-signal"
+            className={`pointer-events-auto flex w-full max-w-sm items-start gap-2.5 rounded-md px-4 py-3 text-sm font-semibold text-white shadow-lg ${
+              t.kind === "success" ? "bg-emerald-600" : "bg-[#DC2626]"
             }`}
           >
             <span className="flex-1">{t.message}</span>

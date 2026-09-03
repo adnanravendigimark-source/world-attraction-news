@@ -5,10 +5,10 @@ interface StatusBadgeProps {
 
 const STYLES: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   draft: {
-    bg: "bg-ink-100",
-    text: "text-ink-700",
-    border: "border-ink-200",
-    dot: "bg-ink-400",
+    bg: "bg-slate-100",
+    text: "text-slate-700",
+    border: "border-slate-200",
+    dot: "bg-slate-400",
   },
   pending: {
     bg: "bg-amber-50/80",
@@ -53,10 +53,10 @@ const STYLES: Record<string, { bg: string; text: string; border: string; dot: st
     dot: "bg-emerald-500",
   },
   unpublished: {
-    bg: "bg-ink-100",
-    text: "text-ink-600",
-    border: "border-ink-200",
-    dot: "bg-ink-400",
+    bg: "bg-slate-100",
+    text: "text-slate-600",
+    border: "border-slate-200",
+    dot: "bg-slate-400",
   },
   suspended: {
     bg: "bg-rose-50",
@@ -81,10 +81,10 @@ const LABELS: Record<string, string> = {
 
 export default function StatusBadge({ status, size = "sm" }: StatusBadgeProps) {
   const cfg = STYLES[status] || {
-    bg: "bg-ink-100",
-    text: "text-ink-700",
-    border: "border-ink-200",
-    dot: "bg-ink-400",
+    bg: "bg-slate-100",
+    text: "text-slate-700",
+    border: "border-slate-200",
+    dot: "bg-slate-400",
   };
   const label = LABELS[status] || status;
 

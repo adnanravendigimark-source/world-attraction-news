@@ -40,17 +40,17 @@ export default function AvatarUploadField({
   return (
     <div className="flex items-center gap-4">
       <div className="group relative h-20 w-20 shrink-0">
-        <div className="h-20 w-20 overflow-hidden rounded-full border-2 border-white bg-ink-900 shadow-card ring-1 ring-ink-200">
+        <div className="h-20 w-20 overflow-hidden rounded-full border-2 border-white bg-slate-900 shadow-2xs ring-1 ring-slate-200">
           {value ? (
             <Image src={value} alt="" width={80} height={80} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center font-serif text-xl font-bold text-white">
+            <div className="flex h-full w-full items-center justify-center text-xl font-bold text-white">
               {initials}
             </div>
           )}
         </div>
         <label
-          className={`absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-ink-950/60 text-[10px] font-bold uppercase tracking-wide text-white opacity-0 transition-opacity group-hover:opacity-100 ${
+          className={`absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-slate-950/60 text-[10px] font-bold uppercase tracking-wide text-white opacity-0 transition-opacity group-hover:opacity-100 ${
             uploading ? "opacity-100" : ""
           }`}
         >
@@ -69,7 +69,7 @@ export default function AvatarUploadField({
         </label>
       </div>
       <div>
-        <label className="inline-flex cursor-pointer items-center rounded-md border border-ink-300 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+        <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
           {uploading ? "Uploading..." : value ? "Replace photo" : "Upload photo"}
           <input
             type="file"
@@ -87,13 +87,13 @@ export default function AvatarUploadField({
           <button
             type="button"
             onClick={() => onChange("")}
-            className="ml-2 text-xs font-semibold text-ink-400 hover:text-signal"
+            className="ml-2 text-xs font-semibold text-slate-400 hover:text-[#DC2626]"
           >
             Remove
           </button>
         )}
-        {error && <p className="mt-1.5 text-xs text-signal">{error}</p>}
-        <p className="mt-1.5 text-[10px] text-ink-400">JPG, PNG, or WebP. Square photos look best.</p>
+        {error && <p className="mt-1.5 text-xs text-[#DC2626]">{error}</p>}
+        <p className="mt-1.5 text-[10px] text-slate-400">JPG, PNG, or WebP. Square photos look best.</p>
       </div>
     </div>
   );

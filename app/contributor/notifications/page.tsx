@@ -30,7 +30,7 @@ export default async function NotificationsPage() {
             Notifications
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Real-time updates on story reviews, editorial feedback notes, and publishing dispatches.
+            Updates on article reviews, editorial feedback, and publishing status.
           </p>
         </div>
       </div>
