@@ -28,8 +28,22 @@ export interface EventItem {
 
 function toDateOnly(value: any): string {
   if (!value) return "";
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  // Neon returns DATE columns as "YYYY-MM-DD" strings already.
+  if (value instanceof Date) {
+    // IMPORTANT: don't use toISOString() here. Neon's driver parses SQL
+    // `date` columns into a JS Date built from the raw Y/M/D via the local
+    // constructor (new Date(year, month, day)) — it is NOT a UTC instant.
+    // Calling .toISOString() re-interprets those same local Y/M/D fields as
+    // UTC and converts them, which silently rolls the date back a day on
+    // any server whose process timezone is ahead of UTC (this is exactly
+    // the bug that made an edited "30 Aug" come back as "29 Aug"). Reading
+    // the local getters instead is timezone-safe and always round-trips
+    // the exact calendar date that was stored.
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  // Some Neon driver paths return DATE columns as "YYYY-MM-DD" strings already.
   return String(value).slice(0, 10);
 }
 
