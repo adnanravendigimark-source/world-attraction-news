@@ -6,11 +6,40 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { ArticleWithRelations } from "@/lib/articles";
 import type { ArticleRevision } from "@/lib/revisions";
-import StatusBadge from "@/components/StatusBadge";
 import RichTextEditor from "@/components/RichTextEditor";
 import ImageUploadField from "@/components/ImageUploadField";
+import StatusBadge from "@/components/StatusBadge";
+import ScoreBadge from "@/components/ScoreBadge";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
+
+function formatDate(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatDateTime(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatViews(n: number) {
+  return n > 999 ? `${(n / 1000).toFixed(1)}K` : String(n);
+}
+
+// Mirrors the exact status gates the API (app/api/admin/articles/[id]/route.ts)
+// and lib/articles.ts enforce server-side — the UI only ever hides/disables
+// what the backend would reject anyway, never invents a stricter rule of
+// its own.
+const REVIEWABLE_BLOCKLIST = new Set(["published", "scheduled", "unpublished"]);
+const PUBLISHABLE_FROM = new Set(["approved", "unpublished", "scheduled"]);
+const SCHEDULABLE_FROM = new Set(["approved", "unpublished"]);
 
 interface EditState {
   title: string;
@@ -29,42 +58,23 @@ interface EditState {
   slug: string;
 }
 
-function toEditState(a: ArticleWithRelations): EditState {
+function buildEditState(article: ArticleWithRelations): EditState {
   return {
-    title: a.title,
-    excerpt: a.excerpt,
-    contentHtml: a.contentHtml,
-    cityId: a.cityId,
-    categoryId: a.categoryId,
-    attractionId: a.attractionId,
-    image: a.image,
-    imageAlt: a.imageAlt,
-    metaTitle: a.metaTitle,
-    metaDescription: a.metaDescription,
-    focusKeyword: a.focusKeyword,
-    tags: a.tags.join(", "),
-    canonicalUrl: a.canonicalUrl,
-    slug: a.slug,
+    title: article.title || "",
+    excerpt: article.excerpt || "",
+    contentHtml: article.contentHtml || "",
+    cityId: article.cityId || "",
+    categoryId: article.categoryId,
+    attractionId: article.attractionId,
+    image: article.image || "",
+    imageAlt: article.imageAlt || "",
+    metaTitle: article.metaTitle || "",
+    metaDescription: article.metaDescription || "",
+    focusKeyword: article.focusKeyword || "",
+    tags: (article.tags || []).join(", "),
+    canonicalUrl: article.canonicalUrl || "",
+    slug: article.slug || "",
   };
-}
-
-const PUBLISH_PIPELINE_STATUSES = ["published", "scheduled", "unpublished"];
-
-function formatDateTime(iso: string | null) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function toDatetimeLocalDefault(): string {
-  const d = new Date(Date.now() + 60 * 60 * 1000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export default function ArticleReviewPanel({
@@ -83,813 +93,725 @@ export default function ArticleReviewPanel({
   const router = useRouter();
   const confirm = useConfirm();
   const toast = useToast();
-  const [current, setCurrent] = useState(article);
-  const [editMode, setEditMode] = useState(false);
-  const [edit, setEdit] = useState<EditState>(toEditState(article));
-  const [score, setScore] = useState(article.score !== null ? String(article.score) : "");
-  const [feedback, setFeedback] = useState(article.adminFeedback);
-  const [busy, setBusy] = useState(false);
-  const [scheduledAt, setScheduledAt] = useState(toDatetimeLocalDefault());
-  const [showRevisions, setShowRevisions] = useState(false);
-  const [showModeration, setShowModeration] = useState(false);
 
-  async function patch(body: any) {
+  const [mode, setMode] = useState<"review" | "edit">("review");
+  const [busy, setBusy] = useState(false);
+  const [score, setScore] = useState(article.score !== null ? String(article.score) : "");
+  const [feedback, setFeedback] = useState(article.adminFeedback || "");
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [showRevisions, setShowRevisions] = useState(false);
+  const [edit, setEdit] = useState<EditState>(buildEditState(article));
+
+  // Derived directly from the `article` prop on every render — never
+  // copied into local state — so the moment router.refresh() re-fetches
+  // the server component after an action, every gate and badge below
+  // reflects the new status immediately with no stale local copy to fall
+  // out of sync.
+  const canReview = !REVIEWABLE_BLOCKLIST.has(article.status);
+  const canPublish = PUBLISHABLE_FROM.has(article.status);
+  const canSchedule = SCHEDULABLE_FROM.has(article.status);
+  const canCancelSchedule = article.status === "scheduled";
+  const canUnpublish = article.status === "published";
+  const canDelete = article.status !== "published" && article.status !== "scheduled";
+
+  function updateEdit<K extends keyof EditState>(key: K, value: EditState[K]) {
+    setEdit((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function callApi(payload: Record<string, unknown>, successMessage: string): Promise<boolean> {
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/articles/${article.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      setCurrent((prev) => ({ ...prev, ...data.article }));
-      return data.article;
+      toast.success(successMessage);
+      router.refresh();
+      return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
-      throw err;
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   async function handleStartReview() {
-    try {
-      await patch({ action: "start_review" });
-      toast.success("Marked as in active review.");
-    } catch {}
+    await callApi({ action: "start_review" }, "Marked as under review — the contributor's been notified.");
   }
 
-  async function handleReview(status: "approved" | "rejected" | "changes_requested") {
-    const copy = {
-      approved: {
-        title: "Approve this article?",
-        description: "This moves the article to approved status, making it ready to schedule or publish immediately.",
-        label: "Approve Article",
-      },
-      rejected: {
-        title: "Reject this article submission?",
-        description: "The contributor will be notified that their submission was rejected.",
-        label: "Reject Submission",
-      },
-      changes_requested: {
-        title: "Request revisions from contributor?",
-        description: "The contributor will receive your feedback notes and can update and resubmit.",
-        label: "Request Changes",
-      },
-    }[status];
-
-    const ok = await confirm({
-      title: copy.title,
-      description: copy.description,
-      confirmLabel: copy.label,
-      danger: status === "rejected",
-    });
-    if (!ok) return;
-
-    try {
-      await patch({
-        action: "review",
-        status,
-        score: score === "" ? null : Number(score),
-        feedback,
-      });
-      toast.success(
-        status === "approved"
-          ? "Article approved!"
-          : status === "rejected"
-          ? "Article rejected."
-          : "Changes requested — author notified."
-      );
-    } catch {}
+  async function handleReviewDecision(status: "approved" | "changes_requested" | "rejected") {
+    if (status !== "approved" && !feedback.trim()) {
+      toast.error("Add feedback so the contributor knows what to fix.");
+      return;
+    }
+    const label = status === "approved" ? "Approved." : status === "rejected" ? "Rejected." : "Changes requested.";
+    await callApi(
+      { action: "review", status, score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
+      label
+    );
   }
 
   async function handlePublish() {
-    const ok = await confirm({
-      title: "Publish article live on World Attraction News?",
-      description: "It will go live immediately on the public homepage and city destinations wire.",
-      confirmLabel: "Publish Live Now",
-    });
-    if (!ok) return;
-    try {
-      await patch({ action: "publish" });
-      toast.success("Article is now live on the site!");
-    } catch {}
+    await callApi({ action: "publish" }, "Published to the public site.");
   }
 
-  async function handleSchedule() {
-    const when = new Date(scheduledAt);
-    if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) {
-      toast.error("Please choose a valid future release time.");
+  async function handleConfirmSchedule() {
+    if (!scheduledAt) {
+      toast.error("Choose a date and time.");
       return;
     }
-    const ok = await confirm({
-      title: "Schedule publication?",
-      description: `The article will publish automatically on ${when.toLocaleString()}.`,
-      confirmLabel: "Schedule Release",
-    });
-    if (!ok) return;
-    try {
-      await patch({ action: "schedule", scheduledAt: when.toISOString() });
-      toast.success("Article scheduled for automated release.");
-    } catch {}
+    const when = new Date(scheduledAt);
+    if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) {
+      toast.error("Choose a valid future date and time.");
+      return;
+    }
+    const ok = await callApi({ action: "schedule", scheduledAt: when.toISOString() }, "Scheduled.");
+    if (ok) setShowSchedule(false);
   }
 
   async function handleCancelSchedule() {
-    const ok = await confirm({
-      title: "Cancel scheduled release?",
-      description: "The article stays in approved status but will not auto-publish.",
-      confirmLabel: "Cancel Schedule",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await patch({ action: "cancel_schedule" });
-      toast.success("Scheduled release cancelled.");
-    } catch {}
+    await callApi({ action: "cancel_schedule" }, "Schedule cancelled.");
   }
 
   async function handleUnpublish() {
     const ok = await confirm({
-      title: "Unpublish this article?",
-      description: "It will be taken down from the public site immediately.",
+      title: "Take this article off the public site?",
+      description: "It stays intact and can be republished any time — this doesn't delete anything.",
       confirmLabel: "Unpublish",
       danger: true,
     });
     if (!ok) return;
-    try {
-      await patch({ action: "unpublish" });
-      toast.success("Article unpublished.");
-    } catch {}
+    await callApi({ action: "unpublish" }, "Unpublished.");
   }
 
-  async function handleEditorialFlag(key: "featured" | "trending" | "editorsPick" | "breaking", value: boolean) {
-    try {
-      await patch({ action: "editorial_flags", [key]: value });
-      toast.success("Editorial placement updated.");
-    } catch {}
-  }
-
-  async function handleRestoreRevision(revisionId: number, label: string) {
+  async function handleRestoreRevision(revisionId: number) {
     const ok = await confirm({
-      title: "Restore this snapshot version?",
-      description: `This will replace current content with the version saved on ${label}.`,
-      confirmLabel: "Restore Snapshot",
-      danger: true,
+      title: "Restore this revision?",
+      description: "The article's title, excerpt, content, and image will be replaced with this saved version.",
+      confirmLabel: "Restore Revision",
     });
     if (!ok) return;
-    try {
-      const saved = await patch({ action: "restore_revision", revisionId });
-      setEdit(toEditState({ ...current, ...saved }));
-      toast.success("Version restored successfully.");
-      router.refresh();
-    } catch {}
+    const success = await callApi({ action: "restore_revision", revisionId }, "Revision restored.");
+    if (success) setEdit(buildEditState(article));
   }
 
   async function handleSaveEdit() {
+    if (!edit.title.trim() || !edit.excerpt.trim() || !edit.contentHtml.trim()) {
+      toast.error("Title, excerpt, and content can't be empty.");
+      return;
+    }
+    setBusy(true);
     try {
-      const saved = await patch({
-        action: "edit",
-        ...edit,
-        tags: edit.tags.split(",").map((t) => t.trim()).filter(Boolean),
+      const res = await fetch(`/api/admin/articles/${article.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "edit",
+          title: edit.title,
+          excerpt: edit.excerpt,
+          contentHtml: edit.contentHtml,
+          cityId: edit.cityId,
+          categoryId: edit.categoryId,
+          attractionId: edit.attractionId,
+          image: edit.image,
+          imageAlt: edit.imageAlt,
+          metaTitle: edit.metaTitle,
+          metaDescription: edit.metaDescription,
+          focusKeyword: edit.focusKeyword,
+          tags: edit.tags ? edit.tags.split(",").map((s) => s.trim()).filter(Boolean) : [],
+          canonicalUrl: edit.canonicalUrl,
+          slug: edit.slug,
+        }),
       });
-      setEdit(toEditState({ ...current, ...saved }));
-      setEditMode(false);
-      toast.success("Editorial edits saved.");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Save failed.");
+      toast.success("Article updated.");
+      setMode("review");
       router.refresh();
-    } catch {}
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleDelete() {
     const ok = await confirm({
-      title: "Permanently delete this article?",
-      description: "This action cannot be undone.",
+      title: `Permanently delete "${article.title || "this article"}"?`,
+      description: "This can't be undone.",
       confirmLabel: "Delete Permanently",
       danger: true,
     });
     if (!ok) return;
     setBusy(true);
-    const res = await fetch(`/api/admin/articles/${article.id}`, { method: "DELETE" });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/admin/articles/${article.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Delete failed.");
       toast.success("Article deleted.");
       router.push("/admin/articles");
       router.refresh();
-    } else {
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed.");
       setBusy(false);
-      const data = await res.json().catch(() => ({}));
-      toast.error(data.error || "Couldn't delete article.");
     }
   }
 
-  if (current.status === "draft") {
-    return (
-      <div className="space-y-4 max-w-3xl">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/admin/articles"
-            className="text-xs font-semibold text-slate-500 hover:text-[#DC2626] transition-colors"
-          >
-            ← Back to Articles Queue
-          </Link>
-          <StatusBadge status={current.status} />
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs space-y-3">
-          <h1 className="text-xl font-bold text-slate-900">{current.title || "Untitled Draft"}</h1>
-          <p className="text-xs text-slate-500 font-medium">
-            By {current.authorName} ({current.authorEmail}) · {current.cityName} Bureau
-          </p>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700 leading-relaxed">
-            This article is currently an unsubmitted draft in the author's private desk. It will enter the active review queue once submitted.
-          </div>
-          <div>
-            <button
-              disabled={busy}
-              onClick={handleDelete}
-              className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-60 cursor-pointer"
-            >
-              Delete Draft
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const moderation = current.moderationSignals;
-  const moderationWarningCount = moderation
+  const moderation = article.moderationSignals;
+  const moderationWarnings: { label: string; detail: string }[] = moderation
     ? [
-        moderation.duplicate?.flag,
-        moderation.spam?.flag,
-        moderation.inappropriate?.flag,
-        moderation.quality?.flag,
-        moderation.aiContent?.flag,
-      ].filter(Boolean).length
-    : 0;
+        moderation.duplicate?.flag
+          ? {
+              label: "Possible duplicate content",
+              detail: moderation.duplicate.matches[0]
+                ? `${Math.round(moderation.duplicate.matches[0].similarity * 100)}% similar to "${moderation.duplicate.matches[0].title}"`
+                : "Overlaps with an existing article.",
+            }
+          : null,
+        moderation.spam?.flag ? { label: "Possible spam", detail: moderation.spam.reasons.join(", ") } : null,
+        moderation.inappropriate?.flag
+          ? { label: "Possible inappropriate content", detail: moderation.inappropriate.reasons.join(", ") }
+          : null,
+        moderation.quality?.flag ? { label: "Quality concerns", detail: moderation.quality.reasons.join(", ") } : null,
+        moderation.aiContent?.flag
+          ? { label: "Possible AI-generated content", detail: moderation.aiContent.reasons.join(", ") }
+          : null,
+      ].filter((w): w is { label: string; detail: string } => w !== null)
+    : [];
 
   return (
-    <div className="space-y-4">
-      {/* Top Header & Breadcrumb */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-2 text-xs">
+    <div className="max-w-6xl space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="min-w-0">
           <Link
             href="/admin/articles"
-            className="font-semibold text-slate-500 hover:text-[#DC2626] transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#DC2626] transition-colors mb-2"
           >
-            ← Back to Queue
+            ← Back to Articles
           </Link>
-          <span className="text-slate-300">|</span>
-          <span className="text-slate-600 font-medium hidden sm:inline">
-            Verification &amp; Approval Desk
-          </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              {mode === "edit" ? "Edit Article" : article.title || "Untitled"}
+            </h1>
+            <StatusBadge status={article.status} size="md" />
+          </div>
+          <p className="mt-1 text-xs text-slate-500 font-medium">
+            By {article.authorName} ({article.authorEmail}) · {article.cityName || "Global"}
+            {article.categoryName ? ` · ${article.categoryName}` : ""}
+            {article.submittedAt ? ` · Submitted ${formatDate(article.submittedAt)}` : ""}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {current.originalityFlag && (
-            <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-              ⚠ Overlap Flag
-            </span>
-          )}
-          <StatusBadge status={current.status} />
-
-          {current.status === "published" && (
+        <div className="flex shrink-0 items-center gap-2.5">
+          {article.status === "published" && (
             <Link
-              href={`/latest-news/${current.slug}`}
+              href={`/cities/${article.citySlug}/${article.slug}`}
               target="_blank"
-              className="rounded-lg bg-[#0B1527] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#DC2626] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
             >
-              Live Story ↗
+              Open Live Story ↗
             </Link>
           )}
-
           <button
             type="button"
-            onClick={() => setEditMode(!editMode)}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-              editMode
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
+            disabled={busy}
+            onClick={() => {
+              if (mode === "edit") setEdit(buildEditState(article));
+              setMode(mode === "edit" ? "review" : "edit");
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-60"
           >
-            {editMode ? "Reading View" : "✎ Direct Edit"}
+            {mode === "edit" ? "Cancel Edit" : "Edit Article"}
           </button>
         </div>
       </div>
 
-      {/* Main Layout Grid */}
-      <div className="grid gap-6 lg:grid-cols-12 items-start">
-        {/* Left Column: Easy-to-Read Editorial Document (8 cols) */}
-        <div className="lg:col-span-8 space-y-4">
-          {!editMode ? (
-            /* Clean Magazine Reading Paper */
-            <article className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-10 shadow-2xs space-y-6">
-              {/* Category & Bureau Masthead */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#DC2626]">
-                  {current.cityName || "Global"} Bureau
-                </span>
-                {current.categoryName && (
-                  <span className="rounded-md bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                    {current.categoryName}
-                  </span>
-                )}
-                {current.attractionName && (
-                  <span className="text-xs text-slate-500 font-medium">
-                    • {current.attractionName}
-                  </span>
-                )}
-              </div>
-
-              {/* Headline */}
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 leading-tight tracking-tight">
-                {current.title}
-              </h1>
-
-              {/* Author & Verification Meta Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-y border-slate-100 py-3 text-xs text-slate-600">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-full bg-[#0B1527] text-white flex items-center justify-center font-bold text-xs">
-                    {current.authorName?.charAt(0)?.toUpperCase() || "W"}
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 leading-none">{current.authorName}</p>
-                    <p className="text-[11px] text-slate-500 leading-tight mt-0.5">{current.authorEmail}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
-                  <span>📅 Submitted {formatDateTime(current.submittedAt || current.updatedAt)}</span>
-                  <span>•</span>
-                  <span>⏱ {current.readingTimeMinutes || 1} min read ({current.wordCount} words)</span>
-                </div>
-              </div>
-
-              {/* Cover Photo */}
-              {current.image && (
-                <div className="space-y-1.5">
-                  <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                    <Image
-                      src={current.image}
-                      alt={current.imageAlt || current.title}
-                      fill
-                      className="object-cover"
-                      priority
-                    />
-                  </div>
-                  {current.imageAlt && (
-                    <p className="text-[11px] text-slate-500 italic px-1">
-                      Photo: {current.imageAlt}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Lead Summary Excerpt */}
-              {current.excerpt && (
-                <div className="rounded-xl border-l-4 border-[#DC2626] bg-slate-50 p-4 text-base font-medium leading-relaxed text-slate-800 italic">
-                  "{current.excerpt}"
-                </div>
-              )}
-
-              {/* Formatted Article Body */}
-              <div
-                className="prose prose-slate prose-lg max-w-none text-slate-800 leading-relaxed pt-2 focus:outline-none"
-                dangerouslySetInnerHTML={{ __html: current.contentHtml }}
-              />
-
-              {/* Article Footer Verification Details */}
-              <div className="border-t border-slate-100 pt-4 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
-                <div>
-                  Public Slug: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-mono">/latest-news/{current.slug}</code>
-                </div>
-                <div>
-                  Lifetime Views: <strong className="text-slate-900">{current.viewCount}</strong>
-                </div>
-              </div>
-            </article>
-          ) : (
-            /* Direct Edit Form Mode */
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xs space-y-4">
-              <div className="border-b border-slate-100 pb-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">DIRECT EDIT MODE</span>
-                <h2 className="text-xl font-bold text-slate-900 mt-0.5">Modify Article Fields</h2>
-              </div>
-
+      {mode === "edit" ? (
+        <div className="grid gap-6 lg:grid-cols-12 items-start">
+          {/* Edit form — left column */}
+          <div className="lg:col-span-8 space-y-5">
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-2xs space-y-5">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Headline</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Article Title *</label>
                 <input
+                  type="text"
                   value={edit.title}
-                  onChange={(e) => setEdit({ ...edit, title: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-base font-bold text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                  onChange={(e) => updateEdit("title", e.target.value)}
+                  maxLength={100}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-[#DC2626] focus:outline-none transition-all"
                 />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Slug (URL)</label>
+                <input
+                  type="text"
+                  value={edit.slug}
+                  onChange={(e) =>
+                    updateEdit("slug", e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""))
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2 text-xs font-mono text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Destination City</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Destination *</label>
                   <select
                     value={edit.cityId}
-                    onChange={(e) => setEdit({ ...edit, cityId: e.target.value, attractionId: null })}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800"
+                    onChange={(e) => updateEdit("cityId", e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
                   >
                     {cities.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Category Beat</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
                   <select
                     value={edit.categoryId || ""}
-                    onChange={(e) => setEdit({ ...edit, categoryId: e.target.value || null })}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800"
+                    onChange={(e) => updateEdit("categoryId", e.target.value || null)}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Attraction</label>
+                  <select
+                    value={edit.attractionId || ""}
+                    onChange={(e) => updateEdit("attractionId", e.target.value || null)}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
                   >
                     <option value="">None</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {attractions
+                      .filter((a) => !edit.cityId || a.cityId === edit.cityId)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Summary / Excerpt</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Excerpt *</label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={edit.excerpt}
-                  onChange={(e) => setEdit({ ...edit, excerpt: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
+                  onChange={(e) => updateEdit("excerpt", e.target.value)}
+                  maxLength={160}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed transition-all"
                 />
               </div>
-
-              <ImageUploadField
-                label="Cover Image"
-                value={edit.image}
-                onChange={(url) => setEdit({ ...edit, image: url })}
-                uploadUrl="/api/admin/upload"
-              />
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Article Body</label>
-                <RichTextEditor
-                  value={edit.contentHtml}
-                  onChange={(html) => setEdit({ ...edit, contentHtml: html })}
-                  uploadUrl="/api/admin/upload"
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Featured Image</label>
+                {edit.image && (
+                  <div className="relative aspect-[21/9] w-full mb-2 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                    <Image src={edit.image} alt={edit.imageAlt || ""} fill className="object-cover" />
+                  </div>
+                )}
+                <ImageUploadField
+                  label={edit.image ? "Replace featured image" : "Upload featured image (JPG, PNG, WebP)"}
+                  value={edit.image}
+                  onChange={(url) => updateEdit("image", url)}
+                  uploadUrl="/api/upload"
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-3 border-t border-slate-200">
-                <button
-                  disabled={busy}
-                  onClick={handleSaveEdit}
-                  className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all cursor-pointer"
-                >
-                  Save Editorial Changes
-                </button>
-                <button
-                  onClick={() => {
-                    setEdit(toEditState(current));
-                    setEditMode(false);
-                  }}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                >
-                  Cancel
-                </button>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Article Content *</label>
+                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white focus-within:border-[#DC2626]">
+                  <RichTextEditor
+                    value={edit.contentHtml}
+                    onChange={(html) => updateEdit("contentHtml", html)}
+                    placeholder="Article content..."
+                    allowLinks
+                  />
+                </div>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Edit form — SEO sidebar */}
+          <div className="lg:col-span-4 space-y-5">
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">SEO &amp; Meta</h2>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">SEO Title</label>
+                <input
+                  type="text"
+                  value={edit.metaTitle}
+                  onChange={(e) => updateEdit("metaTitle", e.target.value)}
+                  maxLength={60}
+                  placeholder={edit.title}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Meta Description</label>
+                <textarea
+                  rows={3}
+                  value={edit.metaDescription}
+                  onChange={(e) => updateEdit("metaDescription", e.target.value)}
+                  maxLength={160}
+                  placeholder={edit.excerpt}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Focus Keyword</label>
+                <input
+                  type="text"
+                  value={edit.focusKeyword}
+                  onChange={(e) => updateEdit("focusKeyword", e.target.value)}
+                  maxLength={60}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Tags (comma-separated)</label>
+                <input
+                  type="text"
+                  value={edit.tags}
+                  onChange={(e) => updateEdit("tags", e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Canonical URL</label>
+                <input
+                  type="text"
+                  value={edit.canonicalUrl}
+                  onChange={(e) => updateEdit("canonicalUrl", e.target.value)}
+                  placeholder="Defaults to this article's own URL"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-700 focus:border-[#DC2626] focus:bg-white focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleSaveEdit}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#DC2626] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-60"
+            >
+              {busy ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
-
-        {/* Right Column: Review & Action Panel (4 cols, Sticky) */}
-        <div className="lg:col-span-4 space-y-4 sticky top-14">
-          {/* Card 1: Review Decision & Quality Score */}
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
-            <div className="border-b border-slate-100 pb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
-                DECISION CONSOLE
-              </span>
-              <h3 className="text-sm font-bold text-slate-900">Review &amp; Quality Scoring</h3>
-            </div>
-
-            {/* Quality Score 0 - 10 */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold uppercase text-slate-700">
-                  Score Rating (0 – 10)
-                </label>
-                {score && (
-                  <span className="text-xs font-bold font-mono text-amber-700">
-                    ★ {score} / 10
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-6 gap-1 mb-2">
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => setScore(String(num))}
-                    className={`rounded py-1 text-xs font-bold transition-all cursor-pointer ${
-                      score === String(num)
-                        ? "bg-amber-600 text-white shadow-2xs font-bold"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    {num}
-                  </button>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-12 items-start">
+          {/* Article content — read-only, wide, easy to scan */}
+          <div className="lg:col-span-8 space-y-5">
+            {moderationWarnings.length > 0 && (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-1.5">
+                <p className="text-xs font-bold text-amber-900">⚠ Automated review flags — verify before approving</p>
+                {moderationWarnings.map((w) => (
+                  <p key={w.label} className="text-xs text-amber-800">
+                    <span className="font-semibold">{w.label}:</span> {w.detail || "Flagged for manual review."}
+                  </p>
                 ))}
               </div>
-            </div>
+            )}
 
-            {/* Feedback / Review Notes */}
-            <div>
-              <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                Editorial Review Notes
-              </label>
-              <textarea
-                rows={3}
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                placeholder="Notes or revision instructions for author..."
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none resize-none leading-relaxed"
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-10 shadow-2xs space-y-6">
+              {article.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={article.image}
+                  alt={article.imageAlt || ""}
+                  className="w-full max-h-[28rem] rounded-xl object-cover"
+                />
+              )}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 leading-relaxed italic border-l-2 border-slate-200 pl-3">
+                  {article.excerpt}
+                </p>
+              </div>
+              <div
+                className="prose prose-slate max-w-none text-slate-800 text-sm sm:text-base leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: article.contentHtml }}
               />
             </div>
 
-            {/* Decision Buttons */}
-            {PUBLISH_PIPELINE_STATUSES.includes(current.status) ? (
-              <div className="rounded-lg bg-emerald-50 p-3 border border-emerald-200 text-xs font-semibold text-emerald-900">
-                Article is currently <strong>{current.status.toUpperCase()}</strong>.
-              </div>
-            ) : (
-              <div className="space-y-2 pt-1 border-t border-slate-100">
-                {current.status === "pending" && (
-                  <button
-                    disabled={busy}
-                    onClick={handleStartReview}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-100 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200 transition-all disabled:opacity-60 cursor-pointer"
-                  >
-                    Start Active Review
-                  </button>
+            {/* Revision History */}
+            {revisions.length > 0 && (
+              <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowRevisions(!showRevisions)}
+                  className="flex w-full items-center justify-between p-4 sm:p-5 text-left cursor-pointer"
+                >
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                    Revision History ({revisions.length})
+                  </h2>
+                  <span className="text-xs text-slate-400 font-bold">{showRevisions ? "▲" : "▼"}</span>
+                </button>
+                {showRevisions && (
+                  <div className="divide-y divide-slate-100 border-t border-slate-100">
+                    {revisions.map((r) => (
+                      <div key={r.id} className="flex items-center justify-between gap-3 p-4 sm:px-5">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate">{r.changeSummary || "Edit"}</p>
+                          <p className="text-[11px] text-slate-500">
+                            {r.editorEmail} ({r.editorRole}) · {formatDateTime(r.createdAt)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => handleRestoreRevision(r.id)}
+                          className="shrink-0 text-xs font-bold text-[#DC2626] hover:underline cursor-pointer disabled:opacity-50"
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
-
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    disabled={busy}
-                    onClick={() => handleReview("approved")}
-                    className="rounded-lg bg-emerald-700 py-2.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition-all disabled:opacity-60 cursor-pointer"
-                  >
-                    ✓ Approve
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={() => handleReview("changes_requested")}
-                    className="rounded-lg border border-amber-300 bg-amber-50 py-2.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-all disabled:opacity-60 cursor-pointer"
-                  >
-                    ✎ Revise
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={() => handleReview("rejected")}
-                    className="rounded-lg border border-rose-300 bg-rose-50 py-2.5 text-xs font-bold text-rose-900 hover:bg-rose-100 transition-all disabled:opacity-60 cursor-pointer"
-                  >
-                    ✕ Reject
-                  </button>
-                </div>
               </div>
             )}
           </div>
 
-          {/* Card 2: Publishing & Distribution */}
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
-            <div className="border-b border-slate-100 pb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">DISTRIBUTION</span>
-              <h3 className="text-sm font-bold text-slate-900">Publishing Controls</h3>
+          {/* Review sidebar */}
+          <div className="lg:col-span-4 space-y-5">
+            {/* Stats */}
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs grid grid-cols-2 gap-4 text-center">
+              <div>
+                <p className="text-lg font-extrabold text-slate-900">{formatViews(article.viewCount)}</p>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Views</p>
+              </div>
+              <div>
+                <p className="text-lg font-extrabold text-slate-900">{article.wordCount.toLocaleString()}</p>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Words</p>
+              </div>
+              <div>
+                <p className="text-lg font-extrabold text-slate-900">{article.readingTimeMinutes} min</p>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Reading Time</p>
+              </div>
+              <div>
+                {article.score !== null ? (
+                  <ScoreBadge score={article.score} size="md" />
+                ) : (
+                  <p className="text-lg font-extrabold text-slate-300">—</p>
+                )}
+                <p className="text-[10px] font-semibold text-slate-400 mt-1">Current Score</p>
+              </div>
             </div>
 
-            {current.status === "published" && (
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between rounded-lg bg-emerald-50 p-2.5 text-xs font-bold text-emerald-900 border border-emerald-200">
-                  <span>● Live on Global Wire</span>
-                  <Link href={`/latest-news/${current.slug}`} target="_blank" className="underline">
-                    View Live Story ↗
-                  </Link>
-                </div>
-                <button
-                  disabled={busy}
-                  onClick={handleUnpublish}
-                  className="w-full rounded-lg border border-rose-200 bg-rose-50 py-2 text-xs font-bold text-rose-900 hover:bg-rose-100 transition-all disabled:opacity-60 cursor-pointer"
-                >
-                  Unpublish Story
-                </button>
-              </div>
-            )}
-
-            {current.status === "scheduled" && (
-              <div className="space-y-2.5">
-                <p className="rounded-lg bg-purple-50 p-2.5 text-xs font-bold text-purple-900 border border-purple-200">
-                  Scheduled for {formatDateTime(current.scheduledAt)}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    disabled={busy}
-                    onClick={handlePublish}
-                    className="rounded-lg bg-slate-900 py-2 text-xs font-bold text-white hover:bg-[#DC2626] transition-all cursor-pointer"
-                  >
-                    Publish Now
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={handleCancelSchedule}
-                    className="rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {(current.status === "approved" || current.status === "unpublished") && (
-              <div className="space-y-3">
-                <button
-                  disabled={busy}
-                  onClick={handlePublish}
-                  className="w-full rounded-lg bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer"
-                >
-                  Publish Immediately →
-                </button>
-                <div className="border-t border-slate-100 pt-2.5">
-                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-                    Or Schedule for Automated Release
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="datetime-local"
-                      value={scheduledAt}
-                      onChange={(e) => setScheduledAt(e.target.value)}
-                      className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-mono focus:outline-none"
-                    />
+            {/* Review Actions */}
+            {canReview ? (
+              <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Review Decision</h2>
+                  {article.status === "pending" && (
                     <button
+                      type="button"
                       disabled={busy}
-                      onClick={handleSchedule}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer"
+                      onClick={handleStartReview}
+                      className="text-[11px] font-bold text-slate-500 hover:text-[#DC2626] cursor-pointer disabled:opacity-50"
                     >
-                      Schedule
+                      Mark Under Review
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+                    Editorial Score (0–10)
+                  </label>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setScore(String(num))}
+                        className={`py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                          score === String(num)
+                            ? "bg-[#DC2626] text-white border-[#DC2626]"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+                    Feedback for Contributor
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    placeholder="Required for Reject or Request Changes — explain what needs fixing."
+                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none resize-none"
+                  />
+                  {article.reviewedAt && (
+                    <p className="mt-1 text-[10px] text-slate-400">Last reviewed {formatDateTime(article.reviewedAt)}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleReviewDecision("approved")}
+                    className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    ✓ Approve
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleReviewDecision("changes_requested")}
+                      className="rounded-xl border border-amber-300 bg-amber-50 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-all cursor-pointer disabled:opacity-60"
+                    >
+                      Request Changes
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleReviewDecision("rejected")}
+                      className="rounded-xl border border-rose-300 bg-rose-50 py-2 text-xs font-bold text-[#DC2626] hover:bg-rose-100 transition-all cursor-pointer disabled:opacity-60"
+                    >
+                      Reject
                     </button>
                   </div>
                 </div>
               </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200/90 bg-slate-50 p-5 text-xs text-slate-500">
+                {article.status === "published"
+                  ? "This article is live. Unpublish it to make review-status changes again."
+                  : article.status === "scheduled"
+                  ? "This article is scheduled. Cancel the schedule to make review-status changes again."
+                  : "This article already went through publishing, so its review status is locked."}
+                {article.adminFeedback && (
+                  <p className="mt-2 text-slate-600">
+                    <span className="font-semibold">Last feedback:</span> {article.adminFeedback}
+                  </p>
+                )}
+              </div>
             )}
 
-            {(current.status === "pending" || current.status === "under_review") && (
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Approve this article above to unlock immediate live publishing and scheduling options.
-              </p>
-            )}
+            {/* Publishing controls */}
+            {(canPublish || canCancelSchedule || canUnpublish) && (
+              <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-3">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Publishing</h2>
 
-            {current.status === "rejected" && (
-              <p className="text-xs text-slate-500 leading-relaxed">
-                This submission was rejected. Publishing unlocks again only if the contributor edits and resubmits
-                it for another review.
-              </p>
-            )}
+                {canPublish && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handlePublish}
+                    className="w-full rounded-xl bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    Publish Now
+                  </button>
+                )}
 
-            {current.status === "changes_requested" && (
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Waiting on the contributor to address your feedback and resubmit. Publishing unlocks once you
-                approve the resubmission.
-              </p>
-            )}
-          </div>
-
-          {/* Card 3: Featured Homepage Placements */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-2.5">
-            <div className="border-b border-slate-100 pb-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Featured Placements</h4>
-            </div>
-            <div className="space-y-2">
-              {(
-                [
-                  ["breaking", "Breaking News Banner"],
-                  ["featured", "Hero Featured Spotlight"],
-                  ["editorsPick", "Editor's Pick Section"],
-                  ["trending", "Trending Story"],
-                ] as const
-              ).map(([key, label]) => {
-                const value = current[key];
-                return (
-                  <label key={key} className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                {canSchedule && !showSchedule && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSchedule(true)}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    Schedule for Later
+                  </button>
+                )}
+                {showSchedule && (
+                  <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <input
-                      type="checkbox"
-                      checked={value}
-                      disabled={busy}
-                      onChange={(e) => handleEditorialFlag(key, e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-[#DC2626] focus:ring-[#DC2626]"
+                      type="datetime-local"
+                      value={scheduledAt}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
                     />
-                    <span>{label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Card 4: Automated Verification Signals */}
-          {moderation && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => setShowModeration((v) => !v)}
-                className="flex w-full items-center justify-between text-left cursor-pointer"
-              >
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                  Automated Signals {moderationWarningCount > 0 && <span className="text-[#DC2626]">({moderationWarningCount})</span>}
-                </h4>
-                <span className="text-xs text-slate-400 font-bold">{showModeration ? "▲" : "▼"}</span>
-              </button>
-
-              {showModeration && (
-                <div className="mt-3 space-y-2 text-xs pt-2 border-t border-slate-100">
-                  {[
-                    {
-                      label: "Content Similarity",
-                      flag: moderation.duplicate?.flag,
-                      reasons: moderation.duplicate?.matches?.map(
-                        (m) => `Overlap with "${m.title}" (${Math.round(m.similarity * 100)}%)`
-                      ),
-                    },
-                    { label: "Spam Verification", flag: moderation.spam?.flag, reasons: moderation.spam?.reasons },
-                    { label: "Content Appropriateness", flag: moderation.inappropriate?.flag, reasons: moderation.inappropriate?.reasons },
-                    { label: `Editorial Quality (${moderation.quality?.score ?? "—"}/100)`, flag: moderation.quality?.flag, reasons: moderation.quality?.reasons },
-                    { label: `AI Attribution (${moderation.aiContent?.score ?? 0}/100)`, flag: moderation.aiContent?.flag, reasons: moderation.aiContent?.reasons },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      className={`rounded-lg border p-2.5 ${
-                        row.flag ? "border-amber-300 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-700"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between font-bold text-[11px]">
-                        <span>{row.label}</span>
-                        <span>{row.flag ? "⚠ Flagged" : "✓ Clear"}</span>
-                      </div>
-                      {row.reasons && row.reasons.length > 0 && (
-                        <p className="mt-1 text-[10px] text-amber-800 leading-tight">
-                          {row.reasons.join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Card 5: Version Snapshots */}
-          {revisions && revisions.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => setShowRevisions((v) => !v)}
-                className="flex w-full items-center justify-between text-left cursor-pointer"
-              >
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                  Version History ({revisions.length})
-                </h4>
-                <span className="text-xs text-slate-400 font-bold">{showRevisions ? "▲" : "▼"}</span>
-              </button>
-
-              {showRevisions && (
-                <div className="mt-3 space-y-2 pt-2 border-t border-slate-100">
-                  {revisions.map((rev) => (
-                    <div key={rev.id} className="flex items-center justify-between text-xs p-2 rounded bg-slate-50 border border-slate-200">
-                      <div>
-                        <p className="font-semibold text-slate-800">{rev.changeSummary || "Revision Snapshot"}</p>
-                        <p className="text-[10px] text-slate-400">{formatDateTime(rev.createdAt)}</p>
-                      </div>
+                    <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => handleRestoreRevision(rev.id, formatDateTime(rev.createdAt))}
-                        className="text-[11px] font-bold text-[#DC2626] hover:underline cursor-pointer"
+                        disabled={busy}
+                        onClick={handleConfirmSchedule}
+                        className="flex-1 rounded-lg bg-slate-900 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-all cursor-pointer disabled:opacity-60"
                       >
-                        Restore
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowSchedule(false)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                      >
+                        Cancel
                       </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
 
-          {/* Danger Zone: Delete Article */}
-          <div className="pt-1">
-            <button
-              disabled={busy}
-              onClick={handleDelete}
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              Permanently Delete Article
-            </button>
+                {canCancelSchedule && (
+                  <div className="space-y-2">
+                    {article.scheduledAt && (
+                      <p className="text-[11px] text-slate-500">Scheduled for {formatDateTime(article.scheduledAt)}</p>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleCancelSchedule}
+                      className="w-full rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-60"
+                    >
+                      Cancel Schedule
+                    </button>
+                  </div>
+                )}
+
+                {canUnpublish && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleUnpublish}
+                    className="w-full rounded-xl border border-rose-200 bg-rose-50/50 py-2 text-xs font-bold text-[#DC2626] hover:bg-rose-100/70 transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    Unpublish
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Delete */}
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs">
+              <button
+                type="button"
+                disabled={busy || !canDelete}
+                onClick={handleDelete}
+                title={canDelete ? undefined : "Unpublish (or cancel the schedule) before deleting a live article."}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Delete Permanently
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

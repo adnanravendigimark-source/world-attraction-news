@@ -13,6 +13,9 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// No "draft" tab — drafts are never fetched into this list at all (see
+// the page's own comment), since a draft hasn't been submitted and isn't
+// something an admin reviews.
 const TABS = [
   "all",
   "pending",
@@ -23,7 +26,6 @@ const TABS = [
   "published",
   "unpublished",
   "rejected",
-  "draft",
 ] as const;
 
 const TAB_LABELS: Record<string, string> = {
@@ -36,7 +38,6 @@ const TAB_LABELS: Record<string, string> = {
   published: "Published",
   unpublished: "Unpublished",
   rejected: "Rejected",
-  draft: "Drafts",
 };
 
 export default function ArticlesQueue({
@@ -71,7 +72,6 @@ export default function ArticlesQueue({
     published: initialArticles.filter((a) => a.status === "published").length,
     unpublished: initialArticles.filter((a) => a.status === "unpublished").length,
     rejected: initialArticles.filter((a) => a.status === "rejected").length,
-    draft: initialArticles.filter((a) => a.status === "draft").length,
   };
 
   const filtered = useMemo(() => {
@@ -230,7 +230,7 @@ export default function ArticlesQueue({
                   )}
                 </div>
                 <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#DC2626] transition-colors line-clamp-1">
-                  {a.title || "Untitled Draft"}
+                  {a.title || "Untitled"}
                 </h3>
                 <p className="mt-0.5 text-[11px] text-slate-500 font-medium">
                   By {a.authorName} ({a.authorEmail}) · {formatDate(a.submittedAt || a.updatedAt)}

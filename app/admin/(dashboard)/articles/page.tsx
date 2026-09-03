@@ -13,13 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminArticlesPage() {
-  const [nonDraftArticles, draftArticles, cities, categories] = await Promise.all([
-    getAllArticles(),
-    getAllArticles("draft"),
-    getCities(),
-    getCategories(),
-  ]);
-  const articles = [...nonDraftArticles, ...draftArticles];
+  // getAllArticles() with no filter already excludes 'draft' (see its own
+  // comment in lib/articles.ts) — a draft hasn't been submitted, so an
+  // admin has nothing to review yet. Deliberately not fetching drafts here
+  // at all: this list is "what's been submitted for review", full stop.
+  const [articles, cities, categories] = await Promise.all([getAllArticles(), getCities(), getCategories()]);
 
   return (
     <div className="space-y-5">

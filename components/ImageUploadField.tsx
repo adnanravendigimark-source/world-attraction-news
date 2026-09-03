@@ -40,19 +40,19 @@ export default function ImageUploadField({
 
   return (
     <div>
-      <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">{label}</label>
+      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
       <div className="mt-1.5 flex items-start gap-3">
         {value ? (
-          <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded border border-ink-200 bg-ink-50">
+          <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-50">
             <Image src={value} alt="" fill className="object-cover" />
           </div>
         ) : (
-          <div className="flex h-20 w-32 shrink-0 items-center justify-center rounded border border-dashed border-ink-300 bg-ink-50 text-[10px] text-ink-400">
+          <div className="flex h-20 w-32 shrink-0 items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-400">
             No image
           </div>
         )}
         <div>
-          <label className="inline-flex cursor-pointer items-center rounded-md border border-ink-300 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+          <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
             {uploading ? "Uploading..." : value ? "Replace image" : "Upload image"}
             <input
               type="file"
@@ -66,8 +66,8 @@ export default function ImageUploadField({
               }}
             />
           </label>
-          {error && <p className="mt-1.5 text-xs text-signal">{error}</p>}
-          <p className="mt-1.5 text-[10px] text-ink-400">JPG, PNG, or WebP. Automatically optimized on upload.</p>
+          {error && <p className="mt-1.5 text-xs text-[#DC2626]">{error}</p>}
+          <p className="mt-1.5 text-[10px] text-slate-400">JPG, PNG, or WebP. Automatically optimized on upload.</p>
         </div>
       </div>
     </div>
