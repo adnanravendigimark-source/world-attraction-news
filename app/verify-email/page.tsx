@@ -5,23 +5,37 @@ import Logo from "@/components/Logo";
 import { SITE_NAME } from "@/lib/site";
 import VerifyEmailForm from "@/components/auth/VerifyEmailForm";
 
-export const metadata: Metadata = { title: `Verify Your Email | ${SITE_NAME}`, robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: `Verify Your Email | ${SITE_NAME}`,
+  robots: { index: false, follow: false },
+};
 
 export default function VerifyEmailPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ink-50 px-4 py-12">
-      <div className="w-full max-w-sm">
-        <Link href="/" className="mb-6 flex items-center justify-center gap-2">
-          <Logo variant="mark" className="h-8 w-8" />
-          <span className="font-serif text-lg font-bold text-ink-900">{SITE_NAME}</span>
-        </Link>
-        <div className="rounded-xl border border-ink-200 bg-white p-6 shadow-sm sm:p-8">
-          <h1 className="font-serif text-2xl font-bold text-ink-900">Email Verification</h1>
-          <div className="mt-6">
-            <Suspense fallback={null}>
-              <VerifyEmailForm />
-            </Suspense>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center">
+          <Link href="/" className="inline-block">
+            <Logo variant="horizontal" className="h-8 w-auto" />
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-7 sm:p-9 shadow-2xs space-y-5">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
+              VERIFICATION
+            </span>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
+              Email Verification
+            </h1>
+            <p className="mt-1 text-xs text-slate-500 font-medium">
+              Confirming your email address for your correspondent profile.
+            </p>
           </div>
+
+          <Suspense fallback={<div className="text-xs text-slate-400 text-center py-4">Verifying token...</div>}>
+            <VerifyEmailForm />
+          </Suspense>
         </div>
       </div>
     </div>

@@ -1,10 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Category } from "@/lib/categories";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
+
+interface CategoryFormState {
+  name: string;
+  slug: string;
+  description: string;
+}
+
+const EMPTY: CategoryFormState = {
+  name: "",
+  slug: "",
+  description: "",
+};
 
 export default function CategoriesManager({
   initialCategories,
@@ -16,35 +28,62 @@ export default function CategoriesManager({
   const confirm = useConfirm();
   const toast = useToast();
   const [categories, setCategories] = useState(initialCategories);
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<CategoryFormState>(EMPTY);
   const [busy, setBusy] = useState(false);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState({ name: "", slug: "", description: "" });
+  function openAddModal() {
+    setEditingId(null);
+    setForm(EMPTY);
+    setModalOpen(true);
+  }
 
-  async function handleCreate() {
-    if (!name.trim() || !slug.trim()) {
-      toast.error("Please enter a category name and slug.");
+  function openEditModal(category: Category) {
+    setEditingId(category.id);
+    setForm({
+      name: category.name,
+      slug: category.slug,
+      description: category.description || "",
+    });
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setEditingId(null);
+    setForm(EMPTY);
+  }
+
+  async function handleSave() {
+    if (!form.name.trim() || !form.slug.trim()) {
+      toast.error("Please enter a category name and URL slug.");
       return;
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, description, sortOrder: categories.length }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create category.");
-      setCategories((prev) => [...prev, data.category]);
-      setName("");
-      setSlug("");
-      setDescription("");
-      setAdding(false);
-      toast.success("Category created.");
+      if (editingId) {
+        const res = await fetch(`/api/admin/categories/${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to update category.");
+        setCategories((prev) => prev.map((c) => (c.id === editingId ? data.category : c)));
+        toast.success("Category updated successfully.");
+      } else {
+        const res = await fetch("/api/admin/categories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form, sortOrder: categories.length }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to create category.");
+        setCategories((prev) => [...prev, data.category]);
+        toast.success("Category created successfully.");
+      }
+      closeModal();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -52,35 +91,16 @@ export default function CategoriesManager({
     }
   }
 
-  function startEdit(c: Category) {
-    setEditingId(c.id);
-    setEditValue({ name: c.name, slug: c.slug, description: c.description });
-  }
-
-  async function handleSaveEdit(id: string) {
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/admin/categories/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editValue),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update category.");
-      setCategories((prev) => prev.map((c) => (c.id === id ? data.category : c)));
-      setEditingId(null);
-      toast.success("Category updated.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setBusy(false);
+  async function handleDelete(id: string, name: string) {
+    const count = articleCounts[id] || 0;
+    if (count > 0) {
+      toast.error(`Cannot delete ${name}: ${count} article(s) are assigned to it.`);
+      return;
     }
-  }
 
-  async function handleDelete(id: string, catName: string) {
     const ok = await confirm({
-      title: `Delete ${catName}?`,
-      description: "Articles in this category will remain intact as uncategorized.",
+      title: `Delete ${name}?`,
+      description: "This will permanently remove this editorial category.",
       confirmLabel: "Delete Category",
       danger: true,
     });
@@ -103,212 +123,183 @@ export default function CategoriesManager({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Top Actions */}
+    <div className="space-y-6">
+      {/* Top Action Header Bar */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          Editorial Categories ({categories.length})
-        </p>
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          EDITORIAL CATEGORIES ({categories.length})
+        </span>
         <button
           type="button"
-          onClick={() => setAdding(!adding)}
-          className="rounded-lg bg-[#DC2626] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-colors cursor-pointer"
+          onClick={openAddModal}
+          className="rounded-xl bg-[#DC2626] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer"
         >
-          {adding ? "✕ Close Form" : "+ Add Category"}
+          + Add Category
         </button>
       </div>
 
-      {/* Add New Category Form */}
-      {adding && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
-          <div className="border-b border-slate-100 pb-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-              New Category Beat
-            </h3>
-          </div>
-          <div className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
+      {/* Categories Cards Grid */}
+      {categories.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-400">
+          No categories created yet.
+        </div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {categories.map((category) => {
+            const count = articleCounts[category.id] || 0;
+
+            return (
+              <div
+                key={category.id}
+                className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
+              >
+                {/* Card Top Body */}
+                <div className="space-y-2 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-base font-bold text-slate-900 leading-tight">
+                        {category.name}
+                      </h3>
+                      <span className="rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-mono font-medium text-slate-600 shrink-0">
+                        {count} {count === 1 ? "Article" : "Articles"}
+                      </span>
+                    </div>
+
+                    <p className="mt-2 text-xs text-slate-500 line-clamp-2 leading-relaxed min-h-[2rem]">
+                      {category.description || "No description set for this category."}
+                    </p>
+                  </div>
+
+                  <p className="text-[11px] font-mono text-slate-400 pt-2">
+                    Slug: /categories/{category.slug}
+                  </p>
+                </div>
+
+                {/* Card Footer Actions */}
+                <div className="border-t border-slate-100 pt-3.5 flex items-center justify-between">
+                  <Link
+                    href={`/categories/${category.slug}`}
+                    target="_blank"
+                    className="text-xs font-semibold text-slate-600 hover:text-[#DC2626] transition-colors"
+                  >
+                    View Live ↗
+                  </Link>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(category)}
+                      className="text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleDelete(category.id, category.name)}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Edit / Add Dialog Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={closeModal} />
+          <div className="relative w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
+                  {editingId ? "EDIT CATEGORY" : "NEW CATEGORY"}
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 mt-0.5">
+                  {editingId ? `Edit: ${form.name}` : "Create Category Beat"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                   Category Name *
                 </label>
                 <input
-                  value={name}
+                  value={form.name}
                   onChange={(e) => {
-                    setName(e.target.value);
-                    if (!slug) {
-                      setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"));
-                    }
+                    const val = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      name: val,
+                      slug: !editingId && !prev.slug ? val.toLowerCase().replace(/\s+/g, "-") : prev.slug,
+                    }));
                   }}
                   placeholder="e.g. Theme Parks"
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
                 />
               </div>
+
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                   URL Slug *
                 </label>
                 <input
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
+                  value={form.slug}
+                  onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
                   placeholder="e.g. theme-parks"
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+                <p className="mt-1 text-[10px] text-slate-400">
+                  Public URL: /categories/{form.slug || "slug"}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={3}
+                  placeholder="What stories fall under this category..."
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                placeholder="Brief description of what stories belong in this category..."
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
-              />
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleSave}
+                className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
+              >
+                {busy ? "Saving..." : editingId ? "Save Changes" : "Create Category"}
+              </button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-            <button
-              disabled={busy}
-              onClick={handleCreate}
-              className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
-            >
-              Create Category
-            </button>
-            <button
-              type="button"
-              onClick={() => setAdding(false)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-            >
-              Cancel
-            </button>
           </div>
         </div>
       )}
-
-      {/* Categories Grid List */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((c) => {
-          const isEditing = editingId === c.id;
-          const count = articleCounts[c.id] || 0;
-
-          if (isEditing) {
-            return (
-              <div
-                key={c.id}
-                className="col-span-full rounded-xl border border-slate-300 bg-white p-5 shadow-2xs space-y-4"
-              >
-                <div className="border-b border-slate-100 pb-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                    Edit Category: {c.name}
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Name</label>
-                      <input
-                        value={editValue.name}
-                        onChange={(e) => setEditValue({ ...editValue, name: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Slug</label>
-                      <input
-                        value={editValue.slug}
-                        onChange={(e) => setEditValue({ ...editValue, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-mono text-slate-900"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Description</label>
-                    <textarea
-                      rows={2}
-                      value={editValue.description}
-                      onChange={(e) => setEditValue({ ...editValue, description: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 resize-none"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                  <button
-                    disabled={busy}
-                    onClick={() => handleSaveEdit(c.id)}
-                    className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingId(null)}
-                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            );
-          }
-
-          return (
-            <div
-              key={c.id}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-base font-bold text-slate-900">{c.name}</h3>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono font-bold text-slate-700">
-                    {count} Articles
-                  </span>
-                </div>
-                {c.description && (
-                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-                    {c.description}
-                  </p>
-                )}
-                <p className="text-[11px] font-mono text-slate-400">
-                  Slug: /categories/{c.slug}
-                </p>
-              </div>
-
-              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                <Link
-                  href={`/categories/${c.slug}`}
-                  target="_blank"
-                  className="text-xs font-semibold text-slate-600 hover:text-[#DC2626]"
-                >
-                  View Live ↗
-                </Link>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(c)}
-                    className="rounded px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => handleDelete(c.id, c.name)}
-                    className="rounded px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

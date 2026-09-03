@@ -284,35 +284,107 @@ body {
   color: #111318;
 }
 
-/* Tiptap Contributor & Admin CMS Editor */
-.editor-body .ProseMirror {
-  min-height: 380px;
-  outline: none;
-  font-family: "Newsreader", Georgia, serif;
-  font-size: 1.15rem;
-  line-height: 1.8;
-  color: #1C1F27;
+/* Rich content typography and editor styling (matching Amsterdam repo) */
+.rich-content h1,
+.rich-content h2,
+.rich-content h3 {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 1.1em;
+  margin-bottom: 0.4em;
+  scroll-margin-top: 6rem;
+  letter-spacing: -0.02em;
 }
-
-.editor-body .ProseMirror p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: #B0B6C3;
-  pointer-events: none;
-  height: 0;
+.rich-content h1 {
+  font-size: 1.85em;
+}
+.rich-content h2 {
+  font-size: 1.5em;
+}
+.rich-content h3 {
+  font-size: 1.2em;
+}
+.rich-content p {
+  margin: 0.65em 0;
+  line-height: 1.75;
+}
+.rich-content ul,
+.rich-content ol {
+  margin: 0.7em 0;
+  padding-left: 1.4em;
+}
+.rich-content ul {
+  list-style: disc;
+}
+.rich-content ol {
+  list-style: decimal;
+}
+.rich-content li {
+  margin-bottom: 0.25rem;
+}
+.rich-content a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+.rich-content a:hover {
+  color: #0284c7;
+}
+.rich-content strong,
+.rich-content b {
+  font-weight: 700;
+  color: #0f172a;
+}
+.rich-content em,
+.rich-content i {
   font-style: italic;
 }
-
-.editor-body .ProseMirror .selectedCell {
-  background-color: rgba(194, 41, 56, 0.08);
+.rich-content u {
+  text-decoration: underline;
+}
+.rich-content img {
+  max-width: 100%;
+  border-radius: 1rem;
+  margin: 1em 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+.rich-content figure {
+  margin: 1em 0;
+}
+.rich-content figure img {
+  margin: 0;
+}
+.rich-content figcaption {
+  margin-top: 0.5em;
+  font-size: 0.85em;
+  color: rgba(15, 23, 42, 0.6);
+  text-align: center;
+}
+.rich-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.95em;
+}
+.rich-content table td,
+.rich-content table th {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  padding: 0.65em 0.85em;
+  text-align: left;
+}
+.rich-content table th {
+  background: rgba(37, 99, 235, 0.06);
+  font-weight: 600;
 }
 
-.editor-body .ProseMirror figure[data-figure-image] {
-  cursor: pointer;
+/* Tiptap Placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: rgba(120, 113, 108, 0.6);
+  pointer-events: none;
 }
 
-.editor-body .ProseMirror figure[data-figure-image].ProseMirror-selectednode {
-  outline: 2px solid #C22938;
-  outline-offset: 2px;
-  border-radius: 0.625rem;
-}

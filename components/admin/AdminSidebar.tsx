@@ -11,7 +11,7 @@ interface AdminNavItem {
 }
 
 const NAV_ITEMS: AdminNavItem[] = [
-  { href: "/admin", label: "Overview", icon: "home" },
+  { href: "/admin/overview", label: "Overview", icon: "home" },
   { href: "/admin/articles", label: "Articles", icon: "doc" },
   { href: "/admin/cities", label: "Destinations", icon: "pin" },
   { href: "/admin/attractions", label: "Attractions", icon: "flag" },
@@ -45,55 +45,94 @@ function NavIcon({ name }: { name: string }) {
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   function isItemActive(href: string) {
-    if (href === "/admin") return pathname === "/admin";
+    if (href === "/admin/overview") return pathname === "/admin" || pathname === "/admin/overview";
     return pathname === href || pathname.startsWith(href + "/");
   }
 
   return (
     <>
-      {/* Mobile Menu Toggle */}
-      <div className="lg:hidden mb-4">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 shadow-2xs"
-        >
-          <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
-            <span>Admin Navigation</span>
-          </span>
-          <span className="text-slate-400 text-xs">{open ? "▲" : "▼"}</span>
-        </button>
-      </div>
+      {/* Mobile Drawer Backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
 
-      {/* Clean Admin Sidebar */}
+      {/* Main Left Admin Sidebar */}
       <aside
-        className={`w-full md:w-56 lg:w-60 shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs h-fit sticky top-20 ${
-          open ? "block" : "hidden lg:block"
-        }`}
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col justify-between border-r border-slate-200/90 bg-white p-3.5 text-slate-700 transition-all duration-200 md:translate-x-0 ${
+          collapsed ? "w-18" : "w-60"
+        } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        <div className="space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const active = isItemActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
-                  active
-                    ? "bg-[#DC2626] text-white shadow-2xs font-bold"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                <NavIcon name={item.icon} />
-                <span>{item.label}</span>
+        <div className="space-y-4">
+          {/* Logo & Hamburger Header */}
+          <div className="flex items-center justify-between px-1 pt-1">
+            {!collapsed && (
+              <Link href="/admin/overview" className="flex items-center gap-2 min-w-0">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white font-bold text-xs shrink-0">
+                  ⊕
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold tracking-tight text-slate-900 truncate leading-tight">
+                    World Attraction
+                  </span>
+                  <span className="text-[10px] font-bold text-[#DC2626] leading-none">
+                    News Admin
+                  </span>
+                </div>
               </Link>
-            );
-          })}
+            )}
+
+            {/* Hamburger Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setMobileOpen(false);
+                } else {
+                  setCollapsed(!collapsed);
+                }
+              }}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer shrink-0 ${
+                collapsed ? "mx-auto" : ""
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Navigation Items */}
+          <nav className="space-y-1">
+            {NAV_ITEMS.map((item) => {
+              const active = isItemActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  title={collapsed ? item.label : undefined}
+                  className={`flex items-center rounded-xl py-2 text-xs font-semibold transition-all ${
+                    collapsed ? "justify-center px-2" : "gap-3 px-3.5"
+                  } ${
+                    active
+                      ? "bg-[#DC2626] text-white shadow-md font-bold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <NavIcon name={item.icon} />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </aside>
     </>

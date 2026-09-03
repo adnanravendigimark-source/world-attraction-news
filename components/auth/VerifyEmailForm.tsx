@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 
 export default function VerifyEmailForm() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
+  const token = searchParams?.get("token") || "";
   const [status, setStatus] = useState<"idle" | "verifying" | "done" | "error">("idle");
   const [error, setError] = useState("");
 
@@ -42,45 +42,59 @@ export default function VerifyEmailForm() {
 
   if (!token) {
     return (
-      <p className="text-sm text-ink-600">
-        This verification link is missing its token. If you just signed up, check your inbox for the email we sent
-        — or{" "}
-        <Link href="/signup" className="font-semibold text-signal hover:underline">
-          apply again
-        </Link>{" "}
-        to get a new one.
-      </p>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-2">
+        <p className="font-semibold">Missing Verification Token</p>
+        <p>
+          This verification link is incomplete. Check your inbox for the confirmation email or{" "}
+          <Link href="/signup" className="font-bold text-[#DC2626] underline">
+            apply again
+          </Link>
+          .
+        </p>
+      </div>
     );
   }
 
   if (status === "verifying" || status === "idle") {
-    return <p className="text-sm text-ink-600">Verifying your email...</p>;
+    return (
+      <div className="py-6 text-center space-y-2">
+        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-[#DC2626]" />
+        <p className="text-xs text-slate-500 font-medium">Verifying your email address...</p>
+      </div>
+    );
   }
 
   if (status === "error") {
     return (
-      <div className="text-center">
-        <p className="text-2xl">⚠️</p>
-        <h2 className="mt-2 text-base font-bold text-ink-900">Couldn't verify your email</h2>
-        <p className="mt-2 text-sm text-ink-600">{error}</p>
-        <Link href="/signup" className="mt-4 inline-block text-sm font-semibold text-signal hover:underline">
-          Apply again →
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center space-y-3">
+        <p className="text-xs font-semibold text-rose-800">{error || "Verification failed."}</p>
+        <Link
+          href="/signup"
+          className="inline-block rounded-xl bg-[#0B1527] px-4 py-2 text-xs font-bold text-white hover:bg-[#DC2626] transition-colors"
+        >
+          Submit New Application →
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="text-center">
-      <p className="text-2xl">✅</p>
-      <h2 className="mt-2 text-base font-bold text-ink-900">Email verified</h2>
-      <p className="mt-2 text-sm text-ink-600">
-        Thanks — your application is now with our editorial team for review. You'll get an email once there's a
-        decision.
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-6 text-center space-y-3">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xl font-bold">
+        ✓
+      </div>
+      <h2 className="text-base font-bold text-slate-900">Email Confirmed</h2>
+      <p className="text-xs text-slate-600 leading-relaxed">
+        Your email address has been verified. Your application has been sent to our editorial desk for access approval.
       </p>
-      <Link href="/login" className="mt-4 inline-block text-sm font-semibold text-signal hover:underline">
-        Go to Log In →
-      </Link>
+      <div className="pt-2">
+        <Link
+          href="/login"
+          className="inline-block rounded-xl bg-[#0B1527] px-4 py-2 text-xs font-bold text-white hover:bg-[#DC2626] transition-colors"
+        >
+          Go to Sign In →
+        </Link>
+      </div>
     </div>
   );
 }

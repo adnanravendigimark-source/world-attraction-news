@@ -33,55 +33,57 @@ export default function ForgotPasswordForm() {
 
   if (done) {
     return (
-      <div className="text-center">
-        <p className="text-2xl">📬</p>
-        <h2 className="mt-2 text-base font-bold text-ink-900">Check your email</h2>
-        <p className="mt-2 text-sm text-ink-600">
-          If an account exists for <span className="font-semibold">{email}</span>, we've sent a password reset link.
-          It expires in 1 hour.
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-6 text-center space-y-3">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xl font-bold">
+          📬
+        </div>
+        <h2 className="text-base font-bold text-slate-900">Check your inbox</h2>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          If an account exists for <span className="font-bold text-slate-900">{email}</span>, we have sent a password reset link.
         </p>
         {devResetUrl && (
-          <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-left text-xs text-amber-900">
-            <p className="font-semibold">Dev mode — no email provider configured.</p>
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-xs text-amber-900">
+            <p className="font-semibold">Dev simulation link:</p>
             <p className="mt-1 break-all">
-              <Link href={devResetUrl.replace(/^https?:\/\/[^/]+/, "")} className="underline">
+              <Link href={devResetUrl.replace(/^https?:\/\/[^/]+/, "")} className="underline text-[#DC2626] font-mono">
                 {devResetUrl}
               </Link>
             </p>
           </div>
         )}
-        <Link href="/login" className="mt-4 inline-block text-sm font-semibold text-signal hover:underline">
-          ← Back to Log In
-        </Link>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <p className="rounded border border-signal-border bg-signal-light p-2.5 text-xs text-signal-dark">{error}</p>}
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+          {error}
+        </div>
+      )}
+
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Email</label>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+          Registered Email Address
+        </label>
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+          placeholder="you@domain.com"
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
         />
       </div>
+
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-md bg-signal py-2.5 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
+        className="w-full rounded-xl bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
       >
-        {submitting ? "Sending..." : "Send Reset Link"}
+        {submitting ? "Sending..." : "Send Reset Link →"}
       </button>
-      <p className="text-center text-xs text-ink-500">
-        <Link href="/login" className="font-semibold text-signal hover:underline">
-          ← Back to Log In
-        </Link>
-      </p>
     </form>
   );
 }

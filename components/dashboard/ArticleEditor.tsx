@@ -1,18 +1,72 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { useMemo, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import RichTextEditor from "@/components/RichTextEditor";
-import ImageUploadField from "@/components/ImageUploadField";
-import StatusBadge from "@/components/StatusBadge";
-import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
-import { useConfirm } from "@/components/ConfirmProvider";
+import ImageUploadField from "./ImageUploadField";
+import TiptapArticleEditor from "./TiptapArticleEditor";
 import { useToast } from "@/components/ToastProvider";
+import { useConfirm } from "@/components/ConfirmProvider";
 
-interface EditorValue {
+const inputClass =
+  "w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600";
+const labelClass = "mb-1 block text-sm font-medium text-stone-700";
+const hintClass = "mt-1 text-xs text-stone-500";
+
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function excerptFromContent(html: string, maxChars = 200): string {
+  const text = stripHtml(html);
+  if (!text) return "";
+  if (text.length <= maxChars) return text;
+  return text.slice(0, maxChars).replace(/\s+\S*$/, "") + "…";
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      {children}
+      {hint && <p className={hintClass}>{hint}</p>}
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  description,
+  children,
+}: {
   title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white p-6">
+      <p className="font-semibold text-stone-900">{title}</p>
+      {description && <p className="mt-0.5 text-xs text-stone-500">{description}</p>}
+      <div className="mt-4 space-y-5">{children}</div>
+    </div>
+  );
+}
+
+export interface ArticleFormValues {
+  title: string;
+  slug: string;
   excerpt: string;
   contentHtml: string;
   cityId: string;
@@ -23,39 +77,7 @@ interface EditorValue {
   metaTitle: string;
   metaDescription: string;
   focusKeyword: string;
-  slug?: string;
-}
-
-const AUTOSAVE_DELAY_MS = 2500;
-const EDITABLE_STATUSES = ["draft", "pending", "rejected", "changes_requested"];
-
-function computeStats(html: string) {
-  const text = html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
-  const words = text ? text.split(/\s+/).length : 0;
-  return {
-    words,
-    characters: text.length,
-    readingTimeMinutes: words ? Math.max(1, Math.round(words / 200)) : 0,
-  };
-}
-
-// Same "auto-fill while the field is still empty" contract as the slug
-// below: derives a short summary from the article body (falling back to
-// the title if there's no body yet), but only while the contributor hasn't
-// typed anything into Excerpt themselves — the moment they do, this stops
-// touching it.
-function deriveExcerpt(html: string, title: string): string {
-  const plainText = html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const source = plainText || title.trim();
-  if (!source) return "";
-  if (source.length <= 160) return source;
-  const truncated = source.slice(0, 160);
-  const lastSpace = truncated.lastIndexOf(" ");
-  return `${(lastSpace > 100 ? truncated.slice(0, lastSpace) : truncated).trim()}…`;
+  canonicalUrl: string;
 }
 
 export default function ArticleEditor({
@@ -67,19 +89,31 @@ export default function ArticleEditor({
   attractions,
 }: {
   articleId?: string;
-  initial?: Partial<EditorValue>;
+  initial?: Partial<ArticleFormValues>;
   status?: string;
   cities: { id: string; name: string; country: string }[];
   categories: { id: string; name: string }[];
   attractions: { id: string; name: string; cityId: string }[];
 }) {
   const router = useRouter();
-  const confirm = useConfirm();
   const toast = useToast();
+  const confirm = useConfirm();
+
+  const isNew = !articleId;
   const [id, setId] = useState<string | undefined>(articleId);
-  const [currentStatus, setCurrentStatus] = useState<string | undefined>(status);
-  const [form, setForm] = useState<EditorValue>({
+  const idRef = useRef(id);
+  idRef.current = id;
+
+  const [slugTouched, setSlugTouched] = useState(!isNew);
+  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState("");
+
+  const [form, setForm] = useState<ArticleFormValues>({
     title: initial?.title || "",
+    slug: initial?.slug || (initial?.title ? slugify(initial.title) : ""),
     excerpt: initial?.excerpt || "",
     contentHtml: initial?.contentHtml || "",
     cityId: initial?.cityId || cities[0]?.id || "",
@@ -90,47 +124,54 @@ export default function ArticleEditor({
     metaTitle: initial?.metaTitle || "",
     metaDescription: initial?.metaDescription || "",
     focusKeyword: initial?.focusKeyword || "",
-    slug: initial?.slug || "",
+    canonicalUrl: initial?.canonicalUrl || "",
   });
 
-  const [slug, setSlug] = useState(
-    initial?.slug || (initial?.title ? initial.title.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") : "")
-  );
-  const [stats, setStats] = useState(() => computeStats(initial?.contentHtml || ""));
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [saveError, setSaveError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [seoOpen, setSeoOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  function update<K extends keyof ArticleFormValues>(key: K, value: ArticleFormValues[K]) {
+    setForm((p) => {
+      const next = { ...p, [key]: value };
+      if (key === "cityId" && p.attractionId) {
+        const stillValid = attractions.some((a) => a.id === p.attractionId && a.cityId === value);
+        if (!stillValid) next.attractionId = null;
+      }
+      return next;
+    });
+    setDirty(true);
+    setSaved(false);
+  }
 
-  const dirtyRef = useRef(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const idRef = useRef(id);
-  idRef.current = id;
+  function updateTitle(value: string) {
+    update("title", value);
+    if (isNew && !slugTouched) {
+      update("slug", slugify(value));
+    }
+  }
 
-  const editable = !currentStatus || EDITABLE_STATUSES.includes(currentStatus);
-  const canSubmit = !currentStatus || currentStatus === "draft" || currentStatus === "rejected" || currentStatus === "changes_requested";
+  const wordCount = useMemo(() => stripHtml(form.contentHtml).split(/\s+/).filter(Boolean).length, [form.contentHtml]);
+  const autoExcerpt = useMemo(() => excerptFromContent(form.contentHtml), [form.contentHtml]);
 
-  const save = useCallback(
-    async (value: EditorValue) => {
-      setSaveState("saving");
-      setSaveError("");
+  const saveDraft = useCallback(
+    async (showNotification = true) => {
+      setSaving(true);
+      setError("");
+
+      const payload = {
+        title: form.title,
+        slug: form.slug || slugify(form.title),
+        excerpt: form.excerpt || autoExcerpt,
+        contentHtml: form.contentHtml,
+        cityId: form.cityId,
+        categoryId: form.categoryId,
+        attractionId: form.attractionId,
+        image: form.image,
+        imageAlt: form.imageAlt,
+        metaTitle: form.metaTitle,
+        metaDescription: form.metaDescription,
+        focusKeyword: form.focusKeyword,
+        canonicalUrl: form.canonicalUrl,
+      };
+
       try {
-        const payload = {
-          title: value.title,
-          excerpt: value.excerpt,
-          contentHtml: value.contentHtml,
-          cityId: value.cityId,
-          categoryId: value.categoryId,
-          attractionId: value.attractionId,
-          image: value.image,
-          imageAlt: value.imageAlt,
-          metaTitle: value.metaTitle,
-          metaDescription: value.metaDescription,
-          focusKeyword: value.focusKeyword,
-          slug: slug || value.title.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
-        };
-
         if (idRef.current) {
           const res = await fetch(`/api/dashboard/articles/${idRef.current}`, {
             method: "PATCH",
@@ -138,7 +179,7 @@ export default function ArticleEditor({
             body: JSON.stringify(payload),
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Autosave failed.");
+          if (!res.ok) throw new Error(data.error || "Save failed.");
         } else {
           const res = await fetch("/api/dashboard/articles", {
             method: "POST",
@@ -149,69 +190,33 @@ export default function ArticleEditor({
           if (!res.ok) throw new Error(data.error || "Save failed.");
           idRef.current = data.article.id;
           setId(data.article.id);
-          setCurrentStatus(data.article.status);
           window.history.replaceState(null, "", `/contributor/articles/${data.article.id}/edit`);
         }
-        setSaveState("saved");
-        dirtyRef.current = false;
+
+        setDirty(false);
+        setSaved(true);
+        if (showNotification) {
+          toast.success("Draft saved successfully.");
+        }
+        return true;
       } catch (err) {
-        setSaveState("error");
-        setSaveError(err instanceof Error ? err.message : "Save failed.");
+        const msg = err instanceof Error ? err.message : "Save failed.";
+        setError(msg);
+        toast.error(msg);
+        return false;
+      } finally {
+        setSaving(false);
       }
     },
-    [slug]
+    [form, autoExcerpt, toast]
   );
 
-  function scheduleAutosave(next: EditorValue) {
-    if (!editable) return;
-    dirtyRef.current = true;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      save(next);
-    }, AUTOSAVE_DELAY_MS);
-  }
-
-  function updateField<K extends keyof EditorValue>(key: K, value: EditorValue[K]) {
-    setForm((prev) => {
-      const next = { ...prev, [key]: value };
-      if (key === "title" && !slug) {
-        setSlug(String(value).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""));
-      }
-      if (key === "title" && !prev.excerpt) {
-        next.excerpt = deriveExcerpt(prev.contentHtml, String(value));
-      }
-      if (key === "cityId" && prev.attractionId) {
-        const stillValid = attractions.some((a) => a.id === prev.attractionId && a.cityId === value);
-        if (!stillValid) next.attractionId = null;
-      }
-      scheduleAutosave(next);
-      return next;
-    });
-  }
-
-  function updateContent(html: string) {
-    setForm((prev) => {
-      const next = { ...prev, contentHtml: html };
-      if (!prev.excerpt) {
-        next.excerpt = deriveExcerpt(html, prev.title);
-      }
-      scheduleAutosave(next);
-      return next;
-    });
-    setStats(computeStats(html));
-  }
-
-  // Mirrors the server's own minimums in
-  // app/api/dashboard/articles/[id]/submit/route.ts so a contributor finds
-  // out what's missing immediately instead of round-tripping to the API
-  // first — the server re-checks every one of these itself regardless, so
-  // this is purely a faster/friendlier first pass, never the real gate.
   function findSubmitValidationError(): string | null {
     if (form.title.trim().length < 8) return "Title must be at least 8 characters.";
-    if (!form.excerpt.trim()) return "Add a short summary/excerpt.";
+    if (!form.excerpt.trim() && !autoExcerpt.trim()) return "Add a short summary/excerpt.";
     const plainTextLength = form.contentHtml.replace(/<[^>]*>/g, "").trim().length;
     if (plainTextLength < 200) return "Article body must contain at least 200 characters of actual written content.";
-    if (!form.image) return "Upload a cover image.";
+    if (!form.image) return "Upload a hero/cover image.";
     return null;
   }
 
@@ -233,13 +238,12 @@ export default function ArticleEditor({
 
     setSubmitting(true);
     try {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
       let targetId = idRef.current;
       if (!targetId) {
         const createRes = await fetch("/api/dashboard/articles", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form, slug }),
+          body: JSON.stringify({ ...form, excerpt: form.excerpt || autoExcerpt }),
         });
         const created = await createRes.json();
         if (!createRes.ok) throw new Error(created.error || "Save failed.");
@@ -250,10 +254,10 @@ export default function ArticleEditor({
         const saveRes = await fetch(`/api/dashboard/articles/${targetId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form, slug }),
+          body: JSON.stringify({ ...form, excerpt: form.excerpt || autoExcerpt }),
         });
-        const saved = await saveRes.json().catch(() => ({}));
-        if (!saveRes.ok) throw new Error(saved.error || "Couldn't save your latest changes.");
+        const savedData = await saveRes.json().catch(() => ({}));
+        if (!saveRes.ok) throw new Error(savedData.error || "Couldn't save your latest changes.");
       }
 
       const res = await fetch(`/api/dashboard/articles/${targetId}/submit`, {
@@ -264,10 +268,6 @@ export default function ArticleEditor({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Submission failed.");
 
-      // The moderation pass flagged this as similar to something already on
-      // the site — it was NOT submitted. Ask the contributor to confirm
-      // before we resubmit with confirmDespiteFlag: true (see
-      // app/api/dashboard/articles/[id]/submit/route.ts).
       if (data.needsConfirmation) {
         setSubmitting(false);
         const proceedAnyway = await confirm({
@@ -292,71 +292,73 @@ export default function ArticleEditor({
     }
   }
 
+  function handleCancel() {
+    if (dirty && !window.confirm("Discard unsaved changes?")) return;
+    router.push("/contributor/articles");
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Top Breadcrumb & Heading */}
-      <div className="space-y-1">
-        <Link
-          href="/contributor/articles"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#F43F5E] transition-colors mb-1"
-        >
-          <span>← Back to Articles</span>
-        </Link>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-          {articleId ? "Edit Article" : "Write New Article"}
-        </h1>
-        <p className="text-xs text-slate-500 font-medium">
-          Share your travel experience, tips and insights with our global audience.
-        </p>
-      </div>
-
-      {/* Main Article Form */}
-      <div className="w-full space-y-5">
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-2xs space-y-5">
-          {/* Article Title */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold text-slate-700">Article Title *</label>
-              <span className="text-[10px] font-mono text-slate-400">{form.title.length}/100</span>
-            </div>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => updateField("title", e.target.value)}
-              maxLength={100}
-              placeholder="Enter a compelling article title..."
-              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-[#F43F5E] focus:outline-none transition-all"
-            />
+    <div className="pb-24">
+      <div className="mx-auto max-w-4xl space-y-5">
+        {status === "published" && form.slug && (
+          <div className="flex justify-end">
+            <a
+              href={`/articles/${form.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open this article on the live site"
+              className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100"
+            >
+              View Article ↗
+            </a>
           </div>
+        )}
 
-          {/* Slug (URL) */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Slug (URL)</label>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""))}
-              placeholder="your-article-url"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2 text-xs font-mono text-slate-800 placeholder:text-slate-400 focus:border-[#F43F5E] focus:bg-white focus:outline-none transition-all"
-            />
-            <p className="mt-1 text-[11px] text-slate-400">
-              Auto-filled from your title as you type — edit it any time. Used in the article's URL, so keep it short and SEO friendly.
-            </p>
-          </div>
+        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {saved && (
+          <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+            Saved — all changes are stored in your draft.
+          </p>
+        )}
 
-          {/* Category & Destination 2-Col Grid */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Category Dropdown */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Category *</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
-                  📁
-                </span>
+        {/* ---------------- CONTENT SECTION ---------------- */}
+        <div className="space-y-5">
+          <SectionCard title="Basics" description="What readers see as the title, destination, and where the article lives.">
+            <Field label="Title (H1 on the page)">
+              <input
+                required
+                value={form.title}
+                onChange={(e) => updateTitle(e.target.value)}
+                className={inputClass}
+                placeholder="e.g. Best Time to Visit Universal Epic Universe Orlando"
+              />
+            </Field>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field
+                label="URL slug"
+                hint={
+                  isNew
+                    ? "Auto-fills from the title. Article will live at /articles/" + (form.slug || "…")
+                    : "Article address slug."
+                }
+              >
+                <input
+                  required
+                  value={form.slug}
+                  onChange={(e) => {
+                    setSlugTouched(true);
+                    update("slug", slugify(e.target.value));
+                  }}
+                  className={inputClass}
+                  placeholder="best-time-to-visit-epic-universe"
+                />
+              </Field>
+              <Field label="Category">
                 <select
                   value={form.categoryId || ""}
-                  onChange={(e) => updateField("categoryId", e.target.value || null)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs font-medium text-slate-800 focus:border-[#F43F5E] focus:outline-none"
+                  onChange={(e) => update("categoryId", e.target.value || null)}
+                  className={inputClass}
                 >
                   <option value="">Select category</option>
                   {categories.map((c) => (
@@ -365,20 +367,15 @@ export default function ArticleEditor({
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
             </div>
 
-            {/* Destination Dropdown */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Destination</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
-                  📍
-                </span>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Destination (City)">
                 <select
                   value={form.cityId}
-                  onChange={(e) => updateField("cityId", e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs font-medium text-slate-800 focus:border-[#F43F5E] focus:outline-none"
+                  onChange={(e) => update("cityId", e.target.value)}
+                  className={inputClass}
                 >
                   <option value="">Select destination</option>
                   {cities.map((c) => (
@@ -387,200 +384,108 @@ export default function ArticleEditor({
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
+              <Field label="Related Attraction (optional)">
+                <select
+                  value={form.attractionId || ""}
+                  onChange={(e) => update("attractionId", e.target.value || null)}
+                  className={inputClass}
+                >
+                  <option value="">General guide (not attraction-specific)</option>
+                  {attractions
+                    .filter((a) => !form.cityId || a.cityId === form.cityId)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                </select>
+              </Field>
             </div>
-          </div>
 
-          {/* Related Attraction */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Related Attraction <span className="text-slate-400 font-normal">(optional)</span>
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
-                🏷
-              </span>
-              <select
-                value={form.attractionId || ""}
-                onChange={(e) => updateField("attractionId", e.target.value || null)}
-                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs font-medium text-slate-800 focus:border-[#F43F5E] focus:outline-none"
-              >
-                <option value="">General travel guide (not attraction-specific)</option>
-                {attractions
-                  .filter((a) => !form.cityId || a.cityId === form.cityId)
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-400">
-              Link this article to a specific attraction in {cities.find((c) => c.id === form.cityId)?.name || "your chosen destination"} if it's about one.
-            </p>
-          </div>
-
-          {/* Excerpt / Short Summary */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold text-slate-700">Excerpt / Short Summary *</label>
-              <span className="text-[10px] font-mono text-slate-400">{form.excerpt.length}/180</span>
-            </div>
-            <textarea
-              rows={3}
-              value={form.excerpt}
-              onChange={(e) => updateField("excerpt", e.target.value)}
-              maxLength={180}
-              placeholder="Write a short summary of your article..."
-              className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#F43F5E] focus:outline-none resize-none leading-relaxed transition-all"
+            <ImageUploadField
+              label="Hero / Cover image"
+              value={form.image}
+              onChange={(url) => update("image", url)}
+              aspectRatio={21 / 9}
             />
-            <p className="mt-1 text-[11px] text-slate-400">
-              Auto-filled from your article body as you write — edit it any time to write your own.
-            </p>
-          </div>
+            <Field label="Image alt text" hint="Describe the photo for screen readers and search engines.">
+              <input
+                required
+                value={form.imageAlt}
+                onChange={(e) => update("imageAlt", e.target.value)}
+                className={inputClass}
+                placeholder="e.g. Aerial view of Universal Epic Universe theme park"
+              />
+            </Field>
+          </SectionCard>
 
-          {/* Featured Image */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">Featured Image *</label>
-            <div className="grid gap-4 sm:grid-cols-12 items-center">
-              <div className="sm:col-span-7">
-                <ImageUploadField
-                  label="Click to upload or drag and drop (JPG, PNG, WebP)"
-                  value={form.image}
-                  onChange={(url) => updateField("image", url)}
-                  uploadUrl="/api/dashboard/upload"
+          <SectionCard title="Summary" description="Shown on article listing cards and previews.">
+            <div>
+              <label className={labelClass}>Excerpt</label>
+              <div className="relative">
+                <textarea
+                  rows={3}
+                  value={form.excerpt || autoExcerpt}
+                  onChange={(e) => update("excerpt", e.target.value)}
+                  className={`${inputClass} leading-relaxed`}
+                  placeholder="Start writing the article below and this will fill in automatically."
                 />
               </div>
-              {form.image && (
-                <div className="sm:col-span-5 space-y-1.5">
-                  <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
-                    <Image src={form.image} alt={form.imageAlt || "Featured"} fill className="object-cover" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateField("image", "")}
-                    className="text-[11px] font-semibold text-slate-500 hover:text-[#F43F5E] transition-colors"
-                  >
-                    🔄 Change Image
-                  </button>
-                </div>
-              )}
+              <p className={hintClass}>
+                Auto-generated from the article content (3 lines, then &quot;…&quot;) — shown on the article cards. Edit any time to customize.
+              </p>
             </div>
-          </div>
+          </SectionCard>
 
-          {/* Content Area */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">Content *</label>
-            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white focus-within:border-[#F43F5E]">
-              <RichTextEditor
-                value={form.contentHtml}
-                onChange={updateContent}
-                placeholder="Start writing your article here..."
-                uploadUrl="/api/dashboard/upload"
-              />
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5 px-1">
-              <span>{saveState === "saving" ? "Autosaving..." : saveState === "saved" ? "✓ Saved" : ""}</span>
-              <span>Words: {stats.words}</span>
-            </div>
-          </div>
+          <SectionCard
+            title="Article Content"
+            description="Write the article top to bottom, just like a normal document. Use the toolbar to make text a heading, add bold/links/lists/tables, or drop in an image."
+          >
+            <TiptapArticleEditor
+              value={form.contentHtml}
+              onChange={(html) => update("contentHtml", html)}
+              placeholder="Write the article here… use the toolbar for headings, bold, links, lists, tables, or images."
+              allowedHeadings={[1, 2, 3]}
+              minHeight="26rem"
+              stickyOffset="4rem"
+            />
+            <p className="text-xs text-stone-500">~{wordCount} words in the article body.</p>
+          </SectionCard>
+        </div>
+      </div>
 
-          {/* SEO & Meta Settings Collapsible */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+      {/* Fixed Bottom Action Bar */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur md:pl-64">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
+          <p className="text-xs text-stone-500">{saving ? "Saving draft…" : dirty ? "Unsaved changes" : "All changes saved"}</p>
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={() => setSeoOpen(!seoOpen)}
-              className="flex w-full items-center justify-between text-left cursor-pointer"
+              onClick={handleCancel}
+              className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-900 transition hover:bg-stone-100 cursor-pointer"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400 text-sm">⚙️</span>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-800">SEO &amp; Meta Settings</h3>
-                  <p className="text-[11px] text-slate-400">Optimize your article for search engines and social media.</p>
-                </div>
-              </div>
-              <span className="text-xs text-slate-400 font-bold">{seoOpen ? "▲" : "▼"}</span>
+              Cancel
             </button>
-
-            {seoOpen && (
-              <div className="mt-4 space-y-3 pt-3 border-t border-slate-200 text-xs">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Meta Title</label>
-                  <input
-                    type="text"
-                    value={form.metaTitle}
-                    onChange={(e) => updateField("metaTitle", e.target.value)}
-                    placeholder="Custom SEO Title Tag"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#F43F5E] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Meta Description</label>
-                  <textarea
-                    rows={2}
-                    value={form.metaDescription}
-                    onChange={(e) => updateField("metaDescription", e.target.value)}
-                    placeholder="Custom SEO Description"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#F43F5E] focus:outline-none resize-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Focus Keyword</label>
-                  <input
-                    type="text"
-                    value={form.focusKeyword}
-                    onChange={(e) => updateField("focusKeyword", e.target.value)}
-                    placeholder="e.g. Paris Travel Guide"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#F43F5E] focus:outline-none"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Form Actions */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => save(form)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-              >
-                <span>💾 Save Draft</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-              >
-                <span>👁 Preview</span>
-              </button>
-            </div>
-
             <button
               type="button"
-              disabled={submitting}
-              onClick={() => handleSubmitArticle()}
-              className="rounded-xl bg-gradient-to-r from-[#F43F5E] to-[#E11D48] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:from-[#E11D48] hover:to-[#BE123C] transition-all disabled:opacity-60 cursor-pointer"
+              disabled={saving || submitting}
+              onClick={() => saveDraft(true)}
+              className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-900 transition hover:bg-stone-100 disabled:opacity-60 cursor-pointer"
             >
-              {submitting ? "Submitting..." : "Submit for Review →"}
+              {saving ? "Saving…" : "Save Draft"}
+            </button>
+            <button
+              type="button"
+              disabled={saving || submitting}
+              onClick={() => handleSubmitArticle()}
+              className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60 shadow-sm cursor-pointer"
+            >
+              {submitting ? "Submitting…" : "Submit for Review →"}
             </button>
           </div>
         </div>
       </div>
-
-      {previewOpen && (
-        <ArticlePreviewModal
-          title={form.title}
-          image={form.image}
-          imageAlt={form.imageAlt}
-          excerpt={form.excerpt}
-          contentHtml={form.contentHtml}
-          cityName={cities.find((c) => c.id === form.cityId)?.name || ""}
-          categoryName={categories.find((c) => c.id === form.categoryId)?.name || ""}
-          onClose={() => setPreviewOpen(false)}
-        />
-      )}
     </div>
   );
 }

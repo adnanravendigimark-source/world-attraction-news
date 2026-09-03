@@ -7,11 +7,14 @@ import StatusBadge from "@/components/StatusBadge";
 import UserDetailPanel from "@/components/admin/UserDetailPanel";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "User Details", robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: "Contributor Details | World Attraction News Admin",
+  robots: { index: false, follow: false },
+};
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default async function AdminUserDetailPage({ params }: { params: { id: string } }) {
@@ -33,93 +36,148 @@ export default async function AdminUserDetailPage({ params }: { params: { id: st
   };
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <Link href="/admin/users" className="text-xs font-semibold text-ink-500 hover:text-ink-800">
-        ← Back to Users
-      </Link>
-
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <h1 className="font-serif text-2xl font-bold text-ink-900">{user.displayName || "(no name)"}</h1>
+    <div className="max-w-4xl space-y-5">
+      {/* Breadcrumb Header */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-2 text-xs">
+          <Link
+            href="/admin/users"
+            className="font-semibold text-slate-500 hover:text-[#DC2626] transition-colors"
+          >
+            ← Back to Contributors
+          </Link>
+          <span className="text-slate-300">|</span>
+          <span className="text-slate-700 font-bold">{user.displayName || user.email}</span>
+        </div>
+        <StatusBadge status={user.status} />
       </div>
-      <p className="mt-1 text-sm text-ink-600">{user.email}</p>
-      <p className="mt-1 text-xs text-ink-500">
-        Registered {formatDate(user.createdAt)} · Last login {formatDate(user.lastLoginAt)}
-        {user.authProvider === "google" ? " · Signed up with Google" : ""}
-      </p>
-      {user.bio && <p className="mt-3 text-sm text-ink-700">{user.bio}</p>}
 
-      <div className="mt-6">
+      {/* Contributor Profile Header Card */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="h-12 w-12 rounded-full bg-[#0B1527] text-white flex items-center justify-center font-bold text-base shrink-0">
+              {user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">{user.displayName || "(No Name Set)"}</h1>
+              <p className="text-xs text-slate-500 font-medium">{user.email}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+            <span>📅 Registered {formatDate(user.createdAt)}</span>
+            <span>•</span>
+            <span>Last active {formatDate(user.lastLoginAt)}</span>
+          </div>
+        </div>
+
+        {user.bio && (
+          <div className="rounded-lg bg-slate-50 p-3.5 text-xs text-slate-700 leading-relaxed border border-slate-100">
+            <span className="font-bold text-slate-900 block mb-0.5">Author Biography:</span>
+            {user.bio}
+          </div>
+        )}
+
         <UserDetailPanel user={toSafeUser(user)} />
       </div>
 
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div className="rounded-lg border border-ink-200 bg-white p-4">
-          <p className="text-2xl font-bold text-ink-900">{counts.total}</p>
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-500">Total Articles</p>
+      {/* Metric Cards Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Dispatches</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{counts.total}</p>
+          <p className="mt-0.5 text-xs text-slate-400 font-medium">{counts.draft} in draft</p>
         </div>
-        <div className="rounded-lg border border-ink-200 bg-white p-4">
-          <p className="text-2xl font-bold text-ink-900">{counts.published}</p>
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-500">Published</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Live Published</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-700">{counts.published}</p>
+          <p className="mt-0.5 text-xs text-slate-400 font-medium">Public on wire</p>
         </div>
-        <div className="rounded-lg border border-ink-200 bg-white p-4">
-          <p className="text-2xl font-bold text-ink-900">{counts.pending}</p>
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-500">Pending</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pending Review</p>
+          <p className="mt-1 text-2xl font-bold text-[#DC2626]">{counts.pending}</p>
+          <p className="mt-0.5 text-xs text-slate-400 font-medium">{counts.rejected} rejected</p>
         </div>
-        <div className="rounded-lg border border-ink-200 bg-white p-4">
-          <p className="text-2xl font-bold text-ink-900">{counts.rejected}</p>
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-500">Rejected</p>
-        </div>
-        <div className="rounded-lg border border-ink-200 bg-white p-4">
-          <p className="text-2xl font-bold text-ink-900">{points.totalPoints}</p>
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-            Total Points{points.averageScore !== null ? ` (avg ${points.averageScore})` : ""}
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Quality Score</p>
+          <p className="mt-1 text-2xl font-bold text-amber-700">
+            {points.averageScore !== null ? `${points.averageScore}/10` : "—"}
           </p>
+          <p className="mt-0.5 text-xs text-slate-400 font-medium">{points.totalPoints} points awarded</p>
         </div>
       </div>
 
-      <h2 className="mt-8 text-sm font-bold uppercase tracking-wide text-ink-700">Article History</h2>
-      {articles.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-500">No articles submitted yet.</p>
-      ) : (
-        <div className="mt-3 space-y-2">
-          {articles.map((a) => (
-            <Link
-              key={a.id}
-              href={a.status === "draft" ? "#" : `/admin/articles/${a.id}`}
-              className={`flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-white p-3.5 ${
-                a.status === "draft" ? "cursor-default opacity-70" : "hover:border-ink-400"
-              }`}
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-ink-900">{a.title || "Untitled draft"}</p>
-                <p className="mt-0.5 text-[11px] text-ink-500">
-                  {a.cityName} · Updated {formatDate(a.updatedAt)}
+      {/* Dispatches Written by this Author */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+            Dispatches by this Contributor ({articles.length})
+          </h2>
+        </div>
+
+        {articles.length === 0 ? (
+          <p className="py-6 text-center text-xs text-slate-400 font-medium">
+            This writer has not submitted any articles yet.
+          </p>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {articles.map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/admin/articles/${a.id}`}
+                    className="font-bold text-sm text-slate-900 hover:text-[#DC2626] transition-colors truncate block"
+                  >
+                    {a.title || "Untitled Draft"}
+                  </Link>
+                  <p className="text-[11px] text-slate-500 mt-0.5 font-medium">
+                    {a.cityName || "Global"} Bureau · {formatDate(a.submittedAt || a.updatedAt)}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {a.score !== null && (
+                    <span className="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-900">
+                      ★ {a.score}/10
+                    </span>
+                  )}
+                  <StatusBadge status={a.status} />
+                  <Link
+                    href={`/admin/articles/${a.id}`}
+                    className="rounded bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                  >
+                    Review →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Editorial Feedback & Review Notes History */}
+      {feedbackHistory.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-3">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              Editorial Review Notes Given ({feedbackHistory.length})
+            </h2>
+          </div>
+
+          <div className="space-y-2.5">
+            {feedbackHistory.map((a) => (
+              <div key={a.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-slate-900">{a.title}</span>
+                  <StatusBadge status={a.status} />
+                </div>
+                <p className="text-slate-700 italic bg-white p-2 rounded border border-slate-100">
+                  "{a.adminFeedback}"
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {a.score !== null && <span className="text-xs font-semibold text-ink-600">{a.score}/10</span>}
-                <StatusBadge status={a.status} />
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <h2 className="mt-8 text-sm font-bold uppercase tracking-wide text-ink-700">Admin Feedback History</h2>
-      {feedbackHistory.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-500">No feedback given yet.</p>
-      ) : (
-        <div className="mt-3 space-y-2">
-          {feedbackHistory.map((a) => (
-            <div key={a.id} className="rounded-lg border border-ink-200 bg-white p-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-ink-900">{a.title}</p>
-                {a.score !== null && <span className="text-xs font-semibold text-ink-600">{a.score}/10</span>}
-              </div>
-              <p className="mt-1 text-[11px] text-ink-500">Reviewed {formatDate(a.reviewedAt)}</p>
-              <p className="mt-1.5 text-xs leading-relaxed text-ink-700">{a.adminFeedback}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>

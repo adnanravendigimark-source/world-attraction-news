@@ -6,8 +6,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { ArticleWithRelations } from "@/lib/articles";
 import type { ArticleRevision } from "@/lib/revisions";
-import RichTextEditor from "@/components/RichTextEditor";
-import ImageUploadField from "@/components/ImageUploadField";
+import TiptapArticleEditor from "@/components/dashboard/TiptapArticleEditor";
+import ImageUploadField from "@/components/dashboard/ImageUploadField";
 import StatusBadge from "@/components/StatusBadge";
 import ScoreBadge from "@/components/ScoreBadge";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -33,10 +33,6 @@ function formatViews(n: number) {
   return n > 999 ? `${(n / 1000).toFixed(1)}K` : String(n);
 }
 
-// Mirrors the exact status gates the API (app/api/admin/articles/[id]/route.ts)
-// and lib/articles.ts enforce server-side — the UI only ever hides/disables
-// what the backend would reject anyway, never invents a stricter rule of
-// its own.
 const REVIEWABLE_BLOCKLIST = new Set(["published", "scheduled", "unpublished"]);
 const PUBLISHABLE_FROM = new Set(["approved", "unpublished", "scheduled"]);
 const SCHEDULABLE_FROM = new Set(["approved", "unpublished"]);
@@ -103,11 +99,6 @@ export default function ArticleReviewPanel({
   const [showRevisions, setShowRevisions] = useState(false);
   const [edit, setEdit] = useState<EditState>(buildEditState(article));
 
-  // Derived directly from the `article` prop on every render — never
-  // copied into local state — so the moment router.refresh() re-fetches
-  // the server component after an action, every gate and badge below
-  // reflects the new status immediately with no stale local copy to fall
-  // out of sync.
   const canReview = !REVIEWABLE_BLOCKLIST.has(article.status);
   const canPublish = PUBLISHABLE_FROM.has(article.status);
   const canSchedule = SCHEDULABLE_FROM.has(article.status);
@@ -285,69 +276,119 @@ export default function ArticleReviewPanel({
     : [];
 
   return (
-    <div className="max-w-6xl space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="min-w-0">
-          <Link
-            href="/admin/articles"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#DC2626] transition-colors mb-2"
-          >
-            ← Back to Articles
-          </Link>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              {mode === "edit" ? "Edit Article" : article.title || "Untitled"}
-            </h1>
-            <StatusBadge status={article.status} size="md" />
-          </div>
-          <p className="mt-1 text-xs text-slate-500 font-medium">
-            By {article.authorName} ({article.authorEmail}) · {article.cityName || "Global"}
-            {article.categoryName ? ` · ${article.categoryName}` : ""}
-            {article.submittedAt ? ` · Submitted ${formatDate(article.submittedAt)}` : ""}
-          </p>
-        </div>
+    <div className="mx-auto max-w-5xl space-y-6 pb-20">
+      {/* Top Navigation & Header */}
+      <div className="space-y-3">
+        <Link
+          href="/admin/articles"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#DC2626] transition-colors"
+        >
+          ← Back to Articles
+        </Link>
 
-        <div className="flex shrink-0 items-center gap-2.5">
-          {article.status === "published" && (
-            <Link
-              href={`/cities/${article.citySlug}/${article.slug}`}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {mode === "edit" ? "Edit Article" : article.title || "Untitled"}
+              </h1>
+              <StatusBadge status={article.status} size="md" />
+            </div>
+            <p className="text-xs text-slate-500 font-medium">
+              By <span className="font-semibold text-slate-700">{article.authorName}</span> ({article.authorEmail}) · {article.cityName || "Global"}
+              {article.categoryName ? ` · ${article.categoryName}` : ""}
+              {article.submittedAt ? ` · Submitted ${formatDate(article.submittedAt)}` : ""}
+              {article.publishedAt ? ` · Published ${formatDate(article.publishedAt)}` : ""}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2.5">
+            {article.status === "published" && (
+              <Link
+                href={`/cities/${article.citySlug}/${article.slug}`}
+                target="_blank"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+              >
+                Open Live Story ↗
+              </Link>
+            )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (mode === "edit") setEdit(buildEditState(article));
+                setMode(mode === "edit" ? "review" : "edit");
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-60"
             >
-              Open Live Story ↗
-            </Link>
-          )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              if (mode === "edit") setEdit(buildEditState(article));
-              setMode(mode === "edit" ? "review" : "edit");
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-60"
-          >
-            {mode === "edit" ? "Cancel Edit" : "Edit Article"}
-          </button>
+              {mode === "edit" ? "Cancel Edit" : "Edit Article"}
+            </button>
+            {canPublish && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handlePublish}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-60"
+              >
+                Publish Now
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {mode === "edit" ? (
-        <div className="grid gap-6 lg:grid-cols-12 items-start">
-          {/* Edit form — left column */}
-          <div className="lg:col-span-8 space-y-5">
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-2xs space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Article Title *</label>
-                <input
-                  type="text"
-                  value={edit.title}
-                  onChange={(e) => updateEdit("title", e.target.value)}
-                  maxLength={100}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-[#DC2626] focus:outline-none transition-all"
-                />
-              </div>
+      {/* Top Metrics Strip (Views, Words, Reading Time, Editorial Score) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs text-center">
+        <div className="p-2">
+          <p className="text-xl font-extrabold text-slate-900">{formatViews(article.viewCount)}</p>
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Views</p>
+        </div>
+        <div className="p-2 border-l border-slate-100">
+          <p className="text-xl font-extrabold text-slate-900">{article.wordCount.toLocaleString()}</p>
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Words</p>
+        </div>
+        <div className="p-2 border-l border-slate-100">
+          <p className="text-xl font-extrabold text-slate-900">{article.readingTimeMinutes} min</p>
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Reading Time</p>
+        </div>
+        <div className="p-2 border-l border-slate-100 flex flex-col items-center justify-center">
+          {article.score !== null ? (
+            <ScoreBadge score={article.score} size="md" />
+          ) : (
+            <p className="text-xl font-extrabold text-slate-300">—</p>
+          )}
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1">Current Score</p>
+        </div>
+      </div>
 
+      {/* Automated Moderation Warnings (if any) */}
+      {moderationWarnings.length > 0 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-1.5">
+          <p className="text-xs font-bold text-amber-900">⚠ Automated review flags — verify before approving</p>
+          {moderationWarnings.map((w) => (
+            <p key={w.label} className="text-xs text-amber-800">
+              <span className="font-semibold">{w.label}:</span> {w.detail || "Flagged for manual review."}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {mode === "edit" ? (
+        /* ---------------- EDIT MODE ---------------- */
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-2xs space-y-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Article Title *</label>
+              <input
+                type="text"
+                value={edit.title}
+                onChange={(e) => updateEdit("title", e.target.value)}
+                maxLength={100}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-[#DC2626] focus:outline-none transition-all"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Slug (URL)</label>
                 <input
@@ -360,457 +401,405 @@ export default function ArticleReviewPanel({
                 />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Destination *</label>
-                  <select
-                    value={edit.cityId}
-                    onChange={(e) => updateEdit("cityId", e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
-                  >
-                    {cities.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Destination *</label>
+                <select
+                  value={edit.cityId}
+                  onChange={(e) => updateEdit("cityId", e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                >
+                  {cities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                <select
+                  value={edit.categoryId || ""}
+                  onChange={(e) => updateEdit("categoryId", e.target.value || null)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                >
+                  <option value="">Select category</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Attraction (Optional)</label>
+                <select
+                  value={edit.attractionId || ""}
+                  onChange={(e) => updateEdit("attractionId", e.target.value || null)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                >
+                  <option value="">None</option>
+                  {attractions
+                    .filter((a) => !edit.cityId || a.cityId === edit.cityId)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
                       </option>
                     ))}
-                  </select>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Excerpt *</label>
+              <textarea
+                rows={3}
+                value={edit.excerpt}
+                onChange={(e) => updateEdit("excerpt", e.target.value)}
+                maxLength={160}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed transition-all"
+              />
+            </div>
+
+            <ImageUploadField
+              label="Featured Cover Image"
+              value={edit.image}
+              onChange={(url) => updateEdit("image", url)}
+              aspectRatio={21 / 9}
+            />
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Article Content *</label>
+              <TiptapArticleEditor
+                value={edit.contentHtml}
+                onChange={(html) => updateEdit("contentHtml", html)}
+                placeholder="Article content..."
+                minHeight="24rem"
+                stickyOffset="4rem"
+              />
+            </div>
+
+            <div className="border-t border-slate-100 pt-5 space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">SEO &amp; Metadata</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Meta Title</label>
+                  <input
+                    type="text"
+                    value={edit.metaTitle}
+                    onChange={(e) => updateEdit("metaTitle", e.target.value)}
+                    placeholder={edit.title}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
-                  <select
-                    value={edit.categoryId || ""}
-                    onChange={(e) => updateEdit("categoryId", e.target.value || null)}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
-                  >
-                    <option value="">Select category</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Attraction</label>
-                  <select
-                    value={edit.attractionId || ""}
-                    onChange={(e) => updateEdit("attractionId", e.target.value || null)}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none"
-                  >
-                    <option value="">None</option>
-                    {attractions
-                      .filter((a) => !edit.cityId || a.cityId === edit.cityId)
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Excerpt *</label>
-                <textarea
-                  rows={3}
-                  value={edit.excerpt}
-                  onChange={(e) => updateEdit("excerpt", e.target.value)}
-                  maxLength={160}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Featured Image</label>
-                {edit.image && (
-                  <div className="relative aspect-[21/9] w-full mb-2 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
-                    <Image src={edit.image} alt={edit.imageAlt || ""} fill className="object-cover" />
-                  </div>
-                )}
-                <ImageUploadField
-                  label={edit.image ? "Replace featured image" : "Upload featured image (JPG, PNG, WebP)"}
-                  value={edit.image}
-                  onChange={(url) => updateEdit("image", url)}
-                  uploadUrl="/api/upload"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Article Content *</label>
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white focus-within:border-[#DC2626]">
-                  <RichTextEditor
-                    value={edit.contentHtml}
-                    onChange={(html) => updateEdit("contentHtml", html)}
-                    placeholder="Article content..."
-                    allowLinks
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Focus Keyword</label>
+                  <input
+                    type="text"
+                    value={edit.focusKeyword}
+                    onChange={(e) => updateEdit("focusKeyword", e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
                   />
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Edit form — SEO sidebar */}
-          <div className="lg:col-span-4 space-y-5">
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">SEO &amp; Meta</h2>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">SEO Title</label>
-                <input
-                  type="text"
-                  value={edit.metaTitle}
-                  onChange={(e) => updateEdit("metaTitle", e.target.value)}
-                  maxLength={60}
-                  placeholder={edit.title}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
-                />
-              </div>
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">Meta Description</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={edit.metaDescription}
                   onChange={(e) => updateEdit("metaDescription", e.target.value)}
-                  maxLength={160}
                   placeholder={edit.excerpt}
                   className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
                 />
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Focus Keyword</label>
-                <input
-                  type="text"
-                  value={edit.focusKeyword}
-                  onChange={(e) => updateEdit("focusKeyword", e.target.value)}
-                  maxLength={60}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Tags (comma-separated)</label>
-                <input
-                  type="text"
-                  value={edit.tags}
-                  onChange={(e) => updateEdit("tags", e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Canonical URL</label>
-                <input
-                  type="text"
-                  value={edit.canonicalUrl}
-                  onChange={(e) => updateEdit("canonicalUrl", e.target.value)}
-                  placeholder="Defaults to this article's own URL"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-700 focus:border-[#DC2626] focus:bg-white focus:outline-none"
-                />
-              </div>
             </div>
 
-            <button
-              type="button"
-              disabled={busy}
-              onClick={handleSaveEdit}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#DC2626] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-60"
-            >
-              {busy ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-12 items-start">
-          {/* Article content — read-only, wide, easy to scan */}
-          <div className="lg:col-span-8 space-y-5">
-            {moderationWarnings.length > 0 && (
-              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-1.5">
-                <p className="text-xs font-bold text-amber-900">⚠ Automated review flags — verify before approving</p>
-                {moderationWarnings.map((w) => (
-                  <p key={w.label} className="text-xs text-amber-800">
-                    <span className="font-semibold">{w.label}:</span> {w.detail || "Flagged for manual review."}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-10 shadow-2xs space-y-6">
-              {article.image && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={article.image}
-                  alt={article.imageAlt || ""}
-                  className="w-full max-h-[28rem] rounded-xl object-cover"
-                />
-              )}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 leading-relaxed italic border-l-2 border-slate-200 pl-3">
-                  {article.excerpt}
-                </p>
-              </div>
-              {/* `.article-body` (app/globals.css), not `prose prose-slate` — that
-                  Tailwind Typography class does nothing here, the plugin isn't
-                  installed in this project. See RichTextEditor.tsx/
-                  ArticlePreviewModal.tsx for the same fix. */}
-              <div className="article-body" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
-            </div>
-
-            {/* Revision History */}
-            {revisions.length > 0 && (
-              <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowRevisions(!showRevisions)}
-                  className="flex w-full items-center justify-between p-4 sm:p-5 text-left cursor-pointer"
-                >
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                    Revision History ({revisions.length})
-                  </h2>
-                  <span className="text-xs text-slate-400 font-bold">{showRevisions ? "▲" : "▼"}</span>
-                </button>
-                {showRevisions && (
-                  <div className="divide-y divide-slate-100 border-t border-slate-100">
-                    {revisions.map((r) => (
-                      <div key={r.id} className="flex items-center justify-between gap-3 p-4 sm:px-5">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{r.changeSummary || "Edit"}</p>
-                          <p className="text-[11px] text-slate-500">
-                            {r.editorEmail} ({r.editorRole}) · {formatDateTime(r.createdAt)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => handleRestoreRevision(r.id)}
-                          className="shrink-0 text-xs font-bold text-[#DC2626] hover:underline cursor-pointer disabled:opacity-50"
-                        >
-                          Restore
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Review sidebar */}
-          <div className="lg:col-span-4 space-y-5">
-            {/* Stats */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs grid grid-cols-2 gap-4 text-center">
-              <div>
-                <p className="text-lg font-extrabold text-slate-900">{formatViews(article.viewCount)}</p>
-                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Views</p>
-              </div>
-              <div>
-                <p className="text-lg font-extrabold text-slate-900">{article.wordCount.toLocaleString()}</p>
-                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Words</p>
-              </div>
-              <div>
-                <p className="text-lg font-extrabold text-slate-900">{article.readingTimeMinutes} min</p>
-                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Reading Time</p>
-              </div>
-              <div>
-                {article.score !== null ? (
-                  <ScoreBadge score={article.score} size="md" />
-                ) : (
-                  <p className="text-lg font-extrabold text-slate-300">—</p>
-                )}
-                <p className="text-[10px] font-semibold text-slate-400 mt-1">Current Score</p>
-              </div>
-            </div>
-
-            {/* Review Actions */}
-            {canReview ? (
-              <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Review Decision</h2>
-                  {article.status === "pending" && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={handleStartReview}
-                      className="text-[11px] font-bold text-slate-500 hover:text-[#DC2626] cursor-pointer disabled:opacity-50"
-                    >
-                      Mark Under Review
-                    </button>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
-                    Editorial Score (0–10)
-                  </label>
-                  <div className="grid grid-cols-6 gap-1.5">
-                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setScore(String(num))}
-                        className={`py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                          score === String(num)
-                            ? "bg-[#DC2626] text-white border-[#DC2626]"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                      >
-                        {num}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
-                    Feedback for Contributor
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Required for Reject or Request Changes — explain what needs fixing."
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none resize-none"
-                  />
-                  {article.reviewedAt && (
-                    <p className="mt-1 text-[10px] text-slate-400">Last reviewed {formatDateTime(article.reviewedAt)}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => handleReviewDecision("approved")}
-                    className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-60"
-                  >
-                    ✓ Approve
-                  </button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => handleReviewDecision("changes_requested")}
-                      className="rounded-xl border border-amber-300 bg-amber-50 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-all cursor-pointer disabled:opacity-60"
-                    >
-                      Request Changes
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => handleReviewDecision("rejected")}
-                      className="rounded-xl border border-rose-300 bg-rose-50 py-2 text-xs font-bold text-[#DC2626] hover:bg-rose-100 transition-all cursor-pointer disabled:opacity-60"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-slate-200/90 bg-slate-50 p-5 text-xs text-slate-500">
-                {article.status === "published"
-                  ? "This article is live. Unpublish it to make review-status changes again."
-                  : article.status === "scheduled"
-                  ? "This article is scheduled. Cancel the schedule to make review-status changes again."
-                  : "This article already went through publishing, so its review status is locked."}
-                {article.adminFeedback && (
-                  <p className="mt-2 text-slate-600">
-                    <span className="font-semibold">Last feedback:</span> {article.adminFeedback}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Publishing controls */}
-            {(canPublish || canCancelSchedule || canUnpublish) && (
-              <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-3">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Publishing</h2>
-
-                {canPublish && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={handlePublish}
-                    className="w-full rounded-xl bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-60"
-                  >
-                    Publish Now
-                  </button>
-                )}
-
-                {canSchedule && !showSchedule && (
-                  <button
-                    type="button"
-                    onClick={() => setShowSchedule(true)}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
-                  >
-                    Schedule for Later
-                  </button>
-                )}
-                {showSchedule && (
-                  <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <input
-                      type="datetime-local"
-                      value={scheduledAt}
-                      onChange={(e) => setScheduledAt(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={handleConfirmSchedule}
-                        className="flex-1 rounded-lg bg-slate-900 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-all cursor-pointer disabled:opacity-60"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowSchedule(false)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {canCancelSchedule && (
-                  <div className="space-y-2">
-                    {article.scheduledAt && (
-                      <p className="text-[11px] text-slate-500">Scheduled for {formatDateTime(article.scheduledAt)}</p>
-                    )}
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={handleCancelSchedule}
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-60"
-                    >
-                      Cancel Schedule
-                    </button>
-                  </div>
-                )}
-
-                {canUnpublish && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={handleUnpublish}
-                    className="w-full rounded-xl border border-rose-200 bg-rose-50/50 py-2 text-xs font-bold text-[#DC2626] hover:bg-rose-100/70 transition-all cursor-pointer disabled:opacity-60"
-                  >
-                    Unpublish
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Delete */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
               <button
                 type="button"
-                disabled={busy || !canDelete}
-                onClick={handleDelete}
-                title={canDelete ? undefined : "Unpublish (or cancel the schedule) before deleting a live article."}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => setMode("review")}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                Delete Permanently
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleSaveEdit}
+                className="rounded-xl bg-[#DC2626] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-60"
+              >
+                {busy ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
+        </div>
+      ) : (
+        /* ---------------- WIDE REVIEW / READING MODE ---------------- */
+        <div className="space-y-6">
+          {/* Main Full-Width Article Reader Card */}
+          <article className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-12 shadow-2xs space-y-8">
+            {/* Featured Image */}
+            {article.image && (
+              <div className="relative aspect-[21/9] w-full overflow-hidden rounded-2xl bg-slate-100 border border-slate-200">
+                <Image
+                  src={article.image}
+                  alt={article.imageAlt || article.title || ""}
+                  fill
+                  priority
+                  className="object-cover"
+                />
+              </div>
+            )}
+
+            {/* Excerpt Summary Block */}
+            {article.excerpt && (
+              <div className="rounded-xl bg-slate-50 border-l-4 border-[#DC2626] p-4 text-sm font-medium text-slate-700 italic leading-relaxed">
+                {article.excerpt}
+              </div>
+            )}
+
+            {/* Formatted Article Body */}
+            <div
+              className="rich-content article-body text-slate-900"
+              dangerouslySetInnerHTML={{ __html: article.contentHtml }}
+            />
+          </article>
+
+          {/* Editorial Review Decision Panel (if under review/pending) */}
+          {canReview ? (
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-2xs space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
+                    EDITORIAL EVALUATION
+                  </span>
+                  <h2 className="text-base font-bold text-slate-900">Review Decision &amp; Feedback</h2>
+                </div>
+                {article.status === "pending" && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleStartReview}
+                    className="text-xs font-bold text-slate-600 hover:text-[#DC2626] cursor-pointer disabled:opacity-50"
+                  >
+                    Mark Under Review
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">
+                  Editorial Quality Score (0–10)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setScore(String(num))}
+                      className={`h-9 w-11 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        score === String(num)
+                          ? "bg-[#DC2626] text-white border-[#DC2626] shadow-sm scale-105"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Feedback for Contributor
+                </label>
+                <textarea
+                  rows={3}
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="Required for Reject or Request Changes — explain what needs fixing."
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
+                />
+                {article.reviewedAt && (
+                  <p className="mt-1 text-[11px] text-slate-400">Last reviewed {formatDateTime(article.reviewedAt)}</p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleReviewDecision("approved")}
+                  className="rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  ✓ Approve Article
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleReviewDecision("changes_requested")}
+                  className="rounded-xl border border-amber-300 bg-amber-50 px-5 py-2.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  Request Changes
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleReviewDecision("rejected")}
+                  className="rounded-xl border border-rose-300 bg-rose-50 px-5 py-2.5 text-xs font-bold text-[#DC2626] hover:bg-rose-100 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-slate-200/90 bg-slate-50 p-5 text-xs text-slate-500">
+              {article.status === "published"
+                ? "This article is live. Unpublish it to make review-status changes again."
+                : article.status === "scheduled"
+                ? "This article is scheduled. Cancel the schedule to make review-status changes again."
+                : "This article already went through publishing, so its review status is locked."}
+              {article.adminFeedback && (
+                <p className="mt-2 text-slate-700 font-medium">
+                  <span className="font-bold text-slate-900">Last feedback:</span> {article.adminFeedback}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Publishing & Article Lifecycle Controls */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Publishing &amp; Lifecycle</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Current status: <span className="font-semibold text-slate-700 capitalize">{article.status.replace(/_/g, " ")}</span>
+                {article.scheduledAt && ` (Scheduled for ${formatDateTime(article.scheduledAt)})`}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {canPublish && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handlePublish}
+                  className="rounded-xl bg-[#DC2626] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-60"
+                >
+                  Publish Now
+                </button>
+              )}
+
+              {canSchedule && !showSchedule && (
+                <button
+                  type="button"
+                  onClick={() => setShowSchedule(true)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Schedule for Later
+                </button>
+              )}
+
+              {showSchedule && (
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="rounded-lg border border-slate-200 bg-white py-1 px-2 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleConfirmSchedule}
+                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSchedule(false)}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {canCancelSchedule && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleCancelSchedule}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  Cancel Schedule
+                </button>
+              )}
+
+              {canUnpublish && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleUnpublish}
+                  className="rounded-xl border border-rose-200 bg-rose-50/50 px-4 py-2.5 text-xs font-bold text-[#DC2626] hover:bg-rose-100/70 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  Unpublish
+                </button>
+              )}
+
+              {canDelete && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleDelete}
+                  className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer disabled:opacity-40"
+                >
+                  Delete Permanently
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Revision History (Collapsible) */}
+          {revisions.length > 0 && (
+            <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowRevisions(!showRevisions)}
+                className="flex w-full items-center justify-between p-4 sm:p-5 text-left cursor-pointer hover:bg-slate-50 transition-colors"
+              >
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Revision History ({revisions.length})
+                </h2>
+                <span className="text-xs text-slate-400 font-bold">{showRevisions ? "▲" : "▼"}</span>
+              </button>
+              {showRevisions && (
+                <div className="divide-y divide-slate-100 border-t border-slate-100">
+                  {revisions.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-3 p-4 sm:px-5">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-800 truncate">{r.changeSummary || "Edit"}</p>
+                        <p className="text-[11px] text-slate-500">
+                          {r.editorEmail} ({r.editorRole}) · {formatDateTime(r.createdAt)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => handleRestoreRevision(r.id)}
+                        className="shrink-0 text-xs font-bold text-[#DC2626] hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

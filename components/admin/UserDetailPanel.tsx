@@ -3,82 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { SafeUser } from "@/lib/users";
-import StatusBadge from "@/components/StatusBadge";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
-
-// Same rules as components/admin/UsersTable.tsx — an already-approved user
-// only ever gets Suspend (never Reject again); kept as a small local
-// function here rather than a shared import since it's pure and trivial.
-function actionsFor(status: string, emailVerified: boolean): {
-  label: string;
-  nextStatus: string;
-  className: string;
-  confirmTitle: string;
-  confirmDescription: string;
-}[] {
-  switch (status) {
-    case "pending":
-      // Same email-verification gate as UsersTable.tsx — an unconfirmed
-      // signup isn't a real application to approve or reject yet.
-      if (!emailVerified) return [];
-      return [
-        {
-          label: "Approve",
-          nextStatus: "approved",
-          className: "bg-emerald-600 text-white hover:bg-emerald-700",
-          confirmTitle: "Approve this user?",
-          confirmDescription: "They'll be able to log in and submit articles immediately.",
-        },
-        {
-          label: "Reject",
-          nextStatus: "rejected",
-          className: "border border-signal-border bg-signal-light text-signal-dark hover:bg-signal-border",
-          confirmTitle: "Reject this registration?",
-          confirmDescription: "They won't be able to log in until an admin approves them.",
-        },
-      ];
-    case "approved":
-      return [
-        {
-          label: "Suspend",
-          nextStatus: "suspended",
-          className: "border border-orange-300 bg-orange-50 text-orange-800 hover:bg-orange-100",
-          confirmTitle: "Suspend this user?",
-          confirmDescription: "They'll be blocked from logging in immediately, until reactivated.",
-        },
-      ];
-    case "rejected":
-      return [
-        {
-          label: "Approve",
-          nextStatus: "approved",
-          className: "bg-emerald-600 text-white hover:bg-emerald-700",
-          confirmTitle: "Approve this user?",
-          confirmDescription: "They'll be able to log in and submit articles immediately.",
-        },
-      ];
-    case "suspended":
-      return [
-        {
-          label: "Reactivate",
-          nextStatus: "approved",
-          className: "bg-emerald-600 text-white hover:bg-emerald-700",
-          confirmTitle: "Reactivate this user?",
-          confirmDescription: "They'll be able to log in again immediately.",
-        },
-        {
-          label: "Reject",
-          nextStatus: "rejected",
-          className: "border border-signal-border bg-signal-light text-signal-dark hover:bg-signal-border",
-          confirmTitle: "Reject this user?",
-          confirmDescription: "They won't be able to log in until an admin approves them again.",
-        },
-      ];
-    default:
-      return [];
-  }
-}
 
 export default function UserDetailPanel({ user: initialUser }: { user: SafeUser }) {
   const router = useRouter();
@@ -99,6 +25,7 @@ export default function UserDetailPanel({ user: initialUser }: { user: SafeUser 
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
       setUser(data.user);
       toast.success(successMessage);
+      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -106,87 +33,146 @@ export default function UserDetailPanel({ user: initialUser }: { user: SafeUser 
     }
   }
 
-  async function handleAction(a: ReturnType<typeof actionsFor>[number]) {
+  async function handleStatusChange(status: string, label: string) {
     const ok = await confirm({
-      title: a.confirmTitle,
-      description: a.confirmDescription,
-      confirmLabel: a.label,
-      danger: a.label === "Reject" || a.label === "Suspend",
+      title: `${label} this user?`,
+      description:
+        status === "approved"
+          ? "They will receive contributor access and can submit dispatches immediately."
+          : status === "suspended"
+          ? "Their account will be temporarily blocked from logging in."
+          : "They will not be granted access to the contributor workspace.",
+      confirmLabel: label,
+      danger: status === "rejected" || status === "suspended",
     });
     if (!ok) return;
-    run({ status: a.nextStatus }, `${user.displayName || user.email}: ${a.label.toLowerCase()}d.`);
+
+    await run({ status }, `User marked as ${status}.`);
   }
 
-  async function handleDemote() {
+  async function handleRoleChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const role = e.target.value;
     const ok = await confirm({
-      title: "Demote to contributor?",
-      description: "They'll lose admin access immediately.",
-      confirmLabel: "Demote",
-      danger: true,
+      title: `Change role to ${role}?`,
+      description:
+        role === "admin"
+          ? "Admins have full access to edit/publish any article and manage users."
+          : role === "editor"
+          ? "Editors can review and approve submissions."
+          : "Contributors can draft and submit articles for review.",
+      confirmLabel: "Change Role",
+      danger: role === "admin",
     });
     if (!ok) return;
-    run({ role: "contributor" }, `${user.displayName || user.email} demoted to contributor.`);
+
+    await run({ role }, `Role updated to ${role}.`);
   }
 
   async function handleDelete() {
     const ok = await confirm({
-      title: `Delete ${user.email}?`,
-      description: "This permanently deletes the account and cannot be undone.",
-      confirmLabel: "Delete",
+      title: "Permanently delete this user?",
+      description: "Their profile will be deleted. Any articles they wrote will remain intact.",
+      confirmLabel: "Delete User",
       danger: true,
     });
     if (!ok) return;
+
     setBusy(true);
-    const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
-    if (res.ok) {
-      toast.success(`${user.email} deleted.`);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't delete user.");
+      }
+      toast.success("User deleted.");
       router.push("/admin/users");
       router.refresh();
-    } else {
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't delete user.");
       setBusy(false);
-      toast.error("Couldn't delete this user.");
     }
   }
 
   return (
-    <div className="rounded-lg border border-ink-200 bg-white p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded bg-ink-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink-700">{user.role}</span>
-        <StatusBadge status={user.status} />
+    <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
+      {/* Role Selector */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-bold uppercase text-slate-700">Role &amp; Permissions:</label>
+        <select
+          disabled={busy}
+          value={user.role}
+          onChange={handleRoleChange}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none"
+        >
+          <option value="contributor">Contributor (Writer)</option>
+          <option value="editor">Editor (Reviewer)</option>
+          <option value="admin">Admin (Full Access)</option>
+        </select>
       </div>
 
-      {user.status === "pending" && !user.emailVerified && (
-        <p className="mt-3 rounded-lg border border-dashed border-ink-300 bg-paper-50 px-3 py-2 text-xs text-ink-500">
-          Awaiting email verification — this application won't be reviewable until they confirm their email address.
-        </p>
-      )}
+      {/* Action Buttons */}
+      <div className="flex flex-wrap items-center gap-2">
+        {user.status === "pending" && user.emailVerified && (
+          <>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => handleStatusChange("approved", "Approve")}
+              className="rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-50 cursor-pointer"
+            >
+              ✓ Approve Contributor
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => handleStatusChange("rejected", "Reject")}
+              className="rounded-lg border border-rose-300 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50 cursor-pointer"
+            >
+              ✕ Reject Application
+            </button>
+          </>
+        )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {actionsFor(user.status, user.emailVerified).map((a) => (
+        {user.status === "approved" && (
           <button
-            key={a.label}
+            type="button"
             disabled={busy}
-            onClick={() => handleAction(a)}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${a.className}`}
+            onClick={() => handleStatusChange("suspended", "Suspend Access")}
+            className="rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50 cursor-pointer"
           >
-            {a.label}
-          </button>
-        ))}
-        {user.role !== "contributor" && (
-          <button
-            disabled={busy}
-            onClick={handleDemote}
-            className="rounded-md border border-ink-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50"
-          >
-            Demote to Contributor
+            Suspend Access
           </button>
         )}
+
+        {user.status === "suspended" && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => handleStatusChange("approved", "Reactivate Account")}
+            className="rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-50 cursor-pointer"
+          >
+            Reactivate Account
+          </button>
+        )}
+
+        {user.status === "rejected" && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => handleStatusChange("approved", "Approve")}
+            className="rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-50 cursor-pointer"
+          >
+            Approve Contributor
+          </button>
+        )}
+
         <button
+          type="button"
           disabled={busy}
           onClick={handleDelete}
-          className="ml-auto rounded-md px-3 py-1.5 text-xs font-semibold text-ink-400 hover:bg-ink-50 hover:text-signal disabled:opacity-50"
+          className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 cursor-pointer"
         >
-          Delete Account
+          Delete User
         </button>
       </div>
     </div>

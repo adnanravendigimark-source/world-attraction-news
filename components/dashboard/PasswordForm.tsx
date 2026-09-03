@@ -24,7 +24,7 @@ export default function PasswordForm({ hasPassword }: { hasPassword: boolean }) 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      toast.success("Password updated.");
+      toast.success("Password updated successfully.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirm("");
@@ -36,56 +36,68 @@ export default function PasswordForm({ hasPassword }: { hasPassword: boolean }) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
       {hasPassword ? (
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Current Password</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Current Password *
+          </label>
           <input
             type="password"
             required
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
           />
         </div>
       ) : (
-        <p className="text-xs text-ink-500">
+        <p className="text-xs text-slate-500">
           Your account signed up with Google and has no password yet — set one below if you'd also like to log in
           with email and password.
         </p>
       )}
 
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-          {hasPassword ? "New Password" : "Set Password"}
-        </label>
-        <input
-          type="password"
-          required
-          minLength={8}
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
-        />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            {hasPassword ? "New Password *" : "Set Password *"}
+          </label>
+          <input
+            type="password"
+            required
+            minLength={8}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="At least 8 characters"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Confirm Password *
+          </label>
+          <input
+            type="password"
+            required
+            minLength={8}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Confirm new password"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
+          />
+        </div>
       </div>
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Confirm Password</label>
-        <input
-          type="password"
-          required
-          minLength={8}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
-        />
+
+      <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="rounded-xl bg-[#DC2626] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
+        >
+          {submitting ? "Updating..." : "Update Password"}
+        </button>
       </div>
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-md bg-signal px-4 py-2 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-60"
-      >
-        {submitting ? "Saving..." : hasPassword ? "Update Password" : "Set Password"}
-      </button>
     </form>
   );
 }

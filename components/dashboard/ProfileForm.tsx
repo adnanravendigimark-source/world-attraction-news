@@ -19,8 +19,6 @@ export default function ProfileForm({
   const [form, setForm] = useState({ displayName, bio, avatarUrl });
   const [submitting, setSubmitting] = useState(false);
 
-  const dirty = form.displayName !== displayName || form.bio !== bio || form.avatarUrl !== avatarUrl;
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -32,7 +30,7 @@ export default function ProfileForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      toast.success("Profile updated.");
+      toast.success("Profile updated successfully.");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
@@ -42,44 +40,53 @@ export default function ProfileForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Profile Photo</label>
-        <div className="mt-1.5">
-          <AvatarUploadField
-            value={form.avatarUrl}
-            onChange={(url) => setForm({ ...form, avatarUrl: url })}
-            displayName={form.displayName || displayName}
-          />
-        </div>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+          Profile Photo
+        </label>
+        <AvatarUploadField
+          value={form.avatarUrl}
+          onChange={(url) => setForm({ ...form, avatarUrl: url })}
+          displayName={form.displayName || displayName}
+        />
       </div>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Display Name</label>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+          Display Name (Byline) *
+        </label>
         <input
           required
           value={form.displayName}
           onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+          placeholder="Your full name"
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all"
         />
       </div>
+
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-ink-500">Bio</label>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+          Reporting Beat / Author Bio
+        </label>
         <textarea
           rows={3}
           value={form.bio}
           onChange={(e) => setForm({ ...form, bio: e.target.value })}
-          placeholder="A sentence or two about yourself — shown on your public author page."
-          className="mt-1.5 w-full rounded-md border border-ink-300 px-3 py-2 text-sm focus:border-signal focus:outline-none"
+          placeholder="A short description of your attraction reporting background and destination beats..."
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all resize-none leading-relaxed"
         />
       </div>
-      <button
-        type="submit"
-        disabled={submitting || !dirty}
-        className="rounded-md bg-signal px-4 py-2 text-sm font-semibold text-white hover:bg-signal-dark disabled:opacity-50"
-      >
-        {submitting ? "Saving..." : "Save Profile"}
-      </button>
+
+      <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="rounded-xl bg-[#DC2626] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
+        >
+          {submitting ? "Saving..." : "Save Profile Details"}
+        </button>
+      </div>
     </form>
   );
 }

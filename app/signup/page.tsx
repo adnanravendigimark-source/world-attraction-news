@@ -11,71 +11,89 @@ export const metadata: Metadata = {
 
 export default function SignupPage() {
   return (
-    <div className="flex min-h-screen bg-paper">
+    <div className="flex min-h-screen bg-slate-50">
       {/* Left Branding Panel */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-ink-950 p-12 text-white relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-[#0B1527] p-12 text-white relative overflow-hidden">
         <div className="relative z-10">
           <Link href="/" className="inline-block">
-            <Logo variant="horizontal" theme="light" showTagline className="h-10 w-auto" />
+            <Logo variant="horizontal" theme="light" className="h-9 w-auto" />
           </Link>
-          <div className="mt-16 max-w-md">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="h-2 w-2 rounded-full bg-signal" />
-              <span className="text-[11px] font-mono font-bold uppercase tracking-[0.2em] text-signal">
-                Correspondent Application
-              </span>
+
+          <div className="mt-16 max-w-md space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full bg-rose-500/10 border border-rose-500/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#DC2626]">
+              <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
+              Correspondent Application
             </div>
-            <h2 className="font-serif text-3xl sm:text-4xl font-black leading-tight text-white">
-              Report on the landmarks and attractions shaping your city.
+
+            <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight tracking-tight text-white">
+              Report on the landmarks and attractions shaping your destination.
             </h2>
-            <div className="mt-6 space-y-3 text-xs sm:text-sm text-ink-300">
-              <div className="flex items-start gap-2.5">
-                <span className="text-signal font-bold">✓</span>
-                <p>Earn contributor ranking and verified byline attribution.</p>
+
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Join World Attraction News as an accredited destination correspondent. Submit dispatches from your region, track quality scores, and gain global readership.
+            </p>
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-3 text-xs text-slate-300 font-medium">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#DC2626] text-white text-[10px] font-bold">✓</span>
+                <span>Earn contributor ranking and verified byline attribution</span>
               </div>
-              <div className="flex items-start gap-2.5">
-                <span className="text-signal font-bold">✓</span>
-                <p>Access our streamlined distraction-free writing environment.</p>
+              <div className="flex items-center gap-3 text-xs text-slate-300 font-medium">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#DC2626] text-white text-[10px] font-bold">✓</span>
+                <span>Access our distraction-free Notion-grade writing canvas</span>
               </div>
-              <div className="flex items-start gap-2.5">
-                <span className="text-signal font-bold">✓</span>
-                <p>Receive detailed 0-10 editorial feedback on every submitted dispatch.</p>
+              <div className="flex items-center gap-3 text-xs text-slate-300 font-medium">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#DC2626] text-white text-[10px] font-bold">✓</span>
+                <span>Receive detailed 0–10 editorial feedback on every dispatch</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="relative z-10 border-t border-ink-800 pt-6 flex items-center justify-between text-xs text-ink-400">
+        <div className="relative z-10 border-t border-slate-800 pt-6 flex items-center justify-between text-xs text-slate-400">
           <span>© {new Date().getFullYear()} {SITE_NAME}</span>
-          <Link href="/editorial-policy" className="hover:text-white transition-colors">Editorial Guidelines</Link>
+          <Link href="/about" className="hover:text-white transition-colors">
+            Editorial Guidelines
+          </Link>
         </div>
 
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(194,41,56,0.15),rgba(255,255,255,0))]" />
+        {/* Ambient Glow */}
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#DC2626]/10 rounded-full blur-[100px] pointer-events-none" />
       </div>
 
       {/* Right Signup Form Panel */}
-      <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 xl:px-24 bg-paper-50">
+      <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-md">
+          {/* Mobile Logo */}
           <div className="lg:hidden mb-8 text-center">
             <Link href="/" className="inline-block">
-              <Logo variant="horizontal" showTagline className="h-8 w-auto" />
+              <Logo variant="horizontal" className="h-8 w-auto" />
             </Link>
           </div>
 
-          <div className="rounded-2xl border border-ink-200/80 bg-white p-7 sm:p-9 shadow-card">
-            <div className="mb-6">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-signal">
-                Correspondent Network
+          <div className="rounded-2xl border border-slate-200 bg-white p-7 sm:p-9 shadow-2xs space-y-6">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
+                CORRESPONDENT NETWORK
               </span>
-              <h1 className="font-serif text-2xl font-black tracking-tight text-ink-950 mt-1">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
                 Apply for Access
               </h1>
-              <p className="mt-1 text-xs text-ink-500 leading-relaxed">
+              <p className="mt-1 text-xs text-slate-500 font-medium">
                 Applications are reviewed by our editorial team to ensure verified coverage.
               </p>
             </div>
 
             <SignupForm />
+
+            <div className="border-t border-slate-100 pt-4 text-center">
+              <p className="text-xs text-slate-500 font-medium">
+                Already an accredited correspondent?{" "}
+                <Link href="/login" className="font-bold text-[#DC2626] hover:underline">
+                  Log In →
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>

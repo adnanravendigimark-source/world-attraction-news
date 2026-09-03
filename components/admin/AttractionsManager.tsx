@@ -8,7 +8,18 @@ import ImageUploadField from "@/components/ImageUploadField";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
-const EMPTY = {
+interface AttractionFormState {
+  cityId: string;
+  name: string;
+  description: string;
+  heroImage: string;
+  heroImageAlt: string;
+  metaTitle: string;
+  metaDescription: string;
+  sortOrder: number;
+}
+
+const EMPTY: AttractionFormState = {
   cityId: "",
   name: "",
   description: "",
@@ -18,108 +29,6 @@ const EMPTY = {
   metaDescription: "",
   sortOrder: 0,
 };
-
-function AttractionFormFields({
-  value,
-  onChange,
-  cities,
-}: {
-  value: typeof EMPTY;
-  onChange: (v: typeof EMPTY) => void;
-  cities: City[];
-}) {
-  return (
-    <div className="space-y-3.5">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Destination City *
-          </label>
-          <select
-            value={value.cityId}
-            onChange={(e) => onChange({ ...value, cityId: e.target.value })}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
-          >
-            <option value="">Select destination bureau...</option>
-            {cities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}, {c.country}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Landmark / Venue Name *
-          </label>
-          <input
-            value={value.name}
-            onChange={(e) => onChange({ ...value, name: e.target.value })}
-            placeholder="e.g. Louvre Museum"
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-          Venue Description
-        </label>
-        <textarea
-          value={value.description}
-          onChange={(e) => onChange({ ...value, description: e.target.value })}
-          rows={2}
-          placeholder="Brief description of the landmark venue..."
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
-        />
-      </div>
-
-      <ImageUploadField
-        label="Cover Image"
-        value={value.heroImage}
-        onChange={(url) => onChange({ ...value, heroImage: url })}
-        uploadUrl="/api/admin/upload"
-      />
-
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-          Hero Image Alt Text
-        </label>
-        <input
-          value={value.heroImageAlt}
-          onChange={(e) => onChange({ ...value, heroImageAlt: e.target.value })}
-          placeholder="Describe image or credit photographer"
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
-        />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Meta Title
-          </label>
-          <input
-            value={value.metaTitle}
-            onChange={(e) => onChange({ ...value, metaTitle: e.target.value })}
-            placeholder="Custom SEO title"
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Sort Order
-          </label>
-          <input
-            type="number"
-            value={value.sortOrder}
-            onChange={(e) => onChange({ ...value, sortOrder: Number(e.target.value) })}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function AttractionsManager({
   initialAttractions,
@@ -134,10 +43,9 @@ export default function AttractionsManager({
   const toast = useToast();
   const [attractions, setAttractions] = useState(initialAttractions);
   const [selectedCityId, setSelectedCityId] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [newAttraction, setNewAttraction] = useState(EMPTY);
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState(EMPTY);
+  const [form, setForm] = useState<AttractionFormState>(EMPTY);
   const [busy, setBusy] = useState(false);
 
   const filtered = useMemo(() => {
@@ -145,34 +53,18 @@ export default function AttractionsManager({
     return attractions.filter((a) => a.cityId === selectedCityId);
   }, [attractions, selectedCityId]);
 
-  async function handleCreate() {
-    if (!newAttraction.name.trim() || !newAttraction.cityId) {
-      toast.error("Please select a city and enter an attraction name.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await fetch("/api/admin/attractions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newAttraction),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create attraction.");
-      setAttractions((prev) => [...prev, data.attraction]);
-      setNewAttraction(EMPTY);
-      setAdding(false);
-      toast.success("Attraction created.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setBusy(false);
-    }
+  function openAddModal() {
+    setEditingId(null);
+    setForm({
+      ...EMPTY,
+      cityId: selectedCityId || cities[0]?.id || "",
+    });
+    setModalOpen(true);
   }
 
-  function startEdit(attraction: AttractionWithCity) {
+  function openEditModal(attraction: AttractionWithCity) {
     setEditingId(attraction.id);
-    setEditValue({
+    setForm({
       cityId: attraction.cityId,
       name: attraction.name,
       description: attraction.description || "",
@@ -182,21 +74,47 @@ export default function AttractionsManager({
       metaDescription: attraction.metaDescription || "",
       sortOrder: attraction.sortOrder,
     });
+    setModalOpen(true);
   }
 
-  async function handleSaveEdit(id: string) {
+  function closeModal() {
+    setModalOpen(false);
+    setEditingId(null);
+    setForm(EMPTY);
+  }
+
+  async function handleSave() {
+    if (!form.name.trim() || !form.cityId) {
+      toast.error("Please select a destination city and enter an attraction name.");
+      return;
+    }
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/attractions/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editValue),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update attraction.");
-      setAttractions((prev) => prev.map((a) => (a.id === id ? data.attraction : a)));
-      setEditingId(null);
-      toast.success("Attraction updated.");
+      if (editingId) {
+        const res = await fetch(`/api/admin/attractions/${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to update attraction.");
+        setAttractions((prev) =>
+          prev.map((a) => (a.id === editingId ? { ...data.attraction, cityName: cities.find((c) => c.id === data.attraction.cityId)?.name || "" } : a))
+        );
+        toast.success("Attraction updated successfully.");
+      } else {
+        const res = await fetch("/api/admin/attractions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form, sortOrder: attractions.length }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to create attraction.");
+        const cityName = cities.find((c) => c.id === data.attraction.cityId)?.name || "";
+        setAttractions((prev) => [...prev, { ...data.attraction, cityName }]);
+        toast.success("Attraction created successfully.");
+      }
+      closeModal();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -205,9 +123,15 @@ export default function AttractionsManager({
   }
 
   async function handleDelete(id: string, name: string) {
+    const count = articleCounts[id] || 0;
+    if (count > 0) {
+      toast.error(`Cannot delete ${name}: ${count} article(s) are assigned to it.`);
+      return;
+    }
+
     const ok = await confirm({
       title: `Delete ${name}?`,
-      description: "Articles tagging this attraction will remain intact (tagged to the city).",
+      description: "This will permanently remove this landmark attraction.",
       confirmLabel: "Delete Landmark",
       danger: true,
     });
@@ -230,148 +154,95 @@ export default function AttractionsManager({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filter & Action Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold uppercase text-slate-600">Filter Destination:</label>
+    <div className="space-y-6">
+      {/* Top Filter and Add Action Card */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            FILTER DESTINATION:
+          </span>
           <select
             value={selectedCityId}
             onChange={(e) => setSelectedCityId(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none"
+            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer"
           >
             <option value="">All Destinations ({attractions.length})</option>
-            {cities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            {cities.map((city) => {
+              const count = attractions.filter((a) => a.cityId === city.id).length;
+              return (
+                <option key={city.id} value={city.id}>
+                  {city.name} ({count})
+                </option>
+              );
+            })}
           </select>
         </div>
 
         <button
           type="button"
-          onClick={() => setAdding(!adding)}
-          className="rounded-lg bg-[#DC2626] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-colors cursor-pointer"
+          onClick={openAddModal}
+          className="rounded-xl bg-[#DC2626] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer"
         >
-          {adding ? "✕ Close Form" : "+ Add Landmark"}
+          + Add Landmark
         </button>
       </div>
 
-      {/* Add New Attraction Form */}
-      {adding && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
-          <div className="border-b border-slate-100 pb-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-              New Landmark / Attraction Venue
-            </h3>
-          </div>
-          <AttractionFormFields value={newAttraction} onChange={setNewAttraction} cities={cities} />
-          <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-            <button
-              disabled={busy}
-              onClick={handleCreate}
-              className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
-            >
-              Create Landmark
-            </button>
-            <button
-              type="button"
-              onClick={() => setAdding(false)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Attractions Grid */}
+      {/* Attractions Cards Grid */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-2xs">
-          <p className="text-sm font-semibold text-slate-800">No landmarks found.</p>
-          <p className="mt-0.5 text-xs text-slate-500">Add landmarks for this destination using the button above.</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-400">
+          No landmarks found for this destination.
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((attraction) => {
-            const isEditing = editingId === attraction.id;
             const count = articleCounts[attraction.id] || 0;
-
-            if (isEditing) {
-              return (
-                <div
-                  key={attraction.id}
-                  className="col-span-full rounded-xl border border-slate-300 bg-white p-5 shadow-2xs space-y-4"
-                >
-                  <div className="border-b border-slate-100 pb-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                      Edit Landmark: {attraction.name}
-                    </h3>
-                  </div>
-                  <AttractionFormFields value={editValue} onChange={setEditValue} cities={cities} />
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                    <button
-                      disabled={busy}
-                      onClick={() => handleSaveEdit(attraction.id)}
-                      className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
-                    >
-                      Save Changes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(null)}
-                      className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              );
-            }
+            const cityName = attraction.cityName || cities.find((c) => c.id === attraction.cityId)?.name || "";
 
             return (
               <div
                 key={attraction.id}
-                className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between"
+                className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs flex flex-col justify-between hover:shadow-md transition-all"
               >
-                <div>
-                  {/* Thumbnail */}
-                  <div className="relative aspect-[16/9] w-full bg-slate-100">
-                    {attraction.heroImage ? (
-                      <Image src={attraction.heroImage} alt={attraction.name} fill className="object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400">
-                        No Photo
-                      </div>
-                    )}
-                    <span className="absolute bottom-2 left-2 rounded bg-[#DC2626] px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                      {attraction.cityName}
+                {/* Hero Image with City Badge */}
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
+                  {attraction.heroImage ? (
+                    <Image src={attraction.heroImage} alt={attraction.name} fill className="object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400">
+                      No Photo
+                    </div>
+                  )}
+                  {cityName && (
+                    <span className="absolute left-3 bottom-3 rounded-md bg-[#DC2626] px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs">
+                      {cityName}
                     </span>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Details */}
-                  <div className="p-4 space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-base font-bold text-slate-900">{attraction.name}</h3>
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono font-bold text-slate-700">
-                        {count} Dispatches
+                {/* Card Body */}
+                <div className="p-5 space-y-2 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-base font-bold text-slate-900 leading-snug">
+                        {attraction.name}
+                      </h3>
+                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-mono font-medium text-slate-600 shrink-0 text-right">
+                        {count} {count === 1 ? "Dispatch" : "Dispatches"}
                       </span>
                     </div>
-                    {attraction.description && (
-                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                        {attraction.description}
-                      </p>
-                    )}
+
+                    <p className="mt-2 text-xs text-slate-500 line-clamp-2 leading-relaxed min-h-[2rem]">
+                      {attraction.description || "No description provided."}
+                    </p>
                   </div>
                 </div>
 
-                {/* Action Bar */}
-                <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-1.5">
+                {/* Card Footer Actions */}
+                <div className="border-t border-slate-100 px-5 py-3.5 flex items-center justify-end gap-3.5">
                   <button
                     type="button"
-                    onClick={() => startEdit(attraction)}
-                    className="rounded px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                    onClick={() => openEditModal(attraction)}
+                    className="text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
                   >
                     Edit
                   </button>
@@ -379,7 +250,7 @@ export default function AttractionsManager({
                     type="button"
                     disabled={busy}
                     onClick={() => handleDelete(attraction.id, attraction.name)}
-                    className="rounded px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
+                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     Delete
                   </button>
@@ -387,6 +258,139 @@ export default function AttractionsManager({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Edit / Add Dialog Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={closeModal} />
+          <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
+                  {editingId ? "EDIT LANDMARK" : "NEW LANDMARK"}
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 mt-0.5">
+                  {editingId ? `Edit: ${form.name}` : "Add Landmark Venue"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Destination City *
+                </label>
+                <select
+                  value={form.cityId}
+                  onChange={(e) => setForm({ ...form, cityId: e.target.value })}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                >
+                  <option value="">Select Destination</option>
+                  {cities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}, {c.country}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Attraction Name *
+                </label>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="e.g. Universal Epic Universe"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={3}
+                  placeholder="Summary of this attraction..."
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
+                />
+              </div>
+
+              <ImageUploadField
+                label="Cover Image"
+                value={form.heroImage}
+                onChange={(url) => setForm({ ...form, heroImage: url })}
+                uploadUrl="/api/admin/upload"
+              />
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Image Alt Text
+                </label>
+                <input
+                  value={form.heroImageAlt}
+                  onChange={(e) => setForm({ ...form, heroImageAlt: e.target.value })}
+                  placeholder="Describe the cover image"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Meta Title
+                  </label>
+                  <input
+                    value={form.metaTitle}
+                    onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
+                    placeholder="Custom SEO Title"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Sort Order
+                  </label>
+                  <input
+                    type="number"
+                    value={form.sortOrder}
+                    onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleSave}
+                className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
+              >
+                {busy ? "Saving..." : editingId ? "Save Changes" : "Add Landmark"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

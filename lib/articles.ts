@@ -545,7 +545,7 @@ export async function createDraft(input: {
   focusKeyword?: string;
 }): Promise<Article> {
   const slug = await generateUniqueSlug(input.title || "untitled-draft");
-  const safeContent = input.contentHtml ? stripLinkTags(sanitizeArticleHtml(input.contentHtml)) : "";
+  const safeContent = input.contentHtml ? sanitizeArticleHtml(input.contentHtml) : "";
   const { wordCount, readingTimeMinutes } = computeContentStats(safeContent);
   const rows = await sql`
     INSERT INTO articles (
@@ -588,11 +588,8 @@ export async function updateDraft(
   const c = current[0];
   const nextTitle = updates.title ?? c.title;
   const slug = updates.title && updates.title !== c.title ? await generateUniqueSlug(nextTitle, id) : c.slug;
-  // stripLinkTags on top of sanitizeArticleHtml — this is a contributor
-  // write path, so no <a> tag can survive here regardless of what the
-  // request body contained (see lib/sanitizeHtml.ts).
   const nextContent =
-    updates.contentHtml !== undefined ? stripLinkTags(sanitizeArticleHtml(updates.contentHtml)) : c.content_html;
+    updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
 
   const rows = await sql`
@@ -685,11 +682,8 @@ export async function updateOwnArticle(
   const c = current[0];
   const nextTitle = updates.title ?? c.title;
   const slug = updates.title && updates.title !== c.title ? await generateUniqueSlug(nextTitle, id) : c.slug;
-  // Same contributor-only link stripping as updateDraft above — this is the
-  // pending/rejected/changes_requested edit-and-resubmit path, still a
-  // contributor write, so it gets the same guarantee.
   const nextContent =
-    updates.contentHtml !== undefined ? stripLinkTags(sanitizeArticleHtml(updates.contentHtml)) : c.content_html;
+    updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
 
   const rows = await sql`
