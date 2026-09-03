@@ -134,9 +134,12 @@ export async function getPastEvents(limit = 50, filters?: EventFilters): Promise
   }
 }
 
+// Ascending (soonest first) — the admin manager's own list, so what's
+// coming up next is what an admin most needs to see/manage first. Matches
+// the client-side re-sort EventsManager applies after create/edit.
 export async function getAllEvents(limit = 300): Promise<EventItem[]> {
   try {
-    const rows = await sql(`${JOIN_SELECT} ORDER BY e.event_date DESC LIMIT $1`, [limit]);
+    const rows = await sql(`${JOIN_SELECT} ORDER BY e.event_date ASC LIMIT $1`, [limit]);
     return rows.map(rowToEvent);
   } catch {
     return [];

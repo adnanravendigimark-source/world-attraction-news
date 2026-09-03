@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getEventById, updateEvent, deleteEvent, type EventType } from "@/lib/events";
+import { getCityById } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 
@@ -20,6 +21,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
+
+  const current = await getEventById(params.id).catch(() => undefined);
+  if (!current) return NextResponse.json({ error: "Event not found." }, { status: 404 });
+
+  const nextEventDate = body.eventDate !== undefined ? String(body.eventDate).trim() : current.eventDate;
+  const nextEndDate = body.endDate !== undefined ? (body.endDate ? String(body.endDate).trim() : null) : current.endDate;
+  if (nextEndDate && nextEndDate < nextEventDate) {
+    return NextResponse.json({ error: "End date can't be before the start date." }, { status: 400 });
+  }
+
+  if (body.cityId !== undefined && body.cityId) {
+    const city = await getCityById(String(body.cityId).trim()).catch(() => undefined);
+    if (!city) return NextResponse.json({ error: "That city doesn't exist." }, { status: 400 });
+  }
+
   try {
     const event = await updateEvent(params.id, {
       title: body.title !== undefined ? body.title : undefined,

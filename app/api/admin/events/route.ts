@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getAllEvents, createEvent, type EventType } from "@/lib/events";
+import { getCityById } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 
@@ -35,18 +36,28 @@ export async function POST(req: Request) {
   }
   const title = (body.title || "").trim();
   const eventDate = (body.eventDate || "").trim();
+  const endDate = body.endDate ? String(body.endDate).trim() : null;
   if (!title) return NextResponse.json({ error: "Title is required." }, { status: 400 });
   if (!eventDate) return NextResponse.json({ error: "Event date is required." }, { status: 400 });
+  if (endDate && endDate < eventDate) {
+    return NextResponse.json({ error: "End date can't be before the start date." }, { status: 400 });
+  }
   const eventType: EventType = VALID_TYPES.includes(body.eventType) ? body.eventType : "special";
+
+  const cityId = body.cityId ? String(body.cityId).trim() : null;
+  if (cityId) {
+    const city = await getCityById(cityId).catch(() => undefined);
+    if (!city) return NextResponse.json({ error: "That city doesn't exist." }, { status: 400 });
+  }
 
   try {
     const event = await createEvent({
       title,
       description: body.description || "",
       eventDate,
-      endDate: body.endDate || null,
+      endDate,
       location: body.location || "",
-      cityId: body.cityId || null,
+      cityId,
       eventType,
       image: body.image || "",
       imageAlt: body.imageAlt || "",
