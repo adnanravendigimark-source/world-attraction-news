@@ -439,6 +439,24 @@ export async function getPublishedArticleCountsByCategory(): Promise<Record<stri
   }
 }
 
+// The /categories index needs one representative image per category (the
+// most recent published article's). Doing that with N `getPublishedArticles`
+// calls (one per category) is an N+1 query pattern; DISTINCT ON gets every
+// category's latest image in a single round trip.
+export async function getLatestPublishedArticleImageByCategory(): Promise<Record<string, string>> {
+  try {
+    const rows = await sql`
+      SELECT DISTINCT ON (category_id) category_id, image
+      FROM articles
+      WHERE status = 'published' AND category_id IS NOT NULL AND image IS NOT NULL AND image != ''
+      ORDER BY category_id, published_at DESC
+    `;
+    return Object.fromEntries(rows.map((r: any) => [r.category_id, r.image]));
+  } catch {
+    return {};
+  }
+}
+
 // Every article regardless of status, per city/category — the admin
 // Destinations/Categories managers need this (not the published-only counts
 // above) for two reasons: the "X Live / Y Total" card display, and the

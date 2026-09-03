@@ -100,7 +100,7 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
             )}
             {article.status === "published" && (
               <Link
-                href={`/latest-news/${article.slug}`}
+                href={`/cities/${article.citySlug}/${article.slug}`}
                 target="_blank"
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B1527] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#DC2626] transition-colors"
               >

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import CalendarClient from "./CalendarClient";
 import { SITE_NAME } from "@/lib/site";
-import { buildMetadata } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { getEventsInRange, getUpcomingEvents, getPastEvents, type EventType } from "@/lib/events";
 import { getCities } from "@/lib/cities";
 
@@ -66,21 +66,32 @@ export default async function CalendarPage({ searchParams }: { searchParams: Cal
 
   const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
+  const breadcrumbs = [
+    { name: "Home", path: "/" },
+    { name: "Calendar", path: "/calendar" },
+  ];
+
   return (
-    <CalendarClient
-      monthEvents={monthEvents}
-      listEvents={listEvents}
-      cities={cities.map((c) => ({ slug: c.slug, name: c.name, country: c.country }))}
-      year={year}
-      month={month}
-      daysInMonth={daysInMonth}
-      monthLabel={monthLabel}
-      todayISO={todayISO}
-      realYear={realYear}
-      realMonth={realMonth}
-      view={view}
-      tab={tab}
-      currentFilters={{ city: searchParams?.city || "", type: searchParams?.type || "", q: searchParams?.q || "" }}
-    />
+    <>
+      <CalendarClient
+        monthEvents={monthEvents}
+        listEvents={listEvents}
+        cities={cities.map((c) => ({ slug: c.slug, name: c.name, country: c.country }))}
+        year={year}
+        month={month}
+        daysInMonth={daysInMonth}
+        monthLabel={monthLabel}
+        todayISO={todayISO}
+        realYear={realYear}
+        realMonth={realMonth}
+        view={view}
+        tab={tab}
+        currentFilters={{ city: searchParams?.city || "", type: searchParams?.type || "", q: searchParams?.q || "" }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(breadcrumbs)) }}
+      />
+    </>
   );
 }

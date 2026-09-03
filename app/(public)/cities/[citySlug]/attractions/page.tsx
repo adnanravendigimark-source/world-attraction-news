@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Container from "@/components/Container";
 import EmptyState from "@/components/EmptyState";
+import NewsletterForm from "@/components/NewsletterForm";
 import { getCityBySlug } from "@/lib/cities";
 import { getAttractionsByCityId, getPublishedArticleCountsByAttraction } from "@/lib/attractions";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
@@ -95,20 +96,9 @@ export default async function CityAttractionsPage({ params }: { params: { citySl
               <p className="mt-1 text-[11px] text-slate-500 leading-normal">
                 Stay updated on new attractions, ride tech, and venue openings in {city.name}.
               </p>
-              <form action="/latest-news" className="mt-2.5 flex gap-1.5">
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter your email"
-                  className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="rounded-md bg-[#DC2626] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
-                >
-                  SUBSCRIBE
-                </button>
-              </form>
+              <div className="mt-2.5">
+                <NewsletterForm source={`city-${city.slug}-attractions`} variant="light" />
+              </div>
             </div>
           </div>
         </Container>
@@ -119,26 +109,10 @@ export default async function CityAttractionsPage({ params }: { params: { citySl
       ========================================= */}
       <section className="py-8 sm:py-10">
         <Container>
-          {/* Breadcrumbs */}
-          <nav className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-6">
-            <Link href="/" className="hover:text-slate-900 transition-colors">
-              Home
-            </Link>
-            <span>/</span>
-            <Link href="/cities" className="hover:text-slate-900 transition-colors">
-              Destinations
-            </Link>
-            <span>/</span>
-            <Link href={`/cities/${city.slug}`} className="hover:text-slate-900 transition-colors">
-              {city.name}
-            </Link>
-            <span>/</span>
-            <span className="text-slate-800">Attractions</span>
-          </nav>
-
           <div className="border-b border-slate-200 pb-3 mb-6 flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-widest text-[#DC2626]">
               {attractions.length} ATTRACTIONS IN {city.name.toUpperCase()}
+              {totalStories > 0 && <span className="text-slate-400 normal-case font-bold"> · {totalStories} {totalStories === 1 ? "story" : "stories"} total</span>}
             </span>
           </div>
 
@@ -226,20 +200,9 @@ export default async function CityAttractionsPage({ params }: { params: { citySl
               </div>
             </div>
 
-            <form action="/latest-news" className="flex w-full md:w-auto items-center gap-2">
-              <input
-                type="email"
-                required
-                placeholder="Enter your email address"
-                className="w-full md:w-72 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="rounded-lg bg-[#DC2626] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm shrink-0"
-              >
-                SUBSCRIBE
-              </button>
-            </form>
+            <div className="w-full md:w-auto">
+              <NewsletterForm source={`city-${city.slug}-attractions-footer`} variant="light" />
+            </div>
           </div>
         </Container>
       </section>

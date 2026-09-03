@@ -91,7 +91,7 @@ export default async function AboutPage() {
           {/* Key Stats Strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
             <div className="p-5 rounded-2xl border border-slate-200 bg-white text-center shadow-sm">
-              <p className="text-2xl sm:text-3xl font-black text-[#DC2626]">6+</p>
+              <p className="text-2xl sm:text-3xl font-black text-[#DC2626]">{cities.length}</p>
               <p className="text-xs font-bold text-slate-600 mt-1 uppercase tracking-wider">Global City Bureaus</p>
             </div>
             <div className="p-5 rounded-2xl border border-slate-200 bg-white text-center shadow-sm">

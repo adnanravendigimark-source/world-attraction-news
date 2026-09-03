@@ -1,111 +1,82 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Container from "@/components/Container";
+import NewsletterForm from "@/components/NewsletterForm";
+import EmptyState from "@/components/EmptyState";
 import type { City } from "@/lib/cities";
 import type { ArticleWithRelations } from "@/lib/articles";
 import type { Attraction } from "@/lib/attractions";
-import type { Category } from "@/lib/categories";
 
-const FILTER_TAGS = [
-  "ALL NEWS",
-  "NEW ATTRACTIONS",
-  "TICKETS & PRICING",
-  "OPENINGS & CLOSURES",
-  "EVENTS & FESTIVALS",
-  "VISITOR TIPS",
-];
+const PAGE_SIZE = 10;
+const ALL_TAG = "ALL NEWS";
 
 export default function CityDetailClient({
   city,
   articles = [],
   attractions = [],
-  categories = [],
 }: {
   city: City;
   articles?: ArticleWithRelations[];
   attractions?: Attraction[];
-  categories?: Category[];
 }) {
-  const [activeTag, setActiveTag] = useState("ALL NEWS");
-  const [sortBy, setSortBy] = useState("latest");
+  const [activeTag, setActiveTag] = useState(ALL_TAG);
+  const [sortBy, setSortBy] = useState<"latest" | "popular" | "oldest">("latest");
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
-  const [subscribed, setSubscribed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const toggleBookmark = (id: string) => {
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
   const formatDate = (iso: string | null) => {
-    if (!iso) return "May 13, 2025";
+    if (!iso) return "";
     return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
-  // Default fallback articles if DB has fewer for this city
-  const displayArticles = articles.length > 0 ? articles : [
-    {
-      id: `${city.slug}-story-1`,
-      slug: `${city.slug}-landmark-attraction-updates-guide`,
-      title: `${city.name} Landmark Attractions & Opening Calendar: Complete Visitor Guide`,
-      excerpt: `Explore the newest expansions, ticket advice, and on-the-ground news across ${city.name}'s top cultural and tourist landmarks.`,
-      cityName: city.name,
-      citySlug: city.slug,
-      categoryName: "THEME PARKS & CULTURE",
-      authorName: `${city.name} Bureau Correspondent`,
-      publishedAt: "2025-05-13T10:00:00Z",
-      readingTimeMinutes: 3,
-      image: city.heroImage || "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?auto=format&fit=crop&w=800&q=80",
-    } as any,
-    {
-      id: `${city.slug}-story-2`,
-      slug: `${city.slug}-museum-passes-and-ticket-tips`,
-      title: `Top Museum Passes and Queue Tips for ${city.name} Travelers`,
-      excerpt: `Save time and money with insider reservation tactics, early access passes, and transit combination tickets in ${city.name}.`,
-      cityName: city.name,
-      citySlug: city.slug,
-      categoryName: "TICKETS & PRICING",
-      authorName: "Attraction News Desk",
-      publishedAt: "2025-05-11T12:00:00Z",
-      readingTimeMinutes: 4,
-      image: "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=800&q=80",
-    } as any,
-    {
-      id: `${city.slug}-story-3`,
-      slug: `${city.slug}-new-exhibitions-and-events-announced`,
-      title: `Major New Exhibitions and Festivals Announced for ${city.name} This Season`,
-      excerpt: `From summer outdoor celebrations to flagship museum retrospectives, here is everything happening in ${city.name}.`,
-      cityName: city.name,
-      citySlug: city.slug,
-      categoryName: "EVENTS & FESTIVALS",
-      authorName: `${city.name} Bureau Correspondent`,
-      publishedAt: "2025-05-09T14:00:00Z",
-      readingTimeMinutes: 2,
-      image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
-    } as any,
-  ];
+  // Real category tags — only the ones this city actually has published
+  // articles under, derived from the real data rather than a fixed list
+  // that could show dead filters with zero matching results.
+  const availableTags = useMemo(() => {
+    const names = new Set<string>();
+    for (const a of articles) if (a.categoryName) names.add(a.categoryName);
+    return [ALL_TAG, ...Array.from(names).sort()];
+  }, [articles]);
 
-  const filteredArticles = displayArticles.filter((article) => {
-    if (searchKeyword) {
-      const q = searchKeyword.toLowerCase();
-      if (!article.title.toLowerCase().includes(q) && !article.excerpt.toLowerCase().includes(q)) {
+  const filteredArticles = useMemo(() => {
+    const filtered = articles.filter((article) => {
+      if (searchKeyword) {
+        const q = searchKeyword.toLowerCase();
+        if (!article.title.toLowerCase().includes(q) && !(article.excerpt || "").toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      if (activeTag !== ALL_TAG && article.categoryName !== activeTag) {
         return false;
       }
+      return true;
+    });
+
+    const sorted = [...filtered];
+    if (sortBy === "oldest") {
+      sorted.sort((a, b) => new Date(a.publishedAt || 0).getTime() - new Date(b.publishedAt || 0).getTime());
+    } else if (sortBy === "popular") {
+      sorted.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || (b.score || 0) - (a.score || 0));
+    } else {
+      sorted.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
     }
-    if (activeTag !== "ALL NEWS") {
-      const tagLower = activeTag.toLowerCase();
-      const catLower = (article.categoryName || "").toLowerCase();
-      if (!catLower.includes(tagLower) && !article.title.toLowerCase().includes(tagLower)) {
-        return false;
-      }
-    }
-    return true;
-  });
+    return sorted;
+  }, [articles, searchKeyword, activeTag, sortBy]);
+
+  // Real pagination over the filtered set, not a decorative fixed [1,2,3].
+  const totalPages = Math.max(1, Math.ceil(filteredArticles.length / PAGE_SIZE));
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchKeyword, activeTag, sortBy]);
+  const page = Math.min(currentPage, totalPages);
+  const pagedArticles = filteredArticles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1).slice(
+    Math.max(0, Math.min(page - 3, totalPages - 5)),
+    Math.max(0, Math.min(page - 3, totalPages - 5)) + 5
+  );
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527] pb-16">
@@ -159,32 +130,9 @@ export default function CityDetailClient({
               <p className="mt-1 text-[11px] text-slate-500 leading-normal">
                 Stay updated on city guides, ticket changes, and new openings in {city.name}.
               </p>
-              {subscribed ? (
-                <div className="mt-2.5 p-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded text-center">
-                  ✓ Subscribed to {city.name} dispatches!
-                </div>
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setSubscribed(true);
-                  }}
-                  className="mt-2.5 flex gap-1.5"
-                >
-                  <input
-                    type="email"
-                    required
-                    placeholder="Enter your email"
-                    className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-md bg-[#DC2626] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
-                  >
-                    SUBSCRIBE
-                  </button>
-                </form>
-              )}
+              <div className="mt-2.5">
+                <NewsletterForm source={`city-${city.slug}`} variant="light" />
+              </div>
             </div>
           </div>
         </Container>
@@ -198,7 +146,7 @@ export default function CityDetailClient({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             {/* Tag Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-              {FILTER_TAGS.map((tag) => (
+              {availableTags.map((tag) => (
                 <button
                   key={tag}
                   type="button"
@@ -214,18 +162,40 @@ export default function CityDetailClient({
               ))}
             </div>
 
-            {/* Sort Dropdown */}
-            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-              <span className="text-xs font-bold text-slate-500">Sort by:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer"
-              >
-                <option value="latest">Latest</option>
-                <option value="popular">Most Popular</option>
-                <option value="oldest">Oldest</option>
-              </select>
+            {/* Search & Sort */}
+            <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  placeholder="Search stories..."
+                  aria-label={`Search stories in ${city.name}`}
+                  className="w-36 sm:w-48 rounded-md border border-slate-200 bg-white pl-7 pr-2.5 py-1 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none"
+                />
+                <svg
+                  className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path strokeLinecap="round" d="m21 21-4.3-4.3" />
+                </svg>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 hidden sm:inline">Sort by:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as "latest" | "popular" | "oldest")}
+                  className="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer"
+                >
+                  <option value="latest">Latest</option>
+                  <option value="popular">Most Popular</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+              </div>
             </div>
           </div>
         </Container>
@@ -253,110 +223,135 @@ export default function CityDetailClient({
               </div>
 
               {filteredArticles.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="font-bold text-slate-700">No stories found for this tag.</p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTag("ALL NEWS")}
-                    className="mt-3 text-xs font-bold text-[#DC2626] hover:underline"
-                  >
-                    View all stories
-                  </button>
+                <div>
+                  <EmptyState
+                    title={articles.length === 0 ? "No stories published yet" : "No stories found for this tag"}
+                    description={
+                      articles.length === 0
+                        ? `Check back soon for the latest attraction news from ${city.name}.`
+                        : "Try a different tag, or clear your search."
+                    }
+                  />
+                  {(activeTag !== ALL_TAG || searchKeyword) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTag(ALL_TAG);
+                        setSearchKeyword("");
+                      }}
+                      className="mt-3 text-xs font-bold text-[#DC2626] hover:underline"
+                    >
+                      Reset filters
+                    </button>
+                  )}
                 </div>
               ) : (
-                filteredArticles.map((article) => {
-                  const isBookmarked = bookmarkedIds.includes(article.id);
-                  const href = `/latest-news/${article.slug}`;
+                <>
+                  {pagedArticles.map((article) => {
+                    const href = `/cities/${city.slug}/${article.slug}`;
 
-                  return (
-                    <article
-                      key={article.id}
-                      className="group flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
-                    >
-                      {/* Image Thumbnail */}
-                      <Link
-                        href={href}
-                        className="relative w-full sm:w-56 md:w-64 shrink-0 h-44 sm:h-auto min-h-[140px] rounded-xl overflow-hidden bg-slate-100"
+                    return (
+                      <article
+                        key={article.id}
+                        className="group flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={article.image || "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?auto=format&fit=crop&w=800&q=80"}
-                          alt={article.imageAlt || article.title}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </Link>
+                        {/* Image Thumbnail */}
+                        <Link
+                          href={href}
+                          className="relative w-full sm:w-56 md:w-64 shrink-0 h-44 sm:h-auto min-h-[140px] rounded-xl overflow-hidden bg-slate-100"
+                        >
+                          {article.image ? (
+                            <Image
+                              src={article.image}
+                              alt={article.imageAlt || article.title}
+                              fill
+                              sizes="(min-width: 640px) 256px, 100vw"
+                              className="object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">
+                              No image
+                            </div>
+                          )}
+                        </Link>
 
-                      {/* Content Right */}
-                      <div className="flex flex-1 flex-col justify-between py-1">
-                        <div>
-                          {/* Eyebrow */}
-                          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
-                            <span className="text-[#DC2626]">{city.name.toUpperCase()}</span>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-slate-500">{article.categoryName?.toUpperCase() || "THEME PARKS & LANDMARKS"}</span>
+                        {/* Content Right */}
+                        <div className="flex flex-1 flex-col justify-between py-1">
+                          <div>
+                            {/* Eyebrow */}
+                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
+                              <span className="text-[#DC2626]">{city.name.toUpperCase()}</span>
+                              {article.categoryName && (
+                                <>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-slate-500">{article.categoryName.toUpperCase()}</span>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Title */}
+                            <h2 className="mt-1.5 font-sans text-base sm:text-lg font-black leading-snug text-[#0B1527] group-hover:text-[#DC2626] transition-colors">
+                              <Link href={href}>{article.title}</Link>
+                            </h2>
+
+                            {/* Excerpt */}
+                            <p className="mt-2 text-xs sm:text-[13px] leading-relaxed text-slate-600 line-clamp-2">
+                              {article.excerpt}
+                            </p>
                           </div>
 
-                          {/* Title */}
-                          <h2 className="mt-1.5 font-sans text-base sm:text-lg font-black leading-snug text-[#0B1527] group-hover:text-[#DC2626] transition-colors">
-                            <Link href={href}>{article.title}</Link>
-                          </h2>
-
-                          {/* Excerpt */}
-                          <p className="mt-2 text-xs sm:text-[13px] leading-relaxed text-slate-600 line-clamp-2">
-                            {article.excerpt}
-                          </p>
-                        </div>
-
-                        {/* Author, Date & Bookmark */}
-                        <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                          <div>
-                            <span>By {article.authorName || `${city.name} Bureau`}</span>
+                          {/* Author & Date */}
+                          <div className="mt-3.5 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+                            <span>By {article.authorName}</span>
                             <span className="mx-1.5">•</span>
                             <span>{formatDate(article.publishedAt)}</span>
                             <span className="mx-1.5">•</span>
                             <span>{article.readingTimeMinutes || 3} min read</span>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => toggleBookmark(article.id)}
-                            aria-label="Bookmark article"
-                            className="text-slate-400 hover:text-[#DC2626] transition-colors p-1"
-                          >
-                            {isBookmarked ? (
-                              <svg className="h-4 w-4 fill-[#DC2626] text-[#DC2626]" viewBox="0 0 24 24">
-                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                              </svg>
-                            ) : (
-                              <svg className="h-4 w-4 fill-none stroke-current" strokeWidth="2" viewBox="0 0 24 24">
-                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                              </svg>
-                            )}
-                          </button>
                         </div>
-                      </div>
-                    </article>
-                  );
-                })
-              )}
+                      </article>
+                    );
+                  })}
 
-              {/* Pagination */}
-              <div className="mt-6 flex items-center justify-center gap-2">
-                {[1, 2, 3].map((pageNum) => (
-                  <button
-                    key={pageNum}
-                    type="button"
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
-                      currentPage === pageNum
-                        ? "bg-[#DC2626] text-white shadow-sm"
-                        : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
-              </div>
+                  {/* Pagination — real, computed from the filtered result set */}
+                  {totalPages > 1 && (
+                    <div className="mt-6 flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        disabled={page <= 1}
+                        onClick={() => setCurrentPage(page - 1)}
+                        aria-label="Previous page"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none"
+                      >
+                        ‹
+                      </button>
+                      {pageNumbers.map((pageNum) => (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                            page === pageNum
+                              ? "bg-[#DC2626] text-white shadow-sm"
+                              : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        disabled={page >= totalPages}
+                        onClick={() => setCurrentPage(page + 1)}
+                        aria-label="Next page"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Right Sidebar (32% / 4 cols) */}
@@ -368,11 +363,11 @@ export default function CityDetailClient({
                 </h3>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="p-3 bg-slate-50 rounded-xl text-center">
-                    <p className="text-xl font-black text-[#DC2626]">{attractions.length || 6}</p>
+                    <p className="text-xl font-black text-[#DC2626]">{attractions.length}</p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Attractions</p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl text-center">
-                    <p className="text-xl font-black text-[#0B1527]">{displayArticles.length}</p>
+                    <p className="text-xl font-black text-[#0B1527]">{articles.length}</p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase">Dispatches</p>
                   </div>
                 </div>
@@ -404,12 +399,19 @@ export default function CityDetailClient({
                         className="group flex items-center gap-3"
                       >
                         <div className="relative h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-slate-100">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={att.heroImage || city.heroImage || "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?auto=format&fit=crop&w=200&q=80"}
-                            alt={att.name}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                          />
+                          {att.heroImage ? (
+                            <Image
+                              src={att.heroImage}
+                              alt={att.name}
+                              fill
+                              sizes="48px"
+                              className="object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-[#0B1527] text-[9px] font-bold text-white/50">
+                              {att.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <h4 className="font-sans text-xs font-bold text-[#0B1527] line-clamp-1 group-hover:text-[#DC2626] transition-colors">
@@ -473,20 +475,9 @@ export default function CityDetailClient({
               </div>
             </div>
 
-            <form action="/latest-news" className="flex w-full md:w-auto items-center gap-2">
-              <input
-                type="email"
-                required
-                placeholder="Enter your email address"
-                className="w-full md:w-72 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="rounded-lg bg-[#DC2626] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm shrink-0"
-              >
-                SUBSCRIBE
-              </button>
-            </form>
+            <div className="w-full md:w-auto">
+              <NewsletterForm source={`city-${city.slug}-footer`} variant="light" />
+            </div>
           </div>
         </Container>
       </section>

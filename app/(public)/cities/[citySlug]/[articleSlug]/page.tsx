@@ -22,7 +22,7 @@ export async function generateMetadata({
   return buildMetadata({
     title: `${article.metaTitle || article.title} | ${SITE_NAME}`,
     description: article.metaDescription || article.excerpt,
-    path: `/latest-news/${article.slug}`,
+    path: `/cities/${article.citySlug}/${article.slug}`,
     image: article.image,
     canonicalOverride: article.canonicalUrl || undefined,
   });
@@ -58,7 +58,7 @@ export default async function ArticlePage({
               title: article.title,
               description: article.excerpt,
               image: article.image,
-              path: `/latest-news/${article.slug}`,
+              path: `/cities/${article.citySlug}/${article.slug}`,
               authorName: article.authorName,
               authorSlug: article.authorSlug,
               publishedAt: article.publishedAt,

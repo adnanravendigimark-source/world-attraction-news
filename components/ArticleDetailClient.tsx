@@ -22,7 +22,10 @@ export default function ArticleDetailClient({
   const [sidebarEmail, setSidebarEmail] = useState("");
   const [sidebarCompany, setSidebarCompany] = useState(""); // honeypot
 
-  const fullUrl = typeof window !== "undefined" ? window.location.href : `https://worldattractionnews.com/latest-news/${article.slug}`;
+  const fullUrl =
+    typeof window !== "undefined"
+      ? window.location.href
+      : `https://worldattractionnews.com/cities/${article.citySlug}/${article.slug}`;
 
   const copyToClipboard = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -201,12 +204,16 @@ export default function ArticleDetailClient({
             {/* Featured Image */}
             <div className="mt-6">
               <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden bg-slate-900 shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={article.image}
-                  alt={article.imageAlt || article.title}
-                  className="h-full w-full object-cover"
-                />
+                {article.image && (
+                  <Image
+                    src={article.image}
+                    alt={article.imageAlt || article.title}
+                    fill
+                    priority
+                    sizes="(min-width: 1024px) 65vw, 100vw"
+                    className="object-cover"
+                  />
+                )}
               </div>
               {article.imageAlt && (
                 <p className="mt-2 text-[11px] text-slate-400 italic text-center">{article.imageAlt}</p>
@@ -336,16 +343,19 @@ export default function ArticleDetailClient({
                   {displayRelated.map((item) => (
                     <Link
                       key={item.id}
-                      href={`/latest-news/${item.slug}`}
+                      href={`/cities/${item.citySlug}/${item.slug}`}
                       className="group flex items-start gap-3"
                     >
                       <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                        />
+                        {item.image && (
+                          <Image
+                            src={item.image}
+                            alt={item.title}
+                            fill
+                            sizes="64px"
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="text-[10px] font-black uppercase tracking-wider text-[#DC2626] block">
@@ -378,19 +388,22 @@ export default function ArticleDetailClient({
                   {displayTrending.map((item, idx) => (
                     <Link
                       key={item.id}
-                      href={`/latest-news/${item.slug}`}
+                      href={`/cities/${item.citySlug}/${item.slug}`}
                       className="group flex items-center gap-3"
                     >
                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-[10px] font-black text-white">
                         {idx + 1}
                       </span>
                       <div className="relative h-11 w-11 shrink-0 rounded-md overflow-hidden bg-slate-100">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                        />
+                        {item.image && (
+                          <Image
+                            src={item.image}
+                            alt={item.title}
+                            fill
+                            sizes="44px"
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="font-sans text-xs font-bold text-[#0B1527] line-clamp-1 leading-snug group-hover:text-[#DC2626] transition-colors">

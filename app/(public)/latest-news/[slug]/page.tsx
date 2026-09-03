@@ -1,72 +1,22 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import ArticleDetailClient from "@/components/ArticleDetailClient";
-import {
-  getPublishedArticleByAnySlug,
-  getRelatedPublishedArticles,
-  getTrendingArticles,
-  incrementArticleView,
-} from "@/lib/articles";
-import { buildMetadata, newsArticleJsonLd } from "@/lib/seo";
-import { SITE_NAME } from "@/lib/site";
+import { redirect, notFound } from "next/navigation";
+import { getPublishedArticleByAnySlug } from "@/lib/articles";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
-  const article = await getPublishedArticleByAnySlug(params.slug);
-  if (!article) return {};
-  return buildMetadata({
-    title: `${article.metaTitle || article.title} | ${SITE_NAME}`,
-    description: article.metaDescription || article.excerpt,
-    path: `/latest-news/${article.slug}`,
-    image: article.image,
-    canonicalOverride: article.canonicalUrl || undefined,
-  });
-}
-
-export default async function LatestNewsSinglePage({
+// Legacy route. Articles live at /cities/[citySlug]/[slug] (see the Phase 3
+// URL restructure) — this pre-restructure URL shape is no longer linked to
+// from anywhere on the site, but real visitors may still have it bookmarked
+// or shared, and it may be indexed from before the restructure. Rather than
+// silently 404 those visitors, or fully re-render the article a second time
+// under a second live URL (duplicate content, and this route's own
+// canonical/JSON-LD previously and incorrectly pointed at itself instead of
+// the real URL), redirect straight to the real article page.
+export default async function LegacyLatestNewsArticleRedirect({
   params,
 }: {
   params: { slug: string };
 }) {
   const article = await getPublishedArticleByAnySlug(params.slug);
   if (!article) notFound();
-  await incrementArticleView(article.id);
-
-  const [related, trending] = await Promise.all([
-    getRelatedPublishedArticles(article.cityId, article.id, 4),
-    getTrendingArticles(5),
-  ]);
-
-  return (
-    <>
-      <ArticleDetailClient
-        article={article}
-        relatedStories={related}
-        trendingStories={trending}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            newsArticleJsonLd({
-              title: article.title,
-              description: article.excerpt,
-              image: article.image,
-              path: `/latest-news/${article.slug}`,
-              authorName: article.authorName,
-              authorSlug: article.authorSlug,
-              publishedAt: article.publishedAt,
-              updatedAt: article.updatedAt,
-              cityName: article.cityName,
-            })
-          ),
-        }}
-      />
-    </>
-  );
+  redirect(`/cities/${article.citySlug}/${article.slug}`);
 }

@@ -3,8 +3,9 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Container from "@/components/Container";
 import EmptyState from "@/components/EmptyState";
+import NewsletterForm from "@/components/NewsletterForm";
 import { getCategories } from "@/lib/categories";
-import { getPublishedArticles, getPublishedArticleCountsByCategory } from "@/lib/articles";
+import { getPublishedArticleCountsByCategory, getLatestPublishedArticleImageByCategory } from "@/lib/articles";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
@@ -22,11 +23,11 @@ const breadcrumbs = [
 ];
 
 export default async function CategoriesPage() {
-  const [categories, counts] = await Promise.all([getCategories(), getPublishedArticleCountsByCategory()]);
-
-  const latestByCategory = await Promise.all(
-    categories.map((c) => getPublishedArticles({ categorySlug: c.slug, limit: 1 }))
-  );
+  const [categories, counts, latestImages] = await Promise.all([
+    getCategories(),
+    getPublishedArticleCountsByCategory(),
+    getLatestPublishedArticleImageByCategory(),
+  ]);
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527] pb-16">
@@ -76,20 +77,9 @@ export default async function CategoriesPage() {
               <p className="mt-1 text-[11px] text-slate-500 leading-normal">
                 Stay updated on new attractions, ride tech, and venue openings worldwide.
               </p>
-              <form action="/latest-news" className="mt-2.5 flex gap-1.5">
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter your email"
-                  className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="rounded-md bg-[#DC2626] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
-                >
-                  SUBSCRIBE
-                </button>
-              </form>
+              <div className="mt-2.5">
+                <NewsletterForm source="categories" variant="light" />
+              </div>
             </div>
           </div>
         </Container>
@@ -107,8 +97,8 @@ export default async function CategoriesPage() {
             />
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {categories.map((cat, i) => {
-                const image = latestByCategory[i][0]?.image;
+              {categories.map((cat) => {
+                const image = latestImages[cat.id];
                 const count = counts[cat.id] || 0;
 
                 return (

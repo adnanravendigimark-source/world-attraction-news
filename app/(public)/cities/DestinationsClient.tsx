@@ -160,15 +160,6 @@ export default function DestinationsClient({
       ========================================= */}
       <section className="py-8 sm:py-10">
         <Container>
-          {/* Breadcrumbs */}
-          <nav className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-6">
-            <Link href="/" className="hover:text-slate-900 transition-colors">
-              Home
-            </Link>
-            <span>/</span>
-            <span className="text-slate-800">Destinations</span>
-          </nav>
-
           <div className="grid gap-8 lg:grid-cols-12 items-start">
             {/* Left Column (25% / 3 cols): Filters */}
             <div className="lg:col-span-3 flex flex-col gap-6">

@@ -296,10 +296,11 @@ export default function CalendarClient({
                                   className="flex items-start gap-1 text-left hover:opacity-70 transition-opacity"
                                 >
                                   {event.image ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
+                                    <Image
                                       src={event.image}
                                       alt=""
+                                      width={12}
+                                      height={12}
                                       className="h-3 w-3 rounded-full object-cover shrink-0 mt-0.5 border border-white shadow-sm"
                                     />
                                   ) : (

@@ -312,7 +312,7 @@ export default function CategoryDetailClient({
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="p-3 bg-slate-50 rounded-xl text-center">
                     <p className="text-xl font-black text-[#DC2626]">{total}</p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Dispatches</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">Stories</p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl text-center">
                     <p className="text-xl font-black text-[#0B1527]">Global</p>
