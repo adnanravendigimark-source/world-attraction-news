@@ -1,7 +1,7 @@
 import { sql } from "./db";
 import { publishDueScheduledArticles } from "./scheduling";
 import type { ModerationSignals } from "./moderation";
-import { sanitizeArticleHtml } from "./sanitizeHtml";
+import { sanitizeArticleHtml, stripLinkTags } from "./sanitizeHtml";
 
 // Full editorial workflow (Final Phase spec):
 //   draft -> pending (submitted) -> under_review -> changes_requested -> pending (resubmitted)
@@ -490,45 +490,6 @@ export async function generateUniqueSlug(title: string, excludeId?: string): Pro
 
 // --- Writes -------------------------------------------------------------
 
-// A contributor submitting a new article directly (skipping the draft
-// step) — used by the legacy "submit now" flow. Contributors aren't tied
-// to a single city — cityId is whichever city the contributor selected on
-// the submission form, validated by the API route to be a real city
-// before this is called. authorId still always comes from the logged-in
-// session, never the request body, so an article can never be submitted
-// under someone else's name.
-export async function createArticle(input: {
-  title: string;
-  excerpt: string;
-  contentHtml: string;
-  cityId: string;
-  categoryId: string | null;
-  attractionId?: string | null;
-  authorId: string;
-  image: string;
-  imageAlt: string;
-  metaTitle: string;
-  metaDescription: string;
-  focusKeyword: string;
-}): Promise<Article> {
-  const slug = await generateUniqueSlug(input.title);
-  const safeContent = sanitizeArticleHtml(input.contentHtml);
-  const { wordCount, readingTimeMinutes } = computeContentStats(safeContent);
-  const rows = await sql`
-    INSERT INTO articles (
-      slug, title, excerpt, content_html, city_id, category_id, attraction_id, author_id,
-      status, image, image_alt, meta_title, meta_description, focus_keyword,
-      word_count, reading_time_minutes, submitted_at, updated_at
-    ) VALUES (
-      ${slug}, ${input.title}, ${input.excerpt}, ${safeContent}, ${input.cityId}, ${input.categoryId},
-      ${input.attractionId ?? null}, ${input.authorId}, 'pending', ${input.image}, ${input.imageAlt}, ${input.metaTitle},
-      ${input.metaDescription}, ${input.focusKeyword}, ${wordCount}, ${readingTimeMinutes}, now(), now()
-    )
-    RETURNING *
-  `;
-  return rowToArticle(rows[0]);
-}
-
 // Creates a new blank(ish) draft — the first save of the "Write New
 // Article" flow. Status stays 'draft' (not submitted, invisible to admin
 // queues and the public site) until the contributor explicitly submits it
@@ -542,14 +503,36 @@ export async function createDraft(input: {
   categoryId: string | null;
   attractionId?: string | null;
   authorId: string;
+  // All optional: the ArticleEditor's very first autosave already has
+  // whatever the contributor typed/uploaded/picked before that first save
+  // fired (excerpt, body content, cover image, SEO fields), and sends all of
+  // it in the same request that creates the draft row — accepting it here
+  // means that first save persists everything in one round trip instead of
+  // silently dropping it until the *second* autosave (a PATCH) catches up,
+  // which previously meant a contributor who typed a title, then closed the
+  // tab before a second autosave cycle, could lose everything else they'd
+  // already entered.
+  excerpt?: string;
+  contentHtml?: string;
+  image?: string;
+  imageAlt?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  focusKeyword?: string;
 }): Promise<Article> {
   const slug = await generateUniqueSlug(input.title || "untitled-draft");
+  const safeContent = input.contentHtml ? stripLinkTags(sanitizeArticleHtml(input.contentHtml)) : "";
+  const { wordCount, readingTimeMinutes } = computeContentStats(safeContent);
   const rows = await sql`
     INSERT INTO articles (
-      slug, title, excerpt, content_html, city_id, category_id, attraction_id, author_id, status, updated_at
+      slug, title, excerpt, content_html, city_id, category_id, attraction_id, author_id, status,
+      image, image_alt, meta_title, meta_description, focus_keyword,
+      word_count, reading_time_minutes, updated_at
     ) VALUES (
-      ${slug}, ${input.title || "Untitled draft"}, '', '', ${input.cityId}, ${input.categoryId},
-      ${input.attractionId ?? null}, ${input.authorId}, 'draft', now()
+      ${slug}, ${input.title || "Untitled draft"}, ${input.excerpt || ""}, ${safeContent}, ${input.cityId}, ${input.categoryId},
+      ${input.attractionId ?? null}, ${input.authorId}, 'draft',
+      ${input.image || ""}, ${input.imageAlt || ""}, ${input.metaTitle || ""}, ${input.metaDescription || ""}, ${input.focusKeyword || ""},
+      ${wordCount}, ${readingTimeMinutes}, now()
     )
     RETURNING *
   `;
@@ -581,7 +564,11 @@ export async function updateDraft(
   const c = current[0];
   const nextTitle = updates.title ?? c.title;
   const slug = updates.title && updates.title !== c.title ? await generateUniqueSlug(nextTitle, id) : c.slug;
-  const nextContent = updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
+  // stripLinkTags on top of sanitizeArticleHtml — this is a contributor
+  // write path, so no <a> tag can survive here regardless of what the
+  // request body contained (see lib/sanitizeHtml.ts).
+  const nextContent =
+    updates.contentHtml !== undefined ? stripLinkTags(sanitizeArticleHtml(updates.contentHtml)) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
 
   const rows = await sql`
@@ -674,7 +661,11 @@ export async function updateOwnArticle(
   const c = current[0];
   const nextTitle = updates.title ?? c.title;
   const slug = updates.title && updates.title !== c.title ? await generateUniqueSlug(nextTitle, id) : c.slug;
-  const nextContent = updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
+  // Same contributor-only link stripping as updateDraft above — this is the
+  // pending/rejected/changes_requested edit-and-resubmit path, still a
+  // contributor write, so it gets the same guarantee.
+  const nextContent =
+    updates.contentHtml !== undefined ? stripLinkTags(sanitizeArticleHtml(updates.contentHtml)) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
 
   const rows = await sql`

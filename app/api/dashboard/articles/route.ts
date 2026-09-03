@@ -45,7 +45,24 @@ export async function POST(req: Request) {
   }
 
   try {
-    const article = await createDraft({ title, cityId, categoryId, authorId: session.userId });
+    // The ArticleEditor's very first autosave already carries everything
+    // the contributor has entered so far (see the comment on createDraft in
+    // lib/articles.ts) — forward all of it here rather than persisting only
+    // title/city and waiting for a second round trip to save the rest.
+    const article = await createDraft({
+      title,
+      cityId,
+      categoryId,
+      attractionId: body.attractionId ?? null,
+      authorId: session.userId,
+      excerpt: body.excerpt !== undefined ? String(body.excerpt).trim() : undefined,
+      contentHtml: body.contentHtml !== undefined ? String(body.contentHtml) : undefined,
+      image: body.image || undefined,
+      imageAlt: body.imageAlt !== undefined ? String(body.imageAlt) : undefined,
+      metaTitle: body.metaTitle !== undefined ? String(body.metaTitle) : undefined,
+      metaDescription: body.metaDescription !== undefined ? String(body.metaDescription) : undefined,
+      focusKeyword: body.focusKeyword !== undefined ? String(body.focusKeyword) : undefined,
+    });
     return NextResponse.json({ ok: true, article });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });

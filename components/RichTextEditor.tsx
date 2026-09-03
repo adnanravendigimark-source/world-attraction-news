@@ -11,6 +11,43 @@ import TableRow from "@tiptap/extension-table-row";
 import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
 import FigureImage from "@/lib/figureImage";
+import InlineImageModal, { type InlineImageData } from "@/components/dashboard/InlineImageModal";
+
+// This same editor backs both the Contributor "Write Article" page
+// (components/dashboard/ArticleEditor.tsx, always omits `allowLinks`) and
+// the Admin "Review Article" panel (components/admin/ArticleReviewPanel.tsx,
+// passes `allowLinks`). By default (allowLinks=false/omitted) the Link
+// extension is never added to the `extensions` list below — contributor
+// articles must never contain a hyperlink (product requirement: no outbound
+// links from contributor content). Without the Link extension registered,
+// the editor's schema has no "link" mark at all, so there is no toolbar
+// button, no keyboard shortcut, and no programmatic way to create one from
+// inside the editor. `transformPastedHTML` below is the second half of that
+// guarantee: it strips any <a> tag out of pasted HTML (from another blog,
+// Word, Google Docs, etc.) before Tiptap's parser ever sees it, keeping the
+// link's visible text but discarding the href and the tag itself. Belt and
+// suspenders — the missing schema mark alone would already drop the href on
+// parse, but stripping the tag up front means no HTML link markup can
+// survive into the stored contentHtml under any circumstance. The server
+// applies the same restriction independently (see stripLinkTags in
+// lib/sanitizeHtml.ts, used by lib/articles.ts on every contributor write
+// path) so a request that bypasses this editor entirely still can't smuggle
+// a link into contributor-authored content.
+function stripLinks(html: string): string {
+  if (typeof window === "undefined" || !html.includes("<a")) return html;
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    doc.querySelectorAll("a").forEach((a) => {
+      const parent = a.parentNode;
+      if (!parent) return;
+      while (a.firstChild) parent.insertBefore(a.firstChild, a);
+      parent.removeChild(a);
+    });
+    return doc.body.innerHTML;
+  } catch {
+    return html;
+  }
+}
 
 export default function RichTextEditor({
   value,
@@ -18,27 +55,41 @@ export default function RichTextEditor({
   placeholder = "Start writing your article here...",
   uploadUrl,
   onStatsChange,
+  allowLinks = false,
 }: {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
   uploadUrl?: string;
   onStatsChange?: (stats: { words: number; characters: number; readingTimeMinutes: number }) => void;
+  // Admin-only escape hatch (see the comment above stripLinks) — the
+  // Contributor Write Article page never sets this, so it stays false there
+  // by default with no way to override it from that surface.
+  allowLinks?: boolean;
 }) {
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // `null` pos = the modal is inserting a brand-new image (wherever the
+  // contributor's cursor was when they clicked "Photo"). A real number =
+  // editing the image node already sitting at that document position
+  // (opened by clicking an existing image, or automatically right after a
+  // drag-drop/paste upload so alt text gets a first-class prompt instead of
+  // silently staying blank).
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [imageModalInitial, setImageModalInitial] = useState<InlineImageData | undefined>(undefined);
+  const editingImagePosRef = useRef<number | null>(null);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Underline,
-      Link.configure({ openOnClick: false, HTMLAttributes: { rel: "noopener noreferrer nofollow" } }),
       FigureImage,
       Table.configure({ resizable: false }),
       TableRow,
       TableHeader,
       TableCell,
       Placeholder.configure({ placeholder }),
+      ...(allowLinks
+        ? [Link.configure({ openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer nofollow" } })]
+        : []),
     ],
     content: value || "",
     onUpdate: ({ editor }) => {
@@ -54,6 +105,16 @@ export default function RichTextEditor({
       }
     },
     editorProps: {
+      transformPastedHTML: allowLinks ? undefined : stripLinks,
+      handleClickOn(_view, pos, node) {
+        if (node.type.name === "image") {
+          editingImagePosRef.current = pos;
+          setImageModalInitial({ url: node.attrs.src || "", alt: node.attrs.alt || "", caption: node.attrs.caption || "" });
+          setImageModalOpen(true);
+          return true;
+        }
+        return false;
+      },
       handleDrop(view, event) {
         const files = event.dataTransfer?.files;
         if (!uploadUrl || !files || !files.length) return false;
@@ -61,7 +122,7 @@ export default function RichTextEditor({
         if (!file) return false;
         event.preventDefault();
         const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
-        uploadAndInsert(file, coords?.pos);
+        uploadAndInsertAt(file, coords?.pos ?? view.state.selection.from);
         return true;
       },
       handlePaste(_view, event) {
@@ -70,38 +131,94 @@ export default function RichTextEditor({
         const file = Array.from(files).find((f) => f.type.startsWith("image/"));
         if (!file) return false;
         event.preventDefault();
-        uploadAndInsert(file);
+        uploadAndInsertAt(file);
         return true;
       },
     },
     immediatelyRender: false,
   });
 
-  const uploadAndInsert = useCallback(
+  // Uploads a dropped/pasted image file, inserts it with blank alt/caption
+  // at an explicit, known position, then immediately opens the edit modal
+  // pre-targeted at that exact position so the contributor can add alt text
+  // right away instead of it silently staying blank forever.
+  const uploadAndInsertAt = useCallback(
     async (file: File, pos?: number) => {
       if (!editor || !uploadUrl) return;
-      setUploading(true);
       try {
         const formData = new FormData();
         formData.append("file", file);
         const res = await fetch(uploadUrl, { method: "POST", body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Upload failed.");
-        const chain = editor.chain().focus();
-        if (pos !== undefined) {
-          chain.insertContentAt(pos, { type: "image", attrs: { src: data.url, alt: "", align: "center" } });
-        } else {
-          chain.setFigureImage({ src: data.url, alt: "" });
-        }
-        chain.run();
+
+        const insertPos = pos ?? editor.state.selection.from;
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(insertPos, { type: "image", attrs: { src: data.url, alt: "", caption: "", align: "center" } })
+          .run();
+
+        editingImagePosRef.current = insertPos;
+        setImageModalInitial({ url: data.url, alt: "", caption: "" });
+        setImageModalOpen(true);
       } catch (err) {
         window.alert(err instanceof Error ? err.message : "Image upload failed.");
-      } finally {
-        setUploading(false);
       }
     },
     [editor, uploadUrl]
   );
+
+  function openNewImageModal() {
+    editingImagePosRef.current = null;
+    setImageModalInitial(undefined);
+    setImageModalOpen(true);
+  }
+
+  function closeImageModal() {
+    setImageModalOpen(false);
+    setImageModalInitial(undefined);
+    editingImagePosRef.current = null;
+  }
+
+  function handleImageModalInsert(data: InlineImageData) {
+    if (!editor) return;
+    const attrs = { src: data.url, alt: data.alt, caption: data.caption, align: "center" };
+
+    if (editingImagePosRef.current !== null) {
+      const pos = editingImagePosRef.current;
+      editor
+        .chain()
+        .focus()
+        .command(({ tr }) => {
+          const node = tr.doc.nodeAt(pos);
+          if (!node) return false;
+          tr.delete(pos, pos + node.nodeSize);
+          return true;
+        })
+        .run();
+      editor.chain().focus().insertContentAt(pos, { type: "image", attrs }).run();
+    } else {
+      editor.chain().focus().setFigureImage(attrs).run();
+    }
+    closeImageModal();
+  }
+
+  function handleImageModalRemove() {
+    if (!editor || editingImagePosRef.current === null) return;
+    const pos = editingImagePosRef.current;
+    editor
+      .chain()
+      .focus()
+      .command(({ tr }) => {
+        const node = tr.doc.nodeAt(pos);
+        if (!node) return false;
+        tr.delete(pos, pos + node.nodeSize);
+        return true;
+      })
+      .run();
+    closeImageModal();
+  }
 
   useEffect(() => {
     if (editor && value !== editor.getHTML() && !editor.isFocused) {
@@ -233,49 +350,43 @@ export default function RichTextEditor({
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           title="Blockquote"
         >
-          “ Quote
+          " Quote
         </button>
-        <button
-          type="button"
-          className={btn(editor.isActive("link"))}
-          onClick={() => {
-            const currentHref = editor.getAttributes("link").href;
-            const url = window.prompt("Enter link URL:", currentHref || "");
-            if (url === null) return;
-            if (url === "") {
-              editor.chain().focus().unsetLink().run();
-            } else {
-              editor.chain().focus().setLink({ href: url }).run();
-            }
-          }}
-          title="Insert / Edit Link"
-        >
-          🔗 Link
-        </button>
+
+        {allowLinks && (
+          <>
+            <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
+            <button
+              type="button"
+              className={btn(editor.isActive("link"))}
+              onClick={() => {
+                const previousUrl = editor.getAttributes("link").href || "";
+                const url = window.prompt("Link URL (leave blank to remove)", previousUrl);
+                if (url === null) return;
+                if (!url.trim()) {
+                  editor.chain().focus().extendMarkRange("link").unsetLink().run();
+                  return;
+                }
+                editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+              }}
+              title="Insert/Edit Link"
+            >
+              🔗 Link
+            </button>
+          </>
+        )}
 
         {uploadUrl && (
           <>
             <span className="mx-1 h-3.5 w-px bg-slate-200" aria-hidden="true" />
             <button
               type="button"
-              disabled={uploading}
-              className={btn(false, uploading ? "animate-pulse" : "")}
-              onClick={() => fileInputRef.current?.click()}
+              className={btn(false)}
+              onClick={openNewImageModal}
               title="Insert Image in Body"
             >
-              {uploading ? "Uploading..." : "📷 Photo"}
+              📷 Photo
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) uploadAndInsert(file);
-                e.target.value = "";
-              }}
-            />
           </>
         )}
       </div>
@@ -287,6 +398,16 @@ export default function RichTextEditor({
           className="prose prose-slate max-w-none focus:outline-none text-slate-800 text-sm sm:text-base leading-relaxed"
         />
       </div>
+
+      {imageModalOpen && uploadUrl && (
+        <InlineImageModal
+          initial={imageModalInitial}
+          uploadUrl={uploadUrl}
+          onInsert={handleImageModalInsert}
+          onRemove={editingImagePosRef.current !== null ? handleImageModalRemove : undefined}
+          onClose={closeImageModal}
+        />
+      )}
     </div>
   );
 }

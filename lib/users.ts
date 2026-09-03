@@ -177,9 +177,9 @@ async function generateUniqueUserSlug(displayName: string, email: string): Promi
 // existing admin can promote a user, and only from the Admin Panel.
 //
 // No city is collected or assigned at signup — a contributor isn't tied to
-// one city. They choose which city each article belongs to at submission
-// time (see lib/articles.ts createArticle), so one approved contributor can
-// write about any city on the site.
+// one city. They choose which city each article belongs to per-article,
+// while writing it (see lib/articles.ts createDraft), so one approved
+// contributor can write about any city on the site.
 export async function registerContributor(input: {
   email: string;
   password: string;

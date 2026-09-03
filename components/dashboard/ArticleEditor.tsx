@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import RichTextEditor from "@/components/RichTextEditor";
 import ImageUploadField from "@/components/ImageUploadField";
 import StatusBadge from "@/components/StatusBadge";
+import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
@@ -36,6 +37,25 @@ function computeStats(html: string) {
     characters: text.length,
     readingTimeMinutes: words ? Math.max(1, Math.round(words / 200)) : 0,
   };
+}
+
+// Same "auto-fill while the field is still empty" contract as the slug
+// below: derives a short summary from the article body (falling back to
+// the title if there's no body yet), but only while the contributor hasn't
+// typed anything into Excerpt themselves — the moment they do, this stops
+// touching it.
+function deriveExcerpt(html: string, title: string): string {
+  const plainText = html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const source = plainText || title.trim();
+  if (!source) return "";
+  if (source.length <= 160) return source;
+  const truncated = source.slice(0, 160);
+  const lastSpace = truncated.lastIndexOf(" ");
+  return `${(lastSpace > 100 ? truncated.slice(0, lastSpace) : truncated).trim()}…`;
 }
 
 export default function ArticleEditor({
@@ -81,6 +101,7 @@ export default function ArticleEditor({
   const [saveError, setSaveError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [seoOpen, setSeoOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const dirtyRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -156,6 +177,13 @@ export default function ArticleEditor({
       if (key === "title" && !slug) {
         setSlug(String(value).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""));
       }
+      if (key === "title" && !prev.excerpt) {
+        next.excerpt = deriveExcerpt(prev.contentHtml, String(value));
+      }
+      if (key === "cityId" && prev.attractionId) {
+        const stillValid = attractions.some((a) => a.id === prev.attractionId && a.cityId === value);
+        if (!stillValid) next.attractionId = null;
+      }
       scheduleAutosave(next);
       return next;
     });
@@ -164,6 +192,9 @@ export default function ArticleEditor({
   function updateContent(html: string) {
     setForm((prev) => {
       const next = { ...prev, contentHtml: html };
+      if (!prev.excerpt) {
+        next.excerpt = deriveExcerpt(html, prev.title);
+      }
       scheduleAutosave(next);
       return next;
     });
@@ -261,15 +292,6 @@ export default function ArticleEditor({
     }
   }
 
-  const SUGGESTED_TAGS = [
-    "Theme Parks",
-    "Museums",
-    "Zoos & Aquariums",
-    "Landmarks",
-    "Events & Festivals",
-    "Travel Tips",
-  ];
-
   return (
     <div className="space-y-6">
       {/* Top Breadcrumb & Heading */}
@@ -318,7 +340,7 @@ export default function ArticleEditor({
               className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2 text-xs font-mono text-slate-800 placeholder:text-slate-400 focus:border-[#F43F5E] focus:bg-white focus:outline-none transition-all"
             />
             <p className="mt-1 text-[11px] text-slate-400">
-              This will be used in the article URL. Keep it short and SEO friendly.
+              Auto-filled from your title as you type — edit it any time. Used in the article's URL, so keep it short and SEO friendly.
             </p>
           </div>
 
@@ -369,6 +391,35 @@ export default function ArticleEditor({
             </div>
           </div>
 
+          {/* Related Attraction */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Related Attraction <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
+                🏷
+              </span>
+              <select
+                value={form.attractionId || ""}
+                onChange={(e) => updateField("attractionId", e.target.value || null)}
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs font-medium text-slate-800 focus:border-[#F43F5E] focus:outline-none"
+              >
+                <option value="">General travel guide (not attraction-specific)</option>
+                {attractions
+                  .filter((a) => !form.cityId || a.cityId === form.cityId)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Link this article to a specific attraction in {cities.find((c) => c.id === form.cityId)?.name || "your chosen destination"} if it's about one.
+            </p>
+          </div>
+
           {/* Excerpt / Short Summary */}
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -383,6 +434,9 @@ export default function ArticleEditor({
               placeholder="Write a short summary of your article..."
               className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#F43F5E] focus:outline-none resize-none leading-relaxed transition-all"
             />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Auto-filled from your article body as you write — edit it any time to write your own.
+            </p>
           </div>
 
           {/* Featured Image */}
@@ -422,6 +476,7 @@ export default function ArticleEditor({
                 value={form.contentHtml}
                 onChange={updateContent}
                 placeholder="Start writing your article here..."
+                uploadUrl="/api/dashboard/upload"
               />
             </div>
             <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5 px-1">
@@ -484,14 +539,23 @@ export default function ArticleEditor({
           </div>
 
           {/* Bottom Form Actions */}
-          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => save(form)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-            >
-              <span>💾 Save Draft</span>
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => save(form)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
+              >
+                <span>💾 Save Draft</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
+              >
+                <span>👁 Preview</span>
+              </button>
+            </div>
 
             <button
               type="button"
@@ -504,6 +568,19 @@ export default function ArticleEditor({
           </div>
         </div>
       </div>
+
+      {previewOpen && (
+        <ArticlePreviewModal
+          title={form.title}
+          image={form.image}
+          imageAlt={form.imageAlt}
+          excerpt={form.excerpt}
+          contentHtml={form.contentHtml}
+          cityName={cities.find((c) => c.id === form.cityId)?.name || ""}
+          categoryName={categories.find((c) => c.id === form.categoryId)?.name || ""}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 }
