@@ -276,7 +276,8 @@ export default function ArticleReviewPanel({
       router.refresh();
     } else {
       setBusy(false);
-      toast.error("Couldn't delete article.");
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error || "Couldn't delete article.");
     }
   }
 
@@ -741,6 +742,20 @@ export default function ArticleReviewPanel({
             {(current.status === "pending" || current.status === "under_review") && (
               <p className="text-xs text-slate-500 leading-relaxed">
                 Approve this article above to unlock immediate live publishing and scheduling options.
+              </p>
+            )}
+
+            {current.status === "rejected" && (
+              <p className="text-xs text-slate-500 leading-relaxed">
+                This submission was rejected. Publishing unlocks again only if the contributor edits and resubmits
+                it for another review.
+              </p>
+            )}
+
+            {current.status === "changes_requested" && (
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Waiting on the contributor to address your feedback and resubmit. Publishing unlocks once you
+                approve the resubmission.
               </p>
             )}
           </div>

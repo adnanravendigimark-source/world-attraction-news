@@ -14,21 +14,25 @@ const TABS = [
   "all",
   "draft",
   "pending",
+  "under_review",
   "changes_requested",
   "approved",
   "scheduled",
   "published",
+  "unpublished",
   "rejected",
 ] as const;
 
 const TAB_LABELS: Record<string, string> = {
   all: "All Dispatches",
   draft: "Drafts",
-  pending: "Under Review",
+  pending: "Pending Review",
+  under_review: "Under Review",
   changes_requested: "Changes Requested",
   approved: "Approved",
   scheduled: "Scheduled",
   published: "Published",
+  unpublished: "Unpublished",
   rejected: "Rejected",
 };
 
@@ -153,6 +157,9 @@ export default function ArticlesList({ articles }: { articles: ArticleWithRelati
                   >
                     Open Live Story ↗
                   </Link>
+                )}
+                {a.status === "unpublished" && (
+                  <span className="ml-auto text-xs font-semibold text-ink-400">Taken down from the public site</span>
                 )}
               </div>
             </div>

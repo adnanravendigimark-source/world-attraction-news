@@ -21,6 +21,7 @@ const TABS = [
   "approved",
   "scheduled",
   "published",
+  "unpublished",
   "rejected",
   "draft",
 ] as const;
@@ -33,6 +34,7 @@ const TAB_LABELS: Record<string, string> = {
   approved: "Approved",
   scheduled: "Scheduled",
   published: "Published",
+  unpublished: "Unpublished",
   rejected: "Rejected",
   draft: "Drafts",
 };
@@ -67,6 +69,7 @@ export default function ArticlesQueue({
     approved: initialArticles.filter((a) => a.status === "approved").length,
     scheduled: initialArticles.filter((a) => a.status === "scheduled").length,
     published: initialArticles.filter((a) => a.status === "published").length,
+    unpublished: initialArticles.filter((a) => a.status === "unpublished").length,
     rejected: initialArticles.filter((a) => a.status === "rejected").length,
     draft: initialArticles.filter((a) => a.status === "draft").length,
   };

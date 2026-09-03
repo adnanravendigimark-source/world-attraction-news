@@ -60,6 +60,23 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
           </div>
         )}
 
+        {/* Rejected notice */}
+        {article.status === "rejected" && (
+          <div className="rounded-lg border border-rose-300 bg-rose-50 p-3.5 text-xs text-rose-900">
+            <p className="font-bold">This submission was rejected.</p>
+            {article.adminFeedback && <p className="mt-1 leading-relaxed">{article.adminFeedback}</p>}
+            <p className="mt-1.5 leading-relaxed">You can edit it and resubmit for another review.</p>
+          </div>
+        )}
+
+        {/* Unpublished notice */}
+        {article.status === "unpublished" && (
+          <div className="rounded-lg border border-slate-300 bg-slate-50 p-3.5 text-xs text-slate-700">
+            <p className="font-bold">This article was taken down from the public site by an editor.</p>
+            {article.adminFeedback && <p className="mt-1 leading-relaxed">{article.adminFeedback}</p>}
+          </div>
+        )}
+
         {/* Editorial Review & Score */}
         {(article.score !== null || article.adminFeedback) && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -71,9 +88,12 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
                 </span>
               )}
             </div>
-            {article.adminFeedback && (
-              <p className="mt-2 text-xs leading-relaxed text-slate-700 italic">"{article.adminFeedback}"</p>
-            )}
+            {article.adminFeedback &&
+              article.status !== "changes_requested" &&
+              article.status !== "rejected" &&
+              article.status !== "unpublished" && (
+                <p className="mt-2 text-xs leading-relaxed text-slate-700 italic">"{article.adminFeedback}"</p>
+              )}
           </div>
         )}
 

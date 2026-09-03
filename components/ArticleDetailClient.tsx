@@ -17,9 +17,12 @@ export default function ArticleDetailClient({
 }) {
   const [copied, setCopied] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeError, setSubscribeError] = useState("");
   const [sidebarEmail, setSidebarEmail] = useState("");
+  const [sidebarCompany, setSidebarCompany] = useState(""); // honeypot
 
-  const fullUrl = typeof window !== "undefined" ? window.location.href : `https://attractionnews.com/latest-news/${article.slug}`;
+  const fullUrl = typeof window !== "undefined" ? window.location.href : `https://worldattractionnews.com/latest-news/${article.slug}`;
 
   const copyToClipboard = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -55,92 +58,32 @@ export default function ArticleDetailClient({
   };
 
   const formatDate = (iso: string | null) => {
-    if (!iso) return "May 13, 2025";
+    if (!iso) return "";
     return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
-  // Default fallback trending if db has fewer items
-  const displayTrending = trendingStories.length > 0 ? trendingStories.slice(0, 5) : [
-    {
-      id: "trend-1",
-      slug: "epic-universe-opens-universal-orlando",
-      title: "Epic Universe Opens at Universal Orlando Resort",
-      publishedAt: "2025-05-10T12:00:00Z",
-      image: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "trend-2",
-      slug: "disneyland-paris-new-night-show-summer",
-      title: "Disneyland Paris Announces New Night Show for Summer 2025",
-      publishedAt: "2025-05-09T12:00:00Z",
-      image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "trend-3",
-      slug: "seaworld-orlando-adds-new-aquarium-experience",
-      title: "SeaWorld Orlando Adds New Aquarium Experience",
-      publishedAt: "2025-05-12T12:00:00Z",
-      image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "trend-4",
-      slug: "tokyo-disneysea-fantasy-springs-expansion",
-      title: "Tokyo DisneySea Fantasy Springs Expansion Opens June 6",
-      publishedAt: "2025-05-08T12:00:00Z",
-      image: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "trend-5",
-      slug: "sagrada-familia-completion-timeline-revealed",
-      title: "Sagrada Familia Completion Timeline Revealed",
-      publishedAt: "2025-05-09T12:00:00Z",
-      image: "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=300&q=80",
-    },
-  ];
+  const displayTrending = trendingStories.slice(0, 5);
+  const displayRelated = relatedStories.slice(0, 4);
 
-  // Default fallback related if db has fewer items
-  const displayRelated = relatedStories.length > 0 ? relatedStories.slice(0, 4) : [
-    {
-      id: "rel-1",
-      slug: "london-eye-ticket-types-and-best-time-to-go",
-      title: "London Eye: Ticket Types and the Best Time of Day to Go",
-      cityName: "LONDON",
-      categoryName: "VISITOR TIPS",
-      publishedAt: "2025-05-11T12:00:00Z",
-      readingTimeMinutes: 4,
-      image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "rel-2",
-      slug: "bastille-day-fireworks-eiffel-tower-what-to-know",
-      title: "Bastille Day Fireworks at the Eiffel Tower: What to Know",
-      cityName: "PARIS",
-      categoryName: "EVENTS & FESTIVALS",
-      publishedAt: "2025-05-10T12:00:00Z",
-      readingTimeMinutes: 3,
-      image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "rel-3",
-      slug: "new-ticket-options-universal-orlando-resort",
-      title: "New Ticket Options Announced for Universal Orlando Resort",
-      cityName: "ORLANDO",
-      categoryName: "TICKETS & PRICING",
-      publishedAt: "2025-05-09T12:00:00Z",
-      readingTimeMinutes: 2,
-      image: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=300&q=80",
-    },
-    {
-      id: "rel-4",
-      slug: "best-places-to-watch-fireworks-around-the-world",
-      title: "Best Places to Watch Fireworks Around the World",
-      cityName: "GLOBAL",
-      categoryName: "VISITOR TIPS",
-      publishedAt: "2025-05-07T12:00:00Z",
-      readingTimeMinutes: 5,
-      image: "https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=300&q=80",
-    },
-  ];
+  async function handleSubscribe(e: React.FormEvent) {
+    e.preventDefault();
+    setSubscribing(true);
+    setSubscribeError("");
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: sidebarEmail, company: sidebarCompany, source: "article_sidebar" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      setSubscribed(true);
+    } catch (err) {
+      setSubscribeError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubscribing(false);
+    }
+  }
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527] pb-20">
@@ -157,8 +100,8 @@ export default function ArticleDetailClient({
             Latest News
           </Link>
           <span>&gt;</span>
-          <Link href={`/cities/${article.citySlug || "london"}`} className="hover:text-slate-900 transition-colors">
-            {article.cityName || "London"}
+          <Link href={`/cities/${article.citySlug}`} className="hover:text-slate-900 transition-colors">
+            {article.cityName}
           </Link>
           <span>&gt;</span>
           <span className="text-slate-800 line-clamp-1 max-w-[280px] sm:max-w-md">{article.title}</span>
@@ -172,9 +115,13 @@ export default function ArticleDetailClient({
           <div className="lg:col-span-8 flex flex-col">
             {/* Eyebrow */}
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider mb-2.5">
-              <span className="text-[#DC2626]">{article.cityName?.toUpperCase() || "LONDON"}</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-slate-500">{article.categoryName?.toUpperCase() || "EVENTS & FESTIVALS"}</span>
+              <span className="text-[#DC2626]">{article.cityName?.toUpperCase()}</span>
+              {article.categoryName && (
+                <>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-slate-500">{article.categoryName.toUpperCase()}</span>
+                </>
+              )}
             </div>
 
             {/* Headline */}
@@ -198,10 +145,10 @@ export default function ArticleDetailClient({
                 </div>
                 <div className="text-xs text-slate-600">
                   <p className="font-bold text-[#0B1527]">
-                    By {article.authorName || "London Launch Editorial Team"}
+                    By {article.authorName}
                   </p>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    {formatDate(article.publishedAt)} • {article.readingTimeMinutes || 3} min read • Updated {formatDate(article.updatedAt || article.publishedAt)}
+                    {formatDate(article.publishedAt)} • {article.readingTimeMinutes || 1} min read • Updated {formatDate(article.updatedAt || article.publishedAt)}
                   </p>
                 </div>
               </div>
@@ -256,91 +203,22 @@ export default function ArticleDetailClient({
               <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden bg-slate-900 shadow-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={article.image || "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1600&q=85"}
+                  src={article.image}
                   alt={article.imageAlt || article.title}
                   className="h-full w-full object-cover"
                 />
               </div>
-              <p className="mt-2 text-[11px] text-slate-400 italic text-center">
-                {article.imageAlt || `${article.title} coverage and on-the-ground reporting.`}
-              </p>
+              {article.imageAlt && (
+                <p className="mt-2 text-[11px] text-slate-400 italic text-center">{article.imageAlt}</p>
+              )}
             </div>
 
             {/* Article Body Content */}
             <div className="mt-8 article-content text-slate-800 text-sm sm:text-[15px] leading-relaxed">
-              {article.contentHtml ? (
-                <div
-                  className="prose prose-slate max-w-none prose-headings:font-serif prose-headings:font-black prose-headings:text-[#0B1527] prose-p:leading-relaxed prose-a:text-[#DC2626] prose-a:font-semibold"
-                  dangerouslySetInnerHTML={{ __html: article.contentHtml }}
-                />
-              ) : (
-                <div className="space-y-6">
-                  <p>
-                    <span className="float-left text-5xl font-black font-serif leading-none pr-3 pt-1 text-[#0B1527]">
-                      L
-                    </span>
-                    ondon&apos;s official New Year&apos;s Eve fireworks display is one of the most spectacular in the world. Set against the backdrop of the London Eye and the River Thames, the event draws hundreds of thousands of people to the South Bank and surrounding areas.
-                  </p>
-                  <p>
-                    If you&apos;re planning to be near the London Eye for New Year&apos;s Eve, here&apos;s everything you need to know to make the most of the celebration.
-                  </p>
-
-                  <h2 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527] mt-8 mb-3">
-                    How the Fireworks Work
-                  </h2>
-                  <p>
-                    The fireworks are launched from the London Eye and multiple barges positioned along the Thames. The show lasts about 12 minutes and is synchronized to music broadcast on local radio and across the BBC.
-                  </p>
-
-                  <h2 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527] mt-8 mb-3">
-                    Where You Can Watch
-                  </h2>
-                  <p>
-                    While the South Bank is the most popular viewing area, tickets are required for entry. However, there are several vantage points further from the river where you can still enjoy great views:
-                  </p>
-                  <ul className="list-disc list-inside space-y-1.5 pl-2 text-slate-700">
-                    <li><strong className="text-slate-900">Primrose Hill</strong> — panoramic views of the entire London skyline.</li>
-                    <li><strong className="text-slate-900">Peckham Rye Park</strong> — elevated grassy vantage points.</li>
-                    <li><strong className="text-slate-900">Alexandra Palace</strong> — sweeping views across North and Central London.</li>
-                    <li><strong className="text-slate-900">Hampstead Heath</strong> — Parliament Hill offers unobstructed skyline sights.</li>
-                  </ul>
-
-                  <h2 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527] mt-8 mb-3">
-                    Tickets and Entry
-                  </h2>
-                  <p>
-                    Access to the official riverside viewing areas is ticketed and sells out months in advance. Tickets include security checks, dedicated viewing zones, and access to amenities.
-                  </p>
-
-                  {/* Inline Ticket Callout Box */}
-                  <div className="my-6 rounded-xl border border-rose-200 bg-rose-50/50 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🎟️</span>
-                      <p className="text-xs sm:text-sm font-bold text-[#0B1527]">
-                        Official tickets for New Year&apos;s Eve 2025 are on sale now.
-                      </p>
-                    </div>
-                    <Link
-                      href="/calendar"
-                      className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shrink-0 shadow-sm"
-                    >
-                      VIEW TICKETS &amp; INFO
-                    </Link>
-                  </div>
-
-                  <h2 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527] mt-8 mb-3">
-                    Plan Your Journey
-                  </h2>
-                  <p>
-                    Expect major road closures and crowded transport. Plan ahead and allow extra time for your journey:
-                  </p>
-                  <ul className="list-disc list-inside space-y-1.5 pl-2 text-slate-700">
-                    <li>Use public transport and check for service changes.</li>
-                    <li>Arrive early to pass security and reach your viewing area.</li>
-                    <li>Check weather forecasts and dress warmly.</li>
-                  </ul>
-                </div>
-              )}
+              <div
+                className="prose prose-slate max-w-none prose-headings:font-serif prose-headings:font-black prose-headings:text-[#0B1527] prose-p:leading-relaxed prose-a:text-[#DC2626] prose-a:font-semibold"
+                dangerouslySetInnerHTML={{ __html: article.contentHtml }}
+              />
             </div>
 
             {/* Bottom Share Bar */}
@@ -413,13 +291,16 @@ export default function ArticleDetailClient({
                   ✓ You&apos;re subscribed to our dispatch wire!
                 </div>
               ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setSubscribed(true);
-                  }}
-                  className="flex flex-col gap-2.5"
-                >
+                <form onSubmit={handleSubscribe} className="flex flex-col gap-2.5">
+                  <input
+                    type="text"
+                    value={sidebarCompany}
+                    onChange={(e) => setSidebarCompany(e.target.value)}
+                    className="hidden"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                  />
                   <input
                     type="email"
                     required
@@ -430,10 +311,14 @@ export default function ArticleDetailClient({
                   />
                   <button
                     type="submit"
-                    className="w-full rounded-lg bg-[#DC2626] py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
+                    disabled={subscribing}
+                    className="w-full rounded-lg bg-[#DC2626] py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm disabled:opacity-60"
                   >
-                    SUBSCRIBE
+                    {subscribing ? "SUBSCRIBING…" : "SUBSCRIBE"}
                   </button>
+                  {subscribeError && (
+                    <p className="text-[10px] text-[#DC2626] text-center">{subscribeError}</p>
+                  )}
                   <p className="text-[10px] text-slate-400 text-center">
                     No spam. Unsubscribe anytime.
                   </p>
@@ -442,80 +327,84 @@ export default function ArticleDetailClient({
             </div>
 
             {/* Related Stories Card */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-              <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-4 pb-2 border-b border-slate-100">
-                Related Stories
-              </h3>
-              <div className="flex flex-col gap-4">
-                {displayRelated.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/latest-news/${item.slug}`}
-                    className="group flex items-start gap-3"
-                  >
-                    <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={item.image || "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=200&q=80"}
-                        alt={item.title}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-[#DC2626] block">
-                        {item.cityName || item.categoryName || "THEME PARKS"}
-                      </span>
-                      <h4 className="font-sans text-xs font-bold text-[#0B1527] line-clamp-2 leading-snug group-hover:text-[#DC2626] transition-colors mt-0.5">
-                        {item.title}
-                      </h4>
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        {formatDate(item.publishedAt)} • {item.readingTimeMinutes || 3} min read
-                      </p>
-                    </div>
-                  </Link>
-                ))}
+            {displayRelated.length > 0 && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+                <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-4 pb-2 border-b border-slate-100">
+                  Related Stories
+                </h3>
+                <div className="flex flex-col gap-4">
+                  {displayRelated.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/latest-news/${item.slug}`}
+                      className="group flex items-start gap-3"
+                    >
+                      <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[#DC2626] block">
+                          {item.cityName || item.categoryName}
+                        </span>
+                        <h4 className="font-sans text-xs font-bold text-[#0B1527] line-clamp-2 leading-snug group-hover:text-[#DC2626] transition-colors mt-0.5">
+                          {item.title}
+                        </h4>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {formatDate(item.publishedAt)} • {item.readingTimeMinutes || 1} min read
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Trending Now Card */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-              <div className="flex items-center gap-1.5 mb-4 pb-2 border-b border-slate-100">
-                <span className="text-xs">📈</span>
-                <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527]">
-                  Trending Now
-                </h3>
-              </div>
+            {displayTrending.length > 0 && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-4 pb-2 border-b border-slate-100">
+                  <span className="text-xs">📈</span>
+                  <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527]">
+                    Trending Now
+                  </h3>
+                </div>
 
-              <div className="flex flex-col gap-3.5">
-                {displayTrending.map((item, idx) => (
-                  <Link
-                    key={item.id}
-                    href={`/latest-news/${item.slug}`}
-                    className="group flex items-center gap-3"
-                  >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-[10px] font-black text-white">
-                      {idx + 1}
-                    </span>
-                    <div className="relative h-11 w-11 shrink-0 rounded-md overflow-hidden bg-slate-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={item.image || "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=200&q=80"}
-                        alt={item.title}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-sans text-xs font-bold text-[#0B1527] line-clamp-1 leading-snug group-hover:text-[#DC2626] transition-colors">
-                        {item.title}
-                      </h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        {formatDate(item.publishedAt)}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
+                <div className="flex flex-col gap-3.5">
+                  {displayTrending.map((item, idx) => (
+                    <Link
+                      key={item.id}
+                      href={`/latest-news/${item.slug}`}
+                      className="group flex items-center gap-3"
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-[10px] font-black text-white">
+                        {idx + 1}
+                      </span>
+                      <div className="relative h-11 w-11 shrink-0 rounded-md overflow-hidden bg-slate-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-sans text-xs font-bold text-[#0B1527] line-clamp-1 leading-snug group-hover:text-[#DC2626] transition-colors">
+                          {item.title}
+                        </h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          {formatDate(item.publishedAt)}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Have News to Share? Dark Box */}
             <div className="relative overflow-hidden rounded-2xl bg-[#0B1527] text-white p-6 shadow-md flex flex-col gap-3">

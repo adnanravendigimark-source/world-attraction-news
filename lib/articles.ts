@@ -733,10 +733,10 @@ export async function reviewArticle(
         admin_feedback = ${input.feedback},
         reviewed_at = now(),
         updated_at = now()
-    WHERE id = ${id}
+    WHERE id = ${id} AND status NOT IN ('published', 'scheduled', 'unpublished')
     RETURNING *
   `;
-  if (!rows.length) throw new Error("Article not found.");
+  if (!rows.length) throw new Error("Article not found, or isn't awaiting review.");
   return rowToArticle(rows[0]);
 }
 

@@ -263,6 +263,12 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const before = await getArticleById(params.id).catch(() => undefined);
+  if (before && (before.status === "published" || before.status === "scheduled")) {
+    return NextResponse.json(
+      { error: "Unpublish (or cancel the schedule) before permanently deleting a live article." },
+      { status: 400 }
+    );
+  }
   try {
     await deleteArticle(params.id);
     if (before) {
