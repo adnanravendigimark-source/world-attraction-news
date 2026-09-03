@@ -4,7 +4,7 @@ import Logo from "@/components/Logo";
 export default function RootNotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-paper px-4 text-center">
-      <Logo className="h-10 w-10" />
+      <Logo variant="mark" className="h-10 w-10" />
       <p className="mt-6 font-serif text-6xl font-bold text-ink-900">404</p>
       <h1 className="mt-2 text-lg font-bold text-ink-800">Page not found</h1>
       <p className="mt-2 max-w-sm text-sm text-ink-500">

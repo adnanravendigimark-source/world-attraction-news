@@ -12,7 +12,7 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-ink-50 px-4 py-12">
       <div className="w-full max-w-sm">
         <Link href="/" className="mb-6 flex items-center justify-center gap-2">
-          <Logo className="h-8 w-8" />
+          <Logo variant="mark" className="h-8 w-8" />
           <span className="font-serif text-lg font-bold text-ink-900">{SITE_NAME}</span>
         </Link>
         <div className="rounded-xl border border-ink-200 bg-white p-6 shadow-sm sm:p-8">

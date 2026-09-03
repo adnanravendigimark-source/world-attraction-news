@@ -14,7 +14,7 @@ export default function GlobalErrorBoundary({ error, reset }: { error: Error & {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-paper px-4 text-center">
-      <Logo className="h-10 w-10" />
+      <Logo variant="mark" className="h-10 w-10" />
       <h1 className="mt-6 font-serif text-2xl font-bold text-ink-900">Something went wrong</h1>
       <p className="mt-2 max-w-sm text-sm text-ink-500">
         We hit an unexpected error loading this page. It's been logged — try again, or head back to the homepage.
