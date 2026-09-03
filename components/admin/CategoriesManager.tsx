@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Category } from "@/lib/categories";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
@@ -15,6 +16,7 @@ export default function CategoriesManager({
   const confirm = useConfirm();
   const toast = useToast();
   const [categories, setCategories] = useState(initialCategories);
+  const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
@@ -24,6 +26,10 @@ export default function CategoriesManager({
   const [editValue, setEditValue] = useState({ name: "", slug: "", description: "" });
 
   async function handleCreate() {
+    if (!name.trim() || !slug.trim()) {
+      toast.error("Please enter a category name and slug.");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/admin/categories", {
@@ -32,12 +38,13 @@ export default function CategoriesManager({
         body: JSON.stringify({ name, slug, description, sortOrder: categories.length }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      if (!res.ok) throw new Error(data.error || "Failed to create category.");
       setCategories((prev) => [...prev, data.category]);
       setName("");
       setSlug("");
       setDescription("");
-      toast.success("Coverage beat added.");
+      setAdding(false);
+      toast.success("Category created.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -59,7 +66,7 @@ export default function CategoriesManager({
         body: JSON.stringify(editValue),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      if (!res.ok) throw new Error(data.error || "Failed to update category.");
       setCategories((prev) => prev.map((c) => (c.id === id ? data.category : c)));
       setEditingId(null);
       toast.success("Category updated.");
@@ -70,147 +77,237 @@ export default function CategoriesManager({
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string, catName: string) {
     const ok = await confirm({
-      title: "Delete this coverage category?",
+      title: `Delete ${catName}?`,
       description: "Articles in this category will remain intact as uncategorized.",
       confirmLabel: "Delete Category",
       danger: true,
     });
     if (!ok) return;
+
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Couldn't delete category.");
+        throw new Error(data.error || "Failed to delete category.");
       }
       setCategories((prev) => prev.filter((c) => c.id !== id));
       toast.success("Category deleted.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
+      toast.error(err instanceof Error ? err.message : "Couldn't delete category.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="border-b border-ink-100 pb-4">
-        <h2 className="font-serif text-xl font-black text-ink-950">Editorial Categories ({categories.length})</h2>
-        <p className="mt-0.5 text-xs text-ink-500">Manage beats, theme park sections, and article categories.</p>
+    <div className="space-y-4">
+      {/* Top Actions */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          Editorial Categories ({categories.length})
+        </p>
+        <button
+          type="button"
+          onClick={() => setAdding(!adding)}
+          className="rounded-lg bg-[#DC2626] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-colors cursor-pointer"
+        >
+          {adding ? "✕ Close Form" : "+ Add Category"}
+        </button>
       </div>
 
-      <div className="space-y-3">
-        {categories.map((c) => (
-          <div key={c.id} className="rounded-2xl border border-ink-200/80 bg-white p-5 shadow-card">
-            {editingId === c.id ? (
-              <div className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <input
-                    value={editValue.name}
-                    onChange={(e) => setEditValue({ ...editValue, name: e.target.value })}
-                    placeholder="Category Name"
-                    className="rounded-lg border border-ink-300 px-3 py-2 text-xs font-semibold"
-                  />
-                  <input
-                    value={editValue.slug}
-                    onChange={(e) => setEditValue({ ...editValue, slug: e.target.value.toLowerCase() })}
-                    placeholder="Slug"
-                    className="rounded-lg border border-ink-300 px-3 py-2 text-xs font-mono"
-                  />
-                </div>
-                <textarea
-                  value={editValue.description}
-                  onChange={(e) => setEditValue({ ...editValue, description: e.target.value })}
-                  placeholder="Category description"
-                  rows={2}
-                  className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs resize-none"
+      {/* Add New Category Form */}
+      {adding && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              New Category Beat
+            </h3>
+          </div>
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Category Name *
+                </label>
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (!slug) {
+                      setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"));
+                    }
+                  }}
+                  placeholder="e.g. Theme Parks"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
                 />
-                <div className="flex gap-2">
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  URL Slug *
+                </label>
+                <input
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
+                  placeholder="e.g. theme-parks"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                placeholder="Brief description of what stories belong in this category..."
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+            <button
+              disabled={busy}
+              onClick={handleCreate}
+              className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
+            >
+              Create Category
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdding(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Categories Grid List */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map((c) => {
+          const isEditing = editingId === c.id;
+          const count = articleCounts[c.id] || 0;
+
+          if (isEditing) {
+            return (
+              <div
+                key={c.id}
+                className="col-span-full rounded-xl border border-slate-300 bg-white p-5 shadow-2xs space-y-4"
+              >
+                <div className="border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                    Edit Category: {c.name}
+                  </h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Name</label>
+                      <input
+                        value={editValue.name}
+                        onChange={(e) => setEditValue({ ...editValue, name: e.target.value })}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Slug</label>
+                      <input
+                        value={editValue.slug}
+                        onChange={(e) => setEditValue({ ...editValue, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-mono text-slate-900"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Description</label>
+                    <textarea
+                      rows={2}
+                      value={editValue.description}
+                      onChange={(e) => setEditValue({ ...editValue, description: e.target.value })}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 resize-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                   <button
                     disabled={busy}
                     onClick={() => handleSaveEdit(c.id)}
-                    className="rounded-xl bg-ink-950 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-signal transition-all disabled:opacity-60"
+                    className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
                   >
-                    Save
+                    Save Changes
                   </button>
                   <button
+                    type="button"
                     onClick={() => setEditingId(null)}
-                    className="rounded-xl border border-ink-300 px-4 py-2 text-xs font-bold text-ink-700 hover:bg-paper-100"
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-base font-bold text-ink-950">{c.name}</h3>
-                    <span className="font-mono text-xs text-ink-400">/categories/{c.slug}</span>
-                  </div>
-                  <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                    {articleCounts[c.id] || 0} published dispatches
-                  </p>
-                  {c.description && <p className="mt-1.5 text-xs text-ink-600 leading-relaxed">{c.description}</p>}
+            );
+          }
+
+          return (
+            <div
+              key={c.id}
+              className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-base font-bold text-slate-900">{c.name}</h3>
+                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono font-bold text-slate-700">
+                    {count} Articles
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                {c.description && (
+                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                    {c.description}
+                  </p>
+                )}
+                <p className="text-[11px] font-mono text-slate-400">
+                  Slug: /categories/{c.slug}
+                </p>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                <Link
+                  href={`/categories/${c.slug}`}
+                  target="_blank"
+                  className="text-xs font-semibold text-slate-600 hover:text-[#DC2626]"
+                >
+                  View Live ↗
+                </Link>
+
+                <div className="flex items-center gap-1.5">
                   <button
+                    type="button"
                     onClick={() => startEdit(c)}
-                    className="rounded-lg border border-ink-300 bg-paper-50 px-3 py-1.5 text-xs font-bold text-ink-800 hover:bg-paper-100 transition-all"
+                    className="rounded px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                   >
                     Edit
                   </button>
                   <button
+                    type="button"
                     disabled={busy}
-                    onClick={() => handleDelete(c.id)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-bold text-ink-400 hover:text-signal transition-all disabled:opacity-60"
+                    onClick={() => handleDelete(c.id, c.name)}
+                    className="rounded px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     Delete
                   </button>
                 </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-6 shadow-subtle">
-        <p className="text-xs font-mono font-bold uppercase tracking-widest text-signal mb-2">Create New Beat</p>
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-"));
-              }}
-              placeholder="e.g. Theme Parks & Coasters"
-              className="rounded-lg border border-ink-300 px-3 py-2 text-xs font-semibold"
-            />
-            <input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="theme-parks-coasters"
-              className="rounded-lg border border-ink-300 px-3 py-2 text-xs font-mono"
-            />
-          </div>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Brief scope of this category beat..."
-            rows={2}
-            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs resize-none"
-          />
-          <button
-            disabled={busy || !name || !slug}
-            onClick={handleCreate}
-            className="rounded-xl bg-signal px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark transition-all disabled:opacity-60"
-          >
-            Add Category Beat
-          </button>
-        </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

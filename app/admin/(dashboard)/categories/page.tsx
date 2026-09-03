@@ -4,7 +4,10 @@ import { getAllArticles } from "@/lib/articles";
 import CategoriesManager from "@/components/admin/CategoriesManager";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Categories", robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: "Editorial Categories & Beats | World Attraction News Admin",
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminCategoriesPage() {
   const [categories, articles] = await Promise.all([getCategories(), getAllArticles()]);
@@ -16,14 +19,18 @@ export default async function AdminCategoriesPage() {
   }
 
   return (
-    <div>
-      <h1 className="font-serif text-2xl font-bold text-ink-900">Categories</h1>
-      <p className="mt-1 text-sm text-ink-600">
-        Used to tag articles (e.g. Ticket &amp; Pricing, Openings &amp; Closures) and filter city pages.
-      </p>
-      <div className="mt-6">
-        <CategoriesManager initialCategories={categories} articleCounts={counts} />
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="border-b border-slate-200 pb-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+          Editorial Categories &amp; Coverage Beats
+        </h1>
+        <p className="mt-0.5 text-xs sm:text-sm text-slate-500 font-medium">
+          Manage story classification topics (Theme Parks, Iconic Landmarks, Events, Travel Guides).
+        </p>
       </div>
+
+      <CategoriesManager initialCategories={categories} articleCounts={counts} />
     </div>
   );
 }

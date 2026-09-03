@@ -158,3 +158,4 @@ Google Analytics and Google Search Console are wired but stay completely inert u
 3. Run `node scripts/setup-db.mjs` once against your production `DATABASE_URL` (either locally with that URL in `.env`, or via `vercel env pull` first).
 4. Deploy. Log into `/admin/login` with your `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 # attraction-travel-news
+# world-attraction-news

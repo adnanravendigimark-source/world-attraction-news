@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import type { City } from "@/lib/cities";
 import ImageUploadField from "@/components/ImageUploadField";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -18,93 +20,110 @@ const EMPTY = {
   sortOrder: 0,
 };
 
-function CityFormFields({ value, onChange }: { value: typeof EMPTY; onChange: (v: typeof EMPTY) => void }) {
+function CityFormFields({
+  value,
+  onChange,
+}: {
+  value: typeof EMPTY;
+  onChange: (v: typeof EMPTY) => void;
+}) {
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-3.5">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Destination Name</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Destination Name *
+          </label>
           <input
             value={value.name}
             onChange={(e) => onChange({ ...value, name: e.target.value })}
             placeholder="e.g. Tokyo"
-            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs font-semibold focus:border-signal focus:outline-none"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Country</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Country *
+          </label>
           <input
             value={value.country}
             onChange={(e) => onChange({ ...value, country: e.target.value })}
             placeholder="e.g. Japan"
-            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs font-semibold focus:border-signal focus:outline-none"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
           />
         </div>
       </div>
+
       <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">URL Slug</label>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+          URL Slug *
+        </label>
         <input
           value={value.slug}
-          onChange={(e) => onChange({ ...value, slug: e.target.value.toLowerCase() })}
+          onChange={(e) => onChange({ ...value, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
           placeholder="e.g. tokyo"
-          className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs font-mono focus:border-signal focus:outline-none"
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
         />
-        <p className="mt-1 font-mono text-[10px] text-ink-400">Public destination endpoint: /cities/{value.slug || "slug"}</p>
+        <p className="mt-1 text-[10px] text-slate-400">
+          Public URL: /destinations/{value.slug || "slug"}
+        </p>
       </div>
+
       <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Intro &amp; Bureau Overview</label>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+          Intro &amp; Bureau Overview
+        </label>
         <textarea
           value={value.intro}
           onChange={(e) => onChange({ ...value, intro: e.target.value })}
           rows={2}
-          placeholder="A brief overview of attraction coverage in this city..."
-          className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs focus:border-signal focus:outline-none resize-none leading-relaxed"
+          placeholder="A brief overview of top attractions and coverage in this destination..."
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
         />
       </div>
+
       <ImageUploadField
-        label="Hero Cover Image"
+        label="Cover Image"
         value={value.heroImage}
         onChange={(url) => onChange({ ...value, heroImage: url })}
         uploadUrl="/api/admin/upload"
       />
+
       <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Image Alt Text / Photo Credit</label>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+          Image Alt Text
+        </label>
         <input
           value={value.heroImageAlt}
           onChange={(e) => onChange({ ...value, heroImageAlt: e.target.value })}
-          placeholder="Describe the hero image"
-          className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs focus:border-signal focus:outline-none"
+          placeholder="Describe the cover image"
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Meta Title</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Meta Title
+          </label>
           <input
             value={value.metaTitle}
             onChange={(e) => onChange({ ...value, metaTitle: e.target.value })}
-            placeholder="Custom title tag"
-            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs focus:border-signal focus:outline-none"
+            placeholder="Custom SEO title"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Sort Order</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Sort Order
+          </label>
           <input
             type="number"
             value={value.sortOrder}
             onChange={(e) => onChange({ ...value, sortOrder: Number(e.target.value) })}
-            className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs font-mono focus:border-signal focus:outline-none"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
           />
         </div>
-      </div>
-      <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-ink-700 mb-1">Meta Description</label>
-        <textarea
-          value={value.metaDescription}
-          onChange={(e) => onChange({ ...value, metaDescription: e.target.value })}
-          rows={2}
-          placeholder="Search snippet summary"
-          className="w-full rounded-lg border border-ink-300 px-3 py-2 text-xs focus:border-signal focus:outline-none resize-none"
-        />
       </div>
     </div>
   );
@@ -120,22 +139,17 @@ export default function CitiesManager({
   const confirm = useConfirm();
   const toast = useToast();
   const [cities, setCities] = useState(initialCities);
-  const [creating, setCreating] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [newCity, setNewCity] = useState(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<typeof EMPTY>(EMPTY);
+  const [editValue, setEditValue] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const filteredCities = query.trim()
-    ? cities.filter(
-        (c) =>
-          c.name.toLowerCase().includes(query.trim().toLowerCase()) ||
-          c.country.toLowerCase().includes(query.trim().toLowerCase())
-      )
-    : cities;
 
   async function handleCreate() {
+    if (!newCity.name.trim() || !newCity.country.trim() || !newCity.slug.trim()) {
+      toast.error("Please enter a name, country, and slug.");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/admin/cities", {
@@ -144,11 +158,11 @@ export default function CitiesManager({
         body: JSON.stringify(newCity),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      if (!res.ok) throw new Error(data.error || "Failed to create city.");
       setCities((prev) => [...prev, data.city]);
-      setCreating(false);
       setNewCity(EMPTY);
-      toast.success("Destination city added.");
+      setAdding(false);
+      toast.success("Destination created.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -158,7 +172,17 @@ export default function CitiesManager({
 
   function startEdit(city: City) {
     setEditingId(city.id);
-    setEditValue({ ...city });
+    setEditValue({
+      slug: city.slug,
+      name: city.name,
+      country: city.country,
+      heroImage: city.heroImage || "",
+      heroImageAlt: city.heroImageAlt || "",
+      intro: city.intro || "",
+      metaTitle: city.metaTitle || "",
+      metaDescription: city.metaDescription || "",
+      sortOrder: city.sortOrder,
+    });
   }
 
   async function handleSaveEdit(id: string) {
@@ -170,7 +194,7 @@ export default function CitiesManager({
         body: JSON.stringify(editValue),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      if (!res.ok) throw new Error(data.error || "Failed to update city.");
       setCities((prev) => prev.map((c) => (c.id === id ? data.city : c)));
       setEditingId(null);
       toast.success("Destination updated.");
@@ -181,138 +205,189 @@ export default function CitiesManager({
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string, name: string) {
+    const counts = articleCounts[id];
+    if (counts && counts.total > 0) {
+      toast.error(`Cannot delete ${name}: ${counts.total} article(s) are assigned to it.`);
+      return;
+    }
+
     const ok = await confirm({
-      title: "Delete this destination bureau?",
-      description: "This removes the city page. Articles under it must be reassigned.",
-      confirmLabel: "Delete City",
+      title: `Delete ${name}?`,
+      description: "This will permanently remove this destination bureau.",
+      confirmLabel: "Delete Destination",
       danger: true,
     });
     if (!ok) return;
+
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/cities/${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't delete this city.");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete city.");
+      }
       setCities((prev) => prev.filter((c) => c.id !== id));
-      toast.success("City deleted.");
+      toast.success("Destination deleted.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
+      toast.error(err instanceof Error ? err.message : "Couldn't delete destination.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-ink-100 pb-4">
-        <div>
-          <h2 className="font-serif text-xl font-black text-ink-950">Destination Bureaus ({cities.length})</h2>
-          <p className="mt-0.5 text-xs text-ink-500">Manage global coverage hubs and hero dossiers.</p>
-        </div>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search destinations..."
-          className="w-full sm:w-64 rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
-        />
+    <div className="space-y-4">
+      {/* Top Action / Add Toggle */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          All Destinations ({cities.length})
+        </p>
+        <button
+          type="button"
+          onClick={() => setAdding(!adding)}
+          className="rounded-lg bg-[#DC2626] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-colors cursor-pointer"
+        >
+          {adding ? "✕ Close Form" : "+ Add Destination"}
+        </button>
       </div>
 
-      <div className="space-y-3">
-        {filteredCities.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-8 text-center text-xs text-ink-500">
-            No destinations match "{query}".
+      {/* Add New Destination Form Card */}
+      {adding && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              New Destination Bureau
+            </h3>
           </div>
-        )}
-        {filteredCities.map((city) => (
-          <div key={city.id} className="rounded-2xl border border-ink-200/80 bg-white p-5 shadow-card">
-            {editingId === city.id ? (
-              <div className="space-y-4">
+          <CityFormFields value={newCity} onChange={setNewCity} />
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+            <button
+              disabled={busy}
+              onClick={handleCreate}
+              className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
+            >
+              Create Destination
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdding(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Destinations List Grid */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {cities.map((city) => {
+          const isEditing = editingId === city.id;
+          const counts = articleCounts[city.id] || { total: 0, published: 0 };
+
+          if (isEditing) {
+            return (
+              <div
+                key={city.id}
+                className="col-span-full rounded-xl border border-slate-300 bg-white p-5 shadow-2xs space-y-4"
+              >
+                <div className="border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                    Edit Destination: {city.name}
+                  </h3>
+                </div>
                 <CityFormFields value={editValue} onChange={setEditValue} />
-                <div className="flex gap-2 pt-2 border-t border-ink-100">
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                   <button
                     disabled={busy}
                     onClick={() => handleSaveEdit(city.id)}
-                    className="rounded-xl bg-ink-950 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-signal transition-all disabled:opacity-60"
+                    className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
                   >
                     Save Changes
                   </button>
                   <button
+                    type="button"
                     onClick={() => setEditingId(null)}
-                    className="rounded-xl border border-ink-300 px-4 py-2 text-xs font-bold text-ink-700 hover:bg-paper-100"
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-lg font-black text-ink-950">
-                      {city.name}, {city.country}
-                    </h3>
-                    <span className="font-mono text-xs text-ink-400">/cities/{city.slug}</span>
+            );
+          }
+
+          return (
+            <div
+              key={city.id}
+              className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between"
+            >
+              <div>
+                {/* Hero Thumbnail */}
+                <div className="relative aspect-[16/9] w-full bg-slate-100">
+                  {city.heroImage ? (
+                    <Image src={city.heroImage} alt={city.name} fill className="object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400">
+                      No Image
+                    </div>
+                  )}
+                  <span className="absolute bottom-2 left-2 rounded bg-black/75 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                    {city.country}
+                  </span>
+                </div>
+
+                {/* City Details */}
+                <div className="p-4 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-bold text-slate-900">{city.name}</h3>
+                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono font-bold text-slate-700">
+                      {counts.published} Live / {counts.total} Total
+                    </span>
                   </div>
-                  <p className="mt-1 font-mono text-[11px] text-ink-500">
-                    {articleCounts[city.id]?.total ?? 0} total dispatches ·{" "}
-                    <strong className="text-emerald-700 font-bold">{articleCounts[city.id]?.published ?? 0} published live</strong>
+                  {city.intro && (
+                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      {city.intro}
+                    </p>
+                  )}
+                  <p className="text-[11px] font-mono text-slate-400">
+                    Slug: /destinations/{city.slug}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                <Link
+                  href={`/destinations/${city.slug}`}
+                  target="_blank"
+                  className="text-xs font-semibold text-slate-600 hover:text-[#DC2626]"
+                >
+                  View Live ↗
+                </Link>
+
+                <div className="flex items-center gap-1.5">
                   <button
+                    type="button"
                     onClick={() => startEdit(city)}
-                    className="rounded-lg border border-ink-300 bg-paper-50 px-3 py-1.5 text-xs font-bold text-ink-800 hover:bg-paper-100 transition-all"
+                    className="rounded px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
                   >
                     Edit
                   </button>
                   <button
+                    type="button"
                     disabled={busy}
-                    onClick={() => handleDelete(city.id)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-bold text-ink-400 hover:text-signal transition-all disabled:opacity-60"
+                    onClick={() => handleDelete(city.id, city.name)}
+                    className="rounded px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     Delete
                   </button>
                 </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Add New Destination Container */}
-      <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-6 shadow-subtle">
-        {creating ? (
-          <div className="space-y-4">
-            <h3 className="font-serif text-base font-black text-ink-950">Register New Destination Bureau</h3>
-            <CityFormFields value={newCity} onChange={setNewCity} />
-            <div className="flex gap-2 pt-2 border-t border-ink-100">
-              <button
-                disabled={busy}
-                onClick={handleCreate}
-                className="rounded-xl bg-signal px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-card hover:bg-signal-dark transition-all disabled:opacity-60"
-              >
-                Create Bureau
-              </button>
-              <button
-                onClick={() => {
-                  setCreating(false);
-                  setNewCity(EMPTY);
-                }}
-                className="rounded-xl border border-ink-300 px-4 py-2 text-xs font-bold text-ink-700 hover:bg-paper-100"
-              >
-                Cancel
-              </button>
             </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setCreating(true)}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-signal hover:underline"
-          >
-            <span>+ Register New Destination City</span>
-          </button>
-        )}
+          );
+        })}
       </div>
     </div>
   );
