@@ -227,7 +227,7 @@ export default function AttractionsManager({
                         {attraction.name}
                       </h3>
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-mono font-medium text-slate-600 shrink-0 text-right">
-                        {count} {count === 1 ? "Dispatch" : "Dispatches"}
+                        {count} {count === 1 ? "Article" : "Articles"}
                       </span>
                     </div>
 

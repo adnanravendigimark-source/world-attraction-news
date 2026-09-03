@@ -417,6 +417,40 @@ export async function getPublishedArticleCountsByCategory(): Promise<Record<stri
   }
 }
 
+// Every article regardless of status, per city/category — the admin
+// Destinations/Categories managers need this (not the published-only counts
+// above) for two reasons: the "X Live / Y Total" card display, and the
+// delete-guard that blocks removing a city/category still referenced by so
+// much as an unsubmitted draft (a published-only count would under-report
+// and let the client-side pre-check wave through a delete the server would
+// still correctly reject — see deleteCategory below). Single COUNT/GROUP BY
+// each, not a full getAllArticles() fetch.
+export async function getArticleCountsByCity(): Promise<Record<string, { total: number; published: number }>> {
+  try {
+    const rows = await sql`
+      SELECT city_id, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'published')::int AS published
+      FROM articles
+      GROUP BY city_id
+    `;
+    return Object.fromEntries(rows.map((r: any) => [r.city_id, { total: r.total, published: r.published }]));
+  } catch {
+    return {};
+  }
+}
+
+export async function getArticleCountsByCategory(): Promise<Record<string, number>> {
+  try {
+    const rows = await sql`
+      SELECT category_id, COUNT(*)::int AS count FROM articles
+      WHERE category_id IS NOT NULL
+      GROUP BY category_id
+    `;
+    return Object.fromEntries(rows.map((r: any) => [r.category_id, r.count]));
+  } catch {
+    return {};
+  }
+}
+
 // --- Author pages ---------------------------------------------------
 
 export async function getPublishedArticlesByAuthorId(authorId: string, limit = 100): Promise<ArticleWithRelations[]> {

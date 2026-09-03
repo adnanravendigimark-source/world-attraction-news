@@ -18,9 +18,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
+
+  if (body.slug !== undefined && !/^[a-z0-9-]+$/.test(String(body.slug).toLowerCase())) {
+    return NextResponse.json({ error: "Slug must be lowercase letters, numbers, and hyphens only." }, { status: 400 });
+  }
+
   try {
     const city = await updateCity(params.id, {
-      slug: body.slug !== undefined ? body.slug : undefined,
+      slug: body.slug !== undefined ? String(body.slug).trim().toLowerCase() : undefined,
       name: body.name !== undefined ? body.name : undefined,
       country: body.country !== undefined ? body.country : undefined,
       heroImage: body.heroImage !== undefined ? body.heroImage : undefined,
@@ -33,6 +38,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     await logActivity(session, "city_edited", { type: "city", id: city.id, label: city.name });
     return NextResponse.json({ ok: true, city });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("already exists")) return NextResponse.json({ error: message }, { status: 409 });
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }

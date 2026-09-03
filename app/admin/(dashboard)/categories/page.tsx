@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getCategories } from "@/lib/categories";
-import { getAllArticles } from "@/lib/articles";
+import { getArticleCountsByCategory } from "@/lib/articles";
 import CategoriesManager from "@/components/admin/CategoriesManager";
 
 export const dynamic = "force-dynamic";
@@ -10,13 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCategoriesPage() {
-  const [categories, articles] = await Promise.all([getCategories(), getAllArticles()]);
-
-  const counts: Record<string, number> = {};
-  for (const a of articles) {
-    if (!a.categoryId) continue;
-    counts[a.categoryId] = (counts[a.categoryId] || 0) + 1;
-  }
+  // Lightweight COUNT/GROUP BY (every status, not just published — this
+  // count also gates deletion, see CategoriesManager's handleDelete), not a
+  // full getAllArticles() fetch.
+  const [categories, counts] = await Promise.all([getCategories(), getArticleCountsByCategory()]);
 
   return (
     <div className="space-y-5">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getAttractionById, updateAttraction, deleteAttraction } from "@/lib/attractions";
+import { getCityById } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 
@@ -18,8 +19,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
+
+  // The edit modal's "Destination City" dropdown was previously decorative
+  // here — this route never read body.cityId, so re-assigning an attraction
+  // to a different city looked saved (no error) but silently didn't happen.
+  let cityId: string | undefined;
+  if (body.cityId !== undefined) {
+    const trimmed = String(body.cityId || "").trim();
+    const city = await getCityById(trimmed).catch(() => undefined);
+    if (!city) return NextResponse.json({ error: "That city doesn't exist." }, { status: 400 });
+    cityId = trimmed;
+  }
+
   try {
     const attraction = await updateAttraction(params.id, {
+      cityId,
       name: body.name !== undefined ? body.name : undefined,
       description: body.description !== undefined ? body.description : undefined,
       heroImage: body.heroImage !== undefined ? body.heroImage : undefined,

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getCities } from "@/lib/cities";
-import { getAllArticles } from "@/lib/articles";
+import { getArticleCountsByCity } from "@/lib/articles";
 import CitiesManager from "@/components/admin/CitiesManager";
 
 export const dynamic = "force-dynamic";
@@ -10,15 +10,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCitiesPage() {
-  const [cities, articles] = await Promise.all([getCities(), getAllArticles()]);
-
+  // A lightweight COUNT/GROUP BY, not a full getAllArticles() fetch (which
+  // also re-runs publishDueScheduledArticles() as a side effect) — this page
+  // only needs per-city totals, never the article rows themselves.
+  const [cities, countsByCity] = await Promise.all([getCities(), getArticleCountsByCity()]);
   const counts: Record<string, { total: number; published: number }> = {};
-  for (const city of cities) counts[city.id] = { total: 0, published: 0 };
-  for (const a of articles) {
-    if (!counts[a.cityId]) counts[a.cityId] = { total: 0, published: 0 };
-    counts[a.cityId].total++;
-    if (a.status === "published") counts[a.cityId].published++;
-  }
+  for (const city of cities) counts[city.id] = countsByCity[city.id] || { total: 0, published: 0 };
 
   return (
     <div className="space-y-5">

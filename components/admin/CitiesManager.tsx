@@ -207,14 +207,14 @@ export default function CitiesManager({
                   </div>
 
                   <p className="text-[11px] font-mono text-slate-400 pt-2">
-                    Slug: /destinations/{city.slug}
+                    Slug: /cities/{city.slug}
                   </p>
                 </div>
 
                 {/* Card Footer Actions */}
                 <div className="border-t border-slate-100 px-5 py-3 flex items-center justify-between">
                   <Link
-                    href={`/destinations/${city.slug}`}
+                    href={`/cities/${city.slug}`}
                     target="_blank"
                     className="text-xs font-semibold text-slate-600 hover:text-[#DC2626] transition-colors"
                   >
@@ -311,7 +311,7 @@ export default function CitiesManager({
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
                 />
                 <p className="mt-1 text-[10px] text-slate-400">
-                  Public URL: /destinations/{form.slug || "slug"}
+                  Public URL: /cities/{form.slug || "slug"}
                 </p>
               </div>
 

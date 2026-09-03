@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getCities } from "@/lib/cities";
-import { getAttractions, getPublishedArticleCountsByAttraction } from "@/lib/attractions";
+import { getAttractions, getArticleCountsByAttraction } from "@/lib/attractions";
 import AttractionsManager from "@/components/admin/AttractionsManager";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +10,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminAttractionsPage() {
+  // Every status counts here (not just published) — this number also gates
+  // deletion in AttractionsManager's handleDelete.
   const [cities, attractions, counts] = await Promise.all([
     getCities(),
     getAttractions(),
-    getPublishedArticleCountsByAttraction(),
+    getArticleCountsByAttraction(),
   ]);
 
   return (

@@ -51,6 +51,13 @@ export async function updateCategory(id: string, updates: Partial<Omit<Category,
   const current = await getCategoryById(id);
   if (!current) throw new Error("Category not found.");
   const next = { ...current, ...updates };
+  // Same "check before update" gap as lib/cities.ts's updateCity — without
+  // this, editing a category's slug to collide with another category's
+  // failed with a raw database unique-violation instead of a clear message.
+  if (next.slug !== current.slug) {
+    const existing = await getCategoryBySlug(next.slug);
+    if (existing && existing.id !== id) throw new Error("A category with this URL slug already exists.");
+  }
   const rows = await sql`
     UPDATE categories SET slug = ${next.slug}, name = ${next.name}, description = ${next.description}, sort_order = ${next.sortOrder}
     WHERE id = ${id}
@@ -60,6 +67,14 @@ export async function updateCategory(id: string, updates: Partial<Omit<Category,
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  await sql`UPDATE articles SET category_id = NULL WHERE category_id = ${id}`;
+  // Same "block, don't silently strip" rule as deleteCity/deleteAttraction —
+  // this used to silently NULL category_id on every referencing article
+  // (including published ones) with no warning at all, the only one of the
+  // three taxonomy resources that didn't require reassigning first.
+  const articleRows = await sql`SELECT COUNT(*)::int AS count FROM articles WHERE category_id = ${id}`;
+  const count = articleRows[0]?.count ?? 0;
+  if (count > 0) {
+    throw new Error(`Can't delete this category — ${count} article(s) are still assigned to it. Reassign or remove those articles first.`);
+  }
   await sql`DELETE FROM categories WHERE id = ${id}`;
 }

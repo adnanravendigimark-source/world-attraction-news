@@ -91,6 +91,14 @@ export async function updateCity(id: string, updates: Partial<Omit<City, "id">>)
   const current = await getCityById(id);
   if (!current) throw new Error("City not found.");
   const next = { ...current, ...updates };
+  // createCity checks this; updateCity previously didn't, so editing a
+  // city's slug to collide with another city's would fail with a raw,
+  // unfriendly database unique-violation instead of the same clear message
+  // create gives.
+  if (next.slug !== current.slug) {
+    const existing = await getCityBySlug(next.slug);
+    if (existing && existing.id !== id) throw new Error("A city with this URL slug already exists.");
+  }
   const rows = await sql`
     UPDATE cities
     SET slug = ${next.slug}, name = ${next.name}, country = ${next.country},

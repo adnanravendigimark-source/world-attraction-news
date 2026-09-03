@@ -98,6 +98,24 @@ export async function getPublishedArticleCountsByAttraction(): Promise<Record<st
   }
 }
 
+// Every article regardless of status — the admin Attractions manager needs
+// this (not the published-only counts above, which the public attraction
+// index uses) for its delete-guard: deleteAttraction() below blocks on ANY
+// referencing article, so a published-only client-side count could show 0
+// and let a request through that the server then correctly rejects anyway.
+export async function getArticleCountsByAttraction(): Promise<Record<string, number>> {
+  try {
+    const rows = await sql`
+      SELECT attraction_id, COUNT(*)::int AS count FROM articles
+      WHERE attraction_id IS NOT NULL
+      GROUP BY attraction_id
+    `;
+    return Object.fromEntries(rows.map((r: any) => [r.attraction_id, r.count]));
+  } catch {
+    return {};
+  }
+}
+
 async function slugExistsInCity(cityId: string, slug: string, excludeId?: string): Promise<boolean> {
   const rows = excludeId
     ? await sql`SELECT id FROM attractions WHERE city_id = ${cityId} AND slug = ${slug} AND id != ${excludeId} LIMIT 1`
@@ -145,6 +163,7 @@ export async function createAttraction(input: {
 export async function updateAttraction(
   id: string,
   updates: {
+    cityId?: string;
     name?: string;
     description?: string;
     heroImage?: string;
@@ -158,10 +177,20 @@ export async function updateAttraction(
   if (!current.length) throw new Error("Attraction not found.");
   const c = current[0];
   const nextName = updates.name ?? c.name;
-  const slug = updates.name && updates.name !== c.name ? await generateUniqueAttractionSlug(c.city_id, nextName, id) : c.slug;
+  const nextCityId = updates.cityId && updates.cityId !== c.city_id ? updates.cityId : c.city_id;
+  // Attraction slugs are only unique per-city (UNIQUE (city_id, slug)), not
+  // site-wide — so moving an attraction to a different city needs its slug
+  // re-checked against that new city's existing slugs even when the name
+  // itself didn't change, same as a name change needs it re-checked in the
+  // attraction's current city.
+  const slug =
+    (updates.name && updates.name !== c.name) || nextCityId !== c.city_id
+      ? await generateUniqueAttractionSlug(nextCityId, nextName, id)
+      : c.slug;
   const rows = await sql`
     UPDATE attractions
-    SET name = ${nextName},
+    SET city_id = ${nextCityId},
+        name = ${nextName},
         slug = ${slug},
         description = ${updates.description ?? c.description},
         hero_image = ${updates.heroImage ?? c.hero_image},
