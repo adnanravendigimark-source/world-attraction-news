@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Container from "@/components/Container";
@@ -61,6 +62,7 @@ export default function CalendarClient({
 }) {
   const router = useRouter();
   const [searchDraft, setSearchDraft] = useState(currentFilters.q);
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
 
   function buildUrl(overrides: Record<string, string | number | undefined>) {
     const params = new URLSearchParams();
@@ -287,12 +289,26 @@ export default function CalendarClient({
                           {dayEvents.length > 0 && (
                             <div className="mt-1 flex flex-col gap-0.5">
                               {dayEvents.slice(0, 2).map((event) => (
-                                <div key={event.id} className="flex items-start gap-1">
-                                  <span className={`h-1.5 w-1.5 rounded-full ${dotColorFor(event.eventType)} shrink-0 mt-1`} />
+                                <button
+                                  key={event.id}
+                                  type="button"
+                                  onClick={() => setSelectedEvent(event)}
+                                  className="flex items-start gap-1 text-left hover:opacity-70 transition-opacity"
+                                >
+                                  {event.image ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={event.image}
+                                      alt=""
+                                      className="h-3 w-3 rounded-full object-cover shrink-0 mt-0.5 border border-white shadow-sm"
+                                    />
+                                  ) : (
+                                    <span className={`h-1.5 w-1.5 rounded-full ${dotColorFor(event.eventType)} shrink-0 mt-1`} />
+                                  )}
                                   <span className="text-[10px] sm:text-[11px] font-bold text-slate-900 leading-tight line-clamp-2">
                                     {event.title}
                                   </span>
-                                </div>
+                                </button>
                               ))}
                               {dayEvents.length > 2 && (
                                 <span className="text-[9px] text-slate-500 pl-2.5 font-semibold">+{dayEvents.length - 2} more</span>
@@ -326,20 +342,31 @@ export default function CalendarClient({
                   {activeList.map((evt) => {
                     const d = new Date(`${evt.eventDate}T00:00:00`);
                     return (
-                      <div key={evt.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center gap-3.5">
-                          <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-slate-100 text-[#0B1527] shrink-0 font-bold">
-                            <span className="text-[9px] uppercase tracking-wider text-slate-500">
-                              {d.toLocaleDateString("en-US", { month: "short" })}
-                            </span>
-                            <span className="text-base font-black text-[#0B1527]">{d.getDate()}</span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className={`h-2 w-2 rounded-full ${dotColorFor(evt.eventType)}`} />
-                              <h3 className="font-bold text-sm text-[#0B1527]">{evt.title}</h3>
+                      <button
+                        key={evt.id}
+                        type="button"
+                        onClick={() => setSelectedEvent(evt)}
+                        className="w-full p-4 flex items-center justify-between gap-4 text-left hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          {evt.image ? (
+                            <div className="relative h-12 w-12 rounded-lg overflow-hidden shrink-0 bg-slate-100">
+                              <Image src={evt.image} alt="" fill className="object-cover" sizes="48px" />
                             </div>
-                            <p className="text-xs text-slate-500 mt-0.5">
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-slate-100 text-[#0B1527] shrink-0 font-bold">
+                              <span className="text-[9px] uppercase tracking-wider text-slate-500">
+                                {d.toLocaleDateString("en-US", { month: "short" })}
+                              </span>
+                              <span className="text-base font-black text-[#0B1527]">{d.getDate()}</span>
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`h-2 w-2 rounded-full ${dotColorFor(evt.eventType)} shrink-0`} />
+                              <h3 className="font-bold text-sm text-[#0B1527] truncate">{evt.title}</h3>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5 truncate">
                               {evt.location || evt.cityName || ""}
                             </p>
                           </div>
@@ -347,7 +374,7 @@ export default function CalendarClient({
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 shrink-0">
                           {evt.eventType}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -472,6 +499,72 @@ export default function CalendarClient({
           </div>
         </Container>
       </section>
+
+      {selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setSelectedEvent(null)} />
+          <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            {selectedEvent.image ? (
+              <div className="relative h-48 sm:h-56 w-full bg-slate-100">
+                <Image
+                  src={selectedEvent.image}
+                  alt={selectedEvent.imageAlt || selectedEvent.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, 512px"
+                />
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setSelectedEvent(null)}
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-600 shadow-sm hover:bg-white hover:text-slate-900"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <div className="p-5 sm:p-6 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${dotColorFor(selectedEvent.eventType)}`} />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {EVENT_TYPES.find((t) => t.value === selectedEvent.eventType)?.label || selectedEvent.eventType}
+                </span>
+              </div>
+              <h3 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527]">{selectedEvent.title}</h3>
+              <p className="text-sm text-slate-600 font-semibold">
+                {new Date(`${selectedEvent.eventDate}T00:00:00`).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+                {selectedEvent.endDate && selectedEvent.endDate !== selectedEvent.eventDate
+                  ? ` – ${new Date(`${selectedEvent.endDate}T00:00:00`).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}`
+                  : ""}
+              </p>
+              {(selectedEvent.location || selectedEvent.cityName) && (
+                <p className="text-sm text-slate-500">
+                  {[selectedEvent.location, selectedEvent.cityName].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              {selectedEvent.description && (
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{selectedEvent.description}</p>
+              )}
+              {selectedEvent.articleSlug && selectedEvent.articleCitySlug && (
+                <Link
+                  href={`/cities/${selectedEvent.articleCitySlug}/${selectedEvent.articleSlug}`}
+                  className="inline-flex items-center gap-1 text-sm font-bold text-[#DC2626] hover:underline"
+                >
+                  Read the full article →
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
