@@ -26,7 +26,6 @@ const ACTION_LABELS: Record<string, string> = {
   category_created: "Created category",
   category_edited: "Edited category",
   category_deleted: "Deleted category",
-  media_deleted: "Deleted media",
   settings_updated: "Updated site settings",
   admin_password_changed: "Changed admin password",
 };

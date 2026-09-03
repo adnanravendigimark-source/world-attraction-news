@@ -3,10 +3,9 @@ import type { Session } from "./auth";
 
 // Admin audit log — every meaningful admin mutation (user approve/reject/
 // suspend, article approve/reject/publish/edit/delete/score, city/category
-// changes, media deletes) calls logActivity() so /admin/activity has a real
-// record instead of a static/fake list. Logging failures never block the
-// action itself (best-effort, matching the pattern already used for
-// media_library inserts in lib/blob.ts) — an audit log write failing is not
+// changes, event create/edit/delete) calls logActivity() so /admin/activity
+// has a real record instead of a static/fake list. Logging failures never
+// block the action itself (best-effort) — an audit log write failing is not
 // a reason to fail the actual admin action.
 export interface ActivityEntry {
   id: number;

@@ -151,19 +151,6 @@ async function createTables() {
   await sql`CREATE INDEX IF NOT EXISTS articles_author_idx ON articles (author_id)`;
   await sql`CREATE INDEX IF NOT EXISTS articles_status_idx ON articles (status)`;
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS media_library (
-      id SERIAL PRIMARY KEY,
-      url TEXT NOT NULL UNIQUE,
-      filename TEXT NOT NULL DEFAULT '',
-      content_type TEXT NOT NULL DEFAULT '',
-      size_bytes INTEGER NOT NULL DEFAULT 0,
-      alt_text TEXT NOT NULL DEFAULT '',
-      caption TEXT NOT NULL DEFAULT '',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `;
-
   // Phase 2 (Admin Panel) additions.
   await sql`
     CREATE TABLE IF NOT EXISTS activity_log (
@@ -230,8 +217,6 @@ async function addPhase2Columns() {
   await sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''`;
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}'`;
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS canonical_url TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE media_library ADD COLUMN IF NOT EXISTS alt_text TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE media_library ADD COLUMN IF NOT EXISTS caption TEXT NOT NULL DEFAULT ''`;
   await sql`INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`;
   console.log("Phase 2 columns ready.");
 }
@@ -420,12 +405,6 @@ async function addPhase4Columns() {
   // new account going forward in lib/users.ts.
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS slug TEXT`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_slug_key ON users (slug) WHERE slug IS NOT NULL`;
-
-  // Media dimensions — captured at upload time (lib/blob.ts already runs
-  // every image through sharp, which reports these for free) so the Media
-  // Library can show real width x height instead of guessing.
-  await sql`ALTER TABLE media_library ADD COLUMN IF NOT EXISTS width INTEGER`;
-  await sql`ALTER TABLE media_library ADD COLUMN IF NOT EXISTS height INTEGER`;
 
   // Analytics-ready settings — Google Analytics / Search Console are
   // structurally wired (env-driven script injection + verification meta
