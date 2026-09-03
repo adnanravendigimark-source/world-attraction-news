@@ -545,10 +545,11 @@ export default function ArticleReviewPanel({
                   {article.excerpt}
                 </p>
               </div>
-              <div
-                className="prose prose-slate max-w-none text-slate-800 text-sm sm:text-base leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: article.contentHtml }}
-              />
+              {/* `.article-body` (app/globals.css), not `prose prose-slate` — that
+                  Tailwind Typography class does nothing here, the plugin isn't
+                  installed in this project. See RichTextEditor.tsx/
+                  ArticlePreviewModal.tsx for the same fix. */}
+              <div className="article-body" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
             </div>
 
             {/* Revision History */}

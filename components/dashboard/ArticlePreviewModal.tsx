@@ -3,10 +3,11 @@
 import Image from "next/image";
 
 // A quick "how will this actually look?" check before submitting — renders
-// the article with the same typography (prose prose-slate) the public
-// article page and the contributor's own read-only article-detail view
-// both use, so what the contributor sees here is a true preview, not just
-// a differently-styled approximation.
+// the article body with `.article-body` (app/globals.css), the app's own
+// real typography/table/figure CSS (the same rules the FigureImage node's
+// markup was built to match). Was previously `prose prose-slate`, which
+// does nothing in this project — @tailwindcss/typography isn't installed —
+// so a pasted table or heading rendered completely unstyled here.
 export default function ArticlePreviewModal({
   title,
   image,
@@ -69,10 +70,7 @@ export default function ArticlePreviewModal({
           )}
 
           {contentHtml && contentHtml !== "<p></p>" ? (
-            <div
-              className="prose prose-slate max-w-none text-slate-800 text-sm sm:text-base leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: contentHtml }}
-            />
+            <div className="article-body" dangerouslySetInnerHTML={{ __html: contentHtml }} />
           ) : (
             <p className="text-sm text-slate-400 italic">Nothing written yet.</p>
           )}

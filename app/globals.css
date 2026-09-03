@@ -98,7 +98,8 @@ body {
   color: #111318;
 }
 
-.article-body h1 {
+.article-body h1,
+.editor-body h1 {
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 1.85rem;
   font-weight: 800;
@@ -109,7 +110,8 @@ body {
   line-height: 1.25;
 }
 
-.article-body h2 {
+.article-body h2,
+.editor-body h2 {
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 1.5rem;
   font-weight: 800;
@@ -120,7 +122,8 @@ body {
   line-height: 1.3;
 }
 
-.article-body h3 {
+.article-body h3,
+.editor-body h3 {
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
@@ -130,46 +133,56 @@ body {
   letter-spacing: -0.01em;
 }
 
-.article-body p {
+.article-body p,
+.editor-body p {
   margin-bottom: 1.35rem;
 }
 
 .article-body ul,
-.article-body ol {
+.article-body ol,
+.editor-body ul,
+.editor-body ol {
   margin-bottom: 1.5rem;
   padding-left: 1.5rem;
 }
 
-.article-body ul {
+.article-body ul,
+.editor-body ul {
   list-style-type: disc;
 }
 
-.article-body ol {
+.article-body ol,
+.editor-body ol {
   list-style-type: decimal;
 }
 
-.article-body li {
+.article-body li,
+.editor-body li {
   margin-bottom: 0.45rem;
 }
 
-.article-body li::marker {
+.article-body li::marker,
+.editor-body li::marker {
   color: #C22938;
   font-weight: 700;
 }
 
-.article-body strong {
+.article-body strong,
+.editor-body strong {
   color: #0A0B0E;
   font-weight: 700;
 }
 
-.article-body a {
+.article-body a,
+.editor-body a {
   color: #C22938;
   text-decoration: underline;
   text-underline-offset: 3px;
   transition: color 0.15s ease;
 }
 
-.article-body a:hover {
+.article-body a:hover,
+.editor-body a:hover {
   color: #9E1D2A;
 }
 

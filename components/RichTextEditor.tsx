@@ -173,8 +173,17 @@ export default function RichTextEditor({
       content: value || "",
       editorProps: {
         attributes: {
-          class:
-            "prose prose-slate max-w-none px-4 sm:px-6 py-4 sm:py-6 min-h-[350px] text-sm sm:text-base text-slate-800 leading-relaxed outline-none [&_img]:cursor-pointer [&_figure]:cursor-pointer",
+          // Typography/table/figure/placeholder styling comes from the
+          // `.editor-body .ProseMirror` rules in app/globals.css (built to
+          // match this editor's exact output — the FigureImage node's
+          // data-figure-image/img-align-* markup, Tiptap's own auto-added
+          // .ProseMirror class, Placeholder's is-editor-empty marker) via
+          // the `editor-body` class on the wrapper below. `prose`/
+          // `prose-slate` were dead classes here — @tailwindcss/typography
+          // isn't installed in this project, so they rendered as inert
+          // no-ops, leaving every pasted heading/list/table/link
+          // completely unstyled despite parsing correctly.
+          class: "px-4 sm:px-6 py-4 sm:py-6 outline-none [&_img]:cursor-pointer [&_figure]:cursor-pointer",
         },
         transformPastedHTML: allowLinks ? undefined : stripLinks,
         handleClickOn(_view, pos, node) {
@@ -328,7 +337,7 @@ export default function RichTextEditor({
   const inTable = editor.isActive("table");
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden transition-all focus-within:border-slate-300">
+    <div className="editor-body rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden transition-all focus-within:border-slate-300">
       <div
         className="sticky z-20 flex flex-wrap items-center justify-between gap-1 border-b border-slate-200 bg-slate-50/95 backdrop-blur-xs p-1.5"
         style={{ top: stickyOffset || 0 }}
