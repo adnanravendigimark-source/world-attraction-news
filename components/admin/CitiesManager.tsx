@@ -465,8 +465,6 @@ export default function CitiesManager({
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {cities.map((city) => {
                 const counts = articleCounts[city.id] || { total: 0, published: 0 };
-                const cSlug = city.countrySlug || slugifyCountry(city.country);
-                const hasCountrySummary = Boolean(countriesBySlug.get(cSlug)?.intro?.trim());
 
                 return (
                   <div
@@ -483,16 +481,9 @@ export default function CitiesManager({
                         </div>
                       )}
                       {city.country && (
-                        <div className="absolute left-3 bottom-3 flex items-center gap-1.5">
-                          <span className="rounded-md bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-                            {city.country}
-                          </span>
-                          {hasCountrySummary && (
-                            <span className="rounded-md bg-emerald-700/85 px-1.5 py-1 text-[9px] font-bold uppercase tracking-wider text-white" title="Country has custom overview">
-                              ✓ Country Hub
-                            </span>
-                          )}
-                        </div>
+                        <span className="absolute left-3 bottom-3 rounded-md bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+                          {city.country}
+                        </span>
                       )}
                     </div>
 
