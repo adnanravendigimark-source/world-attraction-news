@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import ArticleDetailClient from "@/components/ArticleDetailClient";
 import {
@@ -7,6 +8,7 @@ import {
   getTrendingArticles,
   incrementArticleView,
 } from "@/lib/articles";
+import { getClientIpFromHeaders } from "@/lib/rateLimit";
 import { buildMetadata, newsArticleJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
@@ -43,7 +45,8 @@ export default async function ArticlePage({
   const article = await getPublishedArticleBySlug(params.citySlug, params.articleSlug);
   if (!article) notFound();
 
-  await incrementArticleView(article.id);
+  const ip = getClientIpFromHeaders(headers());
+  await incrementArticleView(article.id, ip);
 
   const [related, trending] = await Promise.all([
     getRelatedPublishedArticles(article.cityId, article.id, 4),

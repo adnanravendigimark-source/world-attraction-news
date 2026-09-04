@@ -903,6 +903,26 @@ async function addPerformanceIndexes() {
   console.log("Performance indexes ready.");
 }
 
+// Backs incrementArticleView() (lib/articles.ts): one view per unique IP
+// per article, not one per page load. UNIQUE(article_id, ip_hash) is the
+// entire mechanism — it's what the article-view write's ON CONFLICT DO
+// NOTHING targets, so a repeat visit from the same IP is a no-op insert
+// instead of a second row, and it's also naturally the exact index that
+// write's WHERE-equivalent lookup needs, so no separate index is required.
+// ip_hash stores a one-way SHA-256 hash, never the raw IP.
+async function createArticleViewsTable() {
+  console.log("Ensuring article_views table exists...");
+  await sql`
+    CREATE TABLE IF NOT EXISTS article_views (
+      article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+      ip_hash TEXT NOT NULL,
+      viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (article_id, ip_hash)
+    )
+  `;
+  console.log("article_views table ready.");
+}
+
 async function main() {
   await createTables();
   await addPhase1Columns();
@@ -911,6 +931,7 @@ async function main() {
   await addPhase4Columns();
   await createPhase5SecurityTables();
   await dropEventsTable();
+  await createArticleViewsTable();
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
   await addPerformanceIndexes();

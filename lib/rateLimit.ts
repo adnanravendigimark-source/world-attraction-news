@@ -51,10 +51,24 @@ export async function checkRateLimit(key: string, limit: number, windowSeconds: 
 // Best-effort real client IP extraction behind Vercel's proxy. Falls back
 // to a shared bucket key ("unknown") only if no header is present at all
 // (e.g. local dev without a proxy) — still functional, just less precise.
-export function getClientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
+//
+// Shared by both call shapes that exist in this app: API routes have a real
+// `Request` (use getClientIp), while Server Components only have the
+// read-only `Headers` from next/headers's headers() (use
+// getClientIpFromHeaders) — both just need `.get(name)`, so one extractor
+// serves both without duplicating the header-parsing logic.
+function extractIp(headers: { get(name: string): string | null }): string {
+  const forwarded = headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();
-  const real = req.headers.get("x-real-ip");
+  const real = headers.get("x-real-ip");
   if (real) return real.trim();
   return "unknown";
+}
+
+export function getClientIp(req: Request): string {
+  return extractIp(req.headers);
+}
+
+export function getClientIpFromHeaders(headers: { get(name: string): string | null }): string {
+  return extractIp(headers);
 }

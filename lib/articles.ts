@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { sql } from "./db";
 import { publishDueScheduledArticles } from "./scheduling";
 import type { ModerationSignals } from "./moderation";
@@ -227,9 +228,40 @@ export async function getPublishedArticleByAnySlug(
 // public article page (see app/(public)/cities/[citySlug]/[articleSlug]/
 // page.tsx). Never seeded, never fabricated. Best-effort: a failure here
 // must never break the article page itself.
-export async function incrementArticleView(id: string): Promise<void> {
+//
+// Counts 1 view per unique IP per article, not 1 per page load — a visitor
+// who reloads or re-reads the same article must not keep inflating the
+// count. Enforced with a UNIQUE(article_id, ip_hash) constraint on
+// article_views (see scripts/setup-db.mjs), and the increment only ever
+// happens for a row that constraint actually let through.
+//
+// The IP itself is never stored — only a one-way SHA-256 hash of it. The
+// hash is still exactly as unique per visitor as the raw IP would be for
+// deduplication purposes, but it can't be reversed back into a real address
+// from the stored data, which matters for a table that's effectively a
+// permanent per-article read history.
+//
+// Both statements below run as a single SQL string, which Postgres executes
+// as one atomic statement — the INSERT's UNIQUE constraint is what makes
+// this safe under concurrent requests for the same (article, IP) pair: at
+// most one of two simultaneous inserts can win, so at most one of them ever
+// contributes to the COUNT(*) that drives the UPDATE. A view from a second,
+// genuinely different IP is a separate row and correctly still counts.
+export async function incrementArticleView(id: string, ip: string): Promise<void> {
   try {
-    await sql`UPDATE articles SET view_count = view_count + 1 WHERE id = ${id}`;
+    const ipHash = createHash("sha256").update(ip).digest("hex");
+    await sql(
+      `WITH inserted AS (
+         INSERT INTO article_views (article_id, ip_hash)
+         VALUES ($1, $2)
+         ON CONFLICT (article_id, ip_hash) DO NOTHING
+         RETURNING 1
+       )
+       UPDATE articles
+       SET view_count = view_count + (SELECT COUNT(*) FROM inserted)
+       WHERE id = $1`,
+      [id, ipHash]
+    );
   } catch {
     // non-critical
   }
