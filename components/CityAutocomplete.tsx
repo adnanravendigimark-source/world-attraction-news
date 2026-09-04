@@ -6,6 +6,7 @@ export interface CitySelection {
   city: string;
   country: string;
   countryCode: string;
+  admin1?: string;
 }
 
 // Shared by Admin's "Add Destination" form (components/admin/CitiesManager.tsx)
@@ -74,7 +75,8 @@ export default function CityAutocomplete({
   }, [query]);
 
   function handleSelect(r: CitySelection) {
-    setQuery(`${r.city}, ${r.country}`);
+    const label = r.admin1 ? `${r.city} (${r.admin1}), ${r.country}` : `${r.city}, ${r.country}`;
+    setQuery(label);
     setOpen(false);
     setResults([]);
     onSelect(r);
@@ -102,18 +104,19 @@ export default function CityAutocomplete({
       {open && query.trim().length >= 2 && (
         <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
           {loading ? (
-            <p className="px-3 py-2 text-xs text-slate-400">Searching…</p>
+            <p className="px-3 py-2 text-xs text-slate-400">Searching global cities…</p>
           ) : results.length === 0 ? (
             <p className="px-3 py-2 text-xs text-slate-400">No matching cities found.</p>
           ) : (
             results.map((r, i) => (
               <button
-                key={`${r.city}-${r.country}-${i}`}
+                key={`${r.city}-${r.country}-${r.admin1 || ""}-${i}`}
                 type="button"
                 onClick={() => handleSelect(r)}
                 className="block w-full px-3 py-2 text-left text-xs text-slate-800 hover:bg-slate-50 cursor-pointer"
               >
                 <span className="font-semibold">{r.city}</span>
+                {r.admin1 && <span className="text-slate-500 font-normal"> ({r.admin1})</span>}
                 <span className="text-slate-400">, {r.country}</span>
               </button>
             ))

@@ -16,7 +16,7 @@ import {
   getBreakingArticles,
   getTopScoredArticles,
 } from "@/lib/articles";
-import { buildMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
+import { buildMetadata, resolvePageMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { articlePath, attractionPath, cityPath } from "@/lib/destinations";
 import { getSettings } from "@/lib/settings";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
@@ -70,12 +70,11 @@ const getCachedSettings = unstable_cache(() => getSettings(), ["site-settings"],
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getCachedSettings();
-  return buildMetadata({
+  return resolvePageMetadata("/", {
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION || settings.defaultMetaDescription,
-    path: "/",
     image: settings.defaultOgImage || undefined,
-    noIndex: settings.robotsDefault === "noindex",
+    noIndex: settings.robotsDefault === "noindex" ? true : undefined,
   });
 }
 

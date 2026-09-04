@@ -511,12 +511,16 @@ export async function getArticleCountsByCategory(): Promise<Record<string, numbe
 
 // --- Author pages ---------------------------------------------------
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function getPublishedArticlesByAuthorId(authorId: string, limit = 100): Promise<ArticleWithRelations[]> {
+  if (!authorId || !UUID_REGEX.test(authorId)) return [];
   try {
     const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.author_id = $1 ORDER BY a.published_at DESC LIMIT $2`;
     const rows = await sql(query, [authorId, limit]);
     return rows.map(rowToArticleWithRelations);
-  } catch {
+  } catch (err) {
+    console.error("[getPublishedArticlesByAuthorId error]:", err);
     return [];
   }
 }
@@ -524,9 +528,15 @@ export async function getPublishedArticlesByAuthorId(authorId: string, limit = 1
 // --- Dashboard reads (a contributor's own articles, any status) -------
 
 export async function getArticlesByAuthor(authorId: string): Promise<ArticleWithRelations[]> {
-  const query = `${JOIN_SELECT} WHERE a.author_id = $1 ORDER BY a.updated_at DESC`;
-  const rows = await sql(query, [authorId]);
-  return rows.map(rowToArticleWithRelations);
+  if (!authorId || !UUID_REGEX.test(authorId)) return [];
+  try {
+    const query = `${JOIN_SELECT} WHERE a.author_id = $1 ORDER BY a.updated_at DESC`;
+    const rows = await sql(query, [authorId]);
+    return rows.map(rowToArticleWithRelations);
+  } catch (err) {
+    console.error("[getArticlesByAuthor error]:", err);
+    return [];
+  }
 }
 
 export async function getArticleById(id: string): Promise<ArticleWithRelations | undefined> {

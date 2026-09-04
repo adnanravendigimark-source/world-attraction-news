@@ -36,6 +36,7 @@ export function buildMetadata({
   path,
   image,
   noIndex,
+  noFollow,
   canonicalOverride,
 }: {
   title: string;
@@ -43,6 +44,7 @@ export function buildMetadata({
   path: string;
   image?: string;
   noIndex?: boolean;
+  noFollow?: boolean;
   // Admin-set canonical override (Article Review -> SEO & Metadata). Only a
   // handful of articles ever set this (syndicated/duplicate content cases);
   // everything else falls back to the page's own real URL.
@@ -53,7 +55,10 @@ export function buildMetadata({
     title,
     description,
     alternates: { canonical: canonicalOverride || url },
-    robots: noIndex ? { index: false, follow: false } : { index: true, follow: true },
+    robots: {
+      index: !noIndex,
+      follow: !noFollow,
+    },
     openGraph: {
       title,
       description,
@@ -69,6 +74,39 @@ export function buildMetadata({
       images: image ? [image] : undefined,
     },
   };
+}
+
+export async function resolvePageMetadata(
+  path: string,
+  options: {
+    title: string;
+    description: string;
+    image?: string;
+    canonicalOverride?: string;
+    noIndex?: boolean;
+    noFollow?: boolean;
+  }
+): Promise<Metadata> {
+  let noIndex = options.noIndex;
+  let noFollow = options.noFollow;
+
+  if (noIndex === undefined || noFollow === undefined) {
+    try {
+      const { getPageIndexing } = await import("./indexing");
+      const indexing = await getPageIndexing(path);
+      if (noIndex === undefined) noIndex = indexing.noIndex;
+      if (noFollow === undefined) noFollow = indexing.noFollow;
+    } catch {
+      // fall through
+    }
+  }
+
+  return buildMetadata({
+    ...options,
+    path,
+    noIndex: Boolean(noIndex),
+    noFollow: Boolean(noFollow),
+  });
 }
 
 export function breadcrumbJsonLd(items: { name: string; path: string }[]) {

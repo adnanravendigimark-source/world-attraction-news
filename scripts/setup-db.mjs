@@ -955,6 +955,22 @@ async function createArticleViewsTable() {
   console.log("article_views table ready.");
 }
 
+async function createIndexingSettingsTable() {
+  console.log("Ensuring indexing_settings table exists...");
+  await sql`
+    CREATE TABLE IF NOT EXISTS indexing_settings (
+      key TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      label TEXT NOT NULL,
+      url TEXT NOT NULL,
+      no_index BOOLEAN NOT NULL DEFAULT false,
+      no_follow BOOLEAN NOT NULL DEFAULT false,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  console.log("indexing_settings table ready.");
+}
+
 async function main() {
   await createTables();
   await addPhase1Columns();
@@ -964,6 +980,7 @@ async function main() {
   await createPhase5SecurityTables();
   await dropEventsTable();
   await createArticleViewsTable();
+  await createIndexingSettingsTable();
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
   await addCountrySlugColumn();

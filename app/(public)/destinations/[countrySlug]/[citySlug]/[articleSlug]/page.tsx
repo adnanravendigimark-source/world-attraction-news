@@ -9,7 +9,7 @@ import {
   incrementArticleView,
 } from "@/lib/articles";
 import { getClientIpFromHeaders } from "@/lib/rateLimit";
-import { buildMetadata, newsArticleJsonLd, jsonLdScript } from "@/lib/seo";
+import { buildMetadata, resolvePageMetadata, newsArticleJsonLd, jsonLdScript } from "@/lib/seo";
 import { articlePath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 
@@ -29,10 +29,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const article = await getPublishedArticleBySlug(params.citySlug, params.articleSlug);
   if (!article || article.countrySlug !== params.countrySlug) return {};
-  return buildMetadata({
+  return resolvePageMetadata(articlePath(article.countrySlug, article.citySlug, article.slug), {
     title: `${article.metaTitle || article.title} | ${SITE_NAME}`,
     description: article.metaDescription || article.excerpt,
-    path: articlePath(article.countrySlug, article.citySlug, article.slug),
     image: article.image,
     canonicalOverride: article.canonicalUrl || undefined,
   });

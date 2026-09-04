@@ -27,6 +27,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ results: [] });
   }
 
-  const results = searchCities(q, 8);
+  const results = await searchCities(q, 10);
   return NextResponse.json({ results });
 }
