@@ -80,8 +80,15 @@ export default function NotificationsList({ initial }: { initial: Notification[]
         prev.map((x) => (x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x))
       );
       try {
-        await fetch(`/api/dashboard/notifications/${n.id}`, { method: "PATCH" });
-      } catch {}
+        const res = await fetch(`/api/dashboard/notifications/${n.id}`, { method: "PATCH" });
+        if (!res.ok) throw new Error("Request failed");
+      } catch {
+        // The optimistic "read" mark didn't actually persist — revert it so
+        // the list doesn't silently drift from what the server has. Not
+        // worth a toast (the user is navigating away right after this), but
+        // it shouldn't look read here if it isn't read on the server.
+        setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, readAt: null } : x)));
+      }
     }
     if (n.link) router.push(n.link);
   }
