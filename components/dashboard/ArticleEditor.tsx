@@ -555,7 +555,7 @@ export default function ArticleEditor({
               value={form.contentHtml}
               onChange={(html) => update("contentHtml", html)}
               placeholder="Write the article here… use the toolbar for headings, bold, links, lists, tables, or images."
-              allowedHeadings={[1, 2, 3]}
+              allowedHeadings={[2, 3]}
               minHeight="26rem"
               stickyOffset="4rem"
             />

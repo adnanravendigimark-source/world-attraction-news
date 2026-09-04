@@ -66,6 +66,12 @@ export default function ArticleDetailClient({
     return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
+  const formatViews = (n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+    return String(n);
+  };
+
   const displayTrending = trendingStories.slice(0, 5);
   const displayRelated = relatedStories.slice(0, 4);
 
@@ -151,8 +157,20 @@ export default function ArticleDetailClient({
                   <p className="font-bold text-[#0B1527]">
                     By {article.authorName}
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {formatDate(article.publishedAt)} • {article.readingTimeMinutes || 1} min read • Updated {formatDate(article.updatedAt || article.publishedAt)}
+                  <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    <span>{formatDate(article.publishedAt)}</span>
+                    <span>•</span>
+                    <span>{article.readingTimeMinutes || 1} min read</span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 font-medium text-slate-700 bg-slate-100/80 border border-slate-200/60 px-2 py-0.5 rounded-full">
+                      <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      {formatViews(article.viewCount || 0)} views
+                    </span>
+                    <span>•</span>
+                    <span>Updated {formatDate(article.updatedAt || article.publishedAt)}</span>
                   </p>
                 </div>
               </div>

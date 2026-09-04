@@ -57,7 +57,10 @@ export default async function ArticlePage({
   }
 
   const ip = getClientIpFromHeaders(headers());
-  await incrementArticleView(article.id, ip);
+  const updatedViews = await incrementArticleView(article.id, ip);
+  if (updatedViews !== null) {
+    article.viewCount = updatedViews;
+  }
 
   const [related, trending] = await Promise.all([
     getRelatedPublishedArticles(article.cityId, article.id, 4),

@@ -264,23 +264,64 @@ export async function getPublishedArticleByAnySlug(
 // most one of two simultaneous inserts can win, so at most one of them ever
 // contributes to the COUNT(*) that drives the UPDATE. A view from a second,
 // genuinely different IP is a separate row and correctly still counts.
-export async function incrementArticleView(id: string, ip: string): Promise<void> {
+export async function incrementArticleView(id: string, ip: string): Promise<number | null> {
   try {
-    const ipHash = createHash("sha256").update(ip).digest("hex");
-    await sql(
-      `WITH inserted AS (
-         INSERT INTO article_views (article_id, ip_hash)
-         VALUES ($1, $2)
-         ON CONFLICT (article_id, ip_hash) DO NOTHING
-         RETURNING 1
-       )
-       UPDATE articles
-       SET view_count = view_count + (SELECT COUNT(*) FROM inserted)
-       WHERE id = $1`,
-      [id, ipHash]
-    );
-  } catch {
-    // non-critical
+    const ipToUse = ip && ip.trim() !== "" ? ip.trim() : "unknown";
+    const ipHash = createHash("sha256").update(ipToUse).digest("hex");
+
+    const inserted = await sql`
+      INSERT INTO article_views (article_id, ip_hash)
+      VALUES (${id}, ${ipHash})
+      ON CONFLICT (article_id, ip_hash) DO NOTHING
+      RETURNING 1
+    `;
+
+    // If 1 row inserted, this is a new unique IP view for this article -> Increment DB count
+    if (inserted && inserted.length > 0) {
+      const updated = await sql`
+        UPDATE articles
+        SET view_count = COALESCE(view_count, 0) + 1
+        WHERE id = ${id}
+        RETURNING view_count
+      `;
+      return updated[0]?.view_count != null ? Number(updated[0].view_count) : null;
+    }
+
+    // Existing IP (already viewed) -> 1 view per IP enforced, do not increment
+    return null;
+  } catch (err: any) {
+    if (err?.message && /article_views.*does not exist/i.test(err.message)) {
+      try {
+        await sql`
+          CREATE TABLE IF NOT EXISTS article_views (
+            article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+            ip_hash TEXT NOT NULL,
+            viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            PRIMARY KEY (article_id, ip_hash)
+          )
+        `;
+        const ipHash = createHash("sha256").update(ip || "unknown").digest("hex");
+        const inserted = await sql`
+          INSERT INTO article_views (article_id, ip_hash)
+          VALUES (${id}, ${ipHash})
+          ON CONFLICT (article_id, ip_hash) DO NOTHING
+          RETURNING 1
+        `;
+        if (inserted && inserted.length > 0) {
+          const updated = await sql`
+            UPDATE articles
+            SET view_count = COALESCE(view_count, 0) + 1
+            WHERE id = ${id}
+            RETURNING view_count
+          `;
+          return updated[0]?.view_count != null ? Number(updated[0].view_count) : null;
+        }
+      } catch (e) {
+        console.error("[articles] retry incrementArticleView failed:", e);
+      }
+    }
+    console.error("[articles] incrementArticleView error:", err);
+    return null;
   }
 }
 
