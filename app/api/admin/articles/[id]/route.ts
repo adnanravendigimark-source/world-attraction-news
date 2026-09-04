@@ -259,7 +259,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       await logActivity(session, "article_published", { type: "article", id: article.id, label: article.title });
       const url = articlePath(before.countrySlug, before.citySlug, article.slug);
       if (author) {
-        await notifyArticlePublished({ id: author.id, email: author.email }, { id: article.id, title: article.title, url });
+        await notifyArticlePublished(
+          { id: author.id, email: author.email },
+          {
+            id: article.id,
+            title: article.title,
+            url,
+            score: score ?? article.score ?? before.score,
+            feedback: feedback || article.adminFeedback || before.adminFeedback,
+          }
+        );
       }
       // Broadcast to active newsletter subscribers
       notifySubscribersOfNewArticle({

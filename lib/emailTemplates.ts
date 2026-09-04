@@ -338,19 +338,37 @@ export function articleRejectedEmailTemplate(input: { title: string; feedback: s
   return { subject: `Update on "${input.title}"`, html, text: htmlToText(html) };
 }
 
-export function articlePublishedEmailTemplate(input: { title: string; url: string }): RenderedEmail {
-  const heading = "Your article is now live";
-  const bodyHtml =
-    paragraph(`<strong>"${escapeHtml(input.title)}"</strong> has been published and is now live on ${escapeHtml(SITE_NAME)} for readers around the world to see.`) +
-    paragraph(`Nice work — thanks for contributing.`);
+export function articlePublishedEmailTemplate(input: {
+  title: string;
+  url: string;
+  score?: number | null;
+  feedback?: string | null;
+  dashboardUrl?: string;
+}): RenderedEmail {
+  const heading = "Your Article is Approved & Live! 🎉";
+  let bodyHtml = paragraph(
+    `Congratulations! Your article <strong>"${escapeHtml(input.title)}"</strong> has been approved by our editorial team and is now published live on <strong>${escapeHtml(SITE_NAME)}</strong>.`
+  );
+
+  if (input.score !== null && input.score !== undefined) {
+    bodyHtml += scoreBadge(input.score);
+  }
+
+  if (input.feedback && input.feedback.trim()) {
+    bodyHtml += feedbackBox("Editor's Feedback", input.feedback.trim(), BRAND.emerald, BRAND.emeraldLight);
+  }
+
+  bodyHtml += paragraph(`Thank you for your valuable contribution. Your points and reader stats are now active on your contributor dashboard.`);
+
   const html = renderEmailLayout({
-    previewText: `"${input.title}" is now live on ${SITE_NAME}.`,
+    previewText: `🎉 "${input.title}" is approved and live!${input.score != null ? ` Score: ${input.score}/10` : ""}`,
     heading,
     bodyHtml,
-    ctaLabel: "View live article",
+    ctaLabel: "View Live Article",
     ctaUrl: absoluteUrl(input.url),
   });
-  return { subject: `Now live: "${input.title}"`, html, text: htmlToText(html) };
+
+  return { subject: `🎉 Approved & Live: "${input.title}" — ${SITE_NAME}`, html, text: htmlToText(html) };
 }
 
 // Generic fallback template used for every notification type that doesn't

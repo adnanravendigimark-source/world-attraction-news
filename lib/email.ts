@@ -132,7 +132,16 @@ export async function sendArticleRejectedEmail(
   return sendRendered(to, articleRejectedEmailTemplate(input));
 }
 
-export async function sendArticlePublishedEmail(to: string, input: { title: string; url: string }): Promise<boolean> {
+export async function sendArticlePublishedEmail(
+  to: string,
+  input: {
+    title: string;
+    url: string;
+    score?: number | null;
+    feedback?: string | null;
+    dashboardUrl?: string;
+  }
+): Promise<boolean> {
   return sendRendered(to, articlePublishedEmailTemplate(input));
 }
 

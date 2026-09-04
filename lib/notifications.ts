@@ -295,15 +295,35 @@ export async function notifyArticleFeedbackUpdated(
   });
 }
 
-export async function notifyArticlePublished(user: { id: string; email: string }, article: { id: string; title: string; url: string }) {
+export async function notifyArticlePublished(
+  user: { id: string; email: string },
+  article: {
+    id: string;
+    title: string;
+    url: string;
+    score?: number | null;
+    feedback?: string | null;
+  }
+) {
+  const score = article.score ?? null;
+  const feedback = article.feedback || "";
+  const body = `"${article.title}" is approved and live on the public site!${score !== null ? ` (Quality Score: ${score}/10)` : ""}${feedback ? ` — Feedback: ${feedback}` : ""}`;
+
   await createNotification({
     userId: user.id,
     userEmail: user.email,
     type: "article_published",
-    title: "Your article is now live",
-    body: `"${article.title}" has been published to the public site.`,
+    title: "Your article is approved and live!",
+    body,
     link: article.url,
-    sendEmail: () => sendArticlePublishedEmail(user.email, { title: article.title, url: article.url }),
+    sendEmail: () =>
+      sendArticlePublishedEmail(user.email, {
+        title: article.title,
+        url: article.url,
+        score,
+        feedback,
+        dashboardUrl: `/contributor/articles/${article.id}`,
+      }),
   });
 }
 
