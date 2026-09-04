@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import {
   getArticleById,
   reviewArticle,
+  updateArticleReview,
   markUnderReview,
   publishArticle,
   unpublishArticle,
@@ -23,6 +24,7 @@ import {
   notifyArticleApproved,
   notifyArticleRejected,
   notifyArticleScored,
+  notifyArticleFeedbackUpdated,
   notifyArticlePublished,
   notifyArticleUnpublished,
 } from "@/lib/notifications";
@@ -161,6 +163,69 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           await notifyArticleScored({ id: author.id, email: author.email }, { id: article.id, title: article.title }, score);
         }
       }
+      return NextResponse.json({ ok: true, article });
+    }
+
+    // Corrects score and/or feedback on an article that's already been
+    // through the approve/reject/request-changes decision - including one
+    // that's since been published, scheduled, or unpublished, which the
+    // "review" action above deliberately refuses to touch (it would mean
+    // silently reverting a live article's status). This action never
+    // changes `status` at all, so it's safe to allow from any non-draft
+    // state: an admin can fix a mis-scored or outdated-feedback article at
+    // any point in its life, and the contributor's total (computed live by
+    // summarizePoints() from the current `score` column - see lib/articles.ts)
+    // picks up the correction automatically, with no separate points ledger
+    // to fall out of sync.
+    if (action === "update_review") {
+      let score: number | null = null;
+      if (body.score !== null && body.score !== undefined && body.score !== "") {
+        const n = Number(body.score);
+        if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 10) {
+          return NextResponse.json({ error: "Score must be a whole number between 0 and 10." }, { status: 400 });
+        }
+        score = n;
+      }
+      const feedback = (body.feedback || "").trim();
+
+      const scoreChanged = before.score !== score;
+      const feedbackChanged = before.adminFeedback !== feedback;
+      if (!scoreChanged && !feedbackChanged) {
+        return NextResponse.json({ ok: true, article: before });
+      }
+
+      const article = await updateArticleReview(params.id, { score, feedback });
+
+      // Same append-only audit trail as the initial review decision (see
+      // lib/reviews.ts) - "revised" keeps this entry visually distinct from
+      // the original approved/rejected/changes_requested decision it's
+      // correcting, without inventing a new decision the DB doesn't expect.
+      await recordReview({
+        articleId: article.id,
+        adminId: session.userId,
+        adminEmail: session.email,
+        decision: "revised",
+        score,
+        feedback,
+        moderationSignals: before.moderationSignals,
+      });
+
+      await logActivity(
+        session,
+        "article_score_feedback_updated",
+        { type: "article", id: article.id, label: article.title },
+        { score, scoreChanged, feedbackChanged }
+      );
+
+      if (author) {
+        if (scoreChanged && score !== null) {
+          await notifyArticleScored({ id: author.id, email: author.email }, { id: article.id, title: article.title }, score);
+        }
+        if (feedbackChanged) {
+          await notifyArticleFeedbackUpdated({ id: author.id, email: author.email }, { id: article.id, title: article.title }, feedback);
+        }
+      }
+
       return NextResponse.json({ ok: true, article });
     }
 

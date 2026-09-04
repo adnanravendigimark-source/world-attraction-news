@@ -865,6 +865,32 @@ export async function reviewArticle(
   return rowToArticle(rows[0]);
 }
 
+// Corrects the score and/or feedback on an article that's already been
+// reviewed - including one that's already published, scheduled, or
+// unpublished. Deliberately never touches `status`: the one-time approve /
+// reject / request-changes workflow decision (reviewArticle above) stays
+// exactly as sequenced as before, but the score and feedback attached to
+// that decision must stay correctable afterward - a mis-typed score or
+// feedback that needs clarifying shouldn't be permanently locked in just
+// because the article has since gone live. Only blocked on 'draft', since
+// nothing has been reviewed yet there for there to be anything to correct.
+export async function updateArticleReview(
+  id: string,
+  input: { score: number | null; feedback: string }
+): Promise<Article> {
+  const rows = await sql`
+    UPDATE articles
+    SET score = ${input.score},
+        admin_feedback = ${input.feedback},
+        reviewed_at = now(),
+        updated_at = now()
+    WHERE id = ${id} AND status != 'draft'
+    RETURNING *
+  `;
+  if (!rows.length) throw new Error("Article not found, or hasn't been submitted for review yet.");
+  return rowToArticle(rows[0]);
+}
+
 export async function publishArticle(id: string): Promise<Article> {
   const rows = await sql`
     UPDATE articles
@@ -1031,6 +1057,14 @@ export interface PointsSummary {
 }
 
 export function summarizePoints(articles: Article[]): PointsSummary {
+  // Computed live from each article's current `score` column every time
+  // this runs - there's no separate points ledger/tally stored anywhere.
+  // That's what makes updateArticleReview() (admin correcting a score after
+  // the fact, even post-publish) automatically safe: the very next time
+  // this function runs it just sums whatever `score` currently holds, so a
+  // correction can never produce a duplicate or stale point record - there's
+  // nothing to duplicate or leave stale in the first place.
+  //
   // Only counts a score while it still reflects the article's current,
   // "live" outcome:
   //   - 'rejected' work never earns quality points, even if the admin

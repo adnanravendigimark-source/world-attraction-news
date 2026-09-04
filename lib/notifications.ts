@@ -21,6 +21,7 @@ export type NotificationType =
   | "article_approved"
   | "article_rejected"
   | "article_scored"
+  | "article_feedback_updated"
   | "article_published"
   | "article_unpublished";
 
@@ -232,6 +233,26 @@ export async function notifyArticleScored(user: { id: string; email: string }, a
     type: "article_scored",
     title: "Your article was scored",
     body: `"${article.title}" received a score of ${score}/10.`,
+    link: `/contributor/articles/${article.id}`,
+  });
+}
+
+// Fires when an admin corrects an article's feedback after it was already
+// reviewed (see updateArticleReview() in lib/articles.ts) - separate from
+// notifyArticleScored below so a feedback-only correction (no score change)
+// still lets the contributor know something changed, without implying their
+// score moved when it didn't.
+export async function notifyArticleFeedbackUpdated(
+  user: { id: string; email: string },
+  article: { id: string; title: string },
+  feedback: string
+) {
+  await createNotification({
+    userId: user.id,
+    userEmail: user.email,
+    type: "article_feedback_updated",
+    title: "Editor feedback updated",
+    body: `The editor's feedback on "${article.title}" was updated${feedback ? `: ${feedback}` : "."}`,
     link: `/contributor/articles/${article.id}`,
   });
 }

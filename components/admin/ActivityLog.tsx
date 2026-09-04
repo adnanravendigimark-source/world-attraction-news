@@ -16,6 +16,7 @@ const ACTION_LABELS: Record<string, string> = {
   article_approved: "Approved article",
   article_rejected: "Rejected article",
   article_scored: "Scored article",
+  article_score_feedback_updated: "Updated article points/feedback",
   article_published: "Published article",
   article_unpublished: "Unpublished article",
   article_edited: "Edited article",
