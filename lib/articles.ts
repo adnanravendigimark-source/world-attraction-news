@@ -202,7 +202,8 @@ export async function getPublishedArticles(opts: {
     const query = `${JOIN_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY a.published_at DESC LIMIT $${params.length}`;
     const rows = await sql(query, params);
     return rows.map(rowToArticleWithRelations);
-  } catch {
+  } catch (err) {
+    console.error("[getPublishedArticles error]:", err);
     return [];
   }
 }
@@ -365,7 +366,8 @@ export async function getPublishedArticlesPage(opts: {
     const rows = await sql(query, pageParams);
 
     return { articles: rows.map(rowToArticleWithRelations), total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
-  } catch {
+  } catch (err) {
+    console.error("[getPublishedArticlesPage error]:", err);
     return { articles: [], total: 0, page, pageSize, totalPages: 1 };
   }
 }
@@ -391,7 +393,8 @@ export async function getTrendingArticles(limit = 6): Promise<ArticleWithRelatio
     const fallbackQuery = `${JOIN_SELECT} WHERE a.status = 'published' ORDER BY a.published_at DESC LIMIT $1`;
     const fallbackRows = await sql(fallbackQuery, [limit]);
     return fallbackRows.map(rowToArticleWithRelations);
-  } catch {
+  } catch (err) {
+    console.error("[getTrendingArticles error]:", err);
     return [];
   }
 }
@@ -405,7 +408,8 @@ export async function getTopScoredArticles(limit = 6): Promise<ArticleWithRelati
     const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.score IS NOT NULL ORDER BY a.score DESC, a.published_at DESC LIMIT $1`;
     const rows = await sql(query, [limit]);
     return rows.map(rowToArticleWithRelations);
-  } catch {
+  } catch (err) {
+    console.error("[getTopScoredArticles error]:", err);
     return [];
   }
 }
@@ -418,7 +422,8 @@ async function getFlaggedArticles(column: "featured" | "trending" | "editors_pic
     const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.${column} = true ORDER BY a.published_at DESC LIMIT $1`;
     const rows = await sql(query, [limit]);
     return rows.map(rowToArticleWithRelations);
-  } catch {
+  } catch (err) {
+    console.error("[getFlaggedArticles error]:", err);
     return [];
   }
 }
