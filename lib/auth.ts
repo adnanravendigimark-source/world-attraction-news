@@ -2,7 +2,22 @@
 // `crypto` module) because this file is imported by both API routes AND
 // `middleware.ts`, which runs on the Edge runtime and doesn't have Node's
 // crypto module available.
+//
+// The dev-only fallback below exists purely so `npm run dev` works before a
+// developer has copied .env.example to .env — it must never be what a real
+// deployment runs on. This value is public (it's sitting right here in the
+// repo), so any session signed with it is forgeable by anyone who's ever
+// seen this file: they can mint themselves a valid admin session token
+// without ever touching the database or a password. Refusing to boot
+// without a real SESSION_SECRET in production is the only way to guarantee
+// that never happens silently.
 const SECRET = process.env.SESSION_SECRET || "attraction-travel-news-dev-secret-change-me";
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "SESSION_SECRET is not set. Refusing to start in production with the public fallback secret — every session " +
+      "would be forgeable. Set a long, random SESSION_SECRET in your environment (see .env.example)."
+  );
+}
 export const SESSION_COOKIE_NAME = "atn_session";
 
 export type SessionRole = "admin" | "contributor";
@@ -61,12 +76,27 @@ export async function createSessionToken(session: Session, maxAgeSeconds: number
   return `${payload}.${sig}`;
 }
 
+// Plain `===` on two strings short-circuits at the first differing
+// character, which leaks (via response timing) how many leading characters
+// of a guessed signature were correct — a textbook timing side-channel.
+// Comparing every character regardless of an early mismatch, and folding
+// the whole thing through XOR, means the time this takes doesn't depend on
+// where (or whether) the strings differ.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 export async function verifySessionToken(token: string | undefined | null): Promise<Session | null> {
   if (!token) return null;
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return null;
   const expected = await sign(payload);
-  if (expected !== sig) return null;
+  if (!timingSafeEqual(expected, sig)) return null;
   try {
     const parsed = JSON.parse(fromBase64Url(payload));
     if (!parsed?.userId || !parsed?.email || (parsed.role !== "admin" && parsed.role !== "contributor")) {

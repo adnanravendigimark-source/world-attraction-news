@@ -2,12 +2,25 @@ import { NextResponse } from "next/server";
 import { createContactMessage } from "@/lib/contactMessages";
 import { sendContactNotificationEmail } from "@/lib/email";
 import { dbErrorMessage } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
+  // Unauthenticated, no honeypot alone is enough — a bot that skips the
+  // hidden field would otherwise be free to fire unlimited DB writes and
+  // outbound notification emails through this route.
+  const ip = getClientIp(req);
+  const limit = await checkRateLimit(`contact:${ip}`, 5, 3600);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let body: any;
   try {
     body = await req.json();

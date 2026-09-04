@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
 import { subscribeToNewsletter } from "@/lib/newsletter";
 import { dbErrorMessage } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
+  // Same reasoning as /api/contact — unauthenticated write endpoint, the
+  // honeypot alone doesn't stop a bot that skips it from hammering this
+  // with junk emails.
+  const ip = getClientIp(req);
+  const limit = await checkRateLimit(`newsletter:${ip}`, 10, 3600);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let body: any;
   try {
     body = await req.json();
