@@ -5,6 +5,7 @@ import { getCategoryBySlug, getCategories } from "@/lib/categories";
 import { getPublishedArticlesPage, type ArticleSort } from "@/lib/articles";
 import { getCities } from "@/lib/cities";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
+import { articlePath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 
 // Stays force-dynamic: real server-side city filter, search, sort, and
@@ -90,7 +91,7 @@ export default async function CategoryPage({
         dangerouslySetInnerHTML={{
           __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
-            itemListJsonLd(result.articles.map((a) => ({ name: a.title, path: `/cities/${a.citySlug}/${a.slug}` }))),
+            itemListJsonLd(result.articles.map((a) => ({ name: a.title, path: articlePath(a.countrySlug, a.citySlug, a.slug) }))),
           ]),
         }}
       />

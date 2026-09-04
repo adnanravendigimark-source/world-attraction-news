@@ -4,11 +4,12 @@ import DestinationsClient, { DestinationCity } from "./DestinationsClient";
 import { getCitiesWithArticleCounts } from "@/lib/cities";
 import { getSettings } from "@/lib/settings";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
+import { cityPath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams (search/sort/filter is client-side over the
 // full list) — real ISR. City counts change slowly enough that a wider
-// window is safe; admin city create/edit/delete calls revalidatePath("/cities").
+// window is safe; admin city create/edit/delete calls revalidatePath("/destinations").
 //
 // `revalidate` alone doesn't achieve this: lib/db.ts's sql() issues every
 // query with `fetchOptions: { cache: "no-store" }`, and a no-store fetch
@@ -18,33 +19,34 @@ import { SITE_NAME } from "@/lib/site";
 // it, so this page can actually be served from cache between requests.
 export const revalidate = 300;
 
-const getCitiesPageData = unstable_cache(
+const getDestinationsPageData = unstable_cache(
   async () => {
     const [cities, settings] = await Promise.all([getCitiesWithArticleCounts(), getSettings()]);
     return { cities, settings };
   },
-  ["cities-page-data"],
+  ["destinations-page-data"],
   { revalidate: 300, tags: ["cities", "settings"] }
 );
 
 export const metadata: Metadata = buildMetadata({
   title: `Destinations — Global Attraction News & Travel Updates | ${SITE_NAME}`,
   description: "Explore the latest attraction news and travel updates from the world's most iconic destinations.",
-  path: "/cities",
+  path: "/destinations",
 });
 
 const breadcrumbs = [
   { name: "Home", path: "/" },
-  { name: "Destinations", path: "/cities" },
+  { name: "Destinations", path: "/destinations" },
 ];
 
-export default async function CitiesPage() {
-  const { cities, settings } = await getCitiesPageData();
+export default async function DestinationsPage() {
+  const { cities, settings } = await getDestinationsPageData();
   const featuredSet = new Set(settings.featuredCitySlugs);
 
   const mappedCities: DestinationCity[] = cities.map((c) => ({
     id: c.id,
     slug: c.slug,
+    countrySlug: c.countrySlug,
     name: c.name,
     country: c.country,
     intro: c.intro,
@@ -64,7 +66,7 @@ export default async function CitiesPage() {
         dangerouslySetInnerHTML={{
           __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
-            itemListJsonLd(cities.map((c) => ({ name: c.name, path: `/cities/${c.slug}` }))),
+            itemListJsonLd(cities.map((c) => ({ name: c.name, path: cityPath(c.countrySlug, c.slug) }))),
           ]),
         }}
       />

@@ -8,6 +8,7 @@ import Container from "@/components/Container";
 import NumberedPagination from "@/components/NumberedPagination";
 import NewsletterForm from "@/components/NewsletterForm";
 import type { ArticleWithRelations } from "@/lib/articles";
+import { articlePath } from "@/lib/destinations";
 
 interface Filters {
   city: string;
@@ -196,7 +197,7 @@ export default function LatestNewsClient({
                 </div>
               ) : (
                 articles.map((article) => {
-                  const href = `/cities/${article.citySlug}/${article.slug}`;
+                  const href = articlePath(article.countrySlug, article.citySlug, article.slug);
 
                   return (
                     <article
@@ -379,7 +380,7 @@ export default function LatestNewsClient({
                     {trending.map((item, i) => (
                       <Link
                         key={item.id}
-                        href={`/cities/${item.citySlug}/${item.slug}`}
+                        href={articlePath(item.countrySlug, item.citySlug, item.slug)}
                         className="group flex items-center gap-3 py-3 hover:bg-slate-50/70 -mx-2 px-2 rounded-lg transition-colors"
                       >
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-[10px] font-black text-white">

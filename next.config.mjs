@@ -23,6 +23,17 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
   },
+  // The Phase [Destinations] URL restructure moved the whole
+  // country/city-scoped subtree from /cities/* to /destinations/[country]/
+  // [city]/*. The bare index has no dynamic segment, so it's handled here as
+  // a simple permanent (308) redirect; every path *under* /cities/[citySlug]
+  // needs a database lookup to resolve the city's country, which a static
+  // config redirect can't do — those are instead thin server-rendered pages
+  // at the old paths that look up the city and permanentRedirect() (see
+  // app/(public)/cities/**).
+  async redirects() {
+    return [{ source: "/cities", destination: "/destinations", permanent: true }];
+  },
 };
 
 export default nextConfig;

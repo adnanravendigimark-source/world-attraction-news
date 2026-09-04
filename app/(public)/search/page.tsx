@@ -8,6 +8,7 @@ import EmptyState from "@/components/EmptyState";
 import { search } from "@/lib/search";
 import { getTrendingArticles } from "@/lib/articles";
 import { buildMetadata } from "@/lib/seo";
+import { cityPath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,7 @@ export default async function SearchPage({ searchParams }: { searchParams: { q?:
               <p className="text-[11px] font-bold uppercase tracking-wide text-ink-500">Cities</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {results.cities.map((c) => (
-                  <Link key={c.id} href={`/cities/${c.slug}`} className="rounded-full border border-ink-200 px-3.5 py-1.5 text-xs font-semibold text-ink-700 hover:border-signal hover:text-signal">
+                  <Link key={c.id} href={cityPath(c.countrySlug, c.slug)} className="rounded-full border border-ink-200 px-3.5 py-1.5 text-xs font-semibold text-ink-700 hover:border-signal hover:text-signal">
                     {c.name} <span className="text-ink-400">· {c.country}</span>
                   </Link>
                 ))}

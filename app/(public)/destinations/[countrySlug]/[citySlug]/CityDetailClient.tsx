@@ -9,6 +9,7 @@ import EmptyState from "@/components/EmptyState";
 import type { City } from "@/lib/cities";
 import type { ArticleWithRelations } from "@/lib/articles";
 import type { Attraction } from "@/lib/attractions";
+import { cityPath, countryPath, attractionsPath, attractionPath, articlePath } from "@/lib/destinations";
 
 const PAGE_SIZE = 10;
 const ALL_TAG = "ALL NEWS";
@@ -91,8 +92,12 @@ export default function CityDetailClient({
               Home
             </Link>
             <span>&gt;</span>
-            <Link href="/cities" className="hover:text-slate-900 transition-colors">
+            <Link href="/destinations" className="hover:text-slate-900 transition-colors">
               Destinations
+            </Link>
+            <span>&gt;</span>
+            <Link href={countryPath(city.countrySlug)} className="hover:text-slate-900 transition-colors">
+              {city.country}
             </Link>
             <span>&gt;</span>
             <span className="text-slate-800">{city.name}</span>
@@ -214,7 +219,7 @@ export default function CityDetailClient({
                   {filteredArticles.length} STORIES IN {city.name.toUpperCase()}
                 </span>
                 <Link
-                  href={`/cities/${city.slug}/attractions`}
+                  href={attractionsPath(city.countrySlug, city.slug)}
                   className="text-xs font-black uppercase tracking-wider text-[#DC2626] hover:underline flex items-center gap-1"
                 >
                   <span>View All {city.name} Attractions</span>
@@ -248,7 +253,7 @@ export default function CityDetailClient({
               ) : (
                 <>
                   {pagedArticles.map((article) => {
-                    const href = `/cities/${city.slug}/${article.slug}`;
+                    const href = articlePath(city.countrySlug, city.slug, article.slug);
 
                     return (
                       <article
@@ -372,11 +377,14 @@ export default function CityDetailClient({
                   </div>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Country: <strong className="text-slate-900">{city.country}</strong>
+                  Country:{" "}
+                  <Link href={countryPath(city.countrySlug)} className="font-bold text-slate-900 hover:text-[#DC2626] hover:underline">
+                    {city.country}
+                  </Link>
                 </p>
                 <div className="mt-3 pt-3 border-t border-slate-100">
                   <Link
-                    href={`/cities/${city.slug}/attractions`}
+                    href={attractionsPath(city.countrySlug, city.slug)}
                     className="text-xs font-black uppercase tracking-wider text-[#DC2626] flex items-center gap-1 hover:underline"
                   >
                     <span>Browse {city.name} Attractions</span>
@@ -395,7 +403,7 @@ export default function CityDetailClient({
                     {attractions.slice(0, 5).map((att) => (
                       <Link
                         key={att.id}
-                        href={`/cities/${city.slug}/attractions/${att.slug}`}
+                        href={attractionPath(city.countrySlug, city.slug, att.slug)}
                         className="group flex items-center gap-3"
                       >
                         <div className="relative h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-slate-100">

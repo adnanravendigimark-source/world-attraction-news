@@ -4,6 +4,7 @@ import { generateResetToken } from "@/lib/tokens";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { dbErrorMessage } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { getAppUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +38,7 @@ export async function POST(req: Request) {
     const { raw, hash, expiresAt } = generateResetToken();
     const user = await setPasswordResetToken(email, hash, expiresAt);
     if (user) {
-      const appUrl = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
-      const resetUrl = `${appUrl}/reset-password?token=${raw}`;
+      const resetUrl = `${getAppUrl(req)}/reset-password?token=${raw}`;
       await sendPasswordResetEmail(user.email, resetUrl);
       // Dev convenience only: when no email provider is configured, echo
       // the link back so the reset flow can still be tested locally. Never

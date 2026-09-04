@@ -4,7 +4,7 @@ import SearchForm from "@/components/SearchForm";
 
 const QUICK_LINKS = [
   { href: "/latest-news", label: "Latest News" },
-  { href: "/cities", label: "Browse Cities" },
+  { href: "/destinations", label: "Browse Destinations" },
   { href: "/categories", label: "Browse Categories" },
 ];
 

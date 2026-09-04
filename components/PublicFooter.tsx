@@ -31,12 +31,12 @@ export default function PublicFooter({
             </h3>
             <ul className="mt-4 space-y-2.5 text-xs">
               <li>
-                <Link href="/cities" className="text-slate-400 hover:text-white transition-colors">
+                <Link href="/destinations" className="text-slate-400 hover:text-white transition-colors">
                   Destinations
                 </Link>
               </li>
               <li>
-                <Link href="/cities" className="text-slate-400 hover:text-white transition-colors">
+                <Link href="/destinations" className="text-slate-400 hover:text-white transition-colors">
                   Attractions
                 </Link>
               </li>

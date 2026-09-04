@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { googleOAuthConfigured, getGoogleAuthUrl } from "@/lib/googleAuth";
 import { generateOAuthState } from "@/lib/tokens";
+import { getAppUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -8,14 +9,14 @@ export const dynamic = "force-dynamic";
 // consent screen. A random `state` value is stored in a short-lived,
 // httpOnly cookie and re-checked on the callback so a forged callback
 // request (CSRF) is rejected.
-export async function GET() {
+export async function GET(req: Request) {
   if (!googleOAuthConfigured()) {
-    const url = new URL("/login?error=google_not_configured", process.env.APP_URL || "http://localhost:3000");
+    const url = new URL("/login?error=google_not_configured", getAppUrl(req));
     return NextResponse.redirect(url);
   }
 
   const state = generateOAuthState();
-  const res = NextResponse.redirect(getGoogleAuthUrl(state));
+  const res = NextResponse.redirect(getGoogleAuthUrl(state, req));
   res.cookies.set("atn_oauth_state", state, {
     httpOnly: true,
     sameSite: "lax",

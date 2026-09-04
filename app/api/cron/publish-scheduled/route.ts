@@ -25,16 +25,18 @@ export async function GET(req: Request) {
     }
   }
   const publishedCount = await publishDueScheduledArticles();
-  // Homepage and city pages are ISR-cached (see their own `revalidate`
-  // exports) — without this they'd still catch up on their own within that
-  // window, but a scheduled article going live is exactly the kind of
-  // "should show up promptly" change worth an explicit nudge here, cheap as
-  // it is. Not scoped to specific cities since this function doesn't return
-  // which ones were affected — a full revalidatePath("/cities") is still far
+  // Homepage and destination pages are ISR-cached (see their own
+  // `revalidate` exports) — without this they'd still catch up on their own
+  // within that window, but a scheduled article going live is exactly the
+  // kind of "should show up promptly" change worth an explicit nudge here,
+  // cheap as it is. Not scoped to specific cities/countries since this
+  // function doesn't return which ones were affected — revalidating the
+  // whole /destinations subtree plus the "articles" data-cache tag (which
+  // every destination page's article fetch is tagged with) is still far
   // cheaper than the DB work the cron just did.
   if (publishedCount > 0) {
     revalidatePath("/");
-    revalidatePath("/cities");
+    revalidatePath("/destinations", "layout");
     revalidateTag("homepage");
     revalidateTag("articles");
   }

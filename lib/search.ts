@@ -2,6 +2,7 @@ import { sql } from "./db";
 import type { ArticleWithRelations } from "./articles";
 import type { City } from "./cities";
 import type { Category } from "./categories";
+import { slugifyCountry } from "./countries";
 
 function rowToArticleWithRelations(row: any): ArticleWithRelations {
   return {
@@ -41,6 +42,7 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : "",
     cityName: row.city_name,
     citySlug: row.city_slug,
+    countrySlug: row.country_slug,
     categoryName: row.category_name,
     categorySlug: row.category_slug,
     attractionName: row.attraction_name ?? null,
@@ -62,7 +64,7 @@ export async function searchArticles(query: string, limit = 20): Promise<Article
   const q = `%${query}%`;
   try {
     const rows = await sql`
-      SELECT a.*, c.name AS city_name, c.slug AS city_slug,
+      SELECT a.*, c.name AS city_name, c.slug AS city_slug, c.country_slug AS country_slug,
              cat.name AS category_name, cat.slug AS category_slug,
              att.name AS attraction_name, att.slug AS attraction_slug,
              u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
@@ -101,6 +103,7 @@ export async function searchCities(query: string, limit = 10): Promise<City[]> {
       slug: r.slug,
       name: r.name,
       country: r.country,
+      countrySlug: r.country_slug || slugifyCountry(r.country),
       heroImage: r.hero_image,
       heroImageAlt: r.hero_image_alt,
       intro: r.intro,

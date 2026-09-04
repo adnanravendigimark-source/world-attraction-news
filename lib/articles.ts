@@ -68,6 +68,7 @@ export interface Article {
 export interface ArticleWithRelations extends Article {
   cityName: string;
   citySlug: string;
+  countrySlug: string;
   categoryName: string | null;
   categorySlug: string | null;
   attractionName: string | null;
@@ -127,6 +128,7 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     ...rowToArticle(row),
     cityName: row.city_name,
     citySlug: row.city_slug,
+    countrySlug: row.country_slug,
     categoryName: row.category_name,
     categorySlug: row.category_slug,
     attractionName: row.attraction_name ?? null,
@@ -160,7 +162,7 @@ export function computeContentStats(html: string): { wordCount: number; readingT
 // fully parameterized (no string-built values), just not the tagged-
 // template shorthand.
 const JOIN_SELECT = `
-  SELECT a.*, c.name AS city_name, c.slug AS city_slug,
+  SELECT a.*, c.name AS city_name, c.slug AS city_slug, c.country_slug AS country_slug,
          cat.name AS category_name, cat.slug AS category_slug,
          att.name AS attraction_name, att.slug AS attraction_slug,
          u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
@@ -225,9 +227,10 @@ export async function getPublishedArticleByAnySlug(
 }
 
 // Real page-view counter — called exactly once per real render of the
-// public article page (see app/(public)/cities/[citySlug]/[articleSlug]/
-// page.tsx). Never seeded, never fabricated. Best-effort: a failure here
-// must never break the article page itself.
+// public article page (see
+// app/(public)/destinations/[countrySlug]/[citySlug]/[articleSlug]/page.tsx).
+// Never seeded, never fabricated. Best-effort: a failure here must never
+// break the article page itself.
 //
 // Counts 1 view per unique IP per article, not 1 per page load — a visitor
 // who reloads or re-reads the same article must not keep inflating the
@@ -425,8 +428,8 @@ export const getBreakingArticles = (limit = 6) => getFlaggedArticles("breaking",
 export const getPinnedTrendingArticles = (limit = 6) => getFlaggedArticles("trending", limit);
 
 // Real per-city / per-category published-article counts, used for "Popular
-// Cities", the /cities index, and the /categories index — every number here
-// comes straight from a COUNT(*) against real rows, never a placeholder.
+// Cities", the /destinations index, and the /categories index — every number
+// here comes straight from a COUNT(*) against real rows, never a placeholder.
 export async function getPublishedArticleCountsByCity(): Promise<Record<string, number>> {
   try {
     const rows = await sql`SELECT city_id, COUNT(*)::int AS count FROM articles WHERE status = 'published' GROUP BY city_id`;

@@ -1,16 +1,18 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site";
-import { getCities } from "@/lib/cities";
+import { getCities, getCountriesInUse } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
 import { getPublishedArticles } from "@/lib/articles";
 import { getAttractions } from "@/lib/attractions";
 import { getPublishedAuthorSlugs } from "@/lib/users";
+import { cityPath, attractionsPath, attractionPath, articlePath, countryPath } from "@/lib/destinations";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [cities, categories, articles, attractions, authorSlugs] = await Promise.all([
+  const [cities, countries, categories, articles, attractions, authorSlugs] = await Promise.all([
     getCities(),
+    getCountriesInUse(),
     getCategories(),
     getPublishedArticles({ limit: 5000 }),
     getAttractions(),
@@ -22,7 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, changeFrequency: "hourly", priority: 1 },
     { url: `${SITE_URL}/latest-news`, changeFrequency: "hourly", priority: 0.9 },
-    { url: `${SITE_URL}/cities`, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${SITE_URL}/destinations`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${SITE_URL}/categories`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${SITE_URL}/about`, changeFrequency: "monthly", priority: 0.3 },
     { url: `${SITE_URL}/write-for-us`, changeFrequency: "monthly", priority: 0.3 },
@@ -34,9 +36,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/disclaimer`, changeFrequency: "yearly", priority: 0.1 },
   ];
 
+  const countryPages: MetadataRoute.Sitemap = countries.map((c) => ({
+    url: `${SITE_URL}${countryPath(c.countrySlug)}`,
+    changeFrequency: "weekly",
+    priority: 0.65,
+  }));
+
   const cityPages: MetadataRoute.Sitemap = cities.flatMap((c) => [
-    { url: `${SITE_URL}/cities/${c.slug}`, changeFrequency: "daily" as const, priority: 0.8 },
-    { url: `${SITE_URL}/cities/${c.slug}/attractions`, changeFrequency: "weekly" as const, priority: 0.5 },
+    { url: `${SITE_URL}${cityPath(c.countrySlug, c.slug)}`, changeFrequency: "daily" as const, priority: 0.8 },
+    { url: `${SITE_URL}${attractionsPath(c.countrySlug, c.slug)}`, changeFrequency: "weekly" as const, priority: 0.5 },
   ]);
 
   const categoryPages: MetadataRoute.Sitemap = categories.map((c) => ({
@@ -46,13 +54,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const attractionPages: MetadataRoute.Sitemap = attractions.map((a) => ({
-    url: `${SITE_URL}/cities/${a.citySlug}/attractions/${a.slug}`,
+    url: `${SITE_URL}${attractionPath(a.countrySlug, a.citySlug, a.slug)}`,
     changeFrequency: "weekly",
     priority: 0.6,
   }));
 
   const articlePages: MetadataRoute.Sitemap = articles.map((a) => ({
-    url: `${SITE_URL}/cities/${a.citySlug}/${a.slug}`,
+    url: `${SITE_URL}${articlePath(a.countrySlug, a.citySlug, a.slug)}`,
     lastModified: a.updatedAt ? new Date(a.updatedAt) : undefined,
     changeFrequency: "weekly",
     priority: 0.7,
@@ -64,5 +72,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.4,
   }));
 
-  return [...staticPages, ...cityPages, ...categoryPages, ...attractionPages, ...articlePages, ...authorPages];
+  return [...staticPages, ...countryPages, ...cityPages, ...categoryPages, ...attractionPages, ...articlePages, ...authorPages];
 }

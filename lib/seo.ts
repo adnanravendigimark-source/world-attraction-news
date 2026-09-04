@@ -98,7 +98,7 @@ export function websiteJsonLd() {
   };
 }
 
-// Used on /cities, /categories, and their individual [slug] pages — tells
+// Used on /destinations, /categories, and their individual [slug] pages — tells
 // search engines these are genuine listing pages over real content, not
 // arbitrary pages, and gives them the list of what's on the page.
 export function itemListJsonLd(items: { name: string; path: string }[]) {

@@ -5,6 +5,7 @@ import { getAttractionById, updateAttraction, deleteAttraction } from "@/lib/att
 import { getCityById } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { cityPath, attractionsPath, attractionPath } from "@/lib/destinations";
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +48,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const withCity = await getAttractionById(attraction.id);
     await logActivity(session, "attraction_edited", { type: "attraction", id: attraction.id, label: attraction.name });
     if (withCity) {
-      revalidatePath(`/cities/${withCity.citySlug}/attractions`);
-      revalidatePath(`/cities/${withCity.citySlug}/attractions/${withCity.slug}`);
-      revalidatePath(`/cities/${withCity.citySlug}`);
-      // The city may have changed — also refresh the attraction's old home.
-      if (before && before.citySlug !== withCity.citySlug) {
-        revalidatePath(`/cities/${before.citySlug}/attractions`);
-        revalidatePath(`/cities/${before.citySlug}`);
+      revalidatePath(attractionsPath(withCity.countrySlug, withCity.citySlug));
+      revalidatePath(attractionPath(withCity.countrySlug, withCity.citySlug, withCity.slug));
+      revalidatePath(cityPath(withCity.countrySlug, withCity.citySlug));
+      // The city (and/or its country) may have changed — also refresh the
+      // attraction's old home.
+      if (before && (before.citySlug !== withCity.citySlug || before.countrySlug !== withCity.countrySlug)) {
+        revalidatePath(attractionsPath(before.countrySlug, before.citySlug));
+        revalidatePath(cityPath(before.countrySlug, before.citySlug));
       }
       revalidateTag("attractions");
     }
@@ -73,8 +75,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     await deleteAttraction(params.id);
     if (before) {
       await logActivity(session, "attraction_deleted", { type: "attraction", id: params.id, label: before.name });
-      revalidatePath(`/cities/${before.citySlug}/attractions`);
-      revalidatePath(`/cities/${before.citySlug}`);
+      revalidatePath(attractionsPath(before.countrySlug, before.citySlug));
+      revalidatePath(cityPath(before.countrySlug, before.citySlug));
       revalidateTag("attractions");
     }
     return NextResponse.json({ ok: true });

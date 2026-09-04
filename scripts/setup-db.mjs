@@ -485,6 +485,38 @@ async function createPhase8OwnerPasswordColumn() {
   console.log("Phase 8 column ready.");
 }
 
+// Same slugify rule as lib/countries.ts's slugifyCountry() — duplicated
+// here in plain JS since this script isn't compiled through TypeScript and
+// can't import a .ts module. Keep the two in sync if either changes.
+function slugifyCountryName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .trim()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Backs the /destinations/[countrySlug]/[citySlug] URL restructure — every
+// city needs a stable, URL-safe country segment derived from its (now
+// autocomplete-selected, canonical) country name. Idempotent: only backfills
+// rows where country_slug is still empty, so re-running never overwrites a
+// slug that's already set (including one an admin might theoretically have
+// hand-edited via a future admin tool).
+async function addCountrySlugColumn() {
+  console.log("Ensuring cities.country_slug column exists...");
+  await sql`ALTER TABLE cities ADD COLUMN IF NOT EXISTS country_slug TEXT NOT NULL DEFAULT ''`;
+  const rows = await sql`SELECT id, country FROM cities WHERE country_slug = ''`;
+  if (rows.length) {
+    console.log(`Backfilling country_slug for ${rows.length} city row(s)...`);
+    for (const row of rows) {
+      await sql`UPDATE cities SET country_slug = ${slugifyCountryName(row.country)} WHERE id = ${row.id}`;
+    }
+  }
+  await sql`CREATE INDEX IF NOT EXISTS cities_country_slug_idx ON cities (country_slug)`;
+  console.log("cities.country_slug ready.");
+}
+
 // Every user row needs a unique slug for /author/[slug] — including
 // accounts created before this column existed. Idempotent: only touches
 // rows where slug IS NULL, so re-running never reshuffles an existing
@@ -781,8 +813,8 @@ async function seedCities() {
   for (let i = 0; i < CITY_SEED.length; i++) {
     const c = CITY_SEED[i];
     await sql`
-      INSERT INTO cities (slug, name, country, hero_image, hero_image_alt, intro, meta_title, meta_description, sort_order)
-      VALUES (${c.slug}, ${c.name}, ${c.country}, ${c.heroImage}, ${c.heroImageAlt}, ${c.intro}, ${c.metaTitle}, ${c.metaDescription}, ${i})
+      INSERT INTO cities (slug, name, country, country_slug, hero_image, hero_image_alt, intro, meta_title, meta_description, sort_order)
+      VALUES (${c.slug}, ${c.name}, ${c.country}, ${slugifyCountryName(c.country)}, ${c.heroImage}, ${c.heroImageAlt}, ${c.intro}, ${c.metaTitle}, ${c.metaDescription}, ${i})
     `;
   }
   console.log(`cities: seeded ${CITY_SEED.length} row(s).`);
@@ -934,6 +966,7 @@ async function main() {
   await createArticleViewsTable();
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
+  await addCountrySlugColumn();
   await addPerformanceIndexes();
   await backfillUserSlugs();
   await seedCities();

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { getArticleById } from "@/lib/articles";
+import { articlePath } from "@/lib/destinations";
 import StatusBadge from "@/components/StatusBadge";
 import ScoreBadge from "@/components/ScoreBadge";
 
@@ -100,7 +101,7 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
             )}
             {article.status === "published" && (
               <Link
-                href={`/cities/${article.citySlug}/${article.slug}`}
+                href={articlePath(article.countrySlug, article.citySlug, article.slug)}
                 target="_blank"
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B1527] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#DC2626] transition-colors"
               >

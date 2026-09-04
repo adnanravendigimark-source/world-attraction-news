@@ -17,6 +17,7 @@ import {
   getTopScoredArticles,
 } from "@/lib/articles";
 import { buildMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
+import { articlePath, attractionPath, cityPath } from "@/lib/destinations";
 import { getSettings } from "@/lib/settings";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
 
@@ -141,14 +142,14 @@ export default async function HomePage() {
     readTime: `${a.readingTimeMinutes || 4} min read`,
     image: a.image || "/images/epic-universe.jpg",
     imageAlt: a.imageAlt || a.title,
-    href: `/cities/${a.citySlug}/${a.slug}`,
+    href: articlePath(a.countrySlug, a.citySlug, a.slug),
   }));
 
   // Ticker: real breaking-news flags first, falling back to trending.
   const tickerSource = breaking.length ? breaking : trending;
   const tickerItems = tickerSource.slice(0, 6).map((a) => ({
     label: a.title,
-    href: `/cities/${a.citySlug}/${a.slug}`,
+    href: articlePath(a.countrySlug, a.citySlug, a.slug),
   }));
 
   const latestNews = articles.slice(0, 4);
@@ -170,8 +171,8 @@ export default async function HomePage() {
     image: a.image,
     imageAlt: a.imageAlt || a.title,
     href: a.attractionSlug
-      ? `/cities/${a.citySlug}/attractions/${a.attractionSlug}`
-      : `/cities/${a.citySlug}/${a.slug}`,
+      ? attractionPath(a.countrySlug, a.citySlug, a.attractionSlug)
+      : articlePath(a.countrySlug, a.citySlug, a.slug),
   }));
 
   const heroUsedIds = new Set(heroSourceArticles.map((a) => a.id));
@@ -226,7 +227,7 @@ export default async function HomePage() {
                   return (
                     <Link
                       key={a.id}
-                      href={`/cities/${a.citySlug}/${a.slug}`}
+                      href={articlePath(a.countrySlug, a.citySlug, a.slug)}
                       className="group flex flex-col rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300"
                     >
                       <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
@@ -276,7 +277,7 @@ export default async function HomePage() {
                         </h2>
                       </div>
                       <Link
-                        href="/cities"
+                        href="/destinations"
                         className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors"
                       >
                         <span>VIEW ALL</span>
@@ -288,7 +289,7 @@ export default async function HomePage() {
                       {popularDestinations.map((dest) => (
                         <Link
                           key={dest.slug}
-                          href={`/cities/${dest.slug}`}
+                          href={cityPath(dest.countrySlug, dest.slug)}
                           className="group relative aspect-[4/3] rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer bg-slate-900"
                         >
                           <Image
@@ -320,7 +321,7 @@ export default async function HomePage() {
                         </h2>
                       </div>
                       <Link
-                        href="/cities"
+                        href="/destinations"
                         className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors"
                       >
                         <span>VIEW ALL</span>
@@ -418,7 +419,7 @@ export default async function HomePage() {
 
                       <div className="mt-5">
                         <Link
-                          href={`/cities/${editorPick.citySlug}/${editorPick.slug}`}
+                          href={articlePath(editorPick.countrySlug, editorPick.citySlug, editorPick.slug)}
                           className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-[#0B1527] hover:border-[#0B1527] hover:bg-slate-50 transition-all"
                         >
                           <span>READ MORE</span>

@@ -40,7 +40,7 @@ export default function SiteSettingsForm({ initial, cities }: { initial: SiteSet
         <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">HOMEPAGE</span>
         <h3 className="text-sm font-bold text-slate-900 mt-0.5">Featured Destinations</h3>
         <p className="mt-1 text-xs text-slate-500">
-          Pick which destinations get a "Popular" badge and priority placement on the public /cities page.
+          Pick which destinations get a "Popular" badge and priority placement on the public /destinations page.
         </p>
       </div>
 

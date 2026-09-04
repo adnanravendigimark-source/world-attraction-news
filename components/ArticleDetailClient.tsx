@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Container from "@/components/Container";
 import type { ArticleWithRelations } from "@/lib/articles";
+import { cityPath, articlePath } from "@/lib/destinations";
 
 export default function ArticleDetailClient({
   article,
@@ -25,7 +26,7 @@ export default function ArticleDetailClient({
   const fullUrl =
     typeof window !== "undefined"
       ? window.location.href
-      : `https://worldattractionnews.com/cities/${article.citySlug}/${article.slug}`;
+      : `https://worldattractionnews.com${articlePath(article.countrySlug, article.citySlug, article.slug)}`;
 
   const copyToClipboard = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -103,7 +104,7 @@ export default function ArticleDetailClient({
             Latest News
           </Link>
           <span>&gt;</span>
-          <Link href={`/cities/${article.citySlug}`} className="hover:text-slate-900 transition-colors">
+          <Link href={cityPath(article.countrySlug, article.citySlug)} className="hover:text-slate-900 transition-colors">
             {article.cityName}
           </Link>
           <span>&gt;</span>
@@ -343,7 +344,7 @@ export default function ArticleDetailClient({
                   {displayRelated.map((item) => (
                     <Link
                       key={item.id}
-                      href={`/cities/${item.citySlug}/${item.slug}`}
+                      href={articlePath(item.countrySlug, item.citySlug, item.slug)}
                       className="group flex items-start gap-3"
                     >
                       <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100">
@@ -388,7 +389,7 @@ export default function ArticleDetailClient({
                   {displayTrending.map((item, idx) => (
                     <Link
                       key={item.id}
-                      href={`/cities/${item.citySlug}/${item.slug}`}
+                      href={articlePath(item.countrySlug, item.citySlug, item.slug)}
                       className="group flex items-center gap-3"
                     >
                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-[10px] font-black text-white">

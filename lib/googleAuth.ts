@@ -12,6 +12,8 @@
 // Until those three env vars are set, the "Continue with Google" button
 // shows a clear error instead of a broken redirect — see the /api/auth/google
 // route.
+import { getAppUrl } from "./appUrl";
+
 const GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 
@@ -19,18 +21,18 @@ export function googleOAuthConfigured(): boolean {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
-function getAppUrl(): string {
-  return (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+// `req` is optional so existing non-request call sites keep working, but
+// every real route handler below passes its own `req` through — see
+// lib/appUrl.ts for why that matters (it's the fallback that keeps this
+// working when APP_URL isn't set in the deployment's environment).
+export function getGoogleRedirectUri(req?: Request): string {
+  return `${getAppUrl(req)}/api/auth/google/callback`;
 }
 
-export function getGoogleRedirectUri(): string {
-  return `${getAppUrl()}/api/auth/google/callback`;
-}
-
-export function getGoogleAuthUrl(state: string): string {
+export function getGoogleAuthUrl(state: string, req?: Request): string {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID || "",
-    redirect_uri: getGoogleRedirectUri(),
+    redirect_uri: getGoogleRedirectUri(req),
     response_type: "code",
     scope: "openid email profile",
     state,
@@ -53,7 +55,7 @@ export interface GoogleProfile {
 // Google's own token endpoint (authenticated with our client secret), so
 // this deliberately skips re-verifying its signature — it never passed
 // through the browser or any untrusted hop.
-export async function exchangeGoogleCode(code: string): Promise<GoogleProfile> {
+export async function exchangeGoogleCode(code: string, req?: Request): Promise<GoogleProfile> {
   const res = await fetch(GOOGLE_TOKEN_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -61,7 +63,12 @@ export async function exchangeGoogleCode(code: string): Promise<GoogleProfile> {
       code,
       client_id: process.env.GOOGLE_CLIENT_ID || "",
       client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
-      redirect_uri: getGoogleRedirectUri(),
+      // Must exactly match the redirect_uri sent in the initial
+      // /api/auth/google request (see app/api/auth/google/route.ts) — both
+      // now resolve through the same getGoogleRedirectUri(req), so as long
+      // as the same request's origin is used on both ends this always
+      // matches, even when APP_URL isn't set.
+      redirect_uri: getGoogleRedirectUri(req),
       grant_type: "authorization_code",
     }),
   });

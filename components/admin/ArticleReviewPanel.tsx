@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { ArticleWithRelations } from "@/lib/articles";
 import type { ArticleRevision } from "@/lib/revisions";
+import { articlePath } from "@/lib/destinations";
 import TiptapArticleEditor from "@/components/dashboard/TiptapArticleEditor";
 import ImageUploadField from "@/components/dashboard/ImageUploadField";
 import StatusBadge from "@/components/StatusBadge";
@@ -372,7 +373,7 @@ export default function ArticleReviewPanel({
           <div className="flex shrink-0 items-center gap-2.5">
             {article.status === "published" && (
               <Link
-                href={`/cities/${article.citySlug}/${article.slug}`}
+                href={articlePath(article.countrySlug, article.citySlug, article.slug)}
                 target="_blank"
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
               >

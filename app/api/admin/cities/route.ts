@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { getCities, createCity } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { countryPath, cityPath } from "@/lib/destinations";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,9 @@ export async function POST(req: Request) {
       sortOrder: Number(body.sortOrder) || 0,
     });
     await logActivity(session, "city_created", { type: "city", id: city.id, label: city.name });
-    revalidatePath("/cities");
+    revalidatePath("/destinations");
+    revalidatePath(countryPath(city.countrySlug));
+    revalidatePath(cityPath(city.countrySlug, city.slug));
     revalidatePath("/");
     revalidatePath("/about"); // lists "Active Destination Bureaus"
     revalidateTag("cities");
@@ -62,7 +65,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, city });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
-    if (message.includes("already exists")) return NextResponse.json({ error: message }, { status: 409 });
+    if (message.includes("already exists") || message.includes("already a destination")) {
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }

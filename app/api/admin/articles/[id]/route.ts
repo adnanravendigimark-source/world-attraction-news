@@ -30,6 +30,7 @@ import {
 } from "@/lib/notifications";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { cityPath, articlePath } from "@/lib/destinations";
 
 export const dynamic = "force-dynamic";
 
@@ -44,11 +45,11 @@ export const dynamic = "force-dynamic";
 // fetches those routes now use (see each page's own comment for why they
 // need unstable_cache at all). revalidateTag() is what actually busts those
 // cache entries; both are needed together.
-function revalidatePublicPaths(citySlug?: string | null, authorSlug?: string | null) {
+function revalidatePublicPaths(citySlug?: string | null, countrySlug?: string | null, authorSlug?: string | null) {
   revalidatePath("/");
   revalidateTag("homepage");
   revalidateTag("articles");
-  if (citySlug) revalidatePath(`/cities/${citySlug}`);
+  if (citySlug && countrySlug) revalidatePath(cityPath(countrySlug, citySlug));
   if (authorSlug) revalidatePath(`/author/${authorSlug}`);
 }
 
@@ -233,10 +234,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       const article = await publishArticle(params.id);
       await logActivity(session, "article_published", { type: "article", id: article.id, label: article.title });
       if (author) {
-        const url = `/cities/${before.citySlug}/${article.slug}`;
+        const url = articlePath(before.countrySlug, before.citySlug, article.slug);
         await notifyArticlePublished({ id: author.id, email: author.email }, { id: article.id, title: article.title, url });
       }
-      revalidatePublicPaths(before.citySlug, author?.slug);
+      revalidatePublicPaths(before.citySlug, before.countrySlug, author?.slug);
       return NextResponse.json({ ok: true, article });
     }
 
@@ -260,7 +261,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       const article = await unpublishArticle(params.id);
       await logActivity(session, "article_unpublished", { type: "article", id: article.id, label: article.title });
       if (author) await notifyArticleUnpublished({ id: author.id, email: author.email }, { id: article.id, title: article.title });
-      revalidatePublicPaths(before.citySlug, author?.slug);
+      revalidatePublicPaths(before.citySlug, before.countrySlug, author?.slug);
       return NextResponse.json({ ok: true, article });
     }
 
@@ -344,8 +345,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       });
       await logActivity(session, "article_edited", { type: "article", id: article.id, label: article.title });
       // Only matters for an already-live article — editing a draft/pending
-      // one has nothing public to refresh yet.
-      if (before.status === "published") revalidatePublicPaths(before.citySlug, author?.slug);
+      // one has nothing public to refresh yet. The city (and its country)
+      // may have just changed as part of this edit, so refresh both the
+      // article's new destination and, if different, its old one.
+      if (before.status === "published") {
+        const withCity = await getArticleById(article.id);
+        revalidatePublicPaths(withCity?.citySlug ?? before.citySlug, withCity?.countrySlug ?? before.countrySlug, author?.slug);
+        if (withCity && (before.citySlug !== withCity.citySlug || before.countrySlug !== withCity.countrySlug)) {
+          revalidatePublicPaths(before.citySlug, before.countrySlug, author?.slug);
+        }
+      }
       return NextResponse.json({ ok: true, article });
     }
 

@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
 import { getCities } from "@/lib/cities";
 import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
+import { cityPath } from "@/lib/destinations";
 import { SITE_NAME, SITE_TAGLINE, CONTACT_EMAIL } from "@/lib/site";
 
 // Pure read (just the city list for "Active Destination Bureaus") — real ISR.
@@ -157,7 +158,7 @@ export default async function AboutPage() {
                       {cities.map((c) => (
                         <Link
                           key={c.id}
-                          href={`/cities/${c.slug}`}
+                          href={cityPath(c.countrySlug, c.slug)}
                           className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 hover:border-[#DC2626] hover:text-[#DC2626] hover:bg-white transition-all"
                         >
                           {c.name}

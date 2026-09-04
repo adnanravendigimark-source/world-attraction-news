@@ -6,12 +6,13 @@ import { usePathname } from "next/navigation";
 import Logo from "./Logo";
 import Container from "./Container";
 import SearchForm from "./SearchForm";
+import { cityPath } from "@/lib/destinations";
 
 export default function PublicHeader({
   cities = [],
   categories = [],
 }: {
-  cities?: { slug: string; name: string }[];
+  cities?: { slug: string; name: string; countrySlug?: string }[];
   categories?: { slug: string; name: string }[];
 }) {
   const pathname = usePathname();
@@ -73,7 +74,7 @@ export default function PublicHeader({
             </div>
             <span className="text-slate-600 hidden sm:inline" aria-hidden="true">|</span>
             <Link
-              href="/cities/paris/disneyland-paris-new-nighttime-show"
+              href="/destinations/france/paris/disneyland-paris-new-nighttime-show"
               className="text-slate-300 hover:text-white truncate transition-colors font-medium hover:underline"
             >
               Disneyland Paris unveils new night time spectacular
@@ -139,9 +140,9 @@ export default function PublicHeader({
               onMouseLeave={() => setDestDropdownOpen(false)}
             >
               <Link
-                href="/cities"
+                href="/destinations"
                 className={`flex items-center gap-1 py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
-                  pathname.startsWith("/cities")
+                  pathname.startsWith("/destinations")
                     ? "text-[#DC2626]"
                     : "text-slate-800 hover:text-[#DC2626]"
                 }`}
@@ -156,7 +157,7 @@ export default function PublicHeader({
                   {displayCities.map((c) => (
                     <Link
                       key={c.slug}
-                      href={`/cities/${c.slug}`}
+                      href={c.countrySlug ? cityPath(c.countrySlug, c.slug) : "/destinations"}
                       className="block px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#DC2626]"
                     >
                       {c.name}
@@ -164,7 +165,7 @@ export default function PublicHeader({
                   ))}
                   <div className="border-t border-slate-100 mt-1 pt-1">
                     <Link
-                      href="/cities"
+                      href="/destinations"
                       className="block px-4 py-1.5 text-xs font-bold text-[#DC2626] hover:underline"
                     >
                       View All Destinations →
@@ -316,10 +317,10 @@ export default function PublicHeader({
               LATEST NEWS
             </Link>
             <Link
-              href="/cities"
+              href="/destinations"
               onClick={() => setOpen(false)}
               className={`py-2 text-xs font-bold uppercase tracking-wider ${
-                pathname.startsWith("/cities") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
+                pathname.startsWith("/destinations") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
               }`}
             >
               DESTINATIONS

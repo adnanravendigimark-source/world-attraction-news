@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { getCityById, updateCity, deleteCity } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { countryPath, cityPath, attractionsPath } from "@/lib/destinations";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +39,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       sortOrder: body.sortOrder !== undefined ? Number(body.sortOrder) : undefined,
     });
     await logActivity(session, "city_edited", { type: "city", id: city.id, label: city.name });
-    revalidatePath("/cities");
-    revalidatePath(`/cities/${city.slug}`);
-    revalidatePath(`/cities/${city.slug}/attractions`);
-    if (before && before.slug !== city.slug) revalidatePath(`/cities/${before.slug}`);
+    revalidatePath("/destinations");
+    revalidatePath(countryPath(city.countrySlug));
+    revalidatePath(cityPath(city.countrySlug, city.slug));
+    revalidatePath(attractionsPath(city.countrySlug, city.slug));
+    // The city's slug and/or country (and therefore its country slug) may
+    // have changed — also invalidate the old URLs so a renamed/re-countried
+    // city's stale country/city pages don't keep serving cached content.
+    if (before && (before.slug !== city.slug || before.countrySlug !== city.countrySlug)) {
+      revalidatePath(countryPath(before.countrySlug));
+      revalidatePath(cityPath(before.countrySlug, before.slug));
+      revalidatePath(attractionsPath(before.countrySlug, before.slug));
+    }
     revalidatePath("/");
     revalidatePath("/about");
     revalidateTag("cities");
@@ -49,7 +58,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ ok: true, city });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
-    if (message.includes("already exists")) return NextResponse.json({ error: message }, { status: 409 });
+    if (message.includes("already exists") || message.includes("already a destination")) {
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
@@ -64,8 +75,10 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     await deleteCity(params.id);
     if (before) {
       await logActivity(session, "city_deleted", { type: "city", id: params.id, label: before.name });
-      revalidatePath("/cities");
-      revalidatePath(`/cities/${before.slug}`);
+      revalidatePath("/destinations");
+      revalidatePath(countryPath(before.countrySlug));
+      revalidatePath(cityPath(before.countrySlug, before.slug));
+      revalidatePath(attractionsPath(before.countrySlug, before.slug));
       revalidatePath("/");
       revalidatePath("/about");
       revalidateTag("cities");

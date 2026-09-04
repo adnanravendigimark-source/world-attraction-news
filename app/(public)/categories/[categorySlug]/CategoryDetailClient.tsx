@@ -10,6 +10,7 @@ import NewsletterForm from "@/components/NewsletterForm";
 import EmptyState from "@/components/EmptyState";
 import type { Category } from "@/lib/categories";
 import type { ArticleWithRelations } from "@/lib/articles";
+import { articlePath } from "@/lib/destinations";
 
 interface Filters {
   city: string;
@@ -234,7 +235,7 @@ export default function CategoryDetailClient({
                 />
               ) : (
                 articles.map((article) => {
-                  const href = `/cities/${article.citySlug}/${article.slug}`;
+                  const href = articlePath(article.countrySlug, article.citySlug, article.slug);
 
                   return (
                     <article

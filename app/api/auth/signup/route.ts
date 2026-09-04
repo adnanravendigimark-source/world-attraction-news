@@ -5,6 +5,7 @@ import { generateVerifyToken } from "@/lib/tokens";
 import { recaptchaConfigured, verifyRecaptchaToken } from "@/lib/recaptcha";
 import { dbErrorMessage } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { getAppUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -76,8 +77,7 @@ export async function POST(req: Request) {
   try {
     const { raw, hash, expiresAt } = generateVerifyToken();
     await setEmailVerifyToken(user.id, hash, expiresAt);
-    const appUrl = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
-    const verifyUrl = `${appUrl}/verify-email?token=${raw}`;
+    const verifyUrl = `${getAppUrl(req)}/verify-email?token=${raw}`;
     await sendVerifyEmail(email, { displayName, verifyUrl });
   } catch (err) {
     console.error("[signup] verify email failed:", err);

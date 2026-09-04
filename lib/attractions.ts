@@ -2,7 +2,7 @@ import { sql } from "./db";
 
 // City -> Attraction -> Article. An attraction always belongs to exactly
 // one city; its slug is unique within that city (not site-wide), so the
-// public URL is /cities/[citySlug]/attractions/[attractionSlug].
+// public URL is /destinations/[countrySlug]/[citySlug]/attractions/[attractionSlug].
 export interface Attraction {
   id: string;
   citySlug: string;
@@ -38,6 +38,7 @@ function rowToAttraction(row: any): Attraction {
 export interface AttractionWithCity extends Attraction {
   cityId: string;
   cityName: string;
+  countrySlug: string;
 }
 
 function rowToAttractionWithCity(row: any): AttractionWithCity {
@@ -45,11 +46,12 @@ function rowToAttractionWithCity(row: any): AttractionWithCity {
     ...rowToAttraction(row),
     cityId: row.city_id,
     cityName: row.city_name,
+    countrySlug: row.country_slug,
   };
 }
 
 const JOIN_SELECT = `
-  SELECT at.*, c.name AS city_name, c.slug AS city_slug
+  SELECT at.*, c.name AS city_name, c.slug AS city_slug, c.country_slug AS country_slug
   FROM attractions at
   JOIN cities c ON c.id = at.city_id
 `;

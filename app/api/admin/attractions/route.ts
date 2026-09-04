@@ -5,6 +5,7 @@ import { getAttractions, createAttraction } from "@/lib/attractions";
 import { getCityById } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { cityPath, attractionsPath } from "@/lib/destinations";
 
 export const dynamic = "force-dynamic";
 
@@ -53,8 +54,8 @@ export async function POST(req: Request) {
       sortOrder: Number(body.sortOrder) || 0,
     });
     await logActivity(session, "attraction_created", { type: "attraction", id: attraction.id, label: `${attraction.name} (${city.name})` });
-    revalidatePath(`/cities/${city.slug}/attractions`);
-    revalidatePath(`/cities/${city.slug}`);
+    revalidatePath(attractionsPath(city.countrySlug, city.slug));
+    revalidatePath(cityPath(city.countrySlug, city.slug));
     revalidateTag("attractions");
     return NextResponse.json({ ok: true, attraction: { ...attraction, cityId: city.id, cityName: city.name } });
   } catch (err) {

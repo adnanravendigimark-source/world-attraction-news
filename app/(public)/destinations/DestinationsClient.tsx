@@ -6,10 +6,12 @@ import Link from "next/link";
 import Container from "@/components/Container";
 import NewsletterForm from "@/components/NewsletterForm";
 import EmptyState from "@/components/EmptyState";
+import { cityPath, countryPath } from "@/lib/destinations";
 
 export interface DestinationCity {
   id: string;
   slug: string;
+  countrySlug: string;
   name: string;
   country: string;
   region?: string;
@@ -304,9 +306,13 @@ export default function DestinationsClient({
                         <h3 className="font-sans text-xl font-black leading-tight text-white group-hover:text-red-200 transition-colors">
                           {city.name}
                         </h3>
-                        <p className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
+                        <Link
+                          href={countryPath(city.countrySlug)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider hover:text-white hover:underline relative z-10"
+                        >
                           {city.country}
-                        </p>
+                        </Link>
                       </div>
                     </div>
 
@@ -318,7 +324,7 @@ export default function DestinationsClient({
 
                       <div className="mt-auto pt-3 border-t border-slate-100">
                         <Link
-                          href={`/cities/${city.slug}`}
+                          href={cityPath(city.countrySlug, city.slug)}
                           className="text-xs font-black uppercase tracking-wider text-[#DC2626] flex items-center gap-1 group-hover:translate-x-1 transition-transform"
                         >
                           <span>Explore {city.name}</span>

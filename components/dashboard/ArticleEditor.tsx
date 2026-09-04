@@ -5,8 +5,14 @@ import { useRouter } from "next/navigation";
 import ImageUploadField from "./ImageUploadField";
 import TiptapArticleEditor from "./TiptapArticleEditor";
 import ArticlePreviewModal from "./ArticlePreviewModal";
+import CityAutocomplete, { type CitySelection } from "@/components/CityAutocomplete";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
+
+// Sentinel value for the Destination <select>'s "Other" option — never a
+// real city id (those are UUIDs from the database), so it can't collide
+// with an actual selection.
+const OTHER_CITY_VALUE = "__other__";
 
 const inputClass =
   "w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600";
@@ -113,6 +119,18 @@ export default function ArticleEditor({
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
 
+  // Destination "Other" flow — lets a contributor pick a city/country that
+  // isn't in the admin-curated `cities` list yet, via the same
+  // CityAutocomplete + /api/geo/cities search the Admin Add Destination
+  // form uses. `otherLabel` is only set once the pick has actually been
+  // resolved to a real cityId (see resolveOtherCity below) — until then
+  // form.cityId still holds whatever it held before switching into "Other"
+  // mode, and findSubmitValidationError() below blocks submitting with a
+  // stale/unresolved selection.
+  const [destinationMode, setDestinationMode] = useState<"select" | "other">("select");
+  const [otherLabel, setOtherLabel] = useState("");
+  const [resolvingCity, setResolvingCity] = useState(false);
+
   const [form, setForm] = useState<ArticleFormValues>({
     title: initial?.title || "",
     slug: initial?.slug || (initial?.title ? slugify(initial.title) : ""),
@@ -140,6 +158,32 @@ export default function ArticleEditor({
     });
     setDirty(true);
     setSaved(false);
+  }
+
+  // Turns a CityAutocomplete pick into a real cityId: reuses an existing
+  // city if one already matches (name, country) exactly, otherwise creates
+  // a minimal new one — see lib/cities.ts's resolveOrCreateCity() (which
+  // this API route wraps) for why that dedup matters. Contributors aren't
+  // allowed to freely create/edit destinations the way an admin can; this
+  // is the one narrow, safe city-write their own flow can trigger.
+  async function resolveOtherCity(selection: CitySelection) {
+    setResolvingCity(true);
+    try {
+      const res = await fetch("/api/dashboard/cities/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city: selection.city, country: selection.country }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't save that destination.");
+      update("cityId", data.city.id);
+      setOtherLabel(`${data.city.name}, ${data.city.country}`);
+      toast.success(`Destination set to ${data.city.name}, ${data.city.country}.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't save that destination.");
+    } finally {
+      setResolvingCity(false);
+    }
   }
 
   function updateTitle(value: string) {
@@ -234,6 +278,10 @@ export default function ArticleEditor({
 
   function findSubmitValidationError(): string | null {
     if (form.title.trim().length < 8) return "Title must be at least 8 characters.";
+    if (destinationMode === "other" && !otherLabel) {
+      return "Search for and select a city for this article's destination.";
+    }
+    if (!form.cityId) return "Select a destination for this article.";
     if (!form.excerpt.trim() && !autoExcerpt.trim()) return "Add a short summary/excerpt.";
     const plainTextLength = form.contentHtml.replace(/<[^>]*>/g, "").trim().length;
     if (plainTextLength < 200) return "Article body must contain at least 200 characters of actual written content.";
@@ -392,19 +440,59 @@ export default function ArticleEditor({
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Destination (City)">
-                <select
-                  value={form.cityId}
-                  onChange={(e) => update("cityId", e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">Select destination</option>
-                  {cities.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}, {c.country}
-                    </option>
-                  ))}
-                </select>
+              <Field
+                label="Destination (City)"
+                hint={
+                  destinationMode === "other"
+                    ? "Search for the city — we'll fill in the country automatically."
+                    : undefined
+                }
+              >
+                {destinationMode === "select" ? (
+                  <select
+                    value={form.cityId}
+                    onChange={(e) => {
+                      if (e.target.value === OTHER_CITY_VALUE) {
+                        setDestinationMode("other");
+                        setOtherLabel("");
+                        return;
+                      }
+                      update("cityId", e.target.value);
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">Select destination</option>
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}, {c.country}
+                      </option>
+                    ))}
+                    <option value={OTHER_CITY_VALUE}>Other (city not listed)…</option>
+                  </select>
+                ) : (
+                  <div className="space-y-2">
+                    <CityAutocomplete
+                      placeholder="e.g. New Delhi, India"
+                      onSelect={resolveOtherCity}
+                      inputClassName={inputClass}
+                    />
+                    {resolvingCity && <p className="text-xs text-stone-500">Saving destination…</p>}
+                    {!resolvingCity && otherLabel && (
+                      <p className="text-xs font-medium text-green-700">✓ Destination set to {otherLabel}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDestinationMode("select");
+                        setOtherLabel("");
+                        update("cityId", cities[0]?.id || "");
+                      }}
+                      className="text-xs font-medium text-blue-700 hover:underline"
+                    >
+                      ← Choose from list instead
+                    </button>
+                  </div>
+                )}
               </Field>
               <Field label="Related Attraction (optional)">
                 <select

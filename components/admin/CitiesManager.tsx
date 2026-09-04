@@ -4,7 +4,10 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { City } from "@/lib/cities";
+import { cityPath } from "@/lib/destinations";
+import { slugifyCountry } from "@/lib/countries";
 import ImageUploadField from "@/components/ImageUploadField";
+import CityAutocomplete, { type CitySelection } from "@/components/CityAutocomplete";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
@@ -18,6 +21,17 @@ interface CityFormState {
   metaTitle: string;
   metaDescription: string;
   sortOrder: number;
+}
+
+// Client-side preview only — the server (app/api/admin/cities/route.ts)
+// re-validates and is the actual source of truth for slug format.
+function generateSlug(cityName: string): string {
+  return cityName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
 }
 
 const EMPTY: CityFormState = {
@@ -207,14 +221,14 @@ export default function CitiesManager({
                   </div>
 
                   <p className="text-[11px] font-mono text-slate-400 pt-2">
-                    Slug: /cities/{city.slug}
+                    URL: {cityPath(city.countrySlug, city.slug)}
                   </p>
                 </div>
 
                 {/* Card Footer Actions */}
                 <div className="border-t border-slate-100 px-5 py-3 flex items-center justify-between">
                   <Link
-                    href={`/cities/${city.slug}`}
+                    href={cityPath(city.countrySlug, city.slug)}
                     target="_blank"
                     className="text-xs font-semibold text-slate-600 hover:text-[#DC2626] transition-colors"
                   >
@@ -268,23 +282,37 @@ export default function CitiesManager({
             </div>
 
             <div className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Destination Name *
+                </label>
+                <CityAutocomplete
+                  initialQuery={editingId && form.name ? `${form.name}, ${form.country}` : ""}
+                  placeholder="Search for a city, e.g. Paris, France"
+                  onSelect={(selection: CitySelection) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      name: selection.city,
+                      country: selection.country,
+                      slug: generateSlug(selection.city),
+                    }));
+                  }}
+                />
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Search and select a city — the country is filled in automatically. Don't just type a bare city
+                  name; picking a result is what saves the country correctly alongside it.
+                </p>
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Destination Name *
+                    City *
                   </label>
                   <input
                     value={form.name}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setForm((prev) => ({
-                        ...prev,
-                        name: val,
-                        slug: !editingId && !prev.slug ? val.toLowerCase().replace(/\s+/g, "-") : prev.slug,
-                      }));
-                    }}
-                    placeholder="e.g. Tokyo"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                    readOnly
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700"
                   />
                 </div>
                 <div>
@@ -293,9 +321,8 @@ export default function CitiesManager({
                   </label>
                   <input
                     value={form.country}
-                    onChange={(e) => setForm({ ...form, country: e.target.value })}
-                    placeholder="e.g. Japan"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                    readOnly
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700"
                   />
                 </div>
               </div>
@@ -311,7 +338,7 @@ export default function CitiesManager({
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
                 />
                 <p className="mt-1 text-[10px] text-slate-400">
-                  Public URL: /cities/{form.slug || "slug"}
+                  Public URL: /destinations/{form.country ? slugifyCountry(form.country) : "country"}/{form.slug || "slug"}
                 </p>
               </div>
 
