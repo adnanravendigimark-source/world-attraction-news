@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
 import EmptyState from "@/components/EmptyState";
 import NewsletterForm from "@/components/NewsletterForm";
@@ -11,7 +12,23 @@ import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams — real ISR. Admin category create/edit/delete
 // calls revalidatePath("/categories").
+//
+// See app/(public)/page.tsx for why the DB reads below go through
+// unstable_cache instead of relying on `revalidate` alone.
 export const revalidate = 300;
+
+const getCategoriesPageData = unstable_cache(
+  async () => {
+    const [categories, counts, latestImages] = await Promise.all([
+      getCategories(),
+      getPublishedArticleCountsByCategory(),
+      getLatestPublishedArticleImageByCategory(),
+    ]);
+    return { categories, counts, latestImages };
+  },
+  ["categories-page-data"],
+  { revalidate: 300, tags: ["categories", "articles"] }
+);
 
 export const metadata: Metadata = buildMetadata({
   title: `Coverage Categories & Editorial Beats | ${SITE_NAME}`,
@@ -25,11 +42,7 @@ const breadcrumbs = [
 ];
 
 export default async function CategoriesPage() {
-  const [categories, counts, latestImages] = await Promise.all([
-    getCategories(),
-    getPublishedArticleCountsByCategory(),
-    getLatestPublishedArticleImageByCategory(),
-  ]);
+  const { categories, counts, latestImages } = await getCategoriesPageData();
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527] pb-16">

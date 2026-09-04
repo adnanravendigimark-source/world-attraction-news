@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
 import {
   getArticleById,
@@ -37,8 +37,15 @@ export const dynamic = "force-dynamic";
 // here that changes what's publicly visible calls this so the change is
 // live immediately instead of waiting out that window — the article page
 // itself doesn't need it (it's already force-dynamic; see its own comment).
+// revalidatePath() alone only invalidates the Full Route Cache for the
+// rendered route — it does NOT reach the `unstable_cache`-wrapped data
+// fetches those routes now use (see each page's own comment for why they
+// need unstable_cache at all). revalidateTag() is what actually busts those
+// cache entries; both are needed together.
 function revalidatePublicPaths(citySlug?: string | null, authorSlug?: string | null) {
   revalidatePath("/");
+  revalidateTag("homepage");
+  revalidateTag("articles");
   if (citySlug) revalidatePath(`/cities/${citySlug}`);
   if (authorSlug) revalidatePath(`/author/${authorSlug}`);
 }
@@ -208,6 +215,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       // Editorial flags only drive homepage placement (Featured/Trending/
       // Editor's Pick/Breaking rails) — no city/author page reads them.
       revalidatePath("/");
+      revalidateTag("homepage");
       return NextResponse.json({ ok: true, article });
     }
 

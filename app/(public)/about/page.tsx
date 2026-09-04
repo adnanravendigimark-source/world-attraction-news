@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
 import { getCities } from "@/lib/cities";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { SITE_NAME, SITE_TAGLINE, CONTACT_EMAIL } from "@/lib/site";
 
 // Pure read (just the city list for "Active Destination Bureaus") — real ISR.
+//
+// See app/(public)/page.tsx for why the DB read below goes through
+// unstable_cache instead of relying on `revalidate` alone.
 export const revalidate = 600;
+
+const getCachedCities = unstable_cache(() => getCities(), ["about-page-cities"], {
+  revalidate: 600,
+  tags: ["cities"],
+});
 
 export const metadata: Metadata = buildMetadata({
   title: `About Us — Global Attraction Intelligence & Newsroom | ${SITE_NAME}`,
@@ -20,7 +29,7 @@ const breadcrumbs = [
 ];
 
 export default async function AboutPage() {
-  const cities = await getCities();
+  const cities = await getCachedCities();
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527] pb-16">

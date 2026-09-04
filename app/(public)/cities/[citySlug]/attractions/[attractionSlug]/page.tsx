@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import Container from "@/components/Container";
@@ -13,14 +14,29 @@ import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
 
 // Pure read — real ISR. Admin attraction edits call
 // revalidatePath(`/cities/${citySlug}/attractions/${attractionSlug}`).
+//
+// See app/(public)/page.tsx for why the DB reads below go through
+// unstable_cache instead of relying on `revalidate` alone.
 export const revalidate = 300;
+
+const getCachedAttractionBySlug = unstable_cache(
+  (citySlug: string, attractionSlug: string) => getAttractionBySlug(citySlug, attractionSlug),
+  ["attraction-by-slug"],
+  { revalidate: 300, tags: ["attractions"] }
+);
+
+const getCachedAttractionArticles = unstable_cache(
+  (attractionSlug: string, citySlug: string) => getPublishedArticles({ attractionSlug, citySlug }),
+  ["attraction-articles"],
+  { revalidate: 300, tags: ["articles"] }
+);
 
 export async function generateMetadata({
   params,
 }: {
   params: { citySlug: string; attractionSlug: string };
 }): Promise<Metadata> {
-  const attraction = await getAttractionBySlug(params.citySlug, params.attractionSlug);
+  const attraction = await getCachedAttractionBySlug(params.citySlug, params.attractionSlug);
   if (!attraction) return {};
   return buildMetadata({
     title: attraction.metaTitle || `${attraction.name} News, Openings & Coverage — ${attraction.cityName}`,
@@ -35,10 +51,10 @@ export default async function AttractionPage({
 }: {
   params: { citySlug: string; attractionSlug: string };
 }) {
-  const attraction = await getAttractionBySlug(params.citySlug, params.attractionSlug);
+  const attraction = await getCachedAttractionBySlug(params.citySlug, params.attractionSlug);
   if (!attraction) notFound();
 
-  const articles = await getPublishedArticles({ attractionSlug: attraction.slug, citySlug: attraction.citySlug });
+  const articles = await getCachedAttractionArticles(attraction.slug, attraction.citySlug);
 
   const breadcrumbs = [
     { name: "Home", path: "/" },

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getCategoryById, updateCategory, deleteCategory } from "@/lib/categories";
 import { logActivity } from "@/lib/activity";
@@ -32,6 +32,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
     await logActivity(session, "category_edited", { type: "category", id: category.id, label: category.name });
     revalidatePath("/categories");
+    revalidateTag("categories");
     return NextResponse.json({ ok: true, category });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
@@ -51,6 +52,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     if (before) {
       await logActivity(session, "category_deleted", { type: "category", id: params.id, label: before.name });
       revalidatePath("/categories");
+      revalidateTag("categories");
     }
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import DestinationsClient, { DestinationCity } from "./DestinationsClient";
 import { getCitiesWithArticleCounts } from "@/lib/cities";
 import { getSettings } from "@/lib/settings";
@@ -8,7 +9,23 @@ import { SITE_NAME } from "@/lib/site";
 // Pure read, no searchParams (search/sort/filter is client-side over the
 // full list) — real ISR. City counts change slowly enough that a wider
 // window is safe; admin city create/edit/delete calls revalidatePath("/cities").
+//
+// `revalidate` alone doesn't achieve this: lib/db.ts's sql() issues every
+// query with `fetchOptions: { cache: "no-store" }`, and a no-store fetch
+// anywhere in a route's render forces the WHOLE route dynamic regardless of
+// its own `revalidate` export. unstable_cache wraps the DB call's *return
+// value* at the framework level, independent of the no-store fetch inside
+// it, so this page can actually be served from cache between requests.
 export const revalidate = 300;
+
+const getCitiesPageData = unstable_cache(
+  async () => {
+    const [cities, settings] = await Promise.all([getCitiesWithArticleCounts(), getSettings()]);
+    return { cities, settings };
+  },
+  ["cities-page-data"],
+  { revalidate: 300, tags: ["cities", "settings"] }
+);
 
 export const metadata: Metadata = buildMetadata({
   title: `Destinations — Global Attraction News & Travel Updates | ${SITE_NAME}`,
@@ -22,7 +39,7 @@ const breadcrumbs = [
 ];
 
 export default async function CitiesPage() {
-  const [cities, settings] = await Promise.all([getCitiesWithArticleCounts(), getSettings()]);
+  const { cities, settings } = await getCitiesPageData();
   const featuredSet = new Set(settings.featuredCitySlugs);
 
   const mappedCities: DestinationCity[] = cities.map((c) => ({

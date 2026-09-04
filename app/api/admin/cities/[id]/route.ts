@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getCityById, updateCity, deleteCity } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
@@ -44,6 +44,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (before && before.slug !== city.slug) revalidatePath(`/cities/${before.slug}`);
     revalidatePath("/");
     revalidatePath("/about");
+    revalidateTag("cities");
+    revalidateTag("homepage");
     return NextResponse.json({ ok: true, city });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
@@ -66,6 +68,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       revalidatePath(`/cities/${before.slug}`);
       revalidatePath("/");
       revalidatePath("/about");
+      revalidateTag("cities");
+      revalidateTag("homepage");
     }
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import ArticleCard from "@/components/ArticleCard";
@@ -11,10 +12,24 @@ import { getPublishedArticlesByAuthorId } from "@/lib/articles";
 import { buildMetadata, breadcrumbJsonLd, personJsonLd } from "@/lib/seo";
 
 // Pure read — real ISR.
+//
+// See app/(public)/page.tsx for why the DB reads below go through
+// unstable_cache instead of relying on `revalidate` alone.
 export const revalidate = 180;
 
+const getCachedAuthorBySlug = unstable_cache((slug: string) => findUserBySlug(slug), ["author-by-slug"], {
+  revalidate: 180,
+  tags: ["users"],
+});
+
+const getCachedAuthorArticles = unstable_cache(
+  (authorId: string) => getPublishedArticlesByAuthorId(authorId),
+  ["author-articles"],
+  { revalidate: 180, tags: ["articles"] }
+);
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const author = await findUserBySlug(params.slug);
+  const author = await getCachedAuthorBySlug(params.slug);
   if (!author) return {};
   return buildMetadata({
     title: `${author.displayName} — Author`,
@@ -25,13 +40,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function AuthorPage({ params }: { params: { slug: string } }) {
-  const author = await findUserBySlug(params.slug);
+  const author = await getCachedAuthorBySlug(params.slug);
   // Only ever show a real, findable author page — never a fabricated
   // profile — and never expose a pending/rejected/suspended account's page
   // before they've contributed anything visible.
   if (!author) notFound();
 
-  const articles = await getPublishedArticlesByAuthorId(author.id);
+  const articles = await getCachedAuthorArticles(author.id);
   if (articles.length === 0 && author.role !== "admin") notFound();
 
   const citiesCovered = Array.from(new Set(articles.map((a) => a.cityName))).sort();

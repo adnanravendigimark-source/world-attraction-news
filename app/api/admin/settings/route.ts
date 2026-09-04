@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getSettings, updateSettings } from "@/lib/settings";
 import { logActivity } from "@/lib/activity";
@@ -51,8 +51,12 @@ export async function PATCH(req: Request) {
     // buildMetadata() on every page, and featuredCitySlugs drives the
     // Destinations page's "Featured" badge — rather than guess which ISR
     // pages are affected, invalidate everything under the root layout so a
-    // settings change is never left showing stale metadata.
+    // settings change is never left showing stale metadata. revalidateTag
+    // additionally busts the unstable_cache-wrapped getSettings() calls
+    // (homepage metadata, Destinations page) that revalidatePath can't reach.
     revalidatePath("/", "layout");
+    revalidateTag("settings");
+    revalidateTag("cities"); // featuredCitySlugs is read alongside the cached city list
     return NextResponse.json({ ok: true, settings });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getCities, createCity } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
@@ -57,6 +57,8 @@ export async function POST(req: Request) {
     revalidatePath("/cities");
     revalidatePath("/");
     revalidatePath("/about"); // lists "Active Destination Bureaus"
+    revalidateTag("cities");
+    revalidateTag("homepage");
     return NextResponse.json({ ok: true, city });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";

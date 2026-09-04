@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getAttractionById, updateAttraction, deleteAttraction } from "@/lib/attractions";
 import { getCityById } from "@/lib/cities";
@@ -55,6 +55,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         revalidatePath(`/cities/${before.citySlug}/attractions`);
         revalidatePath(`/cities/${before.citySlug}`);
       }
+      revalidateTag("attractions");
     }
     return NextResponse.json({ ok: true, attraction: withCity ?? attraction });
   } catch (err) {
@@ -74,6 +75,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       await logActivity(session, "attraction_deleted", { type: "attraction", id: params.id, label: before.name });
       revalidatePath(`/cities/${before.citySlug}/attractions`);
       revalidatePath(`/cities/${before.citySlug}`);
+      revalidateTag("attractions");
     }
     return NextResponse.json({ ok: true });
   } catch (err) {

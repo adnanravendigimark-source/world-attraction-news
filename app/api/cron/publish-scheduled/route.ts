@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { publishDueScheduledArticles } from "@/lib/scheduling";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +35,8 @@ export async function GET(req: Request) {
   if (publishedCount > 0) {
     revalidatePath("/");
     revalidatePath("/cities");
+    revalidateTag("homepage");
+    revalidateTag("articles");
   }
   return NextResponse.json({ ok: true, published: publishedCount });
 }

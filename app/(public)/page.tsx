@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
 import HomeHeroCarousel from "@/components/HomeHeroCarousel";
 import NewsletterForm from "@/components/NewsletterForm";
@@ -25,12 +26,49 @@ import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
 // round trip), and it's short enough that a newly published/featured
 // article shows up within a minute on its own. Admin actions that should
 // feel instant (publish, feature/unfeature, unpublish) additionally call
-// revalidatePath("/") so this page updates immediately rather than waiting
-// out the window — see the admin article/city/category routes.
+// revalidateTag("homepage") so this page updates immediately rather than
+// waiting out the window — see the admin article/city/category routes.
+//
+// This `revalidate` export alone would do nothing: lib/db.ts's `sql()`
+// passes `fetchOptions: { cache: "no-store" }` to every single query
+// (deliberately — see that file's own comment about a real earlier bug),
+// and Next.js treats any no-store fetch during a render as a signal to
+// render that route dynamically on every request, silently overriding
+// route-level `revalidate`. Wrapping the actual data fetch below in
+// unstable_cache() is what makes this page cacheable despite that — it
+// caches the *function's return value* at the framework level, independent
+// of what the function does internally, which is the documented way to add
+// real caching on top of a non-fetch (or explicitly no-store) data source.
 export const revalidate = 60;
 
+const getHomePageData = unstable_cache(
+  async () => {
+    const [cities, categories, articles, trending, featured, editorsPicks, breaking, topScored] = await Promise.all([
+      getCitiesWithArticleCounts(),
+      getCategories(),
+      getPublishedArticles({ limit: 20 }),
+      getTrendingArticles(6),
+      getFeaturedArticles(6),
+      getEditorsPickArticles(4),
+      getBreakingArticles(6),
+      getTopScoredArticles(5),
+    ]);
+    return { cities, categories, articles, trending, featured, editorsPicks, breaking, topScored };
+  },
+  ["homepage-data"],
+  { revalidate: 60, tags: ["homepage"] }
+);
+
+// Same reasoning as getHomePageData above — a plain getSettings() call here
+// would still force this route dynamic on its own even with the page body
+// fully cached.
+const getCachedSettings = unstable_cache(() => getSettings(), ["site-settings"], {
+  revalidate: 300,
+  tags: ["settings"],
+});
+
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSettings();
+  const settings = await getCachedSettings();
   return buildMetadata({
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION || settings.defaultMetaDescription,
@@ -83,16 +121,7 @@ const SOCIAL_LINKS = [
 ];
 
 export default async function HomePage() {
-  const [cities, categories, articles, trending, featured, editorsPicks, breaking, topScored] = await Promise.all([
-    getCitiesWithArticleCounts(),
-    getCategories(),
-    getPublishedArticles({ limit: 20 }),
-    getTrendingArticles(6),
-    getFeaturedArticles(6),
-    getEditorsPickArticles(4),
-    getBreakingArticles(6),
-    getTopScoredArticles(5),
-  ]);
+  const { cities, categories, articles, trending, featured, editorsPicks, breaking, topScored } = await getHomePageData();
 
   // Hero source, in order of editorial intent: admin-curated "Featured"
   // articles first (that's exactly what the flag is for), then algorithmic

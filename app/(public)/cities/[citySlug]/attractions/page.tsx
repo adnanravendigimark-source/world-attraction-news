@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
 import EmptyState from "@/components/EmptyState";
 import NewsletterForm from "@/components/NewsletterForm";
@@ -12,10 +13,31 @@ import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams — real ISR. Admin attraction create/edit/delete
 // calls revalidatePath(`/cities/${citySlug}/attractions`).
+//
+// See app/(public)/page.tsx for why the DB reads below go through
+// unstable_cache — a plain `revalidate` export doesn't cache anything on its
+// own once a no-store fetch (every lib/db.ts query) runs during the render.
 export const revalidate = 180;
 
+const getCachedCityBySlug = unstable_cache((slug: string) => getCityBySlug(slug), ["city-by-slug"], {
+  revalidate: 180,
+  tags: ["cities"],
+});
+
+const getCachedAttractionsPageData = unstable_cache(
+  async (cityId: string) => {
+    const [attractions, counts] = await Promise.all([
+      getAttractionsByCityId(cityId),
+      getPublishedArticleCountsByAttraction(),
+    ]);
+    return { attractions, counts };
+  },
+  ["city-attractions-page-data"],
+  { revalidate: 180, tags: ["attractions", "articles"] }
+);
+
 export async function generateMetadata({ params }: { params: { citySlug: string } }): Promise<Metadata> {
-  const city = await getCityBySlug(params.citySlug);
+  const city = await getCachedCityBySlug(params.citySlug);
   if (!city) return {};
   return buildMetadata({
     title: `${city.name} Attractions — Top Theme Parks & Landmarks | ${SITE_NAME}`,
@@ -25,13 +47,10 @@ export async function generateMetadata({ params }: { params: { citySlug: string 
 }
 
 export default async function CityAttractionsPage({ params }: { params: { citySlug: string } }) {
-  const city = await getCityBySlug(params.citySlug);
+  const city = await getCachedCityBySlug(params.citySlug);
   if (!city) notFound();
 
-  const [attractions, counts] = await Promise.all([
-    getAttractionsByCityId(city.id),
-    getPublishedArticleCountsByAttraction(),
-  ]);
+  const { attractions, counts } = await getCachedAttractionsPageData(city.id);
 
   const breadcrumbs = [
     { name: "Home", path: "/" },
