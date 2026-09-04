@@ -116,3 +116,59 @@ export async function verifySessionToken(token: string | undefined | null): Prom
     return null;
   }
 }
+
+export interface MagicTokenPayload {
+  userId: string;
+  email: string;
+  action: string;
+  next?: string;
+  exp: number;
+}
+
+// Single-use or direct onboarding/magic-link token used in transactional
+// emails (e.g. account approved notifications). Cryptographically signed with
+// HMAC SHA-256 and expires automatically.
+export async function createMagicToken(
+  data: { userId: string; email: string; action?: string; next?: string },
+  maxAgeSeconds = 60 * 60 * 24 * 7 // 7 days
+): Promise<string> {
+  const exp = Math.floor(Date.now() / 1000) + maxAgeSeconds;
+  const payload = toBase64Url(
+    JSON.stringify({
+      userId: data.userId,
+      email: data.email,
+      action: data.action || "magic_login",
+      next: data.next || "/contributor/profile",
+      exp,
+    })
+  );
+  const sig = await sign(payload);
+  return `${payload}.${sig}`;
+}
+
+export async function verifyMagicToken(token: string | undefined | null): Promise<MagicTokenPayload | null> {
+  if (!token) return null;
+  const [payload, sig] = token.split(".");
+  if (!payload || !sig) return null;
+  const expected = await sign(payload);
+  if (!timingSafeEqual(expected, sig)) return null;
+  try {
+    const parsed = JSON.parse(fromBase64Url(payload));
+    if (!parsed?.userId || !parsed?.email) {
+      return null;
+    }
+    if (typeof parsed.exp === "number" && Math.floor(Date.now() / 1000) >= parsed.exp) {
+      return null;
+    }
+    return {
+      userId: parsed.userId,
+      email: parsed.email,
+      action: parsed.action || "magic_login",
+      next: parsed.next || "/contributor/profile",
+      exp: parsed.exp,
+    };
+  } catch {
+    return null;
+  }
+}
+

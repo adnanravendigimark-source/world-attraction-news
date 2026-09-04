@@ -79,7 +79,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // (or that their application didn't go through). Best-effort: never
     // blocks the response, since createNotification() itself never throws.
     if (nextStatus && nextStatus !== target.status) {
-      const notifyUser = { id: target.id, email: target.email, displayName: target.displayName };
+      const notifyUser = {
+        id: target.id,
+        email: target.email,
+        displayName: target.displayName,
+        authProvider: target.authProvider,
+        passwordHash: target.passwordHash,
+      };
       if (nextStatus === "approved") {
         await notifyAccountApproved(notifyUser).catch((err) =>
           console.error("[admin/users] failed to notify account approved:", err)

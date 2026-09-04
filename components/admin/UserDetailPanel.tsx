@@ -102,7 +102,15 @@ export default function UserDetailPanel({ user: initialUser }: { user: SafeUser 
               onClick={() => handleStatusChange("approved", "Approve")}
               className="rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-50 cursor-pointer"
             >
-              ✓ Approve Contributor
+              ✓ Approve / Active
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => handleStatusChange("suspended", "Suspend")}
+              className="rounded-lg border border-purple-300 bg-purple-50 px-3.5 py-1.5 text-xs font-semibold text-purple-900 hover:bg-purple-100 disabled:opacity-50 cursor-pointer"
+            >
+              Suspend
             </button>
             <button
               type="button"

@@ -15,6 +15,7 @@ import { SITE_NAME, CONTACT_EMAIL } from "./site";
 import {
   welcomeEmailTemplate,
   verifyEmailTemplate,
+  accountApprovedEmailTemplate,
   passwordResetEmailTemplate,
   articleSubmittedEmailTemplate,
   articleApprovedEmailTemplate,
@@ -102,6 +103,13 @@ export async function sendVerifyEmail(to: string, input: { displayName: string; 
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
   await sendRendered(to, passwordResetEmailTemplate({ resetUrl }));
+}
+
+export async function sendAccountApprovedEmail(
+  to: string,
+  input: { displayName: string; loginUrl: string; profileUrl: string; isGoogleUser?: boolean }
+): Promise<boolean> {
+  return sendRendered(to, accountApprovedEmailTemplate(input));
 }
 
 export async function sendArticleSubmittedEmail(to: string, input: { title: string; dashboardUrl: string }): Promise<boolean> {

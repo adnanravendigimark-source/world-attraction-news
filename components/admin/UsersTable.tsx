@@ -337,56 +337,81 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Link
-                            href={`/admin/users/${user.id}`}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                          >
-                            View
-                          </Link>
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          {user.status === "pending" && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => handleStatusChange(user.id, "approved")}
+                                className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition-colors disabled:opacity-50 cursor-pointer"
+                                title="Approve and activate user"
+                              >
+                                Active
+                              </button>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => handleStatusChange(user.id, "suspended")}
+                                className="rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50 cursor-pointer"
+                                title="Suspend user"
+                              >
+                                Suspend
+                              </button>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => handleStatusChange(user.id, "rejected")}
+                                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-[#DC2626] hover:bg-rose-100 transition-colors disabled:opacity-50 cursor-pointer"
+                                title="Reject application"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
 
-                          <div className="relative">
+                          {user.status === "approved" && (
                             <button
                               type="button"
                               disabled={busy}
-                              onClick={() => setActionMenuId(actionMenuId === user.id ? null : user.id)}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50 cursor-pointer"
+                              onClick={() => handleStatusChange(user.id, "suspended")}
+                              className="rounded-lg border border-purple-200 bg-purple-50 px-3 py-1 text-[11px] font-semibold text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50 cursor-pointer"
+                              title="Suspend user account"
                             >
-                              •••
+                              Suspend
                             </button>
+                          )}
 
-                            {actionMenuId === user.id && (
-                              <div className="absolute right-0 z-20 mt-1 w-40 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg text-xs space-y-0.5">
-                                {user.status !== "approved" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleStatusChange(user.id, "approved")}
-                                    className="block w-full text-left rounded-lg px-2.5 py-1.5 text-emerald-600 hover:bg-emerald-50 font-medium cursor-pointer"
-                                  >
-                                    Set as Active
-                                  </button>
-                                )}
-                                {user.status !== "suspended" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleStatusChange(user.id, "suspended")}
-                                    className="block w-full text-left rounded-lg px-2.5 py-1.5 text-purple-600 hover:bg-purple-50 font-medium cursor-pointer"
-                                  >
-                                    Suspend Account
-                                  </button>
-                                )}
-                                {user.status !== "rejected" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleStatusChange(user.id, "rejected")}
-                                    className="block w-full text-left rounded-lg px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 font-medium cursor-pointer"
-                                  >
-                                    Reject Account
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          {user.status === "suspended" && (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => handleStatusChange(user.id, "approved")}
+                              className="rounded-lg bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition-colors disabled:opacity-50 cursor-pointer"
+                              title="Reactivate user account"
+                            >
+                              Active
+                            </button>
+                          )}
+
+                          {user.status === "rejected" && (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => handleStatusChange(user.id, "approved")}
+                              className="rounded-lg bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition-colors disabled:opacity-50 cursor-pointer"
+                              title="Approve / Set Active"
+                            >
+                              Active
+                            </button>
+                          )}
+
+                          <Link
+                            href={`/admin/users/${user.id}`}
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            View
+                          </Link>
                         </div>
                       </td>
                     </tr>

@@ -213,6 +213,55 @@ export function verifyEmailTemplate(input: { displayName: string; verifyUrl: str
   return { subject: `Verify your email — ${SITE_NAME}`, html, text: htmlToText(html) };
 }
 
+export function accountApprovedEmailTemplate(input: {
+  displayName: string;
+  loginUrl: string;
+  profileUrl: string;
+  isGoogleUser?: boolean;
+}): RenderedEmail {
+  const name = input.displayName || "there";
+  const heading = `Your account is approved 🎉`;
+  let bodyHtml =
+    paragraph(
+      `Great news, <strong>${escapeHtml(name)}</strong> — your contributor account for ${escapeHtml(
+        SITE_NAME
+      )} has been approved by our editorial team.`
+    ) +
+    paragraph(
+      `You can now access your contributor dashboard, create new articles, and share stories with readers around the world.`
+    );
+
+  if (input.isGoogleUser) {
+    bodyHtml +=
+      feedbackBox(
+        "Set Your Account Password",
+        "Since you signed up with Google, you can also set a password for your account. This allows you to log in directly using your email and password at any time.",
+        BRAND.emerald,
+        BRAND.emeraldLight
+      ) +
+      paragraph(
+        `Click the button below to go directly to your profile settings and set your password:`
+      );
+  } else {
+    bodyHtml += paragraph(
+      `Click below to go to your contributor dashboard and start drafting your first article:`
+    );
+  }
+
+  const ctaUrl = input.isGoogleUser ? input.profileUrl || input.loginUrl : input.loginUrl || input.profileUrl;
+  const ctaLabel = input.isGoogleUser ? "Set Password & View Profile" : "Go to Your Dashboard";
+
+  const html = renderEmailLayout({
+    previewText: `Your ${SITE_NAME} contributor account is approved!`,
+    heading,
+    bodyHtml,
+    ctaLabel,
+    ctaUrl: absoluteUrl(ctaUrl),
+  });
+
+  return { subject: `Your account is approved — ${SITE_NAME}`, html, text: htmlToText(html) };
+}
+
 export function passwordResetEmailTemplate(input: { resetUrl: string }): RenderedEmail {
   const heading = "Reset your password";
   const bodyHtml =

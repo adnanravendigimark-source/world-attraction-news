@@ -24,7 +24,7 @@ export default function PasswordForm({ hasPassword }: { hasPassword: boolean }) 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      toast.success("Password updated successfully.");
+      toast.success(hasPassword ? "Password updated successfully." : "Password set successfully! You can now log in with email and password.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirm("");
@@ -36,7 +36,7 @@ export default function PasswordForm({ hasPassword }: { hasPassword: boolean }) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+    <form id="password" onSubmit={handleSubmit} className="space-y-4 pt-2">
       {hasPassword ? (
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -51,10 +51,12 @@ export default function PasswordForm({ hasPassword }: { hasPassword: boolean }) 
           />
         </div>
       ) : (
-        <p className="text-xs text-slate-500">
-          Your account signed up with Google and has no password yet — set one below if you'd also like to log in
-          with email and password.
-        </p>
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs text-amber-900 space-y-1">
+          <p className="font-bold">Set your account password</p>
+          <p className="text-amber-700 leading-relaxed">
+            Your account was registered via Google Sign-In and has no password yet. Set a password below to enable logging in directly with your email and password as well.
+          </p>
+        </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -95,7 +97,7 @@ export default function PasswordForm({ hasPassword }: { hasPassword: boolean }) 
           disabled={submitting}
           className="rounded-xl bg-[#DC2626] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-60 cursor-pointer"
         >
-          {submitting ? "Updating..." : "Update Password"}
+          {submitting ? "Saving..." : hasPassword ? "Update Password" : "Set Password"}
         </button>
       </div>
     </form>

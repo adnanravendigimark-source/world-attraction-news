@@ -1,11 +1,14 @@
 import { sql } from "./db";
 import {
   sendNotificationEmail,
+  sendAccountApprovedEmail,
   sendArticleSubmittedEmail,
   sendArticleApprovedEmail,
   sendArticleRejectedEmail,
   sendArticlePublishedEmail,
 } from "./email";
+import { createMagicToken } from "./auth";
+import { getAppUrl } from "./appUrl";
 
 // In-app + (best-effort) emailed notifications. Every notification is a
 // real row in the database, created at the moment the real event happens
@@ -130,14 +133,49 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
 // clearly-named function rather than hand-building title/body strings
 // inline at every call site.
 
-export async function notifyAccountApproved(user: { id: string; email: string; displayName: string }) {
+export async function notifyAccountApproved(user: {
+  id: string;
+  email: string;
+  displayName: string;
+  authProvider?: string;
+  passwordHash?: string | null;
+}) {
+  const isGoogle = user.authProvider === "google" || !user.passwordHash;
+  const appUrl = getAppUrl();
+  let magicLoginUrl = `${appUrl}/contributor/dashboard`;
+  let profileUrl = `${appUrl}/contributor/profile`;
+
+  try {
+    const magicToken = await createMagicToken({
+      userId: user.id,
+      email: user.email,
+      action: "magic_login",
+      next: isGoogle ? "/contributor/profile" : "/contributor/dashboard",
+    });
+    magicLoginUrl = `${appUrl}/api/auth/magic-login?token=${encodeURIComponent(magicToken)}&next=${encodeURIComponent(
+      isGoogle ? "/contributor/profile" : "/contributor/dashboard"
+    )}`;
+    profileUrl = `${appUrl}/api/auth/magic-login?token=${encodeURIComponent(magicToken)}&next=/contributor/profile`;
+  } catch (err) {
+    console.error("[notifications] failed to create magic token:", err);
+  }
+
   await createNotification({
     userId: user.id,
     userEmail: user.email,
     type: "account_approved",
     title: "Your account has been approved",
-    body: `Welcome, ${user.displayName || user.email} — you can now log in and start writing articles.`,
-    link: "/contributor",
+    body: isGoogle
+      ? `Welcome, ${user.displayName || user.email}! Your account is approved. You can now set your password from your profile settings and start writing.`
+      : `Welcome, ${user.displayName || user.email} — you can now log in and start writing articles.`,
+    link: isGoogle ? "/contributor/profile" : "/contributor",
+    sendEmail: () =>
+      sendAccountApprovedEmail(user.email, {
+        displayName: user.displayName,
+        loginUrl: magicLoginUrl,
+        profileUrl,
+        isGoogleUser: isGoogle,
+      }),
   });
 }
 
