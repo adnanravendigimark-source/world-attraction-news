@@ -895,6 +895,30 @@ async function seedLaunchEditorsAndArticles() {
   console.log(`articles: seeded ${articleCount} row(s) across ${cities.length} cities.`);
 }
 
+// Performance audit findings — two real query patterns that were doing a
+// full scan-and-sort against `articles` with no supporting index:
+//   1. Every public "published, newest first" read (homepage sections,
+//      /latest-news, /categories/[slug], getTrendingArticles, etc.) filters
+//      status = 'published' and orders by published_at DESC. The existing
+//      `articles_status_idx` covers the filter but not the sort, so
+//      Postgres still sorted the full published set on every query as that
+//      table grows. A composite (status, published_at DESC) index lets it
+//      walk the index in the exact order needed instead.
+//   2. Category-filtered reads (getPublishedArticlesPage with
+//      categorySlug, the /categories/[slug] page, category articles
+//      counts) join through category_id with no index backing that join
+//      column at all — every one of those was a sequential scan over
+//      `articles`. Indexed now, same as city_id and attraction_id already
+//      were.
+// CREATE INDEX IF NOT EXISTS is idempotent, like every other statement in
+// this script — safe to re-run against a database that already has these.
+async function addPerformanceIndexes() {
+  console.log("Ensuring performance indexes exist...");
+  await sql`CREATE INDEX IF NOT EXISTS articles_status_published_idx ON articles (status, published_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS articles_category_idx ON articles (category_id)`;
+  console.log("Performance indexes ready.");
+}
+
 async function main() {
   await createTables();
   await addPhase1Columns();
@@ -905,6 +929,7 @@ async function main() {
   await createPhase6EventsTable();
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
+  await addPerformanceIndexes();
   await backfillUserSlugs();
   await seedCities();
   await seedCategories();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ArticleWithRelations } from "@/lib/articles";
@@ -40,6 +40,12 @@ const TAB_LABELS: Record<string, string> = {
   rejected: "Rejected",
 };
 
+// The full submitted-article list is fetched once server-side and filtered
+// entirely client-side (see `filtered` below) — fine for the DB round trip,
+// but rendering every matching row into the DOM unbounded doesn't scale as
+// submissions accumulate. Windowed like the Admin Users table.
+const PAGE_SIZE = 20;
+
 export default function ArticlesQueue({
   initialArticles,
   cities,
@@ -56,6 +62,7 @@ export default function ArticlesQueue({
   const [categoryId, setCategoryId] = useState("");
   const [author, setAuthor] = useState("");
   const [dateFrom, setDateFrom] = useState("");
+  const [page, setPage] = useState(1);
 
   const authors = useMemo(() => {
     const seen = new Map<string, string>();
@@ -95,6 +102,15 @@ export default function ArticlesQueue({
     }
     return list;
   }, [initialArticles, filter, cityId, categoryId, author, dateFrom, query]);
+
+  // Any filter/search/tab change invalidates whatever page we were on.
+  useEffect(() => {
+    setPage(1);
+  }, [filter, cityId, categoryId, author, dateFrom, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="space-y-4">
@@ -210,7 +226,7 @@ export default function ArticlesQueue({
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filtered.map((a) => (
+          {paged.map((a) => (
             <Link
               key={a.id}
               href={`/admin/articles/${a.id}`}
@@ -255,6 +271,35 @@ export default function ArticlesQueue({
               </div>
             </Link>
           ))}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <p className="text-xs text-slate-500">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                  ← Previous
+                </button>
+                <span className="px-2 text-xs font-semibold text-slate-500">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
