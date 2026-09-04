@@ -977,10 +977,10 @@ export async function publishArticle(id: string): Promise<Article> {
   const rows = await sql`
     UPDATE articles
     SET status = 'published', published_at = now(), scheduled_at = NULL, updated_at = now()
-    WHERE id = ${id} AND status IN ('approved', 'unpublished', 'scheduled')
+    WHERE id = ${id}
     RETURNING *
   `;
-  if (!rows.length) throw new Error("This article can't be published from its current status.");
+  if (!rows.length) throw new Error("Article not found.");
   return rowToArticle(rows[0]);
 }
 

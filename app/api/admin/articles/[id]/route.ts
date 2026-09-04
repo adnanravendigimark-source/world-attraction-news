@@ -232,7 +232,30 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     if (action === "publish") {
+      let score: number | null = null;
+      if (body.score !== null && body.score !== undefined && body.score !== "") {
+        const n = Number(body.score);
+        if (Number.isFinite(n) && Number.isInteger(n) && n >= 0 && n <= 10) {
+          score = n;
+        }
+      }
+      const feedback = typeof body.feedback === "string" ? body.feedback.trim() : (before.adminFeedback || "");
+
+      if (score !== null || feedback) {
+        await updateArticleReview(params.id, { score: score ?? before.score, feedback });
+      }
+
       const article = await publishArticle(params.id);
+      await recordReview({
+        articleId: article.id,
+        adminId: session.userId,
+        adminEmail: session.email,
+        decision: "approved",
+        score: score ?? before.score,
+        feedback,
+        moderationSignals: before.moderationSignals,
+      });
+
       await logActivity(session, "article_published", { type: "article", id: article.id, label: article.title });
       const url = articlePath(before.countrySlug, before.citySlug, article.slug);
       if (author) {

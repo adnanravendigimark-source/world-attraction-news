@@ -180,6 +180,22 @@ export default function ArticleReviewPanel({
     setShowStatusMenu(false);
   }
 
+  async function handleApproveAndPublish() {
+    await callApi(
+      { action: "publish", score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
+      "Article approved and published live!"
+    );
+    setShowStatusMenu(false);
+  }
+
+  async function handleApproveOnly() {
+    await callApi(
+      { action: "review", status: "approved", score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
+      "Article approved (ready to publish)."
+    );
+    setShowStatusMenu(false);
+  }
+
   async function handleReviewDecision(status: "approved" | "changes_requested" | "rejected") {
     if (status !== "approved" && !feedback.trim()) {
       toast.error("Please add feedback so the contributor knows what to fix.");
@@ -202,7 +218,10 @@ export default function ArticleReviewPanel({
   }
 
   async function handlePublish() {
-    await callApi({ action: "publish" }, "Article published live.");
+    await callApi(
+      { action: "publish", score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
+      "Article published live!"
+    );
     setShowStatusMenu(false);
   }
 
@@ -235,7 +254,7 @@ export default function ArticleReviewPanel({
       danger: true,
     });
     if (!ok) return;
-    await callApi({ action: "unpublish" }, "Article unpublished.");
+    await callApi({ action: "unpublish" }, "Article unpublished to draft.");
     setShowStatusMenu(false);
   }
 
@@ -320,9 +339,33 @@ export default function ArticleReviewPanel({
   const selectedCityName = useMemo(() => cities.find((c) => c.id === edit.cityId)?.name || "", [cities, edit.cityId]);
   const selectedCategoryName = useMemo(() => categories.find((c) => c.id === edit.categoryId)?.name || "", [categories, edit.categoryId]);
 
+  const isScoreChanged = score !== (article.score !== null ? String(article.score) : "");
+  const isFeedbackChanged = feedback.trim() !== (article.adminFeedback || "").trim();
+  const isReviewDirty = isScoreChanged || isFeedbackChanged;
+
+  const isContentDirty = useMemo(() => {
+    return (
+      edit.title.trim() !== (article.title || "").trim() ||
+      edit.excerpt.trim() !== (article.excerpt || "").trim() ||
+      edit.contentHtml.trim() !== (article.contentHtml || "").trim() ||
+      (edit.image || "") !== (article.image || "") ||
+      (edit.imageAlt || "") !== (article.imageAlt || "") ||
+      edit.cityId !== article.cityId ||
+      (edit.categoryId || "") !== (article.categoryId || "") ||
+      (edit.attractionId || "") !== (article.attractionId || "") ||
+      (edit.metaTitle || "") !== (article.metaTitle || "") ||
+      (edit.metaDescription || "") !== (article.metaDescription || "") ||
+      (edit.focusKeyword || "") !== (article.focusKeyword || "") ||
+      (edit.canonicalUrl || "") !== (article.canonicalUrl || "") ||
+      edit.tags.trim() !== (article.tags || []).join(", ").trim()
+    );
+  }, [edit, article]);
+
+  const isDirty = isContentDirty || isReviewDirty;
+
   const canReview = !["published", "scheduled", "unpublished"].includes(article.status);
-  const canPublish = ["approved", "unpublished", "scheduled"].includes(article.status);
-  const canSchedule = ["approved", "unpublished"].includes(article.status);
+  const canPublish = ["approved", "unpublished", "scheduled", "pending", "under_review", "changes_requested", "rejected", "draft"].includes(article.status);
+  const canSchedule = ["approved", "unpublished", "pending", "under_review"].includes(article.status);
 
   return (
     <div className="font-sans space-y-6 pb-24 text-slate-800 antialiased">
@@ -359,9 +402,10 @@ export default function ArticleReviewPanel({
             <Link
               href={articlePath(article.countrySlug, article.citySlug, article.slug)}
               target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100 transition-colors"
             >
-              Open Live ↗
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              View Live Story ↗
             </Link>
           )}
 
@@ -374,28 +418,23 @@ export default function ArticleReviewPanel({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
-            Preview
+            <span>Preview</span>
           </button>
 
           <button
             type="button"
             disabled={busy}
             onClick={handleSaveAll}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Save Draft
-          </button>
-
-          <button
-            type="button"
-            disabled={busy}
-            onClick={handleSaveAll}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#DC2626] px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-60"
+            className={`inline-flex items-center gap-2 rounded-xl px-5 py-2 text-xs font-bold transition-all cursor-pointer shadow-2xs disabled:opacity-60 ${
+              isDirty
+                ? "bg-[#DC2626] text-white hover:bg-[#B91C1C] shadow-sm ring-2 ring-red-200"
+                : "bg-slate-900 text-white hover:bg-slate-800"
+            }`}
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            {busy ? "Updating..." : "Update Article"}
+            {busy ? "Updating..." : isDirty ? "Save Changes *" : "Save Changes"}
           </button>
         </div>
       </div>
@@ -634,12 +673,12 @@ export default function ArticleReviewPanel({
 
             {/* Status Dropdown Button */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Status</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Current Status</label>
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className={`flex w-full items-center justify-between rounded-xl border ${currentStatusConfig.border} ${currentStatusConfig.bg} px-3.5 py-2 text-xs font-bold ${currentStatusConfig.text} transition-colors cursor-pointer`}
+                  className={`flex w-full items-center justify-between rounded-xl border ${currentStatusConfig.border} ${currentStatusConfig.bg} px-3.5 py-2.5 text-xs font-bold ${currentStatusConfig.text} transition-colors cursor-pointer shadow-2xs`}
                 >
                   <span className="flex items-center gap-2">
                     <span className={`h-2 w-2 rounded-full ${currentStatusConfig.dot}`} />
@@ -650,68 +689,49 @@ export default function ArticleReviewPanel({
 
                 {showStatusMenu && (
                   <div className="absolute left-0 right-0 z-20 mt-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl text-xs space-y-1">
-                    {canReview && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleStartReview}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                          Mark as In Review
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReviewDecision("approved")}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Approve Article
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReviewDecision("changes_requested")}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-orange-700 hover:bg-orange-50 cursor-pointer"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                          Request Changes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReviewDecision("rejected")}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                          Reject Article
-                        </button>
-                      </>
-                    )}
-
-                    {canPublish && (
-                      <button
-                        type="button"
-                        onClick={handlePublish}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-[#DC2626] hover:bg-rose-50 cursor-pointer"
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626]" />
-                        Publish Now (Live)
-                      </button>
-                    )}
-
-                    {canSchedule && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSchedule(true);
-                          setShowStatusMenu(false);
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer"
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                        Schedule for Later...
-                      </button>
-                    )}
-
+                    <button
+                      type="button"
+                      onClick={handlePublish}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-bold text-[#DC2626] hover:bg-rose-50 cursor-pointer"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
+                      Publish Now (Go Live)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleApproveOnly}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Approve Article
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSchedule(true);
+                        setShowStatusMenu(false);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                      Schedule Release...
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReviewDecision("changes_requested")}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-orange-700 hover:bg-orange-50 cursor-pointer"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                      Request Changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReviewDecision("rejected")}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                      Reject Article
+                    </button>
                     {article.status === "published" && (
                       <button
                         type="button"
@@ -764,71 +784,236 @@ export default function ArticleReviewPanel({
                 />
               </div>
 
-              {!canReview && (
+              {isReviewDirty && (
                 <div className="flex justify-end pt-1">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={handleUpdateReview}
-                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 cursor-pointer"
+                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
                   >
-                    Save Score &amp; Feedback
+                    Save Score &amp; Feedback *
                   </button>
                 </div>
               )}
             </div>
 
-            {/* In Review / Changes Requested / Scheduled Quick Actions */}
-            {canReview && (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {article.status === "pending" && (
+            {/* Status-Specific Review & Action Buttons */}
+            <div className="space-y-2 pt-1">
+              {/* 1. If Published */}
+              {article.status === "published" && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 px-3.5 py-2.5 text-xs text-emerald-800">
+                    <span className="flex items-center gap-2 font-bold">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Live on Public Site
+                    </span>
+                    <Link
+                      href={articlePath(article.countrySlug, article.citySlug, article.slug)}
+                      target="_blank"
+                      className="font-bold underline text-emerald-900 hover:text-emerald-700"
+                    >
+                      View Live ↗
+                    </Link>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleUnpublish}
+                      className="w-full rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      ⏸ Unpublish to Draft
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. If Scheduled */}
+              {article.status === "scheduled" && (
+                <div className="space-y-2">
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={handleStartReview}
-                    className="flex-1 rounded-xl border border-amber-300 bg-amber-50 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 transition-all cursor-pointer disabled:opacity-50"
+                    onClick={handlePublish}
+                    className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    Mark In Review
+                    <span>🚀 Publish Live Now (Skip Wait)</span>
                   </button>
-                )}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleReviewDecision("approved")}
-                  className="flex-1 rounded-xl bg-emerald-600 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  ✓ Approve
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleReviewDecision("changes_requested")}
-                  className="flex-1 rounded-xl border border-orange-300 bg-orange-50 py-2 text-xs font-bold text-orange-800 hover:bg-orange-100 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  Request Changes
-                </button>
-              </div>
-            )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setShowSchedule(true)}
+                      className="flex-1 rounded-xl border border-blue-200 bg-blue-50 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      Reschedule
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleCancelSchedule}
+                      className="flex-1 rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      Cancel Schedule
+                    </button>
+                  </div>
+                </div>
+              )}
 
-            {/* Published On / Schedule Date Box */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {article.status === "scheduled"
-                  ? "Scheduled For"
-                  : article.status === "published"
-                  ? "Published On"
-                  : "Publication Schedule"}
-              </label>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 text-xs text-slate-700">
+              {/* 3. If Approved (Ready for publication) */}
+              {article.status === "approved" && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handlePublish}
+                    className="w-full rounded-xl bg-[#DC2626] py-2.5 text-xs font-extrabold text-white shadow-sm hover:bg-red-700 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    <span>🚀 Publish Live Now</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={!isReviewDirty || busy}
+                      onClick={isReviewDirty ? handleUpdateReview : undefined}
+                      className={`flex-1 rounded-xl py-2 text-xs font-bold transition-all ${
+                        isReviewDirty
+                          ? "bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-2xs"
+                          : "bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-default opacity-85"
+                      }`}
+                    >
+                      {isReviewDirty ? "Save Score *" : "✓ Approved"}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setShowSchedule(true)}
+                      className="flex-1 rounded-xl border border-blue-200 bg-blue-50 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      📅 Schedule...
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleReviewDecision("changes_requested")}
+                    className="w-full rounded-xl border border-orange-200 bg-orange-50/50 py-1.5 text-[11px] font-bold text-orange-800 hover:bg-orange-100 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    Request Changes Instead
+                  </button>
+                </div>
+              )}
+
+              {/* 4. If Pending, In Review, Draft, Changes Requested, or Rejected */}
+              {article.status !== "published" && article.status !== "scheduled" && article.status !== "approved" && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleApproveAndPublish}
+                    className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-extrabold text-white shadow-sm hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    <span>🚀 Approve &amp; Publish Live</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {article.status === "pending" && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={handleStartReview}
+                        className="flex-1 rounded-xl border border-amber-300 bg-amber-50 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        In Review
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleApproveOnly}
+                      className="flex-1 rounded-xl border border-emerald-300 bg-emerald-50 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      ✓ Approve Only
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleReviewDecision("changes_requested")}
+                      className="flex-1 rounded-xl border border-orange-300 bg-orange-50 py-2 text-xs font-bold text-orange-800 hover:bg-orange-100 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      Changes
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleReviewDecision("rejected")}
+                    className="w-full rounded-xl border border-rose-200 bg-rose-50/50 py-1.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    Reject Article
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Publication Schedule Box */}
+            <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">
+                  {article.status === "scheduled"
+                    ? "Scheduled For"
+                    : article.status === "published"
+                    ? "Publication Info"
+                    : "Publication Schedule"}
+                </label>
+                {article.status === "published" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Live
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 shadow-2xs">
                 <span className="text-slate-400">📅</span>
                 <span className="font-semibold text-slate-800">
                   {article.scheduledAt
-                    ? formatDateTime(article.scheduledAt)
+                    ? `Scheduled: ${formatDateTime(article.scheduledAt)}`
                     : article.publishedAt
-                    ? formatDateTime(article.publishedAt)
+                    ? `Published: ${formatDateTime(article.publishedAt)}`
+                    : article.status === "approved"
+                    ? "Approved — Not published yet"
                     : "Not published yet"}
                 </span>
               </div>
+
+              {/* Quick Publish / Schedule shortcut buttons inside Schedule box */}
+              {article.status === "approved" && (
+                <div className="pt-1 flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handlePublish}
+                    className="flex-1 rounded-lg bg-[#DC2626] py-1.5 text-xs font-bold text-white hover:bg-red-700 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    🚀 Publish Live Now
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setShowSchedule(true)}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    Schedule
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Schedule Picker Mode (if opened) */}
