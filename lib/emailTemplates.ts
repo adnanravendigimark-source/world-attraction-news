@@ -392,7 +392,7 @@ export function contactNotificationEmailTemplate(input: {
 }
 
 export function newsletterSubscribedEmailTemplate(): RenderedEmail {
-  const heading = `Welcome to the ${SITE_NAME} Dispatch`;
+  const heading = `Welcome to ${SITE_NAME} Dispatches`;
   const bodyHtml =
     paragraph(`Thank you for subscribing to <strong>${escapeHtml(SITE_NAME)}</strong>!`) +
     paragraph(`You will now receive our curated editorial dispatches featuring the latest theme park developments, attraction grand openings, insider travel guides, and breaking news delivered straight to your inbox.`) +
@@ -406,3 +406,37 @@ export function newsletterSubscribedEmailTemplate(): RenderedEmail {
   });
   return { subject: `Welcome to ${SITE_NAME} — You're Subscribed!`, html, text: htmlToText(html) };
 }
+
+export function newsletterArticlePublishedEmailTemplate(input: {
+  title: string;
+  excerpt: string;
+  image?: string | null;
+  url: string;
+  cityName?: string | null;
+  categoryName?: string | null;
+}): RenderedEmail {
+  let bodyHtml = "";
+
+  if (input.cityName || input.categoryName) {
+    const metaTag = [input.cityName, input.categoryName].filter(Boolean).join(" • ");
+    bodyHtml += `<div style="font-size:11px; font-weight:700; color:${BRAND.signal}; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px;">${escapeHtml(metaTag)}</div>`;
+  }
+
+  if (input.image) {
+    bodyHtml += `<div style="margin-bottom:20px; border-radius:8px; overflow:hidden; border:1px solid ${BRAND.ink100};"><img src="${escapeHtml(input.image)}" alt="${escapeHtml(input.title)}" style="width:100%; max-height:280px; object-fit:cover; display:block;" /></div>`;
+  }
+
+  bodyHtml += paragraph(escapeHtml(input.excerpt || "A new attraction and travel story has just been published on Attraction News."));
+  bodyHtml += `<p style="font-size:13px; color:${BRAND.ink500}; margin-top:16px;">Click the button below to read the full scoop and detailed insights on our site.</p>`;
+
+  const html = renderEmailLayout({
+    previewText: input.excerpt || `New story: ${input.title}`,
+    heading: input.title,
+    bodyHtml,
+    ctaLabel: "Read Full Story",
+    ctaUrl: absoluteUrl(input.url),
+  });
+
+  return { subject: `📰 New Story: ${input.title}`, html, text: htmlToText(html) };
+}
+

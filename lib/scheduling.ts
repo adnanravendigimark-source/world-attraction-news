@@ -26,8 +26,38 @@ export async function publishDueScheduledArticles(): Promise<number> {
       WHERE status = 'scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= now()
       RETURNING id
     `;
+    if (rows.length > 0) {
+      try {
+        const { notifySubscribersOfNewArticle } = await import("./newsletter");
+        const { articlePath } = await import("./destinations");
+        for (const row of rows) {
+          const fullRows = await sql`
+            SELECT a.title, a.excerpt, a.image, a.slug, c.slug AS city_slug, co.slug AS country_slug, c.name AS city_name
+            FROM articles a
+            JOIN cities c ON c.id = a.city_id
+            JOIN countries co ON co.id = c.country_id
+            WHERE a.id = ${row.id}
+            LIMIT 1
+          `;
+          if (fullRows.length) {
+            const f = fullRows[0];
+            const url = articlePath(f.country_slug, f.city_slug, f.slug);
+            notifySubscribersOfNewArticle({
+              title: f.title,
+              excerpt: f.excerpt,
+              image: f.image,
+              url,
+              cityName: f.city_name,
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error("[scheduling] Failed to broadcast scheduled articles:", err);
+      }
+    }
     return rows.length;
   } catch {
     return 0;
   }
 }
+

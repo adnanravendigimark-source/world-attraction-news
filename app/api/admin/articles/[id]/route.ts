@@ -31,6 +31,7 @@ import {
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { cityPath, articlePath } from "@/lib/destinations";
+import { notifySubscribersOfNewArticle } from "@/lib/newsletter";
 
 export const dynamic = "force-dynamic";
 
@@ -233,10 +234,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (action === "publish") {
       const article = await publishArticle(params.id);
       await logActivity(session, "article_published", { type: "article", id: article.id, label: article.title });
+      const url = articlePath(before.countrySlug, before.citySlug, article.slug);
       if (author) {
-        const url = articlePath(before.countrySlug, before.citySlug, article.slug);
         await notifyArticlePublished({ id: author.id, email: author.email }, { id: article.id, title: article.title, url });
       }
+      // Broadcast to active newsletter subscribers
+      notifySubscribersOfNewArticle({
+        title: article.title,
+        excerpt: article.excerpt,
+        image: article.image,
+        url,
+        cityName: before.cityName,
+        categoryName: before.categoryName,
+      }).catch((err) => {
+        console.error("[newsletter] Broadcast to subscribers failed:", err);
+      });
+
       revalidatePublicPaths(before.citySlug, before.countrySlug, author?.slug);
       return NextResponse.json({ ok: true, article });
     }

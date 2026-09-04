@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import { sendNewsletterArticleBroadcast } from "./email";
 
 export interface Subscriber {
   id: number;
@@ -56,6 +57,49 @@ export async function getSubscribers(): Promise<Subscriber[]> {
   }
 }
 
+export async function getActiveSubscribers(): Promise<Subscriber[]> {
+  try {
+    const rows = await sql`
+      SELECT id, email, source, created_at, unsubscribed_at
+      FROM newsletter_subscribers
+      WHERE unsubscribed_at IS NULL
+      ORDER BY created_at ASC
+    `;
+    return rows.map((r: any) => ({
+      id: Number(r.id),
+      email: r.email,
+      source: r.source || "website",
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : "",
+      unsubscribedAt: null,
+    }));
+  } catch (err) {
+    console.error("[newsletter] getActiveSubscribers failed:", err);
+    return [];
+  }
+}
+
+export async function notifySubscribersOfNewArticle(article: {
+  title: string;
+  excerpt: string;
+  image?: string | null;
+  url: string;
+  cityName?: string | null;
+  categoryName?: string | null;
+}): Promise<{ total: number; sent: number }> {
+  try {
+    const subscribers = await getActiveSubscribers();
+    if (!subscribers.length) {
+      return { total: 0, sent: 0 };
+    }
+    const emails = subscribers.map((s) => s.email);
+    const { sent } = await sendNewsletterArticleBroadcast(emails, article);
+    return { total: emails.length, sent };
+  } catch (err) {
+    console.error("[newsletter] notifySubscribersOfNewArticle failed:", err);
+    return { total: 0, sent: 0 };
+  }
+}
+
 export async function toggleSubscriberStatus(id: number | string): Promise<Subscriber | null> {
   const rows = await sql`
     UPDATE newsletter_subscribers
@@ -78,3 +122,4 @@ export async function deleteSubscriber(id: number | string): Promise<boolean> {
   await sql`DELETE FROM newsletter_subscribers WHERE id = ${id}`;
   return true;
 }
+

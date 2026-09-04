@@ -24,6 +24,7 @@ import {
   genericNotificationEmailTemplate,
   contactNotificationEmailTemplate,
   newsletterSubscribedEmailTemplate,
+  newsletterArticlePublishedEmailTemplate,
   type RenderedEmail,
 } from "./emailTemplates";
 
@@ -167,3 +168,41 @@ export async function sendContactNotificationEmail(input: {
 export async function sendNewsletterWelcomeEmail(to: string): Promise<boolean> {
   return sendRendered(to, newsletterSubscribedEmailTemplate());
 }
+
+export async function sendNewsletterArticleBroadcast(
+  toEmails: string[],
+  input: {
+    title: string;
+    excerpt: string;
+    image?: string | null;
+    url: string;
+    cityName?: string | null;
+    categoryName?: string | null;
+  }
+): Promise<{ sent: number; failed: number }> {
+  const rendered = newsletterArticlePublishedEmailTemplate(input);
+  let sent = 0;
+  let failed = 0;
+
+  // Process in small parallel chunks to avoid throttling
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < toEmails.length; i += BATCH_SIZE) {
+    const batch = toEmails.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (email) => {
+        try {
+          return await sendRendered(email, rendered);
+        } catch {
+          return false;
+        }
+      })
+    );
+    for (const res of results) {
+      if (res) sent++;
+      else failed++;
+    }
+  }
+
+  return { sent, failed };
+}
+
