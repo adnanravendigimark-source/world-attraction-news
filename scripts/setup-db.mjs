@@ -68,11 +68,27 @@ async function createTables() {
   await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS countries (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL UNIQUE,
+      intro TEXT NOT NULL DEFAULT '',
+      hero_image TEXT NOT NULL DEFAULT '',
+      hero_image_alt TEXT NOT NULL DEFAULT '',
+      meta_title TEXT NOT NULL DEFAULT '',
+      meta_description TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS cities (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       slug TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
       country TEXT NOT NULL,
+      country_slug TEXT NOT NULL DEFAULT '',
       hero_image TEXT NOT NULL DEFAULT '',
       hero_image_alt TEXT NOT NULL DEFAULT '',
       intro TEXT NOT NULL DEFAULT '',

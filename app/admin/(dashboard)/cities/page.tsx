@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCities } from "@/lib/cities";
+import { getAllCountries } from "@/lib/countries";
 import { getArticleCountsByCity } from "@/lib/articles";
 import CitiesManager from "@/components/admin/CitiesManager";
 
@@ -10,10 +11,11 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCitiesPage() {
-  // A lightweight COUNT/GROUP BY, not a full getAllArticles() fetch (which
-  // also re-runs publishDueScheduledArticles() as a side effect) — this page
-  // only needs per-city totals, never the article rows themselves.
-  const [cities, countsByCity] = await Promise.all([getCities(), getArticleCountsByCity()]);
+  const [cities, countsByCity, countries] = await Promise.all([
+    getCities(),
+    getArticleCountsByCity(),
+    getAllCountries(),
+  ]);
   const counts: Record<string, { total: number; published: number }> = {};
   for (const city of cities) counts[city.id] = countsByCity[city.id] || { total: 0, published: 0 };
 
@@ -22,14 +24,18 @@ export default async function AdminCitiesPage() {
       {/* Header */}
       <div className="border-b border-slate-200 pb-4">
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-          Destinations &amp; City Bureaus
+          Destinations &amp; Bureaus
         </h1>
         <p className="mt-0.5 text-xs sm:text-sm text-slate-500 font-medium">
-          Manage destination bureaus, cover photography, intro overviews, and regional coverage.
+          Manage destination bureaus, country hubs, intro overviews, and regional coverage.
         </p>
       </div>
 
-      <CitiesManager initialCities={cities} articleCounts={counts} />
+      <CitiesManager
+        initialCities={cities}
+        initialCountries={countries}
+        articleCounts={counts}
+      />
     </div>
   );
 }

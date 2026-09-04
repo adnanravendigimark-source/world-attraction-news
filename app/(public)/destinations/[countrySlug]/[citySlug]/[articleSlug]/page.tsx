@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import ArticleDetailClient from "@/components/ArticleDetailClient";
 import {
   getPublishedArticleBySlug,
+  getPublishedArticleByAnySlug,
   getRelatedPublishedArticles,
   getTrendingArticles,
   incrementArticleView,
@@ -27,8 +28,11 @@ export async function generateMetadata({
 }: {
   params: { countrySlug: string; citySlug: string; articleSlug: string };
 }): Promise<Metadata> {
-  const article = await getPublishedArticleBySlug(params.citySlug, params.articleSlug);
-  if (!article || article.countrySlug !== params.countrySlug) return {};
+  let article = await getPublishedArticleBySlug(params.citySlug, params.articleSlug);
+  if (!article) {
+    article = await getPublishedArticleByAnySlug(params.articleSlug);
+  }
+  if (!article) return {};
   return resolvePageMetadata(articlePath(article.countrySlug, article.citySlug, article.slug), {
     title: `${article.metaTitle || article.title} | ${SITE_NAME}`,
     description: article.metaDescription || article.excerpt,
@@ -42,9 +46,13 @@ export default async function ArticlePage({
 }: {
   params: { countrySlug: string; citySlug: string; articleSlug: string };
 }) {
-  const article = await getPublishedArticleBySlug(params.citySlug, params.articleSlug);
+  let article = await getPublishedArticleBySlug(params.citySlug, params.articleSlug);
+  if (!article) {
+    article = await getPublishedArticleByAnySlug(params.articleSlug);
+  }
   if (!article) notFound();
-  if (article.countrySlug !== params.countrySlug) {
+
+  if (article.countrySlug !== params.countrySlug || article.citySlug !== params.citySlug) {
     permanentRedirect(articlePath(article.countrySlug, article.citySlug, article.slug));
   }
 

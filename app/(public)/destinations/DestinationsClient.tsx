@@ -50,6 +50,8 @@ export default function DestinationsClient({
   dbCities?: DestinationCity[];
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<string>("all");
+  const [selectedCity, setSelectedCity] = useState<string>("all");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("popular");
 
@@ -58,8 +60,27 @@ export default function DestinationsClient({
     [dbCities]
   );
 
-  // Real counts computed from the actual city list — no static/fabricated
-  // numbers.
+  // Distinct countries list with count of cities
+  const countries = useMemo(() => {
+    const counts = new Map<string, { name: string; countrySlug: string; count: number }>();
+    for (const d of allDestinations) {
+      const existing = counts.get(d.country) || { name: d.country, countrySlug: d.countrySlug, count: 0 };
+      existing.count += 1;
+      counts.set(d.country, existing);
+    }
+    return Array.from(counts.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allDestinations]);
+
+  // Cities available for filter based on selectedCountry
+  const availableCities = useMemo(() => {
+    let list = allDestinations;
+    if (selectedCountry !== "all") {
+      list = list.filter((d) => d.country === selectedCountry || d.countrySlug === selectedCountry);
+    }
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+  }, [allDestinations, selectedCountry]);
+
+  // Real counts computed from the actual city list
   const regions = useMemo(() => {
     const counts = new Map<string, number>();
     for (const d of allDestinations) counts.set(d.region, (counts.get(d.region) || 0) + 1);
@@ -72,11 +93,36 @@ export default function DestinationsClient({
     );
   };
 
+  const handleCountryChange = (countryName: string) => {
+    setSelectedCountry(countryName);
+    setSelectedCity("all"); // Reset city filter when country changes
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setSelectedCountry("all");
+    setSelectedCity("all");
+    setSelectedRegions([]);
+    setSortBy("popular");
+  };
+
+  const hasActiveFilters = searchQuery !== "" || selectedCountry !== "all" || selectedCity !== "all" || selectedRegions.length > 0;
+
   const filteredDestinations = useMemo(() => {
     const filtered = allDestinations.filter((d) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (!d.name.toLowerCase().includes(q) && !d.country.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      if (selectedCountry !== "all") {
+        if (d.country !== selectedCountry && d.countrySlug !== selectedCountry) {
+          return false;
+        }
+      }
+      if (selectedCity !== "all") {
+        if (d.slug !== selectedCity && d.name !== selectedCity) {
           return false;
         }
       }
@@ -99,7 +145,7 @@ export default function DestinationsClient({
       });
     }
     return sorted;
-  }, [allDestinations, searchQuery, selectedRegions, sortBy]);
+  }, [allDestinations, searchQuery, selectedCountry, selectedCity, selectedRegions, sortBy]);
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527] pb-16">
@@ -167,7 +213,7 @@ export default function DestinationsClient({
             <div className="lg:col-span-3 flex flex-col gap-6">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 {/* Search Destinations */}
-                <div className="mb-6">
+                <div className="mb-5">
                   <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527] mb-2">
                     Search Destinations
                   </h3>
@@ -192,8 +238,48 @@ export default function DestinationsClient({
                   </div>
                 </div>
 
+                {/* Filter by Country */}
+                <div className="mb-5">
+                  <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527] mb-2">
+                    Filter by Country
+                  </h3>
+                  <select
+                    value={selectedCountry}
+                    onChange={(e) => handleCountryChange(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All Countries ({countries.length})</option>
+                    {countries.map((c) => (
+                      <option key={c.countrySlug} value={c.name}>
+                        {c.name} ({c.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filter by City */}
+                <div className="mb-5">
+                  <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527] mb-2">
+                    Filter by City
+                  </h3>
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:bg-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">
+                      {selectedCountry === "all" ? `All Cities (${availableCities.length})` : `All in ${selectedCountry} (${availableCities.length})`}
+                    </option>
+                    {availableCities.map((city) => (
+                      <option key={city.slug} value={city.slug}>
+                        {city.name} ({city.country})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Filter by Region */}
-                <div className="mb-6">
+                <div className="mb-5">
                   <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527] mb-2.5">
                     Filter by Region
                   </h3>
@@ -216,7 +302,7 @@ export default function DestinationsClient({
                 </div>
 
                 {/* Sort By */}
-                <div>
+                <div className="mb-4">
                   <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527] mb-2">
                     Sort By
                   </h3>
@@ -230,6 +316,18 @@ export default function DestinationsClient({
                     <option value="alpha">Alphabetical</option>
                   </select>
                 </div>
+
+                {/* Reset Filters button */}
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="w-full rounded-lg border border-rose-200 bg-rose-50/60 px-3 py-2 text-xs font-bold text-[#DC2626] hover:bg-rose-100/80 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <span>Reset All Filters</span>
+                    <span>✕</span>
+                  </button>
+                )}
               </div>
             </div>
 

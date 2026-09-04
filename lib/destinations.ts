@@ -5,21 +5,32 @@
 // through one of these instead, so there's exactly one place that knows the
 // URL shape.
 export function countryPath(countrySlug: string): string {
-  return `/destinations/${countrySlug}`;
+  const cSlug = (countrySlug || "").trim() || "destinations";
+  return `/destinations/${cSlug}`;
 }
 
 export function cityPath(countrySlug: string, citySlug: string): string {
-  return `/destinations/${countrySlug}/${citySlug}`;
+  const cSlug = (countrySlug || "").trim() || "destinations";
+  const c = (citySlug || "").trim() || "city";
+  return `/destinations/${cSlug}/${c}`;
 }
 
 export function articlePath(countrySlug: string, citySlug: string, articleSlug: string): string {
-  return `/destinations/${countrySlug}/${citySlug}/${articleSlug}`;
+  const cSlug = (countrySlug || "").trim() || "destinations";
+  const c = (citySlug || "").trim() || "city";
+  const a = (articleSlug || "").trim() || "article";
+  return `/destinations/${cSlug}/${c}/${a}`;
 }
 
 export function attractionsPath(countrySlug: string, citySlug: string): string {
-  return `/destinations/${countrySlug}/${citySlug}/attractions`;
+  const cSlug = (countrySlug || "").trim() || "destinations";
+  const c = (citySlug || "").trim() || "city";
+  return `/destinations/${cSlug}/${c}/attractions`;
 }
 
 export function attractionPath(countrySlug: string, citySlug: string, attractionSlug: string): string {
-  return `/destinations/${countrySlug}/${citySlug}/attractions/${attractionSlug}`;
+  const cSlug = (countrySlug || "").trim() || "destinations";
+  const c = (citySlug || "").trim() || "city";
+  const a = (attractionSlug || "").trim() || "attraction";
+  return `/destinations/${cSlug}/${c}/attractions/${a}`;
 }

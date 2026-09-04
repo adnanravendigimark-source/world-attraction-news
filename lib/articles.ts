@@ -3,6 +3,7 @@ import { sql } from "./db";
 import { publishDueScheduledArticles } from "./scheduling";
 import type { ModerationSignals } from "./moderation";
 import { sanitizeArticleHtml, stripLinkTags } from "./sanitizeHtml";
+import { slugifyCountry } from "./countries";
 
 // Full editorial workflow (Final Phase spec):
 //   draft -> pending (submitted) -> under_review -> changes_requested -> pending (resubmitted)
@@ -124,11 +125,17 @@ function rowToArticle(row: any): Article {
 }
 
 function rowToArticleWithRelations(row: any): ArticleWithRelations {
+  const cCountrySlug =
+    row.country_slug ||
+    (row.city_country ? slugifyCountry(row.city_country) : "") ||
+    (row.country ? slugifyCountry(row.country) : "") ||
+    "united-states";
+
   return {
     ...rowToArticle(row),
     cityName: row.city_name,
     citySlug: row.city_slug,
-    countrySlug: row.country_slug,
+    countrySlug: cCountrySlug,
     categoryName: row.category_name,
     categorySlug: row.category_slug,
     attractionName: row.attraction_name ?? null,
@@ -162,7 +169,8 @@ export function computeContentStats(html: string): { wordCount: number; readingT
 // fully parameterized (no string-built values), just not the tagged-
 // template shorthand.
 const JOIN_SELECT = `
-  SELECT a.*, c.name AS city_name, c.slug AS city_slug, c.country_slug AS country_slug,
+  SELECT a.*, c.name AS city_name, c.slug AS city_slug, c.country AS city_country,
+         COALESCE(NULLIF(c.country_slug, ''), '') AS country_slug,
          cat.name AS category_name, cat.slug AS category_slug,
          att.name AS attraction_name, att.slug AS attraction_slug,
          u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
@@ -176,6 +184,7 @@ const JOIN_SELECT = `
 // --- Public reads (published only) -----------------------------------
 
 export async function getPublishedArticles(opts: {
+  countrySlug?: string;
   citySlug?: string;
   categorySlug?: string;
   attractionSlug?: string;
@@ -186,6 +195,10 @@ export async function getPublishedArticles(opts: {
     const limit = opts.limit ?? 200;
     const conditions = ["a.status = 'published'"];
     const params: any[] = [];
+    if (opts.countrySlug) {
+      params.push(opts.countrySlug);
+      conditions.push(`c.country_slug = $${params.length}`);
+    }
     if (opts.citySlug) {
       params.push(opts.citySlug);
       conditions.push(`c.slug = $${params.length}`);

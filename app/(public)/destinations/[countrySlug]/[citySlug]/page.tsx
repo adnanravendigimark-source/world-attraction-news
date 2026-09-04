@@ -4,9 +4,9 @@ import { unstable_cache } from "next/cache";
 import CityDetailClient from "./CityDetailClient";
 import { getCityBySlug } from "@/lib/cities";
 import { getAttractionsByCityId } from "@/lib/attractions";
-import { getPublishedArticles } from "@/lib/articles";
+import { getPublishedArticles, getPublishedArticleByAnySlug } from "@/lib/articles";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
-import { cityPath, countryPath, attractionsPath } from "@/lib/destinations";
+import { cityPath, countryPath, attractionsPath, articlePath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams — real ISR. Admin city edits and article
@@ -57,7 +57,14 @@ export default async function CityPage({
   params: { countrySlug: string; citySlug: string };
 }) {
   const city = await getCachedCityBySlug(params.citySlug);
-  if (!city) notFound();
+  if (!city) {
+    // Check if this was a 2-segment article URL (/destinations/[citySlug]/[articleSlug])
+    const maybeArticle = await getPublishedArticleByAnySlug(params.citySlug);
+    if (maybeArticle) {
+      permanentRedirect(articlePath(maybeArticle.countrySlug, maybeArticle.citySlug, maybeArticle.slug));
+    }
+    notFound();
+  }
   // A city's country slug is derived from its current `country` value — if
   // it doesn't match the URL's country segment (city moved to a different
   // country, or a stale/incorrect link), send the browser to the correct

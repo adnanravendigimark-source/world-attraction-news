@@ -11,9 +11,11 @@ import { cityPath } from "@/lib/destinations";
 export default function PublicHeader({
   cities = [],
   categories = [],
+  tickerArticle,
 }: {
   cities?: { slug: string; name: string; countrySlug?: string }[];
   categories?: { slug: string; name: string }[];
+  tickerArticle?: { title: string; href: string };
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -23,12 +25,12 @@ export default function PublicHeader({
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
 
   const displayCities = cities.length > 0 ? cities : [
-    { slug: "orlando", name: "Orlando" },
-    { slug: "paris", name: "Paris" },
-    { slug: "tokyo", name: "Tokyo" },
-    { slug: "singapore", name: "Singapore" },
-    { slug: "dubai", name: "Dubai" },
-    { slug: "london", name: "London" },
+    { slug: "orlando", name: "Orlando", countrySlug: "united-states" },
+    { slug: "paris", name: "Paris", countrySlug: "france" },
+    { slug: "tokyo", name: "Tokyo", countrySlug: "japan" },
+    { slug: "singapore", name: "Singapore", countrySlug: "singapore" },
+    { slug: "dubai", name: "Dubai", countrySlug: "united-arab-emirates" },
+    { slug: "london", name: "London", countrySlug: "united-kingdom" },
   ];
 
   const displayCategories = categories.length > 0 ? categories : [
@@ -38,6 +40,11 @@ export default function PublicHeader({
     { slug: "museums", name: "Museums & Culture" },
     { slug: "landmarks", name: "Iconic Landmarks" },
   ];
+
+  const liveTicker = tickerArticle || {
+    title: "Epic Universe Opens at Universal Orlando Resort: Everything You Need to Know",
+    href: "/destinations/united-states/orlando/epic-universe-opens-universal-orlando",
+  };
 
   useEffect(() => {
     try {
@@ -74,10 +81,10 @@ export default function PublicHeader({
             </div>
             <span className="text-slate-600 hidden sm:inline" aria-hidden="true">|</span>
             <Link
-              href="/destinations/france/paris/disneyland-paris-new-nighttime-show"
+              href={liveTicker.href}
               className="text-slate-300 hover:text-white truncate transition-colors font-medium hover:underline"
             >
-              Disneyland Paris unveils new night time spectacular
+              {liveTicker.title}
             </Link>
           </div>
 
@@ -154,7 +161,7 @@ export default function PublicHeader({
               </Link>
               {destDropdownOpen && (
                 <div className="absolute left-0 top-full w-48 rounded-lg border border-slate-200 bg-white py-2 shadow-xl animate-fade-in-up z-50">
-                  {displayCities.map((c) => (
+                  {displayCities.slice(0, 5).map((c) => (
                     <Link
                       key={c.slug}
                       href={c.countrySlug ? cityPath(c.countrySlug, c.slug) : "/destinations"}
