@@ -19,7 +19,15 @@ import { buildMetadata, websiteJsonLd } from "@/lib/seo";
 import { getSettings } from "@/lib/settings";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+// Pure read (no per-request writes, no searchParams) — real ISR instead of
+// force-dynamic. 60s is a real cache window, not a fake one: repeat
+// homepage visits within that window are served from the cache (fast, no DB
+// round trip), and it's short enough that a newly published/featured
+// article shows up within a minute on its own. Admin actions that should
+// feel instant (publish, feature/unfeature, unpublish) additionally call
+// revalidatePath("/") so this page updates immediately rather than waiting
+// out the window — see the admin article/city/category routes.
+export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();

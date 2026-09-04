@@ -10,7 +10,8 @@ import { findUserBySlug } from "@/lib/users";
 import { getPublishedArticlesByAuthorId } from "@/lib/articles";
 import { buildMetadata, breadcrumbJsonLd, personJsonLd } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+// Pure read — real ISR.
+export const revalidate = 180;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const author = await findUserBySlug(params.slug);

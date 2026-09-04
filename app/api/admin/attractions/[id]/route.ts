@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getAttractionById, updateAttraction, deleteAttraction } from "@/lib/attractions";
 import { getCityById } from "@/lib/cities";
@@ -31,6 +32,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     cityId = trimmed;
   }
 
+  const before = await getAttractionById(params.id).catch(() => undefined);
   try {
     const attraction = await updateAttraction(params.id, {
       cityId,
@@ -44,6 +46,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
     const withCity = await getAttractionById(attraction.id);
     await logActivity(session, "attraction_edited", { type: "attraction", id: attraction.id, label: attraction.name });
+    if (withCity) {
+      revalidatePath(`/cities/${withCity.citySlug}/attractions`);
+      revalidatePath(`/cities/${withCity.citySlug}/attractions/${withCity.slug}`);
+      revalidatePath(`/cities/${withCity.citySlug}`);
+      // The city may have changed — also refresh the attraction's old home.
+      if (before && before.citySlug !== withCity.citySlug) {
+        revalidatePath(`/cities/${before.citySlug}/attractions`);
+        revalidatePath(`/cities/${before.citySlug}`);
+      }
+    }
     return NextResponse.json({ ok: true, attraction: withCity ?? attraction });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
@@ -58,7 +70,11 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const before = await getAttractionById(params.id).catch(() => undefined);
   try {
     await deleteAttraction(params.id);
-    if (before) await logActivity(session, "attraction_deleted", { type: "attraction", id: params.id, label: before.name });
+    if (before) {
+      await logActivity(session, "attraction_deleted", { type: "attraction", id: params.id, label: before.name });
+      revalidatePath(`/cities/${before.citySlug}/attractions`);
+      revalidatePath(`/cities/${before.citySlug}`);
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : dbErrorMessage(err);

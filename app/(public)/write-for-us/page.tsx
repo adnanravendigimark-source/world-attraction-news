@@ -4,7 +4,10 @@ import Container from "@/components/Container";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { SITE_NAME, CONTACT_EMAIL } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+// No database reads and nothing request-specific on this page at all — it
+// was needlessly forced to re-render on the server for every single visit.
+// Left to Next's default, this is fully static (built once, served from
+// cache every time).
 
 export const metadata: Metadata = buildMetadata({
   title: `Write for Us — Contributor Wire & Journalism Program | ${SITE_NAME}`,

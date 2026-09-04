@@ -9,7 +9,9 @@ import { getPublishedArticleCountsByCategory, getLatestPublishedArticleImageByCa
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+// Pure read, no searchParams — real ISR. Admin category create/edit/delete
+// calls revalidatePath("/categories").
+export const revalidate = 300;
 
 export const metadata: Metadata = buildMetadata({
   title: `Coverage Categories & Editorial Beats | ${SITE_NAME}`,

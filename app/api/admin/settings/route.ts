@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getSettings, updateSettings } from "@/lib/settings";
 import { logActivity } from "@/lib/activity";
@@ -46,6 +47,12 @@ export async function PATCH(req: Request) {
       id: "1",
       label: isSeoSave ? "SEO settings" : "Site settings",
     });
+    // Site-wide defaults (meta description/OG image/robots default) feed
+    // buildMetadata() on every page, and featuredCitySlugs drives the
+    // Destinations page's "Featured" badge — rather than guess which ISR
+    // pages are affected, invalidate everything under the root layout so a
+    // settings change is never left showing stale metadata.
+    revalidatePath("/", "layout");
     return NextResponse.json({ ok: true, settings });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });

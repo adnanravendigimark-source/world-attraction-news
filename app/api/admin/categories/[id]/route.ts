@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getCategoryById, updateCategory, deleteCategory } from "@/lib/categories";
 import { logActivity } from "@/lib/activity";
@@ -30,6 +31,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       sortOrder: body.sortOrder !== undefined ? Number(body.sortOrder) : undefined,
     });
     await logActivity(session, "category_edited", { type: "category", id: category.id, label: category.name });
+    revalidatePath("/categories");
     return NextResponse.json({ ok: true, category });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
@@ -46,7 +48,10 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const before = await getCategoryById(params.id).catch(() => undefined);
   try {
     await deleteCategory(params.id);
-    if (before) await logActivity(session, "category_deleted", { type: "category", id: params.id, label: before.name });
+    if (before) {
+      await logActivity(session, "category_deleted", { type: "category", id: params.id, label: before.name });
+      revalidatePath("/categories");
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : dbErrorMessage(err);

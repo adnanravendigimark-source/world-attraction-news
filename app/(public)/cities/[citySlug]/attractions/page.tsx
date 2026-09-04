@@ -10,7 +10,9 @@ import { getAttractionsByCityId, getPublishedArticleCountsByAttraction } from "@
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+// Pure read, no searchParams — real ISR. Admin attraction create/edit/delete
+// calls revalidatePath(`/cities/${citySlug}/attractions`).
+export const revalidate = 180;
 
 export async function generateMetadata({ params }: { params: { citySlug: string } }): Promise<Metadata> {
   const city = await getCityBySlug(params.citySlug);

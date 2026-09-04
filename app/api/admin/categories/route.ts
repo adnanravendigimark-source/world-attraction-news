@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getCategories, createCategory } from "@/lib/categories";
 import { logActivity } from "@/lib/activity";
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
       sortOrder: Number(body.sortOrder) || 0,
     });
     await logActivity(session, "category_created", { type: "category", id: category.id, label: category.name });
+    revalidatePath("/categories");
     return NextResponse.json({ ok: true, category });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";

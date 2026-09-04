@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getCityById, updateCity, deleteCity } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
@@ -23,6 +24,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Slug must be lowercase letters, numbers, and hyphens only." }, { status: 400 });
   }
 
+  const before = await getCityById(params.id).catch(() => undefined);
   try {
     const city = await updateCity(params.id, {
       slug: body.slug !== undefined ? String(body.slug).trim().toLowerCase() : undefined,
@@ -36,6 +38,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       sortOrder: body.sortOrder !== undefined ? Number(body.sortOrder) : undefined,
     });
     await logActivity(session, "city_edited", { type: "city", id: city.id, label: city.name });
+    revalidatePath("/cities");
+    revalidatePath(`/cities/${city.slug}`);
+    revalidatePath(`/cities/${city.slug}/attractions`);
+    if (before && before.slug !== city.slug) revalidatePath(`/cities/${before.slug}`);
+    revalidatePath("/");
+    revalidatePath("/about");
     return NextResponse.json({ ok: true, city });
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
@@ -52,7 +60,13 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const before = await getCityById(params.id).catch(() => undefined);
   try {
     await deleteCity(params.id);
-    if (before) await logActivity(session, "city_deleted", { type: "city", id: params.id, label: before.name });
+    if (before) {
+      await logActivity(session, "city_deleted", { type: "city", id: params.id, label: before.name });
+      revalidatePath("/cities");
+      revalidatePath(`/cities/${before.slug}`);
+      revalidatePath("/");
+      revalidatePath("/about");
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : dbErrorMessage(err);

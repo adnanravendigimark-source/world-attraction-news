@@ -5,7 +5,10 @@ import { getSettings } from "@/lib/settings";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+// Pure read, no searchParams (search/sort/filter is client-side over the
+// full list) — real ISR. City counts change slowly enough that a wider
+// window is safe; admin city create/edit/delete calls revalidatePath("/cities").
+export const revalidate = 300;
 
 export const metadata: Metadata = buildMetadata({
   title: `Destinations — Global Attraction News & Travel Updates | ${SITE_NAME}`,

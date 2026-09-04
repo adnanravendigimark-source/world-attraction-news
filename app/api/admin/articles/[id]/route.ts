@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import {
   getArticleById,
@@ -29,6 +30,18 @@ import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+
+// The homepage, the article's city page, and (if it has one) the author's
+// page all use time-boxed ISR (see their own `revalidate` exports) rather
+// than force-dynamic, for real caching benefit on normal traffic. An action
+// here that changes what's publicly visible calls this so the change is
+// live immediately instead of waiting out that window — the article page
+// itself doesn't need it (it's already force-dynamic; see its own comment).
+function revalidatePublicPaths(citySlug?: string | null, authorSlug?: string | null) {
+  revalidatePath("/");
+  if (citySlug) revalidatePath(`/cities/${citySlug}`);
+  if (authorSlug) revalidatePath(`/author/${authorSlug}`);
+}
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
@@ -151,6 +164,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         const url = `/cities/${before.citySlug}/${article.slug}`;
         await notifyArticlePublished({ id: author.id, email: author.email }, { id: article.id, title: article.title, url });
       }
+      revalidatePublicPaths(before.citySlug, author?.slug);
       return NextResponse.json({ ok: true, article });
     }
 
@@ -174,6 +188,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       const article = await unpublishArticle(params.id);
       await logActivity(session, "article_unpublished", { type: "article", id: article.id, label: article.title });
       if (author) await notifyArticleUnpublished({ id: author.id, email: author.email }, { id: article.id, title: article.title });
+      revalidatePublicPaths(before.citySlug, author?.slug);
       return NextResponse.json({ ok: true, article });
     }
 
@@ -190,6 +205,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         editorsPick: article.editorsPick,
         breaking: article.breaking,
       });
+      // Editorial flags only drive homepage placement (Featured/Trending/
+      // Editor's Pick/Breaking rails) — no city/author page reads them.
+      revalidatePath("/");
       return NextResponse.json({ ok: true, article });
     }
 
@@ -252,6 +270,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         changeSummary: "Edited by admin",
       });
       await logActivity(session, "article_edited", { type: "article", id: article.id, label: article.title });
+      // Only matters for an already-live article — editing a draft/pending
+      // one has nothing public to refresh yet.
+      if (before.status === "published") revalidatePublicPaths(before.citySlug, author?.slug);
       return NextResponse.json({ ok: true, article });
     }
 

@@ -7,6 +7,8 @@ import { getCities } from "@/lib/cities";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
+// Stays force-dynamic: real server-side city filter, search, sort, and
+// pagination come from searchParams — same reasoning as /latest-news.
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 10;

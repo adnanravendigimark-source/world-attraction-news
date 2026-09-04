@@ -5,7 +5,8 @@ import { getCities } from "@/lib/cities";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { SITE_NAME, SITE_TAGLINE, CONTACT_EMAIL } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+// Pure read (just the city list for "Active Destination Bureaus") — real ISR.
+export const revalidate = 600;
 
 export const metadata: Metadata = buildMetadata({
   title: `About Us — Global Attraction Intelligence & Newsroom | ${SITE_NAME}`,

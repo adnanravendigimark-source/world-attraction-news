@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { getAttractions, createAttraction } from "@/lib/attractions";
 import { getCityById } from "@/lib/cities";
@@ -52,6 +53,8 @@ export async function POST(req: Request) {
       sortOrder: Number(body.sortOrder) || 0,
     });
     await logActivity(session, "attraction_created", { type: "attraction", id: attraction.id, label: `${attraction.name} (${city.name})` });
+    revalidatePath(`/cities/${city.slug}/attractions`);
+    revalidatePath(`/cities/${city.slug}`);
     return NextResponse.json({ ok: true, attraction: { ...attraction, cityId: city.id, cityName: city.name } });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });

@@ -11,7 +11,9 @@ import { getAttractionBySlug } from "@/lib/attractions";
 import { getPublishedArticles } from "@/lib/articles";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+// Pure read — real ISR. Admin attraction edits call
+// revalidatePath(`/cities/${citySlug}/attractions/${attractionSlug}`).
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,

@@ -10,6 +10,13 @@ import {
 import { buildMetadata, newsArticleJsonLd } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
+// Deliberately stays force-dynamic (not ISR like the other read-only public
+// pages) — this page has a real per-request write, incrementArticleView()
+// below, that has to run on every single visit for view counts to be
+// accurate. Caching this route's render would skip that call on cache hits
+// and silently undercount views (view count feeds "popular" sort elsewhere
+// on the site), so full dynamic rendering is the correct choice here, not
+// an oversight.
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({

@@ -5,6 +5,11 @@ import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { getEventsInRange, getUpcomingEvents, getPastEvents, type EventType } from "@/lib/events";
 import { getCities } from "@/lib/cities";
 
+// Stays force-dynamic (not ISR): the month grid, filters, and "today"
+// marker all come from real-time `new Date()` and request searchParams —
+// caching a render would freeze "today" at whatever moment it was
+// generated and could serve one visitor's year/month/filter combination to
+// another.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = buildMetadata({

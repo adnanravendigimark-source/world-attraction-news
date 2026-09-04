@@ -6,6 +6,9 @@ import { getCategories } from "@/lib/categories";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
+// Stays force-dynamic: real server-side filtering, search, sort, and
+// pagination all come from searchParams, so every combination is a
+// genuinely different response — there's nothing static to cache here.
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 10;

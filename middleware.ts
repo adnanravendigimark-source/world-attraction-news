@@ -31,16 +31,27 @@ function withNoIndex(res: NextResponse) {
   return res;
 }
 
-// Every content page reads from the database on every request — without an
-// explicit Cache-Control header the browser can still reuse a stale cached
-// HTML response on a normal reload, so an admin publish/edit only visibly
-// showed up after a hard refresh. Applied site-wide via this middleware so
-// a normal refresh is always enough (learned from earlier projects).
+// Admin/Contributor pages carry session-specific, sensitive data (draft
+// content, review queues, other users' info) — these must never be cached
+// by the browser or any intermediary, including after logout (so the back
+// button can't reveal a previous session's data on a shared machine).
 function withNoCache(res: NextResponse) {
   res.headers.set("Cache-Control", "no-store, must-revalidate");
   return res;
 }
 
+// Public pages intentionally do NOT get a blanket no-store here. Every
+// public page already declares its own correct caching behavior (see each
+// page.tsx's `dynamic`/`revalidate` export): pages with real-time filters
+// stay fully dynamic, while the rest use time-boxed revalidation (ISR) plus
+// on-demand revalidatePath() calls from the admin mutation routes that
+// change them, so an edit shows up promptly without needing a hard refresh
+// AND repeat visits still benefit from real caching. A middleware-wide
+// no-store used to sit here for every public route — it silently discarded
+// whatever caching each page opted into, which is the reason those earlier
+// pages could never actually be cached no matter what they declared. Do not
+// reintroduce a blanket override here; if a specific public route needs
+// no-store, set it in that route's own headers/config instead.
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -49,7 +60,7 @@ export async function middleware(req: NextRequest) {
   const isProtectedArea = isContributorArea || isAdminArea;
 
   if (!isProtectedArea) {
-    return withNoCache(NextResponse.next());
+    return NextResponse.next();
   }
 
   if (PUBLIC_PATHS.includes(pathname)) {

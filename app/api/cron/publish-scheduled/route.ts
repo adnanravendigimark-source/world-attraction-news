@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { publishDueScheduledArticles } from "@/lib/scheduling";
 
 export const dynamic = "force-dynamic";
@@ -24,5 +25,16 @@ export async function GET(req: Request) {
     }
   }
   const publishedCount = await publishDueScheduledArticles();
+  // Homepage and city pages are ISR-cached (see their own `revalidate`
+  // exports) — without this they'd still catch up on their own within that
+  // window, but a scheduled article going live is exactly the kind of
+  // "should show up promptly" change worth an explicit nudge here, cheap as
+  // it is. Not scoped to specific cities since this function doesn't return
+  // which ones were affected — a full revalidatePath("/cities") is still far
+  // cheaper than the DB work the cron just did.
+  if (publishedCount > 0) {
+    revalidatePath("/");
+    revalidatePath("/cities");
+  }
   return NextResponse.json({ ok: true, published: publishedCount });
 }
