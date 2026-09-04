@@ -359,7 +359,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       message.includes("can be scheduled") ||
       message.includes("currently scheduled") ||
       message.includes("isn't currently scheduled") ||
-      message.includes("isn't awaiting review")
+      message.includes("isn't awaiting review") ||
+      message.includes("hasn't been submitted for review yet")
     ) {
       return NextResponse.json({ error: message }, { status: 400 });
     }

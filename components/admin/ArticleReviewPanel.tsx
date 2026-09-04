@@ -33,6 +33,62 @@ function formatViews(n: number) {
   return n > 999 ? `${(n / 1000).toFixed(1)}K` : String(n);
 }
 
+// Shared by both the pre-decision review form and the post-decision
+// correction form below (identical score-picker + feedback textarea in
+// both places) - keeps the one score/feedback UI in one spot instead of
+// two copies that could quietly drift apart.
+function ScoreFeedbackFields({
+  score,
+  setScore,
+  feedback,
+  setFeedback,
+  reviewedAt,
+  feedbackPlaceholder,
+}: {
+  score: string;
+  setScore: (v: string) => void;
+  feedback: string;
+  setFeedback: (v: string) => void;
+  reviewedAt: string | null;
+  feedbackPlaceholder?: string;
+}) {
+  return (
+    <>
+      <div>
+        <label className="block text-xs font-bold text-slate-700 mb-2">Editorial Quality Score (0–10)</label>
+        <div className="flex flex-wrap gap-2">
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+            <button
+              key={num}
+              type="button"
+              onClick={() => setScore(String(num))}
+              className={`h-9 w-11 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                score === String(num)
+                  ? "bg-[#DC2626] text-white border-[#DC2626] shadow-sm scale-105"
+                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-slate-700 mb-1.5">Feedback for Contributor</label>
+        <textarea
+          rows={3}
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+          placeholder={feedbackPlaceholder}
+          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
+        />
+        {reviewedAt && <p className="mt-1 text-[11px] text-slate-400">Last reviewed {formatDateTime(reviewedAt)}</p>}
+      </div>
+    </>
+  );
+}
+
 const REVIEWABLE_BLOCKLIST = new Set(["published", "scheduled", "unpublished"]);
 const PUBLISHABLE_FROM = new Set(["approved", "unpublished", "scheduled"]);
 const SCHEDULABLE_FROM = new Set(["approved", "unpublished"]);
@@ -602,43 +658,14 @@ export default function ArticleReviewPanel({
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
-                  Editorial Quality Score (0–10)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => setScore(String(num))}
-                      className={`h-9 w-11 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        score === String(num)
-                          ? "bg-[#DC2626] text-white border-[#DC2626] shadow-sm scale-105"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                      }`}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Feedback for Contributor
-                </label>
-                <textarea
-                  rows={3}
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Required for Reject or Request Changes — explain what needs fixing."
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
-                />
-                {article.reviewedAt && (
-                  <p className="mt-1 text-[11px] text-slate-400">Last reviewed {formatDateTime(article.reviewedAt)}</p>
-                )}
-              </div>
+              <ScoreFeedbackFields
+                score={score}
+                setScore={setScore}
+                feedback={feedback}
+                setFeedback={setFeedback}
+                reviewedAt={article.reviewedAt}
+                feedbackPlaceholder="Required for Reject or Request Changes — explain what needs fixing."
+              />
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
@@ -684,42 +711,13 @@ export default function ArticleReviewPanel({
                   : "This article already went through publishing, so its approve/reject/changes decision is locked — but its score and feedback can still be corrected below."}
               </p>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
-                  Editorial Quality Score (0–10)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => setScore(String(num))}
-                      className={`h-9 w-11 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        score === String(num)
-                          ? "bg-[#DC2626] text-white border-[#DC2626] shadow-sm scale-105"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                      }`}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Feedback for Contributor
-                </label>
-                <textarea
-                  rows={3}
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
-                />
-                {article.reviewedAt && (
-                  <p className="mt-1 text-[11px] text-slate-400">Last reviewed {formatDateTime(article.reviewedAt)}</p>
-                )}
-              </div>
+              <ScoreFeedbackFields
+                score={score}
+                setScore={setScore}
+                feedback={feedback}
+                setFeedback={setFeedback}
+                reviewedAt={article.reviewedAt}
+              />
 
               <div className="flex justify-end pt-2">
                 <button
