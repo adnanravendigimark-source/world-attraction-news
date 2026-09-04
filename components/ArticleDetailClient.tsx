@@ -313,8 +313,14 @@ export default function ArticleDetailClient({
               </p>
 
               {subscribed ? (
-                <div className="p-3 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg text-center">
-                  ✓ You&apos;re subscribed to our dispatch wire!
+                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl space-y-1 text-center">
+                  <p className="font-bold flex items-center justify-center gap-1.5 text-emerald-700">
+                    <span>✓</span>
+                    <span>You&apos;re subscribed to our dispatch wire!</span>
+                  </p>
+                  <p className="text-[11px] text-emerald-600">
+                    A welcome confirmation email has been sent to your inbox.
+                  </p>
                 </div>
               ) : (
                 <form onSubmit={handleSubscribe} className="flex flex-col gap-2.5">
@@ -333,17 +339,17 @@ export default function ArticleDetailClient({
                     value={sidebarEmail}
                     onChange={(e) => setSidebarEmail(e.target.value)}
                     placeholder="Enter your email address"
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all shadow-2xs"
                   />
                   <button
                     type="submit"
                     disabled={subscribing}
-                    className="w-full rounded-lg bg-[#DC2626] py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm disabled:opacity-60"
+                    className="w-full rounded-xl bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-2xs disabled:opacity-60 cursor-pointer"
                   >
                     {subscribing ? "SUBSCRIBING…" : "SUBSCRIBE"}
                   </button>
                   {subscribeError && (
-                    <p className="text-[10px] text-[#DC2626] text-center">{subscribeError}</p>
+                    <p className="text-[11px] font-medium text-[#DC2626] text-center">{subscribeError}</p>
                   )}
                   <p className="text-[10px] text-slate-400 text-center">
                     No spam. Unsubscribe anytime.

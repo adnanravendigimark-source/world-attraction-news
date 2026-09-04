@@ -390,3 +390,19 @@ export function contactNotificationEmailTemplate(input: {
   });
   return { subject: `[Contact form] ${input.subject || "New message"}`, html, text: htmlToText(html) };
 }
+
+export function newsletterSubscribedEmailTemplate(): RenderedEmail {
+  const heading = `Welcome to the ${SITE_NAME} Dispatch`;
+  const bodyHtml =
+    paragraph(`Thank you for subscribing to <strong>${escapeHtml(SITE_NAME)}</strong>!`) +
+    paragraph(`You will now receive our curated editorial dispatches featuring the latest theme park developments, attraction grand openings, insider travel guides, and breaking news delivered straight to your inbox.`) +
+    paragraph(`We respect your inbox — expect only quality, fact-checked reporting with no spam.`);
+  const html = renderEmailLayout({
+    previewText: `Welcome to ${SITE_NAME}! You are now subscribed to our dispatches.`,
+    heading,
+    bodyHtml,
+    ctaLabel: "Explore Latest News",
+    ctaUrl: absoluteUrl("/latest-news"),
+  });
+  return { subject: `Welcome to ${SITE_NAME} — You're Subscribed!`, html, text: htmlToText(html) };
+}

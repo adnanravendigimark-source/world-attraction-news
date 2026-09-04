@@ -213,6 +213,29 @@ export async function registerContributor(input: {
   return toSafe(rowToUser(rows[0]));
 }
 
+export async function createContributorByAdmin(input: {
+  email: string;
+  password?: string;
+  displayName: string;
+  bio?: string;
+  role?: "contributor" | "admin";
+  status?: "approved" | "pending";
+}): Promise<SafeUser> {
+  const existing = await findUserByEmail(input.email);
+  if (existing) throw new Error("An account with this email already exists.");
+  const pwd = input.password && input.password.trim() ? input.password.trim() : Math.random().toString(36).slice(-10) + "Aa1!";
+  const passwordHash = hashPassword(pwd);
+  const slug = await generateUniqueUserSlug(input.displayName, input.email);
+  const role = input.role || "contributor";
+  const status = input.status || "approved";
+  const rows = await sql`
+    INSERT INTO users (email, password_hash, role, status, display_name, bio, auth_provider, slug, email_verified)
+    VALUES (${input.email}, ${passwordHash}, ${role}, ${status}, ${input.displayName}, ${input.bio || ""}, 'password', ${slug}, true)
+    RETURNING *
+  `;
+  return toSafe(rowToUser(rows[0]));
+}
+
 // Google one-click sign up / login — a single entry point for both cases:
 //   - No account with this Google ID or email exists yet -> create a new
 //     "pending" contributor (auth_provider 'google', no password). Same

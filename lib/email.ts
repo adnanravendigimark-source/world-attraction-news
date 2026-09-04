@@ -23,6 +23,7 @@ import {
   articlePublishedEmailTemplate,
   genericNotificationEmailTemplate,
   contactNotificationEmailTemplate,
+  newsletterSubscribedEmailTemplate,
   type RenderedEmail,
 } from "./emailTemplates";
 
@@ -161,4 +162,8 @@ export async function sendContactNotificationEmail(input: {
 }): Promise<void> {
   const rendered = contactNotificationEmailTemplate(input);
   await sendEmail({ to: CONTACT_EMAIL, subject: rendered.subject, html: rendered.html, text: rendered.text, replyTo: input.email });
+}
+
+export async function sendNewsletterWelcomeEmail(to: string): Promise<boolean> {
+  return sendRendered(to, newsletterSubscribedEmailTemplate());
 }
