@@ -561,6 +561,94 @@ export default function ArticleEditor({
             />
             <p className="text-xs text-stone-500">~{wordCount} words in the article body.</p>
           </SectionCard>
+
+          <SectionCard
+            title="Search Engine Optimization (SEO)"
+            description="Customize how this article will appear on Google search results and social media shares."
+          >
+            {/* Google Search Snippet Preview */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
+                  W
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium text-slate-800 leading-none">World Attraction News</p>
+                  <p className="text-[10px] text-slate-500 truncate leading-none mt-0.5">
+                    https://worldattractionnews.com/destinations/{previewCityName ? slugify(previewCityName) : "city"}/{form.slug || "article-url"}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm font-semibold text-[#1a0dab] line-clamp-1 hover:underline cursor-pointer">
+                {form.metaTitle || form.title || "Article Title | World Attraction News"}
+              </p>
+              <p className="text-xs text-[#4d5156] line-clamp-2 leading-relaxed">
+                {form.metaDescription || form.excerpt || autoExcerpt || "Read the latest news, guides, and in-depth reviews on attractions and destinations around the world."}
+              </p>
+            </div>
+
+            {/* SEO Title */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>SEO Title</label>
+                <span
+                  className={`text-[11px] font-mono ${
+                    form.metaTitle.length > 60 ? "text-amber-600 font-bold" : "text-stone-400"
+                  }`}
+                >
+                  {form.metaTitle.length}/60
+                </span>
+              </div>
+              <input
+                value={form.metaTitle}
+                onChange={(e) => update("metaTitle", e.target.value)}
+                className={inputClass}
+                placeholder={form.title ? `${form.title} | World Attraction News` : "e.g. 10 Best Attractions in Paris You Must Visit"}
+              />
+              <p className={hintClass}>
+                Custom title tag for search engine results. If left blank, the article title will be used. (Recommended: 50–60 characters)
+              </p>
+            </div>
+
+            {/* Meta Description */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>Meta Description</label>
+                <span
+                  className={`text-[11px] font-mono ${
+                    form.metaDescription.length > 160 ? "text-amber-600 font-bold" : "text-stone-400"
+                  }`}
+                >
+                  {form.metaDescription.length}/160
+                </span>
+              </div>
+              <textarea
+                rows={3}
+                value={form.metaDescription}
+                onChange={(e) => update("metaDescription", e.target.value)}
+                className={`${inputClass} leading-relaxed`}
+                placeholder={
+                  form.excerpt || autoExcerpt || "e.g. Discover the top attractions, opening hours, and insider tips for visiting Paris in 2026."
+                }
+              />
+              <p className={hintClass}>
+                Brief summary displayed under the title in Google search results. (Recommended: 140–160 characters)
+              </p>
+            </div>
+
+            {/* Focus Keyword */}
+            <Field
+              label="Focus Keyword / Search Term (optional)"
+              hint="The primary search phrase or keyword this article is optimized for (e.g. 'paris theme park guide')."
+            >
+              <input
+                value={form.focusKeyword}
+                onChange={(e) => update("focusKeyword", e.target.value)}
+                className={inputClass}
+                placeholder="e.g. epic universe tips"
+              />
+            </Field>
+          </SectionCard>
         </div>
       </div>
 

@@ -52,10 +52,16 @@ function editHref(id: string) {
   return `/contributor/articles/${id}/edit`;
 }
 
-export default function ArticlesList({ articles }: { articles: ArticleWithRelations[] }) {
+export default function ArticlesList({
+  articles,
+  initialTab = "all",
+}: {
+  articles: ArticleWithRelations[];
+  initialTab?: string;
+}) {
   const confirm = useConfirm();
   const toast = useToast();
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(initialTab);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
@@ -70,10 +76,13 @@ export default function ArticlesList({ articles }: { articles: ArticleWithRelati
     return c;
   }, [visibleArticles]);
 
-  const filtered = useMemo(
-    () => (filter === "all" ? visibleArticles : visibleArticles.filter((a) => a.status === filter)),
-    [visibleArticles, filter]
-  );
+  const filtered = useMemo(() => {
+    if (filter === "all") return visibleArticles;
+    if (filter === "in_review") {
+      return visibleArticles.filter((a) => a.status === "pending" || a.status === "under_review");
+    }
+    return visibleArticles.filter((a) => a.status === filter);
+  }, [visibleArticles, filter]);
 
   // Only a never-submitted draft can be discarded here — matches the real
   // rule enforced server-side in app/api/dashboard/articles/[id]/route.ts's
@@ -121,7 +130,7 @@ export default function ArticlesList({ articles }: { articles: ArticleWithRelati
 
       {/* Status Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-        {TABS.filter((tab) => tab.key === "all" || counts[tab.key] > 0).map((tab) => {
+        {TABS.filter((tab) => tab.key === "all" || tab.key === filter || counts[tab.key] > 0).map((tab) => {
           const isActive = filter === tab.key;
           return (
             <button

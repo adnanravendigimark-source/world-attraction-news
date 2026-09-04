@@ -10,11 +10,17 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function DashboardArticlesPage() {
+export default async function DashboardArticlesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ tab?: string; status?: string }> | { tab?: string; status?: string };
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
 
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const articles = await getArticlesByAuthor(session.userId);
+  const initialTab = resolvedSearchParams?.tab || resolvedSearchParams?.status || "all";
 
-  return <ArticlesList articles={articles} />;
+  return <ArticlesList articles={articles} initialTab={initialTab} />;
 }
