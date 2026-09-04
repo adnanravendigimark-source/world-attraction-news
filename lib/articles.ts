@@ -264,31 +264,45 @@ export async function getPublishedArticleByAnySlug(
 // most one of two simultaneous inserts can win, so at most one of them ever
 // contributes to the COUNT(*) that drives the UPDATE. A view from a second,
 // genuinely different IP is a separate row and correctly still counts.
-export async function incrementArticleView(id: string, ip: string): Promise<number | null> {
+export async function incrementArticleView(id: string, ip: string): Promise<number> {
   try {
-    const ipToUse = ip && ip.trim() !== "" ? ip.trim() : "unknown";
-    const ipHash = createHash("sha256").update(ipToUse).digest("hex");
+    const isDev = process.env.NODE_ENV !== "production";
+    const rawIp = ip && ip.trim() !== "" ? ip.trim() : "unknown";
+    const ipHash = createHash("sha256").update(rawIp).digest("hex");
 
-    const inserted = await sql`
-      INSERT INTO article_views (article_id, ip_hash)
-      VALUES (${id}, ${ipHash})
-      ON CONFLICT (article_id, ip_hash) DO NOTHING
+    // Cooldown window: 10 seconds for local dev/testing or unknown IP; 30 minutes for production
+    const intervalStr = isDev || rawIp === "unknown" || rawIp === "127.0.0.1" || rawIp === "::1"
+      ? "10 seconds"
+      : "30 minutes";
+
+    const upserted = await sql(
+      `
+      INSERT INTO article_views (article_id, ip_hash, viewed_at)
+      VALUES ($1, $2, now())
+      ON CONFLICT (article_id, ip_hash) DO UPDATE
+        SET viewed_at = now()
+        WHERE article_views.viewed_at < now() - ($3)::interval
       RETURNING 1
-    `;
+      `,
+      [id, ipHash, intervalStr]
+    );
 
-    // If 1 row inserted, this is a new unique IP view for this article -> Increment DB count
-    if (inserted && inserted.length > 0) {
+    // If inserted or updated after cooldown, increment the article's total view count
+    if (upserted && upserted.length > 0) {
       const updated = await sql`
         UPDATE articles
         SET view_count = COALESCE(view_count, 0) + 1
         WHERE id = ${id}
         RETURNING view_count
       `;
-      return updated[0]?.view_count != null ? Number(updated[0].view_count) : null;
+      if (updated.length > 0 && updated[0]?.view_count != null) {
+        return Number(updated[0].view_count);
+      }
     }
 
-    // Existing IP (already viewed) -> 1 view per IP enforced, do not increment
-    return null;
+    // Otherwise cooldown is active; return current view count
+    const current = await sql`SELECT view_count FROM articles WHERE id = ${id} LIMIT 1`;
+    return current.length > 0 && current[0]?.view_count != null ? Number(current[0].view_count) : 0;
   } catch (err: any) {
     if (err?.message && /article_views.*does not exist/i.test(err.message)) {
       try {
@@ -300,28 +314,24 @@ export async function incrementArticleView(id: string, ip: string): Promise<numb
             PRIMARY KEY (article_id, ip_hash)
           )
         `;
-        const ipHash = createHash("sha256").update(ip || "unknown").digest("hex");
-        const inserted = await sql`
-          INSERT INTO article_views (article_id, ip_hash)
-          VALUES (${id}, ${ipHash})
-          ON CONFLICT (article_id, ip_hash) DO NOTHING
-          RETURNING 1
+        const updated = await sql`
+          UPDATE articles
+          SET view_count = COALESCE(view_count, 0) + 1
+          WHERE id = ${id}
+          RETURNING view_count
         `;
-        if (inserted && inserted.length > 0) {
-          const updated = await sql`
-            UPDATE articles
-            SET view_count = COALESCE(view_count, 0) + 1
-            WHERE id = ${id}
-            RETURNING view_count
-          `;
-          return updated[0]?.view_count != null ? Number(updated[0].view_count) : null;
-        }
+        return updated.length > 0 && updated[0]?.view_count != null ? Number(updated[0].view_count) : 0;
       } catch (e) {
         console.error("[articles] retry incrementArticleView failed:", e);
       }
     }
     console.error("[articles] incrementArticleView error:", err);
-    return null;
+    try {
+      const current = await sql`SELECT view_count FROM articles WHERE id = ${id} LIMIT 1`;
+      return current.length > 0 && current[0]?.view_count != null ? Number(current[0].view_count) : 0;
+    } catch {
+      return 0;
+    }
   }
 }
 
