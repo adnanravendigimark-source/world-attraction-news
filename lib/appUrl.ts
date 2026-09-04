@@ -26,30 +26,66 @@
 // a deployment where APP_URL was simply never configured; (3) localhost,
 // only for contexts with no request at hand (e.g. a script run outside any
 // HTTP request).
+import { SITE_URL } from "./site";
+
 function normalizeAppUrlEnv(raw: string): string {
   const trimmed = raw.trim().replace(/\/$/, "");
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+function getOriginFromRequest(req: Request): string | null {
+  try {
+    const forwardedHost = req.headers.get("x-forwarded-host");
+    const host = forwardedHost || req.headers.get("host");
+    const forwardedProto = req.headers.get("x-forwarded-proto");
+    const isLocal = host ? host.includes("localhost") || host.includes("127.0.0.1") : false;
+    const proto = forwardedProto || (isLocal ? "http" : "https");
+
+    if (host) {
+      const cleanHost = host.split(",")[0].trim();
+      return `${proto}://${cleanHost}`;
+    }
+
+    const parsed = new URL(req.url);
+    if (parsed.origin && parsed.origin !== "null") {
+      return parsed.origin;
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
 export function getAppUrl(req?: Request): string {
+  // 1. If a Request is available, inspect its real runtime origin (x-forwarded-host, host header, req.url)
+  if (req) {
+    const origin = getOriginFromRequest(req);
+    if (origin) return origin;
+  }
+
+  // 2. Check APP_URL env if provided
   const envValue = process.env.APP_URL?.trim();
   if (envValue) {
     try {
-      // Validate it actually parses as a URL before trusting it — a
-      // malformed value (stray spaces, no host, etc.) falls through to the
-      // request-derived origin below instead of producing a broken redirect
-      // target.
-      return new URL(normalizeAppUrlEnv(envValue)).origin;
+      const normalized = normalizeAppUrlEnv(envValue);
+      const url = new URL(normalized);
+      const isLocalEnv = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+      if (!isLocalEnv || process.env.NODE_ENV !== "production") {
+        return url.origin;
+      }
     } catch {
       // fall through
     }
   }
-  if (req) {
+
+  // 3. In production, fallback to the canonical SITE_URL
+  if (process.env.NODE_ENV === "production" && SITE_URL) {
     try {
-      return new URL(req.url).origin;
+      return new URL(normalizeAppUrlEnv(SITE_URL)).origin;
     } catch {
       // fall through
     }
   }
+
   return "http://localhost:3000";
 }

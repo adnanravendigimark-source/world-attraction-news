@@ -49,6 +49,13 @@ export async function GET(req: Request) {
   const cookieState = cookies().get("atn_oauth_state")?.value;
 
   if (!code || !state || !cookieState || state !== cookieState) {
+    console.error("[google oauth callback] state mismatch or missing params:", {
+      hasCode: Boolean(code),
+      hasState: Boolean(state),
+      hasCookieState: Boolean(cookieState),
+      matches: state === cookieState,
+      url: req.url,
+    });
     return redirectAndClearState("/login?error=google_state_mismatch", req);
   }
 
