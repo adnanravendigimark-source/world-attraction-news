@@ -217,20 +217,6 @@ export default function PublicHeader({
             </div>
 
             <Link
-              href="/calendar"
-              className={`relative py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
-                pathname.startsWith("/calendar")
-                  ? "text-[#DC2626]"
-                  : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              CALENDAR
-              {pathname.startsWith("/calendar") && (
-                <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#DC2626]" />
-              )}
-            </Link>
-
-            <Link
               href="/about"
               className={`relative py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
                 pathname.startsWith("/about")
@@ -346,15 +332,6 @@ export default function PublicHeader({
               }`}
             >
               CATEGORIES
-            </Link>
-            <Link
-              href="/calendar"
-              onClick={() => setOpen(false)}
-              className={`py-2 text-xs font-bold uppercase tracking-wider ${
-                pathname.startsWith("/calendar") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              CALENDAR
             </Link>
             <Link
               href="/about"

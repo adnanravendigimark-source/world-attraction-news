@@ -204,28 +204,6 @@ export async function getPublishedArticles(opts: {
   }
 }
 
-// A minimal id/title/slug list for admin "link to an article" pickers (the
-// Events manager's Related Article field) — real published articles, but
-// without paying for JOIN_SELECT's full content_html/author/etc. on every
-// row just to populate a <select>.
-export async function getPublishedArticlesForPicker(
-  limit = 300
-): Promise<{ id: string; title: string; slug: string; citySlug: string }[]> {
-  try {
-    const rows = await sql`
-      SELECT a.id, a.title, a.slug, c.slug AS city_slug
-      FROM articles a
-      JOIN cities c ON c.id = a.city_id
-      WHERE a.status = 'published'
-      ORDER BY a.published_at DESC
-      LIMIT ${limit}
-    `;
-    return rows.map((r: any) => ({ id: r.id, title: r.title, slug: r.slug, citySlug: r.city_slug }));
-  } catch {
-    return [];
-  }
-}
-
 export async function getPublishedArticleBySlug(
   citySlug: string,
   articleSlug: string

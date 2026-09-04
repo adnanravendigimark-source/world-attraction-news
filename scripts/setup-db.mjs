@@ -439,33 +439,17 @@ async function createPhase5SecurityTables() {
   console.log("Phase 5 tables ready.");
 }
 
-// Real, admin-managed calendar events (festivals, ride openings,
-// celebrations) — the /calendar public page reads only from this table.
-// Before this table existed, /calendar rendered 12 hardcoded fake events
-// permanently stuck on "May 2025"; that page has no honest content to show
-// until an admin actually creates events here.
-async function createPhase6EventsTable() {
-  console.log("Creating Phase 6 (events/calendar) table...");
-  await sql`
-    CREATE TABLE IF NOT EXISTS events (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      title TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      event_date DATE NOT NULL,
-      end_date DATE,
-      location TEXT NOT NULL DEFAULT '',
-      city_id UUID REFERENCES cities(id) ON DELETE SET NULL,
-      event_type TEXT NOT NULL DEFAULT 'special',
-      image TEXT NOT NULL DEFAULT '',
-      image_alt TEXT NOT NULL DEFAULT '',
-      article_id UUID REFERENCES articles(id) ON DELETE SET NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS events_date_idx ON events (event_date)`;
-  await sql`CREATE INDEX IF NOT EXISTS events_city_idx ON events (city_id)`;
-  console.log("Phase 6 table ready.");
+// The Calendar/Events feature (public /calendar page, Admin -> Events) was
+// removed entirely. This drops the table it used to own so a database that
+// ran the old Phase 6 migration doesn't keep an orphaned, unreferenced
+// table around forever. Idempotent — a fresh database that never had this
+// table just no-ops here.
+async function dropEventsTable() {
+  const exists = await sql`SELECT to_regclass('public.events') AS reg`;
+  if (!exists[0]?.reg) return;
+  console.log("Removing retired 'events' table (Calendar feature removed)...");
+  await sql`DROP TABLE IF EXISTS events`;
+  console.log("'events' table removed.");
 }
 
 // Email verification for password signups — a new contributor account
@@ -926,7 +910,7 @@ async function main() {
   await createPhase4Tables();
   await addPhase4Columns();
   await createPhase5SecurityTables();
-  await createPhase6EventsTable();
+  await dropEventsTable();
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
   await addPerformanceIndexes();

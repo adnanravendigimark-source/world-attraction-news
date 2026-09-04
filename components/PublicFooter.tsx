@@ -46,11 +46,6 @@ export default function PublicFooter({
                 </Link>
               </li>
               <li>
-                <Link href="/calendar" className="text-slate-400 hover:text-white transition-colors">
-                  Calendar
-                </Link>
-              </li>
-              <li>
                 <Link href="/about" className="text-slate-400 hover:text-white transition-colors">
                   About Us
                 </Link>
