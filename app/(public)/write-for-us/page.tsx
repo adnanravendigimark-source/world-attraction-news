@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Container from "@/components/Container";
-import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME, CONTACT_EMAIL } from "@/lib/site";
 
 // No database reads and nothing request-specific on this page at all — it
@@ -235,7 +235,7 @@ export default function WriteForUsPage() {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(breadcrumbs)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd(breadcrumbs)) }}
       />
     </div>
   );

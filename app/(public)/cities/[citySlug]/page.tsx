@@ -5,7 +5,7 @@ import CityDetailClient from "./CityDetailClient";
 import { getCityBySlug } from "@/lib/cities";
 import { getAttractionsByCityId } from "@/lib/attractions";
 import { getPublishedArticles } from "@/lib/articles";
-import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams — real ISR. Admin city edits and article
@@ -72,7 +72,7 @@ export default async function CityPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
+          __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
             itemListJsonLd(cityAttractions.map((a) => ({ name: a.name, path: `/cities/${city.slug}/attractions/${a.slug}` }))),
           ]),

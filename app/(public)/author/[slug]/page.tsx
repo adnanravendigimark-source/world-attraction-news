@@ -9,7 +9,7 @@ import SectionHeading from "@/components/SectionHeading";
 import EmptyState from "@/components/EmptyState";
 import { findUserBySlug } from "@/lib/users";
 import { getPublishedArticlesByAuthorId } from "@/lib/articles";
-import { buildMetadata, breadcrumbJsonLd, personJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, personJsonLd, jsonLdScript } from "@/lib/seo";
 
 // Pure read — real ISR.
 //
@@ -101,7 +101,7 @@ export default async function AuthorPage({ params }: { params: { slug: string } 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
+          __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
             personJsonLd({ name: author.displayName, slug: author.slug || "", bio: author.bio, avatarUrl: author.avatarUrl }),
           ]),

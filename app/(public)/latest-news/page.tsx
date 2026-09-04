@@ -3,7 +3,7 @@ import LatestNewsClient from "./LatestNewsClient";
 import { getPublishedArticlesPage, getTrendingArticles, type ArticleSort } from "@/lib/articles";
 import { getCitiesWithArticleCounts } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
-import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
 // Stays force-dynamic: real server-side filtering, search, sort, and
@@ -91,7 +91,7 @@ export default async function LatestNewsPage({
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(breadcrumbs)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd(breadcrumbs)) }}
       />
     </>
   );

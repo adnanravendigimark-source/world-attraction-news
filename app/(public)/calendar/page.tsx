@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import CalendarClient from "./CalendarClient";
 import { SITE_NAME } from "@/lib/site";
-import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
 import { getEventsInRange, getUpcomingEvents, getPastEvents, type EventType } from "@/lib/events";
 import { getCities } from "@/lib/cities";
 
@@ -95,7 +95,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Cal
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(breadcrumbs)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd(breadcrumbs)) }}
       />
     </>
   );

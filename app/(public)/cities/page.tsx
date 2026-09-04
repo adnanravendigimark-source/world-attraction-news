@@ -3,7 +3,7 @@ import { unstable_cache } from "next/cache";
 import DestinationsClient, { DestinationCity } from "./DestinationsClient";
 import { getCitiesWithArticleCounts } from "@/lib/cities";
 import { getSettings } from "@/lib/settings";
-import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams (search/sort/filter is client-side over the
@@ -62,7 +62,7 @@ export default async function CitiesPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
+          __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
             itemListJsonLd(cities.map((c) => ({ name: c.name, path: `/cities/${c.slug}` }))),
           ]),

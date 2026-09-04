@@ -4,7 +4,7 @@ import CategoryDetailClient from "./CategoryDetailClient";
 import { getCategoryBySlug, getCategories } from "@/lib/categories";
 import { getPublishedArticlesPage, type ArticleSort } from "@/lib/articles";
 import { getCities } from "@/lib/cities";
-import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
 // Stays force-dynamic: real server-side city filter, search, sort, and
@@ -88,7 +88,7 @@ export default async function CategoryPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
+          __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
             itemListJsonLd(result.articles.map((a) => ({ name: a.title, path: `/cities/${a.citySlug}/${a.slug}` }))),
           ]),

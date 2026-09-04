@@ -7,7 +7,7 @@ import EmptyState from "@/components/EmptyState";
 import NewsletterForm from "@/components/NewsletterForm";
 import { getCategories } from "@/lib/categories";
 import { getPublishedArticleCountsByCategory, getLatestPublishedArticleImageByCategory } from "@/lib/articles";
-import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams — real ISR. Admin category create/edit/delete
@@ -168,7 +168,7 @@ export default async function CategoriesPage() {
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify([
+              __html: jsonLdScript([
                 breadcrumbJsonLd(breadcrumbs),
                 itemListJsonLd(categories.map((c) => ({ name: c.name, path: `/categories/${c.slug}` }))),
               ]),

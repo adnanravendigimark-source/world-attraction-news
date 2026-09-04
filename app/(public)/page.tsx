@@ -16,7 +16,7 @@ import {
   getBreakingArticles,
   getTopScoredArticles,
 } from "@/lib/articles";
-import { buildMetadata, websiteJsonLd } from "@/lib/seo";
+import { buildMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { getSettings } from "@/lib/settings";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
 
@@ -184,7 +184,7 @@ export default async function HomePage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd()) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(websiteJsonLd()) }}
       />
 
       <div className="bg-white text-[#0B1527]">

@@ -10,7 +10,7 @@ import SectionHeading from "@/components/SectionHeading";
 import EmptyState from "@/components/EmptyState";
 import { getAttractionBySlug } from "@/lib/attractions";
 import { getPublishedArticles } from "@/lib/articles";
-import { buildMetadata, breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 
 // Pure read — real ISR. Admin attraction edits call
 // revalidatePath(`/cities/${citySlug}/attractions/${attractionSlug}`).
@@ -132,7 +132,7 @@ export default async function AttractionPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
+          __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
             itemListJsonLd(articles.map((a) => ({ name: a.title, path: `/cities/${a.citySlug}/${a.slug}` }))),
           ]),

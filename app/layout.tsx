@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/site";
-import { organizationJsonLd } from "@/lib/seo";
+import { organizationJsonLd, jsonLdScript } from "@/lib/seo";
 import { getSettings } from "@/lib/settings";
 import Providers from "@/components/Providers";
 
@@ -36,7 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers>{children}</Providers>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd()) }}
         />
         {settings.gaMeasurementId && (
           <>

@@ -7,7 +7,7 @@ import {
   getTrendingArticles,
   incrementArticleView,
 } from "@/lib/articles";
-import { buildMetadata, newsArticleJsonLd } from "@/lib/seo";
+import { buildMetadata, newsArticleJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
 // Deliberately stays force-dynamic (not ISR like the other read-only public
@@ -60,7 +60,7 @@ export default async function ArticlePage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdScript(
             newsArticleJsonLd({
               title: article.title,
               description: article.excerpt,

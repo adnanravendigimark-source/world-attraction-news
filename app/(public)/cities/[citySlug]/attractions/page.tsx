@@ -8,7 +8,7 @@ import EmptyState from "@/components/EmptyState";
 import NewsletterForm from "@/components/NewsletterForm";
 import { getCityBySlug } from "@/lib/cities";
 import { getAttractionsByCityId, getPublishedArticleCountsByAttraction } from "@/lib/attractions";
-import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams — real ISR. Admin attraction create/edit/delete
@@ -228,7 +228,7 @@ export default async function CityAttractionsPage({ params }: { params: { citySl
         </Container>
       </section>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(breadcrumbs)) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd(breadcrumbs)) }} />
     </div>
   );
 }

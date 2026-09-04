@@ -3,7 +3,7 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
 import { getCities } from "@/lib/cities";
-import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
 import { SITE_NAME, SITE_TAGLINE, CONTACT_EMAIL } from "@/lib/site";
 
 // Pure read (just the city list for "Active Destination Bureaus") — real ISR.
@@ -230,7 +230,7 @@ export default async function AboutPage() {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(breadcrumbs)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd(breadcrumbs)) }}
       />
     </div>
   );
