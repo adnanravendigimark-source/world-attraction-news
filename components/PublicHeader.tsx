@@ -25,25 +25,24 @@ export default function PublicHeader({
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
 
   const displayCities = cities.length > 0 ? cities : [
-    { slug: "orlando", name: "Orlando", countrySlug: "united-states" },
     { slug: "paris", name: "Paris", countrySlug: "france" },
-    { slug: "tokyo", name: "Tokyo", countrySlug: "japan" },
-    { slug: "singapore", name: "Singapore", countrySlug: "singapore" },
-    { slug: "dubai", name: "Dubai", countrySlug: "united-arab-emirates" },
     { slug: "london", name: "London", countrySlug: "united-kingdom" },
+    { slug: "rome", name: "Rome", countrySlug: "italy" },
+    { slug: "new-york", name: "New York City", countrySlug: "united-states" },
+    { slug: "orlando", name: "Orlando", countrySlug: "united-states" },
+    { slug: "barcelona", name: "Barcelona", countrySlug: "spain" },
   ];
 
   const displayCategories = categories.length > 0 ? categories : [
-    { slug: "theme-parks", name: "Theme Parks" },
-    { slug: "water-parks", name: "Water Parks" },
-    { slug: "zoos-and-aquariums", name: "Zoos & Aquariums" },
-    { slug: "museums", name: "Museums & Culture" },
-    { slug: "landmarks", name: "Iconic Landmarks" },
+    { slug: "theme-parks-entertainment", name: "Theme Parks & Entertainment" },
+    { slug: "iconic-landmarks-architecture", name: "Iconic Landmarks & Architecture" },
+    { slug: "museums-cultural-heritage", name: "Museums & Culture" },
+    { slug: "historic-wonders-archaeology", name: "Historic Wonders" },
   ];
 
   const liveTicker = tickerArticle || {
-    title: "Epic Universe Opens at Universal Orlando Resort: Everything You Need to Know",
-    href: "/destinations/united-states/orlando/epic-universe-opens-universal-orlando",
+    title: "Universal Epic Universe Opens: Grand Tour of Celestial Park, Dark Universe & Nintendo World",
+    href: "/destinations/united-states/orlando/universal-epic-universe-grand-opening-preview",
   };
 
   useEffect(() => {

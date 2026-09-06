@@ -193,7 +193,7 @@ export default function PublicFooter({
 
         {/* Bottom copyright line */}
         <div className="pt-6 text-center text-xs text-slate-500">
-          <p>© 2025 Attraction News. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {SITE_NAME}. All rights reserved.</p>
         </div>
       </Container>
     </footer>
