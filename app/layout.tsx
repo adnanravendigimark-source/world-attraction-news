@@ -20,6 +20,15 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(SITE_URL),
     title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
     description: SITE_DESCRIPTION,
+    icons: {
+      icon: [
+        { url: "/favicon.ico", sizes: "32x32" },
+        { url: "/images/logo-emblem.png", sizes: "192x192", type: "image/png" },
+      ],
+      apple: [
+        { url: "/images/logo-emblem.png", sizes: "180x180", type: "image/png" },
+      ],
+    },
     verification: settings.gscVerificationCode ? { google: settings.gscVerificationCode } : undefined,
   };
 }

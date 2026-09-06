@@ -73,13 +73,17 @@ export default function DashboardSidebar({ unreadCount = 0 }: { unreadCount?: nu
         <div className="space-y-5">
           {/* Logo & Hamburger Header */}
           <div className="flex items-center justify-between px-1 pt-1">
-            {!collapsed && (
+            {!collapsed ? (
               <Link href="/" className="flex items-center gap-2 min-w-0">
-                <Logo variant="mark" className="h-7 w-7 shrink-0" />
+                <Logo variant="mark" className="h-7 w-auto shrink-0" />
                 <div className="flex flex-col min-w-0 leading-none">
                   <span className="text-xs font-bold tracking-tight text-slate-900 truncate">World Attraction</span>
                   <span className="text-[10px] font-bold text-[#DC2626] leading-none mt-0.5">News</span>
                 </div>
+              </Link>
+            ) : (
+              <Link href="/" className="mx-auto">
+                <Logo variant="mark" className="h-7 w-auto" />
               </Link>
             )}
 

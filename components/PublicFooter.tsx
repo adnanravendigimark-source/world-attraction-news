@@ -17,7 +17,7 @@ export default function PublicFooter({
           {/* Col 1: Logo & About */}
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block">
-              <Logo variant="horizontal" theme="light" showTagline className="h-9 w-auto" />
+              <Logo variant="horizontal" theme="light" showTagline />
             </Link>
             <p className="mt-4 text-xs leading-relaxed text-slate-400 max-w-xs">
               Your trusted source for the latest news and updates from the world&apos;s top attractions and destinations.

@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 interface LogoProps {
   variant?: "mark" | "horizontal" | "stacked" | "compact";
@@ -14,77 +15,53 @@ export default function Logo({
   showTagline = true,
 }: LogoProps) {
   const isLight = theme === "light";
-  const textColor = isLight ? "#FFFFFF" : "#0F172A";
-  const subtextColor = isLight ? "#94A3B8" : "#64748B";
-  const badgeBorder = isLight ? "rgba(255,255,255,0.25)" : "#1E293B";
+  const textColor = isLight ? "#FFFFFF" : "#0A192F";
+  const subtextColor = isLight ? "#94A3B8" : "#475569";
   const accentRed = "#DC2626"; // Vibrant news wire red
-  const accentGold = "#F59E0B"; // Landmark gold
 
-  // The distinctive WAT Emblem: Rounded Hexagonal Wire Emblem with Landmark Spire Beacon & Globe Grid
-  const EmblemIcon = ({ sizeClass = "h-9 w-9" }: { sizeClass?: string }) => (
-    <svg
-      viewBox="0 0 44 44"
-      className={`${sizeClass} shrink-0 transition-transform duration-200 group-hover:scale-105`}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-label="World Attraction News Logo"
-    >
-      <defs>
-        <linearGradient id="watGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0F172A" />
-          <stop offset="100%" stopColor="#1E293B" />
-        </linearGradient>
-        <linearGradient id="watAccent" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#DC2626" />
-          <stop offset="100%" stopColor="#991B1B" />
-        </linearGradient>
-      </defs>
-
-      {/* Outer Rounded Hex/Shield Base */}
-      <rect
-        x="2"
-        y="2"
-        width="40"
-        height="40"
-        rx="10"
-        fill="url(#watGrad)"
-        stroke={badgeBorder}
-        strokeWidth="1.5"
+  // The Globe & Red Plane Emblem Icon - Clean isolated crop with 0 background or frame artifacts
+  const EmblemIcon = ({ sizeClass = "h-10 xs:h-11 sm:h-12 md:h-13 lg:h-14 w-auto" }: { sizeClass?: string }) => (
+    <div className={`relative shrink-0 flex items-center justify-center ${sizeClass}`}>
+      <Image
+        src="/images/logo-emblem.png"
+        alt="World Attraction News Emblem"
+        width={435}
+        height={356}
+        className="h-full w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+        priority
       />
-
-      {/* Subtle Globe Grid Lines */}
-      <circle cx="22" cy="22" r="15" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-      <ellipse cx="22" cy="22" rx="7.5" ry="15" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-      <line x1="7" y1="22" x2="37" y2="22" stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
-
-      {/* Dynamic News Wire Spire */}
-      <path
-        d="M22 6L26 32H18L22 6Z"
-        fill="url(#watAccent)"
-      />
-      <circle cx="22" cy="6.5" r="2.5" fill="#FCA5A5" />
-      <circle cx="22" cy="6.5" r="1" fill="#FFFFFF" />
-
-      {/* Gold Landmark Accent Dot */}
-      <circle cx="34" cy="11" r="2" fill={accentGold} />
-    </svg>
+    </div>
   );
 
   if (variant === "mark") {
-    return <EmblemIcon sizeClass={className || "h-9 w-9"} />;
+    return <EmblemIcon sizeClass={className || "h-9 sm:h-10 w-auto"} />;
   }
 
   if (variant === "compact") {
     return (
-      <div className={`inline-flex items-center gap-2 font-sans ${className}`}>
-        <EmblemIcon sizeClass="h-7 w-7" />
-        <div className="flex items-baseline gap-1.5 leading-none">
-          <span className="text-sm font-black tracking-tight uppercase" style={{ color: textColor }}>
-            World Attraction
+      <div className={`inline-flex items-center gap-2.5 sm:gap-3 font-sans group ${className}`}>
+        <EmblemIcon sizeClass="h-9 xs:h-10 sm:h-11 w-auto" />
+        <div className="flex flex-col justify-center leading-none min-w-0">
+          <span
+            className="text-[11px] sm:text-[12.5px] font-black tracking-wider uppercase"
+            style={{ color: textColor }}
+          >
+            WORLD
           </span>
-          <span className="text-sm font-black tracking-tight uppercase" style={{ color: accentRed }}>
-            News
-          </span>
+          <div className="flex items-baseline gap-1 mt-0.5">
+            <span
+              className="text-[15px] sm:text-[18px] font-black tracking-tight uppercase"
+              style={{ color: textColor }}
+            >
+              ATTRACTION
+            </span>
+            <span
+              className="text-[15px] sm:text-[18px] font-black tracking-tight uppercase"
+              style={{ color: accentRed }}
+            >
+              NEWS
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -92,53 +69,73 @@ export default function Logo({
 
   if (variant === "stacked") {
     return (
-      <div className={`inline-flex flex-col items-center text-center font-sans ${className}`}>
-        <EmblemIcon sizeClass="h-10 w-10 mb-1.5" />
-        <div className="leading-tight">
-          <div className="text-base font-black tracking-tight uppercase" style={{ color: textColor }}>
-            World Attraction
+      <div className={`inline-flex flex-col items-center text-center font-sans group ${className}`}>
+        <EmblemIcon sizeClass="h-14 xs:h-16 sm:h-20 w-auto mb-2" />
+        <div className="leading-none text-center">
+          <div
+            className="text-[12px] sm:text-[14px] md:text-[16px] font-black tracking-widest uppercase"
+            style={{ color: textColor }}
+          >
+            WORLD
           </div>
-          <div className="text-base font-black tracking-tight uppercase -mt-0.5" style={{ color: accentRed }}>
-            News
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1">
+            <span
+              className="text-[18px] sm:text-[22px] md:text-[26px] font-black tracking-tight uppercase leading-none"
+              style={{ color: textColor }}
+            >
+              ATTRACTION
+            </span>
+            <span
+              className="text-[18px] sm:text-[22px] md:text-[26px] font-black tracking-tight uppercase leading-none"
+              style={{ color: accentRed }}
+            >
+              NEWS
+            </span>
           </div>
         </div>
         {showTagline && (
           <span
-            className="text-[9px] font-bold tracking-wider uppercase mt-1.5 max-w-[220px]"
+            className="text-[8px] sm:text-[9.5px] md:text-[11px] font-bold tracking-[0.14em] uppercase mt-2 max-w-[300px] leading-tight"
             style={{ color: subtextColor }}
           >
-            Global Landmark, Theme Park & Destination Wire
+            GLOBAL LANDMARK, THEME PARK & DESTINATION WIRE
           </span>
         )}
       </div>
     );
   }
 
-  // Horizontal variant (default)
+  // Horizontal variant (default) - Prominent, bold, and responsive on all screens
   return (
-    <div className={`inline-flex items-center gap-2.5 font-sans group ${className}`}>
-      <EmblemIcon sizeClass="h-9 w-9" />
-      <div className="flex flex-col justify-center">
-        <div className="flex items-baseline gap-1.5 leading-none">
+    <div className={`inline-flex items-center gap-2.5 sm:gap-3 md:gap-3.5 font-sans group select-none min-w-0 ${className}`}>
+      <EmblemIcon sizeClass="h-10 xs:h-11 sm:h-12 md:h-13 lg:h-14 w-auto shrink-0" />
+      <div className="flex flex-col justify-center leading-none min-w-0">
+        <div
+          className="text-[11px] xs:text-[12px] sm:text-[13.5px] md:text-[15px] font-black tracking-[0.16em] sm:tracking-[0.18em] uppercase leading-none"
+          style={{ color: textColor }}
+        >
+          WORLD
+        </div>
+        <div className="flex items-baseline gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 leading-none">
           <span
-            className="text-[17px] sm:text-[19px] font-black tracking-tight uppercase"
+            className="text-[16px] xs:text-[18px] sm:text-[21px] md:text-[24px] font-black tracking-tight uppercase leading-none"
             style={{ color: textColor }}
           >
-            World Attraction
+            ATTRACTION
           </span>
           <span
-            className="text-[17px] sm:text-[19px] font-black tracking-tight uppercase"
+            className="text-[16px] xs:text-[18px] sm:text-[21px] md:text-[24px] font-black tracking-tight uppercase leading-none"
             style={{ color: accentRed }}
           >
-            News
+            NEWS
           </span>
         </div>
         {showTagline && (
           <span
-            className="text-[9.5px] font-bold tracking-wider uppercase mt-1 hidden sm:inline"
+            className="text-[7px] xs:text-[8px] sm:text-[9px] md:text-[9.5px] font-bold tracking-[0.10em] sm:tracking-[0.15em] uppercase mt-1 sm:mt-1.5 hidden sm:inline-block leading-none truncate max-w-[280px] md:max-w-none"
             style={{ color: subtextColor }}
           >
-            Global Landmark, Theme Park & Destination Wire
+            GLOBAL LANDMARK, THEME PARK & DESTINATION WIRE
           </span>
         )}
       </div>

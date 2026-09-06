@@ -103,10 +103,10 @@ export default function PublicHeader({
 
       {/* Main Navigation Bar */}
       <div className="border-b border-slate-200/80 bg-white">
-        <Container className="flex h-18 items-center justify-between gap-4 py-2.5">
+        <Container className="flex min-h-[76px] sm:min-h-[82px] items-center justify-between gap-4 py-3">
           {/* Logo */}
           <Link href="/" className="shrink-0 flex items-center group" onClick={() => setOpen(false)}>
-            <Logo variant="horizontal" showTagline className="h-9 w-auto" />
+            <Logo variant="horizontal" showTagline />
           </Link>
 
           {/* Desktop Navigation */}

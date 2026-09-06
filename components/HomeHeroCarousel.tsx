@@ -207,14 +207,14 @@ export default function HomeHeroCarousel({
               </div>
 
               {/* Bottom Row */}
-              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <div className="h-6 w-6 rounded-full bg-[#0B1527] text-white flex items-center justify-center font-bold text-[9px]">
+              <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0">
+                  <div className="h-6 w-6 rounded-full bg-[#0B1527] text-white flex items-center justify-center font-bold text-[9px] shrink-0">
                     AN
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-[11px]">By {currentStory.author}</p>
-                    <p className="text-[10px] text-slate-500">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900 text-[11px] truncate">By {currentStory.author}</p>
+                    <p className="text-[10px] text-slate-500 truncate">
                       {currentStory.date}
                       {currentStory.date && currentStory.readTime && " • "}
                       {currentStory.readTime}
@@ -222,10 +222,10 @@ export default function HomeHeroCarousel({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
                   <Link
                     href={currentStory.href}
-                    className="inline-flex items-center gap-1 rounded-md bg-[#DC2626] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-colors"
+                    className="inline-flex items-center gap-1 rounded-md bg-[#DC2626] px-3 sm:px-3.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-colors"
                   >
                     <span>READ FULL STORY</span>
                     <span aria-hidden="true">→</span>

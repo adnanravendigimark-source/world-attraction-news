@@ -198,18 +198,18 @@ export default async function HomePage() {
         {/* =========================================
             2. LATEST NEWS SECTION (up to 4 real cards)
         ========================================= */}
-        <section className="py-10 sm:py-14 border-b border-slate-100">
+        <section className="py-8 sm:py-12 lg:py-14 border-b border-slate-100">
           <Container>
-            <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-200">
+            <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-slate-200">
               <div className="flex items-center gap-2">
-                <span className="w-1 h-5 bg-[#DC2626] rounded-full inline-block" />
-                <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-[#0B1527]">
+                <span className="w-1 h-4 sm:h-5 bg-[#DC2626] rounded-full inline-block" />
+                <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-[#0B1527]">
                   LATEST NEWS
                 </h2>
               </div>
               <Link
                 href="/latest-news"
-                className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors"
+                className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors shrink-0"
               >
                 <span>VIEW ALL NEWS</span>
                 <span aria-hidden="true">→</span>
@@ -219,7 +219,7 @@ export default async function HomePage() {
             {latestNews.length === 0 ? (
               <EmptyState title="No news published yet" description="Check back soon for the latest attraction updates." />
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {latestNews.map((a) => {
                   const date = formatDate(a.publishedAt);
                   const readTime = `${a.readingTimeMinutes || 3} min read`;
@@ -227,7 +227,7 @@ export default async function HomePage() {
                     <Link
                       key={a.id}
                       href={articlePath(a.countrySlug, a.citySlug, a.slug)}
-                      className="group flex flex-col rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300"
+                      className="group flex flex-col rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300"
                     >
                       <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
                         <Image
@@ -238,16 +238,16 @@ export default async function HomePage() {
                           className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
-                      <div className="p-4 flex flex-col flex-1 justify-between">
+                      <div className="p-3.5 sm:p-4 flex flex-col flex-1 justify-between">
                         <div>
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#DC2626]">
+                          <span className="text-[9.5px] sm:text-[10px] font-extrabold uppercase tracking-wider text-[#DC2626]">
                             {a.categoryName?.toUpperCase() || a.cityName?.toUpperCase() || "NEWS"}
                           </span>
                           <h3 className="mt-1 font-sans text-sm sm:text-base font-bold leading-snug text-[#0B1527] group-hover:text-[#DC2626] transition-colors line-clamp-2">
                             {a.title}
                           </h3>
                         </div>
-                        <div className="mt-3 text-[11px] text-slate-500 font-medium">
+                        <div className="mt-2.5 sm:mt-3 text-[10px] sm:text-[11px] text-slate-500 font-medium">
                           {dateAndReadTime(date, readTime)}
                         </div>
                       </div>
@@ -263,44 +263,44 @@ export default async function HomePage() {
             3. POPULAR DESTINATIONS & TOP ATTRACTIONS
         ========================================= */}
         {(hasDestinations || hasTopAttractions) && (
-          <section className="py-10 sm:py-14 border-b border-slate-100">
+          <section className="py-8 sm:py-12 lg:py-14 border-b border-slate-100">
             <Container>
-              <div className="grid gap-10 lg:grid-cols-12">
+              <div className="grid gap-8 lg:gap-10 lg:grid-cols-12">
                 {hasDestinations && (
                   <div className={hasTopAttractions ? "lg:col-span-7" : "lg:col-span-12"}>
-                    <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-200">
+                    <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-slate-200">
                       <div className="flex items-center gap-2">
-                        <span className="w-1 h-5 bg-[#DC2626] rounded-full inline-block" />
-                        <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-[#0B1527]">
+                        <span className="w-1 h-4 sm:h-5 bg-[#DC2626] rounded-full inline-block" />
+                        <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-[#0B1527]">
                           POPULAR DESTINATIONS
                         </h2>
                       </div>
                       <Link
                         href="/destinations"
-                        className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors"
+                        className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors shrink-0"
                       >
                         <span>VIEW ALL</span>
                         <span aria-hidden="true">→</span>
                       </Link>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                       {popularDestinations.map((dest) => (
                         <Link
                           key={dest.slug}
                           href={cityPath(dest.countrySlug, dest.slug)}
-                          className="group relative aspect-[4/3] rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer bg-slate-900"
+                          className="group relative aspect-[4/3] rounded-xl overflow-hidden shadow-xs hover:shadow-md cursor-pointer bg-slate-900"
                         >
                           <Image
                             src={dest.heroImage}
                             alt={dest.heroImageAlt || dest.name}
                             fill
-                            sizes="(min-width: 1024px) 20vw, 33vw"
+                            sizes="(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
                             className="object-cover opacity-85 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-95"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                           <div className="absolute inset-0 flex items-center justify-center p-2 text-center">
-                            <span className="font-sans text-base sm:text-lg font-black tracking-wide text-white drop-shadow-md">
+                            <span className="font-sans text-sm sm:text-base md:text-lg font-black tracking-wide text-white drop-shadow-md">
                               {dest.name}
                             </span>
                           </div>
@@ -312,34 +312,34 @@ export default async function HomePage() {
 
                 {hasTopAttractions && (
                   <div className={hasDestinations ? "lg:col-span-5" : "lg:col-span-12"}>
-                    <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-200">
+                    <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-slate-200">
                       <div className="flex items-center gap-2">
-                        <span className="w-1 h-5 bg-[#DC2626] rounded-full inline-block" />
-                        <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-[#0B1527]">
+                        <span className="w-1 h-4 sm:h-5 bg-[#DC2626] rounded-full inline-block" />
+                        <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-[#0B1527]">
                           TOP ATTRACTIONS
                         </h2>
                       </div>
                       <Link
                         href="/destinations"
-                        className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors"
+                        className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors shrink-0"
                       >
                         <span>VIEW ALL</span>
                         <span aria-hidden="true">→</span>
                       </Link>
                     </div>
 
-                    <div className="space-y-3.5">
+                    <div className="space-y-2.5 sm:space-y-3.5">
                       {topAttractions.map((attr) => (
                         <Link
                           key={attr.rank}
                           href={attr.href}
-                          className="group flex items-center gap-3.5 p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
+                          className="group flex items-center gap-3 sm:gap-3.5 p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
                         >
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-white text-xs font-bold shadow-sm">
+                          <div className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-white text-[10px] sm:text-xs font-bold shadow-xs">
                             {attr.rank}
                           </div>
 
-                          <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-200">
+                          <div className="relative h-12 w-16 sm:h-14 sm:w-20 shrink-0 overflow-hidden rounded-lg bg-slate-200">
                             <Image
                               src={attr.image || "/images/epic-universe.jpg"}
                               alt={attr.imageAlt}
@@ -354,11 +354,11 @@ export default async function HomePage() {
                               {attr.title}
                             </h3>
                             {attr.subtitle && (
-                              <p className="text-[11px] text-slate-500 truncate mt-0.5">{attr.subtitle}</p>
+                              <p className="text-[10px] sm:text-[11px] text-slate-500 truncate mt-0.5">{attr.subtitle}</p>
                             )}
                             {attr.location && (
                               <div className="mt-1">
-                                <span className="inline-block rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">
+                                <span className="inline-block rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[8.5px] sm:text-[9px] font-bold uppercase tracking-wider text-slate-600">
                                   {attr.location}
                                 </span>
                               </div>
@@ -377,19 +377,19 @@ export default async function HomePage() {
         {/* =========================================
             4. EDITOR'S PICK & STAY IN THE LOOP
         ========================================= */}
-        <section className="py-10 sm:py-14 border-b border-slate-100 bg-white">
+        <section className="py-8 sm:py-12 lg:py-14 border-b border-slate-100 bg-white">
           <Container>
-            <div className="grid gap-10 lg:grid-cols-12">
+            <div className="grid gap-8 lg:gap-10 lg:grid-cols-12">
               {editorPick && (
                 <div className="lg:col-span-8">
-                  <div className="flex items-center gap-2 mb-6 pb-2 border-b border-slate-200">
-                    <span className="w-1 h-5 bg-[#DC2626] rounded-full inline-block" />
-                    <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-[#0B1527]">
+                  <div className="flex items-center gap-2 mb-5 sm:mb-6 pb-2 border-b border-slate-200">
+                    <span className="w-1 h-4 sm:h-5 bg-[#DC2626] rounded-full inline-block" />
+                    <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-[#0B1527]">
                       EDITOR&apos;S PICK
                     </h2>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm grid md:grid-cols-12 gap-6 items-center">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xs grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 items-center">
                     <div className="md:col-span-6 relative aspect-[16/11] w-full overflow-hidden rounded-xl bg-slate-100">
                       <Image
                         src={editorPick.image || "/images/epic-universe.jpg"}
@@ -402,24 +402,24 @@ export default async function HomePage() {
 
                     <div className="md:col-span-6 flex flex-col justify-between">
                       <div>
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#DC2626]">
+                        <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-[#DC2626]">
                           {editorPick.categoryName?.toUpperCase() || "ATTRACTION NEWS"}
                         </span>
-                        <h3 className="mt-1 font-sans text-xl sm:text-2xl font-black leading-tight text-[#0B1527]">
+                        <h3 className="mt-1 font-sans text-lg sm:text-xl md:text-2xl font-black leading-tight text-[#0B1527]">
                           {editorPick.title}
                         </h3>
-                        <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed line-clamp-3">
+                        <p className="mt-2 sm:mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed line-clamp-3">
                           {editorPick.excerpt}
                         </p>
-                        <p className="mt-3 text-[11px] text-slate-500 font-medium">
+                        <p className="mt-2.5 sm:mt-3 text-[10px] sm:text-[11px] text-slate-500 font-medium">
                           {dateAndReadTime(formatDate(editorPick.publishedAt), `${editorPick.readingTimeMinutes || 5} min read`)}
                         </p>
                       </div>
 
-                      <div className="mt-5">
+                      <div className="mt-4 sm:mt-5">
                         <Link
                           href={articlePath(editorPick.countrySlug, editorPick.citySlug, editorPick.slug)}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-[#0B1527] hover:border-[#0B1527] hover:bg-slate-50 transition-all"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3.5 sm:px-4 py-2 text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-[#0B1527] hover:border-[#0B1527] hover:bg-slate-50 transition-all"
                         >
                           <span>READ MORE</span>
                           <span aria-hidden="true">→</span>
@@ -432,8 +432,8 @@ export default async function HomePage() {
 
               {/* Stay in the Loop & Follow Us */}
               <div className={editorPick ? "lg:col-span-4" : "lg:col-span-6 lg:col-start-4"}>
-                <div className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-6 sm:p-7 shadow-sm">
-                  <h3 className="font-sans text-base font-black uppercase tracking-tight text-[#0B1527]">
+                <div className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-5 sm:p-7 shadow-xs">
+                  <h3 className="font-sans text-sm sm:text-base font-black uppercase tracking-tight text-[#0B1527]">
                     STAY IN THE LOOP
                   </h3>
                   <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
@@ -447,18 +447,18 @@ export default async function HomePage() {
                     No spam. Unsubscribe anytime.
                   </p>
 
-                  <div className="mt-7 pt-5 border-t border-slate-200">
-                    <h4 className="font-sans text-xs font-extrabold uppercase tracking-wider text-[#0B1527] mb-3">
+                  <div className="mt-6 sm:mt-7 pt-4 sm:pt-5 border-t border-slate-200">
+                    <h4 className="font-sans text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-[#0B1527] mb-3">
                       FOLLOW US
                     </h4>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {SOCIAL_LINKS.map((social) => (
                         <a
                           key={social.name}
                           href={social.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`flex h-8 w-8 items-center justify-center rounded ${social.bg} text-white hover:opacity-90 shadow-sm transition-opacity`}
+                          className={`flex h-8 w-8 items-center justify-center rounded ${social.bg} text-white hover:opacity-90 shadow-2xs transition-opacity`}
                           aria-label={social.name}
                         >
                           <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
@@ -478,17 +478,17 @@ export default async function HomePage() {
             5. BROWSE BY TOPIC (real categories)
         ========================================= */}
         {categories.length > 0 && (
-          <section className="py-10 sm:py-14 bg-white">
+          <section className="py-8 sm:py-12 lg:py-14 bg-white">
             <Container>
-              <h2 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-4">
+              <h2 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-3.5 sm:mb-4">
                 BROWSE BY TOPIC
               </h2>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                 {categories.map((cat) => (
                   <Link
                     key={cat.id}
                     href={`/categories/${cat.slug}`}
-                    className="rounded-full border border-slate-200 bg-white hover:border-[#0B1527] hover:bg-slate-50 px-5 py-2 text-xs font-extrabold text-[#0B1527] shadow-sm transition-all hover:shadow"
+                    className="rounded-full border border-slate-200 bg-white hover:border-[#0B1527] hover:bg-slate-50 px-3.5 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-extrabold text-[#0B1527] shadow-2xs transition-all hover:shadow-xs"
                   >
                     {cat.name}
                   </Link>
