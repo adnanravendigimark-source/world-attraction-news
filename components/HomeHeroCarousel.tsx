@@ -112,9 +112,8 @@ export default function HomeHeroCarousel({
           <div className="grid gap-4 lg:gap-5 lg:grid-cols-12 items-stretch">
             {/* Left Column: Big Lead Story */}
             <article
-              className={`flex flex-col justify-between group rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs hover:shadow-xs transition-all p-3.5 sm:p-4 relative ${
-                hasMultiple ? "lg:col-span-7 xl:col-span-8" : "lg:col-span-12"
-              }`}
+              className={`flex flex-col justify-between group rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs hover:shadow-xs transition-all p-3.5 sm:p-4 relative ${hasMultiple ? "lg:col-span-7 xl:col-span-8" : "lg:col-span-12"
+                }`}
             >
               <div>
                 {/* Lead Image Container with Floating < > Buttons */}
@@ -180,9 +179,8 @@ export default function HomeHeroCarousel({
                               setActiveIdx(i);
                             }}
                             aria-label={`Jump to story ${i + 1}`}
-                            className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                              i === activeIdx ? "w-4 bg-[#DC2626]" : "w-1.5 bg-white/60 hover:bg-white"
-                            }`}
+                            className={`h-1.5 rounded-full transition-all cursor-pointer ${i === activeIdx ? "w-4 bg-[#DC2626]" : "w-1.5 bg-white/60 hover:bg-white"
+                              }`}
                           />
                         ))}
                       </div>
@@ -281,9 +279,8 @@ export default function HomeHeroCarousel({
                           key={story.id || idx}
                           type="button"
                           onClick={() => setActiveIdx(idx)}
-                          className={`text-left py-2 first:pt-1 last:pb-1 group transition-all rounded-lg px-2 -mx-1 cursor-pointer ${
-                            isActive ? "bg-rose-50/70 border-l-3 border-[#DC2626]" : "hover:bg-slate-50"
-                          }`}
+                          className={`text-left py-2 first:pt-1 last:pb-1 group transition-all rounded-lg px-2 -mx-1 cursor-pointer ${isActive ? "bg-rose-50/70 border-l-3 border-[#DC2626]" : "hover:bg-slate-50"
+                            }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <div className="relative h-12 w-16 sm:h-13 sm:w-18 shrink-0 rounded-md overflow-hidden bg-slate-100">
@@ -304,9 +301,8 @@ export default function HomeHeroCarousel({
                                 )}
                               </div>
                               <h3
-                                className={`font-sans text-[11px] sm:text-xs font-bold leading-snug line-clamp-2 transition-colors ${
-                                  isActive ? "text-[#DC2626]" : "text-[#0B1527] group-hover:text-[#DC2626]"
-                                }`}
+                                className={`font-sans text-[11px] sm:text-xs font-bold leading-snug line-clamp-2 transition-colors ${isActive ? "text-[#DC2626]" : "text-[#0B1527] group-hover:text-[#DC2626]"
+                                  }`}
                               >
                                 {story.title}
                               </h3>
