@@ -4,7 +4,6 @@ import { getAllArticles } from "@/lib/articles";
 import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
 import ArticlesQueue from "@/components/admin/ArticlesQueue";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -22,21 +21,13 @@ export default async function AdminArticlesPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-            Articles Management
-          </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-slate-500 font-medium">
-            Review submissions, assign quality scores, evaluate originality, and publish dispatches.
-          </p>
-        </div>
-        <Link
-          href="/contributor/articles/new"
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#DC2626] px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-colors self-start sm:self-auto"
-        >
-          <span>+ Write Article</span>
-        </Link>
+      <div className="border-b border-slate-200 pb-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+          Articles Management
+        </h1>
+        <p className="mt-0.5 text-xs sm:text-sm text-slate-500 font-medium">
+          Review submissions, assign quality scores, evaluate originality, and publish dispatches.
+        </p>
       </div>
 
       <div>
