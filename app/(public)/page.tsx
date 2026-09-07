@@ -263,11 +263,11 @@ export default async function HomePage() {
             3. POPULAR DESTINATIONS & TOP ATTRACTIONS
         ========================================= */}
         {(hasDestinations || hasTopAttractions) && (
-          <section className="py-8 sm:py-12 lg:py-14 border-b border-slate-100">
+          <section className="py-8 sm:py-12 lg:py-14 border-b border-slate-100 overflow-x-hidden">
             <Container>
-              <div className="grid gap-8 lg:gap-10 lg:grid-cols-12">
+              <div className="grid w-full min-w-0 gap-8 lg:gap-10 lg:grid-cols-12">
                 {hasDestinations && (
-                  <div className={hasTopAttractions ? "lg:col-span-7" : "lg:col-span-12"}>
+                  <div className={`min-w-0 ${hasTopAttractions ? "lg:col-span-7" : "lg:col-span-12"}`}>
                     <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-slate-200">
                       <div className="flex items-center gap-2">
                         <span className="w-1 h-4 sm:h-5 bg-[#DC2626] rounded-full inline-block" />
@@ -284,12 +284,12 @@ export default async function HomePage() {
                       </Link>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="grid w-full min-w-0 grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                       {popularDestinations.map((dest) => (
                         <Link
                           key={dest.slug}
                           href={cityPath(dest.countrySlug, dest.slug)}
-                          className="group relative aspect-[4/3] rounded-xl overflow-hidden shadow-xs hover:shadow-md cursor-pointer bg-slate-900"
+                          className="group relative block min-w-0 w-full aspect-[4/3] rounded-xl overflow-hidden shadow-xs hover:shadow-md cursor-pointer bg-slate-900"
                         >
                           <Image
                             src={dest.heroImage}
@@ -311,7 +311,7 @@ export default async function HomePage() {
                 )}
 
                 {hasTopAttractions && (
-                  <div className={hasDestinations ? "lg:col-span-5" : "lg:col-span-12"}>
+                  <div className={`min-w-0 ${hasDestinations ? "lg:col-span-5" : "lg:col-span-12"}`}>
                     <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-slate-200">
                       <div className="flex items-center gap-2">
                         <span className="w-1 h-4 sm:h-5 bg-[#DC2626] rounded-full inline-block" />
