@@ -33,15 +33,6 @@ export default function ContactPage() {
               {CONTACT_EMAIL}
             </a>
           </div>
-          <div className="rounded-lg border border-ink-200 bg-white p-5">
-            <h2 className="text-sm font-bold text-ink-900">Contributor Support</h2>
-            <p className="mt-1.5 text-xs text-ink-600">
-              Questions about your contributor account, submission status, or applying to write for a city.
-            </p>
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="mt-3 inline-block text-sm font-semibold text-signal hover:underline">
-              {SUPPORT_EMAIL}
-            </a>
-          </div>
         </div>
 
         <div className="rounded-lg border border-ink-200 bg-white p-6">
