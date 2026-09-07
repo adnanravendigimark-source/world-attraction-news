@@ -1810,7 +1810,7 @@ async function seed() {
         ${attractionId},
         ${authorId},
         'published',
-        9.8,
+        10,
         'Approved by WAT Chief Editor. High-impact journalistic piece with verified visitor intelligence.',
         ${art.image},
         ${art.imageAlt},

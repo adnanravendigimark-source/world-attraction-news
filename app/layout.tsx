@@ -35,8 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Real, admin-configured values only — Google Analytics is inert until an
-  // admin sets a Measurement ID at /admin/seo. No hardcoded or placeholder
-  // IDs are ever shipped.
+  // admin sets a Measurement ID in Settings (SEO section). No hardcoded or
+  // placeholder IDs are ever shipped.
   const settings = await getSettings();
 
   return (

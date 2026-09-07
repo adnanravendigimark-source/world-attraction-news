@@ -1159,7 +1159,15 @@ export function summarizePoints(articles: Article[]): PointsSummary {
   //     if any, is stale leftover from a past rejection until the new
   //     review lands, not a real evaluation of the current draft.
   const scored = articles.filter((a) => a.score !== null && a.status !== "rejected" && a.status !== "pending");
-  const totalPoints = scored.reduce((sum, a) => sum + (a.score || 0), 0);
+  // Rounded to 1 decimal: scores are meant to be whole numbers (the admin
+  // review UI only accepts integers 0-10), but a handful of legacy/seeded
+  // rows carry a decimal score like 9.8. Summing many such binary floats
+  // drifts (e.g. twenty 9.8s becomes 196.00000000000006 instead of 196) —
+  // rounding the sum itself, not just formatting it for display, is what
+  // keeps that drift from also propagating into anything that re-sums
+  // this value later (like the ledger's cross-contributor total).
+  const rawTotal = scored.reduce((sum, a) => sum + (a.score || 0), 0);
+  const totalPoints = Math.round(rawTotal * 10) / 10;
   const publishedCount = articles.filter((a) => a.status === "published").length;
   return {
     totalPoints,

@@ -1,8 +1,9 @@
 import { sql } from "./db";
 
 // Single-row site settings (id is always 1) — sitewide SEO fallbacks plus
-// the one genuinely-wired general site default (featured cities), managed
-// from /admin/seo and /admin/settings respectively. Per-page SEO
+// the one genuinely-wired general site default (featured cities), both
+// managed from /admin/settings (SiteSettingsForm + SeoSettingsForm render
+// on that one page). Per-page SEO
 // (city/article meta title, description, focus keyword) still lives on
 // those records directly and always wins over these fallbacks — this table
 // only fills in what a page didn't set itself.
@@ -66,7 +67,7 @@ export async function updateSettings(updates: Partial<Omit<SiteSettings, "update
   // Per-field `??` merge, not `{ ...current, ...updates }` — the API route
   // (deliberately) sends every field's key with an explicit `undefined`
   // value for whatever the calling form didn't include, since
-  // SiteSettingsForm (/admin/settings) and SeoSettingsForm (/admin/seo)
+  // SiteSettingsForm and SeoSettingsForm (both rendered on /admin/settings)
   // each only submit their own subset of these fields. An object spread
   // would still overwrite `current`'s real value with `undefined` for every
   // key present-but-undefined on `updates`, so saving one form would

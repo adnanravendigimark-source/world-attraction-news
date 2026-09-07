@@ -54,7 +54,11 @@ export default function AdminPointsLedger({
   const [tab, setTab] = useState<"leaderboard" | "ledger">("leaderboard");
   const [query, setQuery] = useState("");
 
-  const totalPointsAwarded = initialLeaderboard.reduce((sum, u) => sum + u.totalPoints, 0);
+  // Rounded for the same reason lib/articles.ts's summarizePoints() rounds
+  // its own sum: re-summing several already-rounded decimal totals can
+  // still drift by a floating-point sliver (e.g. 196 + 8 landing on
+  // 204.00000000000006 instead of 204).
+  const totalPointsAwarded = Math.round(initialLeaderboard.reduce((sum, u) => sum + u.totalPoints, 0) * 10) / 10;
   const scoresForAverage = initialLeaderboard.filter((u) => u.averageScore !== null);
   const overallAverageScore =
     scoresForAverage.length > 0
