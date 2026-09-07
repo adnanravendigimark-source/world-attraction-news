@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { IndexingRow, IndexingPageType } from "@/lib/indexing";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 function SwitchToggle({
   checked,
@@ -50,6 +51,7 @@ function sectionTitle(type: IndexingPageType) {
 }
 
 export default function IndexingManager({ initial }: { initial: IndexingRow[] }) {
+  const confirm = useConfirm();
   const [rows, setRows] = useState<IndexingRow[]>(initial);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | IndexingPageType | "blocked">("all");
@@ -119,6 +121,15 @@ export default function IndexingManager({ initial }: { initial: IndexingRow[] })
   // Bulk action for specific rows
   async function bulkSet(targetRows: IndexingRow[], targetNoIndex: boolean) {
     if (!targetRows.length) return;
+    const ok = await confirm({
+      title: targetNoIndex ? `Hide ${targetRows.length} page(s) from search engines?` : `Make ${targetRows.length} page(s) indexable again?`,
+      description: targetNoIndex
+        ? "These pages will be set to NoIndex, NoFollow and will be dropped from search results over time."
+        : "These pages will be set to Index, Follow and become eligible to appear in search results again.",
+      confirmLabel: targetNoIndex ? "Set NoIndex" : "Set Index",
+      danger: targetNoIndex,
+    });
+    if (!ok) return;
     setBulkLoading(true);
 
     const keysToUpdate = new Set(targetRows.map((r) => r.key));

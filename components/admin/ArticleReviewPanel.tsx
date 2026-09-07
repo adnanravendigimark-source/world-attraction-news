@@ -181,6 +181,12 @@ export default function ArticleReviewPanel({
   }
 
   async function handleApproveAndPublish() {
+    const ok = await confirm({
+      title: "Approve and publish this article live?",
+      description: "The contributor will be emailed the score and feedback, and the article will immediately appear on the public site.",
+      confirmLabel: "Approve & Publish",
+    });
+    if (!ok) return;
     await callApi(
       { action: "publish", score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
       "Article approved and published live!"
@@ -189,6 +195,12 @@ export default function ArticleReviewPanel({
   }
 
   async function handleApproveOnly() {
+    const ok = await confirm({
+      title: "Approve this article?",
+      description: "The contributor will be emailed the score and feedback. The article won't go live until you publish or schedule it separately.",
+      confirmLabel: "Approve",
+    });
+    if (!ok) return;
     await callApi(
       { action: "review", status: "approved", score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
       "Article approved (ready to publish)."
@@ -203,6 +215,18 @@ export default function ArticleReviewPanel({
     }
     const label =
       status === "approved" ? "Article approved." : status === "rejected" ? "Article rejected." : "Changes requested from contributor.";
+    const ok = await confirm({
+      title:
+        status === "approved"
+          ? "Approve this article?"
+          : status === "rejected"
+          ? "Reject this article?"
+          : "Request changes on this article?",
+      description: "The contributor will be emailed this decision along with your feedback.",
+      confirmLabel: status === "approved" ? "Approve" : status === "rejected" ? "Reject" : "Request Changes",
+      danger: status === "rejected",
+    });
+    if (!ok) return;
     await callApi(
       { action: "review", status, score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
       label
@@ -211,6 +235,12 @@ export default function ArticleReviewPanel({
   }
 
   async function handleUpdateReview() {
+    const ok = await confirm({
+      title: "Save score and feedback changes?",
+      description: "This updates the article's editorial score and/or feedback.",
+      confirmLabel: "Save Changes",
+    });
+    if (!ok) return;
     await callApi(
       { action: "update_review", score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
       "Editorial points & feedback updated."
@@ -218,6 +248,12 @@ export default function ArticleReviewPanel({
   }
 
   async function handlePublish() {
+    const ok = await confirm({
+      title: "Publish this article live?",
+      description: "It will immediately appear on the public site and the contributor will be emailed the score and feedback.",
+      confirmLabel: "Publish Live",
+    });
+    if (!ok) return;
     await callApi(
       { action: "publish", score: score !== "" ? Number(score) : null, feedback: feedback.trim() },
       "Article published live!"
@@ -243,6 +279,13 @@ export default function ArticleReviewPanel({
   }
 
   async function handleCancelSchedule() {
+    const ok = await confirm({
+      title: "Cancel this scheduled release?",
+      description: "The article will go back to Approved and won't publish automatically.",
+      confirmLabel: "Cancel Schedule",
+      danger: true,
+    });
+    if (!ok) return;
     await callApi({ action: "cancel_schedule" }, "Schedule cancelled.");
   }
 
@@ -263,6 +306,12 @@ export default function ArticleReviewPanel({
       toast.error("Title and article content are required.");
       return;
     }
+    const ok = await confirm({
+      title: "Save these changes?",
+      description: "The article's title, content, images, and SEO details will be updated.",
+      confirmLabel: "Save Changes",
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/articles/${article.id}`, {
@@ -361,11 +410,18 @@ export default function ArticleReviewPanel({
     );
   }, [edit, article]);
 
-  const isDirty = isContentDirty || isReviewDirty;
-
   const canReview = !["published", "scheduled", "unpublished"].includes(article.status);
   const canPublish = ["approved", "unpublished", "scheduled", "pending", "under_review", "changes_requested", "rejected", "draft"].includes(article.status);
   const canSchedule = ["approved", "unpublished", "pending", "under_review"].includes(article.status);
+
+  // Which "Current Status" menu items make sense for the article's actual
+  // status — e.g. once it's published, the only meaningful action left here
+  // is Unpublish; showing Approve/Reject/Request Changes on an already-live
+  // article was confusing and easy to click by mistake.
+  const showApproveAction = !["approved", "published", "scheduled", "unpublished"].includes(article.status);
+  const showRequestChangesAction = canReview && article.status !== "changes_requested";
+  const showRejectAction = canReview && article.status !== "rejected";
+  const showUnpublishAction = article.status === "published";
 
   return (
     <div className="font-sans space-y-6 pb-24 text-slate-800 antialiased">
@@ -423,18 +479,19 @@ export default function ArticleReviewPanel({
 
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || !isContentDirty}
             onClick={handleSaveAll}
-            className={`inline-flex items-center gap-2 rounded-xl px-5 py-2 text-xs font-bold transition-all cursor-pointer shadow-2xs disabled:opacity-60 ${
-              isDirty
-                ? "bg-[#DC2626] text-white hover:bg-[#B91C1C] shadow-sm ring-2 ring-red-200"
-                : "bg-slate-900 text-white hover:bg-slate-800"
+            title={!isContentDirty ? "No changes to save yet" : undefined}
+            className={`inline-flex items-center gap-2 rounded-xl px-5 py-2 text-xs font-bold transition-all shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed ${
+              isContentDirty
+                ? "bg-[#DC2626] text-white hover:bg-[#B91C1C] shadow-sm ring-2 ring-red-200 cursor-pointer"
+                : "bg-slate-300 text-white"
             }`}
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            {busy ? "Updating..." : isDirty ? "Save Changes *" : "Save Changes"}
+            {busy ? "Updating..." : isContentDirty ? "Save Changes *" : "Save Changes"}
           </button>
         </div>
       </div>
@@ -689,50 +746,60 @@ export default function ArticleReviewPanel({
 
                 {showStatusMenu && (
                   <div className="absolute left-0 right-0 z-20 mt-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl text-xs space-y-1">
-                    <button
-                      type="button"
-                      onClick={handlePublish}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-bold text-[#DC2626] hover:bg-rose-50 cursor-pointer"
-                    >
-                      <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
-                      Publish Now (Go Live)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApproveOnly}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      Approve Article
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSchedule(true);
-                        setShowStatusMenu(false);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                      Schedule Release...
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleReviewDecision("changes_requested")}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-orange-700 hover:bg-orange-50 cursor-pointer"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                      Request Changes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleReviewDecision("rejected")}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                      Reject Article
-                    </button>
-                    {article.status === "published" && (
+                    {canPublish && (
+                      <button
+                        type="button"
+                        onClick={handlePublish}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-bold text-[#DC2626] hover:bg-rose-50 cursor-pointer"
+                      >
+                        <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
+                        Publish Now (Go Live)
+                      </button>
+                    )}
+                    {showApproveAction && (
+                      <button
+                        type="button"
+                        onClick={handleApproveOnly}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Approve Article
+                      </button>
+                    )}
+                    {canSchedule && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSchedule(true);
+                          setShowStatusMenu(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                        Schedule Release...
+                      </button>
+                    )}
+                    {showRequestChangesAction && (
+                      <button
+                        type="button"
+                        onClick={() => handleReviewDecision("changes_requested")}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-orange-700 hover:bg-orange-50 cursor-pointer"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                        Request Changes
+                      </button>
+                    )}
+                    {showRejectAction && (
+                      <button
+                        type="button"
+                        onClick={() => handleReviewDecision("rejected")}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                        Reject Article
+                      </button>
+                    )}
+                    {showUnpublishAction && (
                       <button
                         type="button"
                         onClick={handleUnpublish}

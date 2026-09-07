@@ -9,21 +9,53 @@ interface AdminNavItem {
   href: string;
   label: string;
   icon: string;
+  badge?: number;
 }
 
-const NAV_ITEMS: AdminNavItem[] = [
-  { href: "/admin/overview", label: "Overview", icon: "home" },
-  { href: "/admin/articles", label: "Articles", icon: "doc" },
-  { href: "/admin/cities", label: "Destinations", icon: "pin" },
-  { href: "/admin/attractions", label: "Attractions", icon: "flag" },
-  { href: "/admin/categories", label: "Categories", icon: "tag" },
-  { href: "/admin/users", label: "Contributors", icon: "user" },
-  { href: "/admin/newsletter", label: "Subscribers", icon: "mail" },
-  { href: "/admin/points", label: "Points Ledger", icon: "star" },
-  { href: "/admin/indexing", label: "Indexing", icon: "indexing" },
-  { href: "/admin/seo", label: "SEO", icon: "seo" },
-  { href: "/admin/settings", label: "Settings", icon: "gear" },
-];
+interface AdminNavSection {
+  label: string;
+  items: AdminNavItem[];
+}
+
+// Grouped instead of one long flat list — related pages sit together so an
+// admin scanning the sidebar can find "where's the thing for X" by section,
+// not by reading all 11 labels every time.
+function buildSections(pendingArticles: number, pendingContributors: number): AdminNavSection[] {
+  return [
+    {
+      label: "",
+      items: [{ href: "/admin/overview", label: "Overview", icon: "home" }],
+    },
+    {
+      label: "Content",
+      items: [
+        { href: "/admin/articles", label: "Articles", icon: "doc", badge: pendingArticles },
+        { href: "/admin/cities", label: "Destinations", icon: "pin" },
+        { href: "/admin/attractions", label: "Attractions", icon: "flag" },
+        { href: "/admin/categories", label: "Categories", icon: "tag" },
+      ],
+    },
+    {
+      label: "Community",
+      items: [
+        { href: "/admin/users", label: "Contributors", icon: "user", badge: pendingContributors },
+        { href: "/admin/newsletter", label: "Subscribers", icon: "mail" },
+      ],
+    },
+    {
+      label: "Insights",
+      items: [
+        { href: "/admin/points", label: "Points Ledger", icon: "star" },
+        { href: "/admin/indexing", label: "Indexing", icon: "indexing" },
+        { href: "/admin/seo", label: "SEO", icon: "seo" },
+      ],
+    },
+    {
+      label: "System",
+      items: [{ href: "/admin/settings", label: "Settings", icon: "gear" }],
+    },
+  ];
+}
 
 function NavIcon({ name }: { name: string }) {
   const paths: Record<string, string> = {
@@ -46,10 +78,18 @@ function NavIcon({ name }: { name: string }) {
   );
 }
 
-export default function AdminSidebar() {
+export default function AdminSidebar({
+  pendingArticles = 0,
+  pendingContributors = 0,
+}: {
+  pendingArticles?: number;
+  pendingContributors?: number;
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  const sections = buildSections(pendingArticles, pendingContributors);
 
   function isItemActive(href: string) {
     if (href === "/admin/overview") return pathname === "/admin" || pathname === "/admin/overview";
@@ -72,9 +112,9 @@ export default function AdminSidebar() {
           collapsed ? "w-18" : "w-60"
         } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 min-h-0 flex-1 overflow-y-auto">
           {/* Logo & Hamburger Header */}
-          <div className="flex items-center justify-between px-1 pt-1">
+          <div className="flex items-center justify-between px-1 pt-1 sticky top-0 bg-white pb-1">
             {!collapsed ? (
               <Link href="/admin/overview" className="flex items-center gap-2.5 min-w-0">
                 <Logo variant="mark" className="h-7 w-auto shrink-0" />
@@ -114,29 +154,48 @@ export default function AdminSidebar() {
             </button>
           </div>
 
-          {/* Navigation Items */}
-          <nav className="space-y-1">
-            {NAV_ITEMS.map((item) => {
-              const active = isItemActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  title={collapsed ? item.label : undefined}
-                  className={`flex items-center rounded-xl py-2 text-xs font-semibold transition-all ${
-                    collapsed ? "justify-center px-2" : "gap-3 px-3.5"
-                  } ${
-                    active
-                      ? "bg-[#DC2626] text-white shadow-md font-bold"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  }`}
-                >
-                  <NavIcon name={item.icon} />
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
-              );
-            })}
+          {/* Navigation Sections */}
+          <nav className="space-y-4">
+            {sections.map((section, idx) => (
+              <div key={section.label || `section-${idx}`} className="space-y-1">
+                {section.label && !collapsed && (
+                  <p className="px-3.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {section.label}
+                  </p>
+                )}
+                {section.label && collapsed && <div className="mx-2 border-t border-slate-100" />}
+                {section.items.map((item) => {
+                  const active = isItemActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      title={collapsed ? item.label : undefined}
+                      className={`flex items-center rounded-xl py-2 text-xs font-semibold transition-all ${
+                        collapsed ? "justify-center px-2" : "gap-3 px-3.5"
+                      } ${
+                        active
+                          ? "bg-[#DC2626] text-white shadow-md font-bold"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }`}
+                    >
+                      <NavIcon name={item.icon} />
+                      {!collapsed && <span className="flex-1 min-w-0 truncate">{item.label}</span>}
+                      {!!item.badge && item.badge > 0 && (
+                        <span
+                          className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold shrink-0 ${
+                            active ? "bg-white/25 text-white" : "bg-[#DC2626] text-white"
+                          }`}
+                        >
+                          {item.badge > 9 ? "9+" : item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </div>
       </aside>

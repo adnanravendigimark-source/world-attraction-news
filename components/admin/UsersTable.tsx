@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { SafeUser } from "@/lib/users";
+import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
 type SortKey = "newest" | "oldest" | "name-asc" | "name-desc";
@@ -28,6 +29,7 @@ const AVATAR_COLORS = [
 ];
 
 export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] }) {
+  const confirm = useConfirm();
   const toast = useToast();
   const [users, setUsers] = useState<SafeUser[]>(initialUsers);
   const [tab, setTab] = useState<"all" | "active" | "pending" | "suspended" | "rejected">("all");
@@ -111,6 +113,20 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
   }
 
   async function handleStatusChange(userId: string, newStatus: string) {
+    const label = newStatus === "approved" ? "Approve" : newStatus === "suspended" ? "Suspend" : "Reject";
+    const ok = await confirm({
+      title: `${label} this user?`,
+      description:
+        newStatus === "approved"
+          ? "They will receive contributor access and can submit dispatches immediately."
+          : newStatus === "suspended"
+          ? "Their account will be temporarily blocked from logging in."
+          : "They will not be granted access to the contributor workspace.",
+      confirmLabel: label,
+      danger: newStatus === "rejected" || newStatus === "suspended",
+    });
+    if (!ok) return;
+
     setBusyId(userId);
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {

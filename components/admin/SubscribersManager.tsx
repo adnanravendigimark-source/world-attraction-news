@@ -63,6 +63,17 @@ export default function SubscribersManager({
   }
 
   async function handleToggleStatus(sub: Subscriber) {
+    const willUnsubscribe = !sub.unsubscribedAt;
+    const ok = await confirm({
+      title: willUnsubscribe ? "Unsubscribe this reader?" : "Reactivate this subscriber?",
+      description: willUnsubscribe
+        ? `"${sub.email}" will stop receiving newsletter emails until reactivated.`
+        : `"${sub.email}" will start receiving newsletter emails again.`,
+      confirmLabel: willUnsubscribe ? "Unsubscribe" : "Reactivate",
+      danger: willUnsubscribe,
+    });
+    if (!ok) return;
+
     setBusyId(sub.id);
     try {
       const res = await fetch(`/api/admin/newsletter/${sub.id}`, {

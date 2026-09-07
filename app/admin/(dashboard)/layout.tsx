@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 antialiased flex">
       {/* Fixed Left Sidebar */}
-      <AdminSidebar />
+      <AdminSidebar pendingArticles={pendingArticles} pendingContributors={pendingContributors} />
 
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0 md:pl-60">
