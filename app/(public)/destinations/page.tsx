@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import DestinationsClient, { DestinationCity } from "./DestinationsClient";
 import { getCitiesWithArticleCounts } from "@/lib/cities";
-import { getSettings } from "@/lib/settings";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { cityPath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
@@ -20,12 +19,9 @@ import { SITE_NAME } from "@/lib/site";
 export const revalidate = 300;
 
 const getDestinationsPageData = unstable_cache(
-  async () => {
-    const [cities, settings] = await Promise.all([getCitiesWithArticleCounts(), getSettings()]);
-    return { cities, settings };
-  },
+  async () => getCitiesWithArticleCounts(),
   ["destinations-page-data"],
-  { revalidate: 300, tags: ["cities", "settings"] }
+  { revalidate: 300, tags: ["cities"] }
 );
 
 export const metadata: Metadata = buildMetadata({
@@ -40,8 +36,7 @@ const breadcrumbs = [
 ];
 
 export default async function DestinationsPage() {
-  const { cities, settings } = await getDestinationsPageData();
-  const featuredSet = new Set(settings.featuredCitySlugs);
+  const cities = await getDestinationsPageData();
 
   const mappedCities: DestinationCity[] = cities.map((c) => ({
     id: c.id,
@@ -53,9 +48,6 @@ export default async function DestinationsPage() {
     heroImage: c.heroImage,
     heroImageAlt: c.heroImageAlt || c.name,
     articleCount: c.articleCount,
-    // "Popular" badge is admin-controlled (Admin -> Settings -> Featured
-    // Cities), not a hardcoded slug list.
-    isPopular: featuredSet.has(c.slug),
   }));
 
   return (

@@ -19,7 +19,6 @@ export interface DestinationCity {
   heroImage?: string;
   heroImageAlt?: string;
   articleCount?: number;
-  isPopular?: boolean;
 }
 
 // Real country -> continent lookup used only to group the site's actual
@@ -138,11 +137,8 @@ export default function DestinationsClient({
     } else if (sortBy === "dispatches") {
       sorted.sort((a, b) => (b.articleCount || 0) - (a.articleCount || 0));
     } else {
-      // "popular" — admin-featured cities first, then by real article count.
-      sorted.sort((a, b) => {
-        if (Boolean(b.isPopular) !== Boolean(a.isPopular)) return b.isPopular ? 1 : -1;
-        return (b.articleCount || 0) - (a.articleCount || 0);
-      });
+      // "popular" — real article count, most dispatches first.
+      sorted.sort((a, b) => (b.articleCount || 0) - (a.articleCount || 0));
     }
     return sorted;
   }, [allDestinations, searchQuery, selectedCountry, selectedCity, selectedRegions, sortBy]);
@@ -385,15 +381,8 @@ export default function DestinationsClient({
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-                      {/* Badges */}
-                      <div className="absolute top-3 inset-x-3 flex items-center justify-between">
-                        {city.isPopular ? (
-                          <span className="rounded-full bg-[#DC2626] px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-sm flex items-center gap-1">
-                            <span>◆</span> POPULAR
-                          </span>
-                        ) : (
-                          <span />
-                        )}
+                      {/* Badge */}
+                      <div className="absolute top-3 inset-x-3 flex items-center justify-end">
                         <span className="rounded-full bg-black/60 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-white border border-white/10">
                           {city.articleCount ?? 0} {city.articleCount === 1 ? "dispatch" : "dispatches"}
                         </span>

@@ -18,7 +18,6 @@ import {
 } from "@/lib/articles";
 import { buildMetadata, resolvePageMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { articlePath, attractionPath, cityPath } from "@/lib/destinations";
-import { getSettings } from "@/lib/settings";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
 
 // Pure read (no per-request writes, no searchParams) — real ISR instead of
@@ -60,21 +59,10 @@ const getHomePageData = unstable_cache(
   { revalidate: 60, tags: ["homepage"] }
 );
 
-// Same reasoning as getHomePageData above — a plain getSettings() call here
-// would still force this route dynamic on its own even with the page body
-// fully cached.
-const getCachedSettings = unstable_cache(() => getSettings(), ["site-settings"], {
-  revalidate: 300,
-  tags: ["settings"],
-});
-
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getCachedSettings();
   return resolvePageMetadata("/", {
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
-    description: SITE_DESCRIPTION || settings.defaultMetaDescription,
-    image: settings.defaultOgImage || undefined,
-    noIndex: settings.robotsDefault === "noindex" ? true : undefined,
+    description: SITE_DESCRIPTION,
   });
 }
 
