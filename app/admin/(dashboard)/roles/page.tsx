@@ -42,6 +42,7 @@ export default async function AdminRolesPage() {
         admins={admins}
         currentUserId={session?.userId || ""}
         isOwnerAccount={isOwnerAccount}
+        canCreateAdmins={effective === "full"}
       />
     </div>
   );

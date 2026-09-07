@@ -40,6 +40,15 @@ interface RoleFormState {
   permissions: RolePermissions;
 }
 
+interface NewUserFormState {
+  displayName: string;
+  email: string;
+  password: string;
+  roleId: string;
+}
+
+const EMPTY_NEW_USER: NewUserFormState = { displayName: "", email: "", password: "", roleId: "" };
+
 export default function RolesManager({
   initialRoles,
   initialUserCounts,
@@ -47,6 +56,7 @@ export default function RolesManager({
   admins,
   currentUserId,
   isOwnerAccount,
+  canCreateAdmins,
 }: {
   initialRoles: Role[];
   initialUserCounts: Record<string, number>;
@@ -54,6 +64,11 @@ export default function RolesManager({
   admins: SafeUser[];
   currentUserId: string;
   isOwnerAccount: boolean;
+  // Minting a brand-new admin account is only ever allowed for an already-
+  // unrestricted admin/owner (see app/api/admin/users/route.ts) — this
+  // just lets the UI show a helpful, disabled state instead of a failed
+  // request for anyone else.
+  canCreateAdmins: boolean;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -70,6 +85,10 @@ export default function RolesManager({
   // Per-row "saving" state for the role-assignment table, keyed by user id,
   // so changing one admin's role doesn't disable every other row's select.
   const [assigning, setAssigning] = useState<Record<string, boolean>>({});
+
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [newUser, setNewUser] = useState<NewUserFormState>(EMPTY_NEW_USER);
 
   function openAddModal() {
     setEditingId(null);
@@ -204,6 +223,45 @@ export default function RolesManager({
     }
   }
 
+  function openUserModal() {
+    setNewUser(EMPTY_NEW_USER);
+    setUserModalOpen(true);
+  }
+
+  async function handleAddUser(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newUser.displayName.trim() || !newUser.email.trim()) {
+      toast.error("Please enter a name and email.");
+      return;
+    }
+    setCreatingUser(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: newUser.displayName.trim(),
+          email: newUser.email.trim(),
+          password: newUser.password || undefined,
+          roleId: newUser.roleId || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create user.");
+      setAdminList((prev) => [data.user, ...prev]);
+      if (newUser.roleId) {
+        setUserCounts((prev) => ({ ...prev, [newUser.roleId]: (prev[newUser.roleId] || 0) + 1 }));
+      }
+      toast.success("Admin user created.");
+      setUserModalOpen(false);
+      setNewUser(EMPTY_NEW_USER);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error creating user.");
+    } finally {
+      setCreatingUser(false);
+    }
+  }
+
   return (
     <div className="space-y-8 pb-24">
       {/* ============ ROLES ============ */}
@@ -283,11 +341,22 @@ export default function RolesManager({
 
       {/* ============ ASSIGN ROLES TO ADMINS ============ */}
       <section className="space-y-3">
-        <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-700">ASSIGN ROLES TO ADMINS</span>
-          <p className="mt-0.5 text-[11px] text-slate-500">
-            An admin with no role has full, unrestricted access — exactly like before roles existed.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">ASSIGN ROLES TO ADMINS</span>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              An admin with no role has full, unrestricted access — exactly like before roles existed.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openUserModal}
+            disabled={!canCreateAdmins}
+            title={canCreateAdmins ? undefined : "Only an unrestricted admin can create new admin accounts."}
+            className="shrink-0 rounded-xl bg-[#DC2626] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            + Add User
+          </button>
         </div>
 
         {adminList.length === 0 ? (
@@ -458,6 +527,104 @@ export default function RolesManager({
                 {busy ? "Saving..." : editingId ? "Save Changes" : "Create Role"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ ADD USER MODAL ============ */}
+      {userModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Add Admin User</h3>
+                <p className="text-xs text-slate-500">
+                  Creates a new admin account and assigns it a role. Contributors sign up on their own — this is
+                  only for Admin Panel users.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUserModalOpen(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">
+                  Full Name <span className="text-[#DC2626]">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newUser.displayName}
+                  onChange={(e) => setNewUser({ ...newUser, displayName: e.target.value })}
+                  placeholder="e.g. Marcus Vance"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-[#DC2626] focus:outline-none shadow-2xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">
+                  Email Address <span className="text-[#DC2626]">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  placeholder="admin@worldattractionnews.com"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-[#DC2626] focus:outline-none shadow-2xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Temporary Password (optional)</label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  placeholder="Leave blank to auto-generate password"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none shadow-2xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Role</label>
+                <select
+                  value={newUser.roleId}
+                  onChange={(e) => setNewUser({ ...newUser, roleId: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none shadow-2xs cursor-pointer"
+                >
+                  <option value="">Unrestricted (Full Access)</option>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setUserModalOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingUser}
+                  className="rounded-xl bg-[#DC2626] px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {creatingUser ? "Creating..." : "Create User"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

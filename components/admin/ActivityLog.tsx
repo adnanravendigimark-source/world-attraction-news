@@ -36,6 +36,7 @@ const ACTION_LABELS: Record<string, string> = {
   role_updated: "Updated role permissions",
   role_deleted: "Deleted role",
   user_role_assigned: "Changed a user's role",
+  admin_user_created: "Created admin user",
 };
 
 function actionLabel(action: string) {

@@ -41,18 +41,6 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
 
-  // Add Contributor Modal State
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newUser, setNewUser] = useState({
-    displayName: "",
-    email: "",
-    password: "",
-    bio: "",
-    role: "contributor" as "contributor" | "admin",
-    status: "approved" as "approved" | "pending",
-  });
-
   const counts = useMemo(() => {
     return {
       total: users.length,
@@ -145,39 +133,6 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
     }
   }
 
-  async function handleAddContributor(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newUser.displayName.trim() || !newUser.email.trim()) {
-      toast.error("Please enter a name and email.");
-      return;
-    }
-    setCreating(true);
-    try {
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newUser),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create contributor.");
-      setUsers((prev) => [data.user, ...prev]);
-      toast.success("Contributor added successfully!");
-      setAddModalOpen(false);
-      setNewUser({
-        displayName: "",
-        email: "",
-        password: "",
-        bio: "",
-        role: "contributor",
-        status: "approved",
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error creating contributor.");
-    } finally {
-      setCreating(false);
-    }
-  }
-
   return (
     <div className="font-sans space-y-6 pb-20 text-slate-800 antialiased">
       {/* Header Bar */}
@@ -232,16 +187,6 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
               ▼
             </span>
           </div>
-
-          {/* Add Contributor Button */}
-          <button
-            type="button"
-            onClick={() => setAddModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#DC2626] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-all cursor-pointer"
-          >
-            <span className="text-sm font-extrabold">+</span>
-            <span>Add Contributor</span>
-          </button>
         </div>
       </div>
 
@@ -625,123 +570,6 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
         </div>
       </div>
 
-      {/* Add Contributor Modal */}
-      {addModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5 animate-fade-in-up">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">Add New Contributor</h3>
-                <p className="text-xs text-slate-500">Create or invite a new writer account.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAddModalOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleAddContributor} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">
-                  Full Name <span className="text-[#DC2626]">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newUser.displayName}
-                  onChange={(e) => setNewUser({ ...newUser, displayName: e.target.value })}
-                  placeholder="e.g. Marcus Vance"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-[#DC2626] focus:outline-none shadow-2xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">
-                  Email Address <span className="text-[#DC2626]">*</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  placeholder="writer@worldattractionnews.com"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-[#DC2626] focus:outline-none shadow-2xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">
-                  Temporary Password (optional)
-                </label>
-                <input
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  placeholder="Leave blank to auto-generate password"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none shadow-2xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Bio / Beat</label>
-                <textarea
-                  rows={2}
-                  value={newUser.bio}
-                  onChange={(e) => setNewUser({ ...newUser, bio: e.target.value })}
-                  placeholder="e.g. Travel correspondent covering theme parks and entertainment."
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none shadow-2xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Role</label>
-                  <select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as any })}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none shadow-2xs"
-                  >
-                    <option value="contributor">Contributor</option>
-                    <option value="admin">Administrator</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Status</label>
-                  <select
-                    value={newUser.status}
-                    onChange={(e) => setNewUser({ ...newUser, status: e.target.value as any })}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none shadow-2xs"
-                  >
-                    <option value="approved">Active (Approved)</option>
-                    <option value="pending">Pending Review</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setAddModalOpen(false)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="rounded-xl bg-[#DC2626] px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-50"
-                >
-                  {creating ? "Creating..." : "Save Contributor"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
