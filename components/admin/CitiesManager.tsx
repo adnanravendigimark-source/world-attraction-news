@@ -798,6 +798,18 @@ export default function CitiesManager({
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  City Meta Description (SEO)
+                </label>
+                <input
+                  value={form.metaDescription}
+                  onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
+                  placeholder={`Discover the latest attraction news and destination dispatches from ${form.name || "this city"}.`}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                />
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
