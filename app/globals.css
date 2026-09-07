@@ -7,6 +7,13 @@
 html {
   scroll-behavior: smooth;
   color-scheme: light;
+  /* Belt-and-braces against any element (now or added later) computing even
+     1px wider than the viewport on mobile. Every grid/flex track on this
+     page already clamps correctly (Tailwind's grid-cols-N is
+     minmax(0, 1fr), Container's padding is symmetric px-3.5/6/8), but a
+     single un-clamped element anywhere in the tree is enough to shift the
+     visible content right and make the left/right edges look uneven. */
+  overflow-x: hidden;
 }
 
 body {
@@ -16,6 +23,8 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 ::selection {
