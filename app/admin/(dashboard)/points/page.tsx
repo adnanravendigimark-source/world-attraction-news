@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getAllArticles, summarizePoints } from "@/lib/articles";
 import AdminPointsLedger from "@/components/admin/AdminPointsLedger";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -9,6 +12,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPointsPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "points", "read")) {
+    return <AccessDenied pageLabel="Points Ledger" />;
+  }
+
   const articles = await getAllArticles();
   const scored = articles
     .filter((a) => a.score !== null && a.status !== "pending" && a.status !== "rejected")

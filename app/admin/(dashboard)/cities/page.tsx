@@ -3,6 +3,9 @@ import { getCities } from "@/lib/cities";
 import { getAllCountries } from "@/lib/countries";
 import { getArticleCountsByCity } from "@/lib/articles";
 import CitiesManager from "@/components/admin/CitiesManager";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -11,6 +14,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCitiesPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "destinations", "read")) {
+    return <AccessDenied pageLabel="Destinations" />;
+  }
+
   const [cities, countsByCity, countries] = await Promise.all([
     getCities(),
     getArticleCountsByCity(),

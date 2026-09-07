@@ -5,6 +5,7 @@ import { getCityById, updateCity, deleteCity } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { countryPath, cityPath, attractionsPath } from "@/lib/destinations";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "destinations", "update");
+  if (denied) return denied;
 
   let body: any;
   try {
@@ -70,6 +73,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "destinations", "delete");
+  if (denied) return denied;
   const before = await getCityById(params.id).catch(() => undefined);
   try {
     await deleteCity(params.id);

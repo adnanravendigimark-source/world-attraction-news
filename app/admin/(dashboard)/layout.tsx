@@ -3,6 +3,8 @@ import Image from "next/image";
 import { getSession } from "@/lib/session";
 import { findUserById, getPendingContributorCount } from "@/lib/users";
 import { getPendingArticleCount } from "@/lib/articles";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
+import { ADMIN_PAGES } from "@/lib/roles";
 import AdminLogoutButton from "@/components/admin/AdminLogoutButton";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
@@ -11,19 +13,31 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Real, live counts — not a fake fixed badge. Both are lightweight
   // COUNT(*) queries (see lib/articles.ts / lib/users.ts) since this header
   // renders on every single admin page, not just the Overview.
-  const [user, pendingArticles, pendingContributors] = await Promise.all([
+  const [user, pendingArticles, pendingContributors, effectivePermissions] = await Promise.all([
     session ? findUserById(session.userId).catch(() => undefined) : Promise.resolve(undefined),
     getPendingArticleCount(),
     getPendingContributorCount(),
+    getEffectivePermissions(session),
   ]);
   const avatarUrl = user?.avatarUrl;
   const displayName = session?.displayName || user?.displayName || "Adnan";
   const actionableCount = pendingArticles + pendingContributors;
+  // Sidebar filtering is UX convenience only (see AdminSidebar's own
+  // comment) — the real enforcement is requireApiPermission() on every
+  // admin API route and the per-page AccessDenied guards.
+  const readablePages: "full" | string[] =
+    effectivePermissions === "full"
+      ? "full"
+      : ADMIN_PAGES.filter((p) => hasPermission(effectivePermissions, p.key, "read")).map((p) => p.key);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 antialiased flex">
       {/* Fixed Left Sidebar */}
-      <AdminSidebar pendingArticles={pendingArticles} pendingContributors={pendingContributors} />
+      <AdminSidebar
+        pendingArticles={pendingArticles}
+        pendingContributors={pendingContributors}
+        readablePages={readablePages}
+      />
 
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0 md:pl-60">

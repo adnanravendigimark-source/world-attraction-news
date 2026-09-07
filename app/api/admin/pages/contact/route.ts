@@ -4,14 +4,14 @@ import { getSession } from "@/lib/session";
 import { getContactPageConfig, setContactPageConfig, type ContactPageConfig } from "@/lib/settings";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireApiPermission(session, "pages", "read");
+  if (denied) return denied;
   try {
     const config = await getContactPageConfig();
     return NextResponse.json({ config });
@@ -25,6 +25,8 @@ export async function POST(req: Request) {
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "pages", "update");
+  if (denied) return denied;
 
   let body: any;
   try {

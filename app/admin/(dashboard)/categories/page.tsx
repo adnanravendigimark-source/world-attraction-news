@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { getCategories } from "@/lib/categories";
 import { getArticleCountsByCategory } from "@/lib/articles";
 import CategoriesManager from "@/components/admin/CategoriesManager";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -10,6 +13,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCategoriesPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "categories", "read")) {
+    return <AccessDenied pageLabel="Categories" />;
+  }
+
   // Lightweight COUNT/GROUP BY (every status, not just published — this
   // count also gates deletion, see CategoriesManager's handleDelete), not a
   // full getAllArticles() fetch.

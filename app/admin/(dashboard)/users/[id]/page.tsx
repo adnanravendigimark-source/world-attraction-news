@@ -5,6 +5,9 @@ import { findUserById, toSafeUser } from "@/lib/users";
 import { getArticlesByAuthor, summarizePoints } from "@/lib/articles";
 import StatusBadge from "@/components/StatusBadge";
 import UserDetailPanel from "@/components/admin/UserDetailPanel";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -18,6 +21,12 @@ function formatDate(iso: string | null) {
 }
 
 export default async function AdminUserDetailPage({ params }: { params: { id: string } }) {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "contributors", "read")) {
+    return <AccessDenied pageLabel="Contributors" />;
+  }
+
   const user = await findUserById(params.id);
   if (!user) notFound();
 

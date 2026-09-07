@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { getFeaturedCategorySlugs, setFeaturedCategorySlugs } from "@/lib/settings";
 import { getCategories } from "@/lib/categories";
 import { dbErrorMessage } from "@/lib/db";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireApiPermission(session, "header", "read");
+  if (denied) return denied;
   try {
     const slugs = await getFeaturedCategorySlugs();
     return NextResponse.json({ slugs });
@@ -26,9 +26,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireApiPermission(session, "header", "update");
+  if (denied) return denied;
 
   let body: any;
   try {

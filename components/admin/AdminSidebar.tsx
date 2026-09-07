@@ -10,6 +10,10 @@ interface AdminNavItem {
   label: string;
   icon: string;
   badge?: number;
+  // Which RBAC page key (see lib/roles.ts's ADMIN_PAGES) gates this link.
+  // Undefined means it's never gated (Overview, Settings) — every admin can
+  // always see those regardless of role.
+  pageKey?: string;
 }
 
 interface AdminNavSection {
@@ -29,32 +33,33 @@ function buildSections(pendingArticles: number, pendingContributors: number): Ad
     {
       label: "Content",
       items: [
-        { href: "/admin/articles", label: "Articles", icon: "doc", badge: pendingArticles },
-        { href: "/admin/cities", label: "Destinations", icon: "pin" },
-        { href: "/admin/attractions", label: "Attractions", icon: "flag" },
-        { href: "/admin/categories", label: "Categories", icon: "tag" },
+        { href: "/admin/articles", label: "Articles", icon: "doc", badge: pendingArticles, pageKey: "articles" },
+        { href: "/admin/cities", label: "Destinations", icon: "pin", pageKey: "destinations" },
+        { href: "/admin/attractions", label: "Attractions", icon: "flag", pageKey: "attractions" },
+        { href: "/admin/categories", label: "Categories", icon: "tag", pageKey: "categories" },
       ],
     },
     {
       label: "Community",
       items: [
-        { href: "/admin/users", label: "Contributors", icon: "user", badge: pendingContributors },
-        { href: "/admin/newsletter", label: "Subscribers", icon: "mail" },
+        { href: "/admin/users", label: "Contributors", icon: "user", badge: pendingContributors, pageKey: "contributors" },
+        { href: "/admin/newsletter", label: "Subscribers", icon: "mail", pageKey: "subscribers" },
       ],
     },
     {
       label: "Insights",
       items: [
-        { href: "/admin/points", label: "Points Ledger", icon: "star" },
-        { href: "/admin/indexing", label: "Indexing", icon: "indexing" },
+        { href: "/admin/points", label: "Points Ledger", icon: "star", pageKey: "points" },
+        { href: "/admin/indexing", label: "Indexing", icon: "indexing", pageKey: "indexing" },
       ],
     },
     {
       label: "System",
       items: [
-        { href: "/admin/header", label: "Header", icon: "header" },
-        { href: "/admin/footer", label: "Footer", icon: "footer" },
-        { href: "/admin/pages", label: "Pages", icon: "pages" },
+        { href: "/admin/header", label: "Header", icon: "header", pageKey: "header" },
+        { href: "/admin/footer", label: "Footer", icon: "footer", pageKey: "footer" },
+        { href: "/admin/pages", label: "Pages", icon: "pages", pageKey: "pages" },
+        { href: "/admin/roles", label: "Roles & Permissions", icon: "roles", pageKey: "roles" },
         { href: "/admin/settings", label: "Settings", icon: "gear" },
       ],
     },
@@ -76,6 +81,7 @@ function NavIcon({ name }: { name: string }) {
     footer: "M4 6h16M4 12h16M4 18h7",
     header: "M4 6h16M4 6v3a1 1 0 001 1h14a1 1 0 001-1V6M4 12h16M4 18h16",
     pages: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    roles: "M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H4a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H10a1.65 1.65 0 001-1.51V4a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V10a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z",
   };
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -87,15 +93,31 @@ function NavIcon({ name }: { name: string }) {
 export default function AdminSidebar({
   pendingArticles = 0,
   pendingContributors = 0,
+  readablePages = "full",
 }: {
   pendingArticles?: number;
   pendingContributors?: number;
+  // "full" = unrestricted admin, show every link. An array is the set of
+  // page keys this admin's role grants Read on — everything else is
+  // hidden. This is pure UX convenience (a restricted admin shouldn't have
+  // to hunt for links that 403 when clicked); it is NOT the security
+  // boundary — every admin API route enforces its own permission check
+  // server-side regardless of what this sidebar shows (see lib/permissions.ts).
+  readablePages?: "full" | string[];
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  const sections = buildSections(pendingArticles, pendingContributors);
+  const allSections = buildSections(pendingArticles, pendingContributors);
+  const sections = allSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.pageKey || readablePages === "full" || readablePages.includes(item.pageKey)
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
 
   function isItemActive(href: string) {
     if (href === "/admin/overview") return pathname === "/admin" || pathname === "/admin/overview";

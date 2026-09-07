@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getFooterConfig } from "@/lib/settings";
 import FooterManager from "@/components/admin/FooterManager";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -9,6 +12,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminFooterPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "footer", "read")) {
+    return <AccessDenied pageLabel="Footer" />;
+  }
+
   const config = await getFooterConfig();
 
   return (

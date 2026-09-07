@@ -5,14 +5,14 @@ import { getCities, createCity } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { countryPath, cityPath } from "@/lib/destinations";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireApiPermission(session, "destinations", "read");
+  if (denied) return denied;
   try {
     const cities = await getCities();
     return NextResponse.json({ cities });
@@ -26,6 +26,8 @@ export async function POST(req: Request) {
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "destinations", "create");
+  if (denied) return denied;
 
   let body: any;
   try {

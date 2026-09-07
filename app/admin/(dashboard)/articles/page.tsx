@@ -4,6 +4,9 @@ import { getAllArticles } from "@/lib/articles";
 import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
 import ArticlesQueue from "@/components/admin/ArticlesQueue";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -12,6 +15,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminArticlesPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "articles", "read")) {
+    return <AccessDenied pageLabel="Articles" />;
+  }
+
   // getAllArticles() with no filter already excludes 'draft' (see its own
   // comment in lib/articles.ts) — a draft hasn't been submitted, so an
   // admin has nothing to review yet. Deliberately not fetching drafts here

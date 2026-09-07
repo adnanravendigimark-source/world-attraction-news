@@ -3,6 +3,9 @@ import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
 import { getFeaturedCitySlugs, getFeaturedCategorySlugs } from "@/lib/settings";
 import HeaderManager from "@/components/admin/HeaderManager";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -11,6 +14,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminHeaderPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "header", "read")) {
+    return <AccessDenied pageLabel="Header" />;
+  }
+
   const [cities, categories, featuredCitySlugs, featuredCategorySlugs] = await Promise.all([
     getCities(),
     getCategories(),

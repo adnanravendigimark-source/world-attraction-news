@@ -6,6 +6,7 @@ import { getCityById } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { cityPath, attractionsPath, attractionPath } from "@/lib/destinations";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "attractions", "update");
+  if (denied) return denied;
 
   let body: any;
   try {
@@ -70,6 +73,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "attractions", "delete");
+  if (denied) return denied;
   const before = await getAttractionById(params.id).catch(() => undefined);
   try {
     await deleteAttraction(params.id);

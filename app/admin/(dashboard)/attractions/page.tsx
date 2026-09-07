@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { getCities } from "@/lib/cities";
 import { getAttractions, getArticleCountsByAttraction } from "@/lib/attractions";
 import AttractionsManager from "@/components/admin/AttractionsManager";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -10,6 +13,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminAttractionsPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "attractions", "read")) {
+    return <AccessDenied pageLabel="Attractions" />;
+  }
+
   // Every status counts here (not just published) — this number also gates
   // deletion in AttractionsManager's handleDelete.
   const [cities, attractions, counts] = await Promise.all([

@@ -4,6 +4,7 @@ import { updateUser, deleteUser, findUserById } from "@/lib/users";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { notifyAccountApproved, notifyAccountRejected } from "@/lib/notifications";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "contributors", "update");
+  if (denied) return denied;
 
   let body: any;
   try {
@@ -108,6 +111,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "contributors", "delete");
+  if (denied) return denied;
 
   const target = await findUserById(params.id).catch(() => undefined);
 

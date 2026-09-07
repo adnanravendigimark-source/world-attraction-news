@@ -537,6 +537,37 @@ async function createPhase11PageConfigColumns() {
   console.log("Phase 11 columns ready.");
 }
 
+// Phase 12: Role-Based Access Control for the Admin Panel. A `role` here is
+// an admin-panel permission bundle (NOT the existing users.role column,
+// which still does its original job of separating "admin" from
+// "contributor" — this is a second, finer-grained layer that only applies
+// once someone is already an admin). `permissions` is a JSONB map of
+// pageKey -> { read, create, update, delete } booleans — see
+// lib/permissions.ts for the canonical page list and how it's read.
+//
+// users.role_id is nullable and defaults to NULL on purpose: an admin with
+// no role_id is UNRESTRICTED (full access to every page), which is exactly
+// what every admin account had before RBAC existed. This means installing
+// this migration changes nothing for any existing admin until someone
+// deliberately assigns them a role from Admin -> Roles & Permissions —
+// existing admin functionality can't be broken by turning this on.
+async function createPhase12RbacTables() {
+  console.log("Ensuring Phase 12 (RBAC) tables/columns exist...");
+  await sql`
+    CREATE TABLE IF NOT EXISTS roles (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL DEFAULT '',
+      permissions JSONB NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id UUID REFERENCES roles(id) ON DELETE SET NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS users_role_id_idx ON users (role_id)`;
+  console.log("Phase 12 tables/columns ready.");
+}
+
 // Same slugify rule as lib/countries.ts's slugifyCountry() — duplicated
 // here in plain JS since this script isn't compiled through TypeScript and
 // can't import a .ts module. Keep the two in sync if either changes.
@@ -1038,6 +1069,7 @@ async function main() {
   await createPhase9FooterConfigColumn();
   await createPhase10FeaturedCategoriesColumn();
   await createPhase11PageConfigColumns();
+  await createPhase12RbacTables();
   await addCountrySlugColumn();
   await addPerformanceIndexes();
   await backfillUserSlugs();

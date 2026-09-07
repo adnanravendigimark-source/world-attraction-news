@@ -31,6 +31,11 @@ export interface User {
   lastLoginAt: string | null;
   createdAt: string;
   approvedAt: string | null;
+  // Admin-panel RBAC role (see lib/roles.ts). Only meaningful for
+  // role === "admin"; null means unrestricted/full access. Never set via
+  // updateUser() — always via the dedicated setUserRoleId() below, to keep
+  // role assignment as its own separately-gated operation.
+  roleId: string | null;
 }
 
 // Public shape (no password hash, no reset-token internals) — safe to send
@@ -51,6 +56,7 @@ export interface SafeUser {
   lastLoginAt: string | null;
   createdAt: string;
   approvedAt: string | null;
+  roleId: string | null;
 }
 
 function toSafe({ passwordHash, ...rest }: User): SafeUser {
@@ -90,6 +96,7 @@ function rowToUser(row: any): User {
         ? row.approved_at.toISOString()
         : String(row.approved_at)
       : null,
+    roleId: row.role_id ?? null,
   };
 }
 
@@ -319,6 +326,23 @@ export async function updateUser(
         approved_at = CASE WHEN ${shouldStampApproval} THEN now() ELSE approved_at END
     WHERE id = ${id}
     RETURNING *
+  `;
+  return toSafe(rowToUser(rows[0]));
+}
+
+// Dedicated, standalone role-assignment operation — deliberately NOT folded
+// into updateUser() above. Keeping it separate means the generic "edit
+// contributor" admin flow (updateUser) can never be used to change who has
+// which RBAC role, so a restricted admin whose permission set includes
+// updating contributors still can't grant themselves or anyone else more
+// access — role assignment is gated on its own "roles" update permission
+// at the route level (see app/api/admin/users/[id]/role/route.ts).
+export async function setUserRoleId(id: string, roleId: string | null): Promise<SafeUser> {
+  const current = await findUserById(id);
+  if (!current) throw new Error("User not found.");
+  if (current.role !== "admin") throw new Error("Only admin accounts can be assigned an Admin Panel role.");
+  const rows = await sql`
+    UPDATE users SET role_id = ${roleId} WHERE id = ${id} RETURNING *
   `;
   return toSafe(rowToUser(rows[0]));
 }

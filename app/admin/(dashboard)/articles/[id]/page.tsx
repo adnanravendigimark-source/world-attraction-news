@@ -6,11 +6,20 @@ import { getCategories } from "@/lib/categories";
 import { getAttractions } from "@/lib/attractions";
 import { getRevisions } from "@/lib/revisions";
 import ArticleReviewPanel from "@/components/admin/ArticleReviewPanel";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Review Article", robots: { index: false, follow: false } };
 
 export default async function AdminArticleDetailPage({ params }: { params: { id: string } }) {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "articles", "read")) {
+    return <AccessDenied pageLabel="Articles" />;
+  }
+
   const article = await getArticleById(params.id);
   // A draft hasn't been submitted yet — it isn't something an admin
   // reviews, and it's deliberately excluded from the /admin/articles list

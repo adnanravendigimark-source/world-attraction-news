@@ -2,19 +2,13 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getIndexingOverview, setIndexing, setBulkIndexing, type IndexingPageType } from "@/lib/indexing";
 import { dbErrorMessage } from "@/lib/db";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
-async function requireAdmin() {
-  const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Admins only." }, { status: 403 });
-  }
-  return null;
-}
-
 export async function GET() {
-  const denied = await requireAdmin();
+  const session = await getSession();
+  const denied = await requireApiPermission(session, "indexing", "read");
   if (denied) return denied;
 
   try {
@@ -26,7 +20,8 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const denied = await requireAdmin();
+  const session = await getSession();
+  const denied = await requireApiPermission(session, "indexing", "update");
   if (denied) return denied;
 
   const body = await req.json().catch(() => null);

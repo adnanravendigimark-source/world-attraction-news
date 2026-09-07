@@ -5,14 +5,14 @@ import { getAllCountries, getCountryBySlug, upsertCountry, slugifyCountry } from
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { countryPath } from "@/lib/destinations";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireApiPermission(session, "destinations", "read");
+  if (denied) return denied;
 
   const { searchParams } = new URL(req.url);
   const slug = searchParams.get("slug");
@@ -34,6 +34,13 @@ export async function POST(req: Request) {
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // upsertCountry() creates-or-updates a country hub in one call (see
+  // lib/countries.ts) — gated on "update" since this endpoint is only ever
+  // reached from the Destinations admin page's Country Hubs editor, which
+  // is framed to admins as editing country info, not a separate creation
+  // flow.
+  const denied = await requireApiPermission(session, "destinations", "update");
+  if (denied) return denied;
 
   let body: any;
   try {

@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 import { getActivityLog } from "@/lib/activity";
 import ActivityLog from "@/components/admin/ActivityLog";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin Activity Log", robots: { index: false, follow: false } };
 
 export default async function AdminActivityPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "activity", "read")) {
+    return <AccessDenied pageLabel="Activity Log" />;
+  }
+
   const entries = await getActivityLog(200);
 
   return (

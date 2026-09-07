@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getContactPageConfig, getAboutPageConfig } from "@/lib/settings";
 import PagesManager from "@/components/admin/PagesManager";
+import AccessDenied from "@/components/admin/AccessDenied";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -9,6 +12,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPagesPage() {
+  const session = await getSession();
+  const effective = await getEffectivePermissions(session);
+  if (!hasPermission(effective, "pages", "read")) {
+    return <AccessDenied pageLabel="Pages" />;
+  }
+
   const [contactConfig, aboutConfig] = await Promise.all([getContactPageConfig(), getAboutPageConfig()]);
 
   return (

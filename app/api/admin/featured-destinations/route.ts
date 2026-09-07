@@ -4,18 +4,18 @@ import { getSession } from "@/lib/session";
 import { getFeaturedCitySlugs, setFeaturedCitySlugs } from "@/lib/settings";
 import { getCities } from "@/lib/cities";
 import { dbErrorMessage } from "@/lib/db";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
-// Backs Admin -> Destinations -> Top Destinations: an ordered list of city
+// Backs Admin -> Header -> Top Destinations: an ordered list of city
 // slugs an admin picked to appear in the public navbar's "Destinations"
 // dropdown, replacing what used to be a hardcoded Paris/London/Rome/NYC list.
 
 export async function GET() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireApiPermission(session, "header", "read");
+  if (denied) return denied;
   try {
     const slugs = await getFeaturedCitySlugs();
     return NextResponse.json({ slugs });
@@ -26,9 +26,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireApiPermission(session, "header", "update");
+  if (denied) return denied;
 
   let body: any;
   try {

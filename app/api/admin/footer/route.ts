@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { getFooterConfig, setFooterConfig, type FooterConfig } from "@/lib/settings";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +15,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireApiPermission(session, "footer", "read");
+  if (denied) return denied;
   try {
     const config = await getFooterConfig();
     return NextResponse.json({ config });
@@ -30,6 +30,8 @@ export async function POST(req: Request) {
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "footer", "update");
+  if (denied) return denied;
 
   let body: any;
   try {

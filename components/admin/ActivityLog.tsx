@@ -32,6 +32,10 @@ const ACTION_LABELS: Record<string, string> = {
   footer_updated: "Updated public footer",
   contact_page_updated: "Updated Contact page",
   about_page_updated: "Updated About page",
+  role_created: "Created role",
+  role_updated: "Updated role permissions",
+  role_deleted: "Deleted role",
+  user_role_assigned: "Changed a user's role",
 };
 
 function actionLabel(action: string) {

@@ -32,6 +32,7 @@ import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { cityPath, articlePath } from "@/lib/destinations";
 import { notifySubscribersOfNewArticle } from "@/lib/newsletter";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "articles", "read");
+  if (denied) return denied;
   const article = await getArticleById(params.id).catch(() => undefined);
   if (!article) return NextResponse.json({ error: "Article not found." }, { status: 404 });
   return NextResponse.json({ article });
@@ -73,6 +76,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "articles", "update");
+  if (denied) return denied;
 
   let body: any;
   try {
@@ -438,6 +443,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "articles", "delete");
+  if (denied) return denied;
   const before = await getArticleById(params.id).catch(() => undefined);
   if (before && (before.status === "published" || before.status === "scheduled")) {
     return NextResponse.json(

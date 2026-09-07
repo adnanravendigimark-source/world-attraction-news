@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { getCategoryById, updateCategory, deleteCategory } from "@/lib/categories";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
+import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "categories", "update");
+  if (denied) return denied;
   let body: any;
   try {
     body = await req.json();
@@ -46,6 +49,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const denied = await requireApiPermission(session, "categories", "delete");
+  if (denied) return denied;
   const before = await getCategoryById(params.id).catch(() => undefined);
   try {
     await deleteCategory(params.id);
