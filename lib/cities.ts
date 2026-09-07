@@ -1,5 +1,6 @@
 import { sql } from "./db";
 import { slugifyCountry } from "./countries";
+import { getFeaturedCitySlugs, setFeaturedCitySlugs } from "./settings";
 
 export interface City {
   id: string;
@@ -111,6 +112,32 @@ export async function getCitiesWithArticleCounts(): Promise<(City & { articleCou
   } catch {
     return [];
   }
+}
+
+// Pure helper so a caller that already has the full `cities` list in hand
+// (e.g. the public layout, which needs both) doesn't have to pay for a
+// second SELECT * FROM cities just to compute the featured subset — see
+// getFeaturedCities() below for the convenience wrapper that does fetch its
+// own copy when a caller doesn't already have one.
+//
+// Never a fixed/hardcoded list of city names — if nothing has been picked
+// yet, falls back to the first 6 cities by their own (admin-editable)
+// sort_order, so a fresh install still has a working, non-empty dropdown
+// instead of showing nothing. A slug that no longer matches any city (e.g.
+// the city was deleted) is silently skipped rather than breaking the
+// dropdown.
+export function pickFeaturedCities(allCities: City[], featuredSlugs: string[]): City[] {
+  if (featuredSlugs.length === 0) return allCities.slice(0, 6);
+  const bySlug = new Map(allCities.map((c) => [c.slug, c]));
+  return featuredSlugs.map((slug) => bySlug.get(slug)).filter((c): c is City => Boolean(c));
+}
+
+// Cities for the public navbar's "Destinations" dropdown — see
+// pickFeaturedCities() above for the actual selection logic. Convenience
+// wrapper for callers that don't already have the full cities list loaded.
+export async function getFeaturedCities(): Promise<City[]> {
+  const [allCities, featuredSlugs] = await Promise.all([getCities(), getFeaturedCitySlugs()]);
+  return pickFeaturedCities(allCities, featuredSlugs);
 }
 
 // Case-insensitive exact match on (name, country) — a real de-dup guard
@@ -236,6 +263,17 @@ export async function updateCity(id: string, updates: Partial<Omit<City, "id" | 
     WHERE id = ${id}
     RETURNING *
   `;
+
+  // Keep the "Top Destinations" navbar selection pointed at the right city
+  // if its slug just changed — otherwise a rename would silently drop it out
+  // of the dropdown (getFeaturedCities() only matches by slug).
+  if (next.slug !== current.slug) {
+    const featured = await getFeaturedCitySlugs();
+    if (featured.includes(current.slug)) {
+      await setFeaturedCitySlugs(featured.map((s) => (s === current.slug ? next.slug : s)));
+    }
+  }
+
   return rowToCity(rows[0]);
 }
 
@@ -255,4 +293,16 @@ export async function deleteCity(id: string): Promise<void> {
     );
   }
   await sql`DELETE FROM cities WHERE id = ${id}`;
+
+  // Drop this city from the "Top Destinations" navbar selection too, if it
+  // was picked — getFeaturedCities() already skips a slug that no longer
+  // matches any city, so this isn't required for correctness, but leaving a
+  // dead slug sitting in settings indefinitely is exactly the kind of
+  // orphaned record this app avoids elsewhere.
+  const [featured, remainingCities] = await Promise.all([getFeaturedCitySlugs(), getCities()]);
+  const stillValidSlugs = new Set(remainingCities.map((c) => c.slug));
+  const cleaned = featured.filter((s) => stillValidSlugs.has(s));
+  if (cleaned.length !== featured.length) {
+    await setFeaturedCitySlugs(cleaned);
+  }
 }

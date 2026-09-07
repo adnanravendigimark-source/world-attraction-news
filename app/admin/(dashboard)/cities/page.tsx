@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getCities } from "@/lib/cities";
 import { getAllCountries } from "@/lib/countries";
 import { getArticleCountsByCity } from "@/lib/articles";
+import { getFeaturedCitySlugs } from "@/lib/settings";
 import CitiesManager from "@/components/admin/CitiesManager";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +12,11 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCitiesPage() {
-  const [cities, countsByCity, countries] = await Promise.all([
+  const [cities, countsByCity, countries, featuredSlugs] = await Promise.all([
     getCities(),
     getArticleCountsByCity(),
     getAllCountries(),
+    getFeaturedCitySlugs(),
   ]);
   const counts: Record<string, { total: number; published: number }> = {};
   for (const city of cities) counts[city.id] = countsByCity[city.id] || { total: 0, published: 0 };
@@ -34,6 +36,7 @@ export default async function AdminCitiesPage() {
       <CitiesManager
         initialCities={cities}
         initialCountries={countries}
+        initialFeaturedSlugs={featuredSlugs}
         articleCounts={counts}
       />
     </div>

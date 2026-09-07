@@ -12,6 +12,12 @@ import CityAutocomplete, { type CitySelection } from "@/components/CityAutocompl
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
+// Deliberately has NO country description/overview/meta fields. Country
+// information (intro, hero image, meta title/description) lives only in the
+// `countries` table and is edited only from the Country Hubs tab's own
+// modal (see editingCountry/handleSaveCountry below) — that is the single
+// source of truth. A destination just references a country by name/slug;
+// it never carries or duplicates that country's description data.
 interface CityFormState {
   slug: string;
   name: string;
@@ -22,11 +28,6 @@ interface CityFormState {
   metaTitle: string;
   metaDescription: string;
   sortOrder: number;
-  // Country description fields
-  countryIntro: string;
-  countryHeroImage: string;
-  countryMetaTitle: string;
-  countryMetaDescription: string;
 }
 
 interface CountryFormState {
@@ -58,10 +59,6 @@ const EMPTY_CITY_FORM: CityFormState = {
   metaTitle: "",
   metaDescription: "",
   sortOrder: 0,
-  countryIntro: "",
-  countryHeroImage: "",
-  countryMetaTitle: "",
-  countryMetaDescription: "",
 };
 
 const EMPTY_COUNTRY_FORM: CountryFormState = {
@@ -77,15 +74,17 @@ const EMPTY_COUNTRY_FORM: CountryFormState = {
 export default function CitiesManager({
   initialCities,
   initialCountries = [],
+  initialFeaturedSlugs = [],
   articleCounts,
 }: {
   initialCities: City[];
   initialCountries?: Country[];
+  initialFeaturedSlugs?: string[];
   articleCounts: Record<string, { total: number; published: number }>;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<"cities" | "countries">("cities");
+  const [activeTab, setActiveTab] = useState<"cities" | "countries" | "topDestinations">("cities");
   const [cities, setCities] = useState<City[]>(initialCities);
   const [countries, setCountries] = useState<Country[]>(initialCountries);
 
@@ -98,8 +97,15 @@ export default function CitiesManager({
   const [countryModalOpen, setCountryModalOpen] = useState(false);
   const [editingCountry, setEditingCountry] = useState<CountryFormState>(EMPTY_COUNTRY_FORM);
 
+  // Top Destinations (public navbar dropdown) state — an ordered list of
+  // city slugs. `savedFeaturedSlugs` tracks what's actually persisted so the
+  // Save button can be disabled when there's nothing new to save.
+  const [featuredSlugs, setFeaturedSlugs] = useState<string[]>(initialFeaturedSlugs);
+  const [savedFeaturedSlugs, setSavedFeaturedSlugs] = useState<string[]>(initialFeaturedSlugs);
+  const [featuredCityToAdd, setFeaturedCityToAdd] = useState("");
+  const [savingFeatured, setSavingFeatured] = useState(false);
+
   const [busy, setBusy] = useState(false);
-  const [countryBoxOpen, setCountryBoxOpen] = useState(true);
 
   // Map of slug -> Country object
   const countriesBySlug = useMemo(() => {
@@ -147,33 +153,11 @@ export default function CitiesManager({
   function openAddModal() {
     setEditingId(null);
     setForm(EMPTY_CITY_FORM);
-    setCountryBoxOpen(true);
     setModalOpen(true);
   }
 
-  async function openEditModal(city: City) {
+  function openEditModal(city: City) {
     setEditingId(city.id);
-    const cSlug = city.countrySlug || slugifyCountry(city.country);
-    let existingCountry = countriesBySlug.get(cSlug);
-
-    if (!existingCountry || !existingCountry.intro) {
-      try {
-        const res = await fetch(`/api/admin/countries?slug=${encodeURIComponent(cSlug)}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.country) {
-            existingCountry = json.country;
-            setCountries((prev) => {
-              const filtered = prev.filter((c) => c.slug !== json.country.slug);
-              return [...filtered, json.country];
-            });
-          }
-        }
-      } catch (e) {
-        console.error("Error fetching country:", e);
-      }
-    }
-
     setForm({
       slug: city.slug,
       name: city.name,
@@ -184,12 +168,7 @@ export default function CitiesManager({
       metaTitle: city.metaTitle || "",
       metaDescription: city.metaDescription || "",
       sortOrder: city.sortOrder,
-      countryIntro: existingCountry?.intro || "",
-      countryHeroImage: existingCountry?.heroImage || "",
-      countryMetaTitle: existingCountry?.metaTitle || "",
-      countryMetaDescription: existingCountry?.metaDescription || "",
     });
-    setCountryBoxOpen(false);
     setModalOpen(true);
   }
 
@@ -199,33 +178,13 @@ export default function CitiesManager({
     setForm(EMPTY_CITY_FORM);
   }
 
-  // Handles auto-filling city and country details when picking a city from autocomplete
-  async function handleCitySelect(selection: CitySelection) {
-    const cSlug = slugifyCountry(selection.country);
-    let countryData = countriesBySlug.get(cSlug);
-
-    // Actively query the country from the server to guarantee we have the latest saved country summary
-    try {
-      const res = await fetch(`/api/admin/countries?slug=${encodeURIComponent(cSlug)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.country) {
-          countryData = json.country;
-          setCountries((prev) => {
-            const filtered = prev.filter((c) => c.slug !== json.country.slug);
-            return [...filtered, json.country];
-          });
-        }
-      }
-    } catch (e) {
-      console.error("Error loading country data:", e);
-    }
-
+  // Auto-fills the city's own fields when picking a city from autocomplete.
+  // Deliberately does NOT touch the `countries` table or fetch/prefill any
+  // country description — that data belongs only to the Country Hubs tab.
+  function handleCitySelect(selection: CitySelection) {
     const defaultCityIntro = `Explore attraction news, visitor updates, and destination reporting from ${selection.city}, ${selection.country}. Discover the latest on top attractions, theme parks, museums, and historic venues.`;
     const defaultCityMetaTitle = `${selection.city} Destinations — Attraction News & Travel Intelligence`;
     const defaultCityMetaDescription = `Discover the latest attraction news, visitor updates, and destination dispatches from ${selection.city}, ${selection.country}.`;
-
-    const defaultCountryIntro = `Explore the top travel destinations, landmark attractions, and news updates across ${selection.country}.`;
 
     setForm((prev) => ({
       ...prev,
@@ -236,14 +195,7 @@ export default function CitiesManager({
       intro: prev.intro && editingId ? prev.intro : defaultCityIntro,
       metaTitle: prev.metaTitle && editingId ? prev.metaTitle : defaultCityMetaTitle,
       metaDescription: prev.metaDescription && editingId ? prev.metaDescription : defaultCityMetaDescription,
-      // Load the previously saved country intro if France/etc was already added, or provide draft
-      countryIntro: countryData?.intro?.trim() ? countryData.intro : defaultCountryIntro,
-      countryHeroImage: countryData?.heroImage || prev.countryHeroImage,
-      countryMetaTitle: countryData?.metaTitle || `${selection.country} Destinations — Attraction News`,
-      countryMetaDescription: countryData?.metaDescription || `Explore top destinations and attractions in ${selection.country}.`,
     }));
-
-    setCountryBoxOpen(true);
   }
 
   function openEditCountryModal(countryInfo: { name: string; slug: string; countryObj?: Country }) {
@@ -313,36 +265,14 @@ export default function CitiesManager({
         setCities((prev) => [...prev, data.city]);
       }
 
-      // 2. If Country description or metadata was entered, upsert Country
-      if (form.country.trim()) {
-        try {
-          const countryRes = await fetch("/api/admin/countries", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: form.country,
-              slug: slugifyCountry(form.country),
-              intro: form.countryIntro,
-              heroImage: form.countryHeroImage,
-              metaTitle: form.countryMetaTitle,
-              metaDescription: form.countryMetaDescription,
-            }),
-          });
-          if (countryRes.ok) {
-            const cData = await countryRes.json();
-            if (cData.country) {
-              setCountries((prev) => {
-                const filtered = prev.filter((c) => c.slug !== cData.country.slug);
-                return [...filtered, cData.country];
-              });
-            }
-          }
-        } catch (e) {
-          console.error("Failed to save country overview:", e);
-        }
-      }
-
-      toast.success(editingId ? "Destination updated successfully." : "Destination & country saved successfully.");
+      // That's it — a destination save only ever touches the `cities` row.
+      // It never creates/updates a `countries` row: country description data
+      // has exactly one writer (the Country Hubs tab's own save), so it can
+      // never be duplicated or clobbered by editing a destination. If this
+      // city's country doesn't have a `countries` row yet, the public
+      // country hub page just falls back to a generated overview until an
+      // admin adds one from Country Hubs — see handleSaveCountry below.
+      toast.success(editingId ? "Destination updated successfully." : "Destination created successfully.");
       closeModal();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
@@ -411,6 +341,55 @@ export default function CitiesManager({
     }
   }
 
+  // Cities not currently selected for the public navbar dropdown — this is
+  // what fills the "Add a destination" picker below.
+  const unselectedCities = useMemo(
+    () => cities.filter((c) => !featuredSlugs.includes(c.slug)),
+    [cities, featuredSlugs]
+  );
+  const citiesBySlug = useMemo(() => new Map(cities.map((c) => [c.slug, c])), [cities]);
+  const featuredDirty = JSON.stringify(featuredSlugs) !== JSON.stringify(savedFeaturedSlugs);
+
+  function addFeaturedCity(slug: string) {
+    if (!slug || featuredSlugs.includes(slug)) return;
+    setFeaturedSlugs((prev) => [...prev, slug]);
+    setFeaturedCityToAdd("");
+  }
+
+  function removeFeaturedCity(slug: string) {
+    setFeaturedSlugs((prev) => prev.filter((s) => s !== slug));
+  }
+
+  function moveFeaturedCity(index: number, direction: -1 | 1) {
+    setFeaturedSlugs((prev) => {
+      const next = [...prev];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  async function saveFeaturedDestinations() {
+    setSavingFeatured(true);
+    try {
+      const res = await fetch("/api/admin/featured-destinations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slugs: featuredSlugs }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save Top Destinations.");
+      setFeaturedSlugs(data.slugs);
+      setSavedFeaturedSlugs(data.slugs);
+      toast.success("Top Destinations updated — the public navbar dropdown now reflects this.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't save Top Destinations.");
+    } finally {
+      setSavingFeatured(false);
+    }
+  }
+
   const selectedCountrySlug = form.country ? slugifyCountry(form.country) : "";
   const existingCountryInfo = selectedCountrySlug ? countriesBySlug.get(selectedCountrySlug) : undefined;
 
@@ -440,6 +419,17 @@ export default function CitiesManager({
             }`}
           >
             Country Hubs ({distinctCountryList.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("topDestinations")}
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+              activeTab === "topDestinations"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            Top Destinations ({featuredSlugs.length})
           </button>
         </div>
 
@@ -603,6 +593,127 @@ export default function CitiesManager({
       )}
 
       {/* =========================================
+          TAB 3: TOP DESTINATIONS (PUBLIC NAVBAR DROPDOWN)
+      ========================================= */}
+      {activeTab === "topDestinations" && (
+        <div className="max-w-2xl space-y-5">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Choose which destinations appear in the <strong>Destinations</strong> dropdown in the
+              public navbar, and in what order. Nothing here is hardcoded — the dropdown always
+              shows exactly this list.
+              {featuredSlugs.length === 0 && (
+                <> Nothing is selected yet, so visitors currently see the first 6 destinations by sort order.</>
+              )}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+              Selected ({featuredSlugs.length})
+            </h3>
+            {featuredSlugs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-xs text-slate-400">
+                No destinations selected yet.
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {featuredSlugs.map((slug, index) => {
+                  const city = citiesBySlug.get(slug);
+                  return (
+                    <li
+                      key={slug}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5"
+                    >
+                      <span className="text-xs font-semibold text-slate-800">
+                        {city ? city.name : `${slug} (deleted)`}
+                        {city?.country && <span className="text-slate-400 font-normal"> · {city.country}</span>}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => moveFeaturedCity(index, -1)}
+                          aria-label="Move up"
+                          className="h-7 w-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === featuredSlugs.length - 1}
+                          onClick={() => moveFeaturedCity(index, 1)}
+                          aria-label="Move down"
+                          className="h-7 w-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ▼
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeFeaturedCity(slug)}
+                          aria-label={`Remove ${city?.name || slug}`}
+                          className="h-7 w-7 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+              Add a destination
+            </h3>
+            {unselectedCities.length === 0 ? (
+              <p className="text-xs text-slate-400">
+                {cities.length === 0
+                  ? "No destinations exist yet — add one from City Destinations first."
+                  : "Every destination is already selected."}
+              </p>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <select
+                  value={featuredCityToAdd}
+                  onChange={(e) => setFeaturedCityToAdd(e.target.value)}
+                  className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
+                >
+                  <option value="">Choose a destination…</option>
+                  {unselectedCities.map((c) => (
+                    <option key={c.slug} value={c.slug}>
+                      {c.name}, {c.country}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!featuredCityToAdd}
+                  onClick={() => addFeaturedCity(featuredCityToAdd)}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              disabled={!featuredDirty || savingFeatured}
+              onClick={saveFeaturedDestinations}
+              className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {savingFeatured ? "Saving..." : "Save Top Destinations"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================
           MODAL: ADD / EDIT CITY (+ COUNTRY SECTION)
       ========================================= */}
       {modalOpen && (
@@ -703,74 +814,43 @@ export default function CitiesManager({
               />
 
               {/* ============================================================
-                  COUNTRY DESCRIPTION & SUMMARY SECTION
+                  COUNTRY INFO — read-only pointer, not editable here.
+                  Country overview/meta data has exactly one writer: the
+                  Country Hubs tab's own "Edit Country Hub" modal. This
+                  destination form only ever reads that data (via
+                  existingCountryInfo below) to show a status note; it never
+                  writes it, so a destination can't duplicate or clobber its
+                  country's description.
               ============================================================ */}
               {form.country && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🌍</span>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                          Country Overview: {form.country}
-                        </h4>
-                        <p className="text-[10px] text-slate-500">
-                          {existingCountryInfo?.intro
-                            ? `Loaded existing summary for ${form.country}. You can review or edit it below.`
-                            : `Add or edit the country overview for ${form.country} to display on the /${slugifyCountry(form.country)} hub.`}
-                        </p>
-                      </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🌍</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">
+                        {form.country} country overview
+                      </h4>
+                      <p className="text-[10px] text-slate-500">
+                        {existingCountryInfo?.intro
+                          ? "Already set — managed from Country Hubs, shared by every city in this country."
+                          : "Not set yet — this destination will still be created fine; add a country overview anytime from Country Hubs."}
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setCountryBoxOpen(!countryBoxOpen)}
-                      className="text-xs font-bold text-[#DC2626] hover:underline"
-                    >
-                      {countryBoxOpen ? "Collapse ▲" : "Edit Country ▼"}
-                    </button>
                   </div>
-
-                  {countryBoxOpen && (
-                    <div className="pt-2 border-t border-rose-100 space-y-3">
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                          {form.country} Country Overview / Summary
-                        </label>
-                        <textarea
-                          value={form.countryIntro}
-                          onChange={(e) => setForm({ ...form, countryIntro: e.target.value })}
-                          rows={3}
-                          placeholder={`Overview of attraction news, culture, and travel bureau coverage across ${form.country}...`}
-                          className="w-full rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
-                        />
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                            Country Meta Title (SEO)
-                          </label>
-                          <input
-                            value={form.countryMetaTitle}
-                            onChange={(e) => setForm({ ...form, countryMetaTitle: e.target.value })}
-                            placeholder={`${form.country} Destinations — Attraction News`}
-                            className="w-full rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                            Country Meta Description
-                          </label>
-                          <input
-                            value={form.countryMetaDescription}
-                            onChange={(e) => setForm({ ...form, countryMetaDescription: e.target.value })}
-                            placeholder={`Explore attractions across ${form.country}...`}
-                            className="w-full rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeModal();
+                      openEditCountryModal({
+                        name: form.country,
+                        slug: selectedCountrySlug,
+                        countryObj: existingCountryInfo,
+                      });
+                    }}
+                    className="shrink-0 text-xs font-bold text-[#DC2626] hover:underline cursor-pointer"
+                  >
+                    {existingCountryInfo?.intro ? "Edit" : "Add"} in Country Hubs →
+                  </button>
                 </div>
               )}
 

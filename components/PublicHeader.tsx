@@ -24,14 +24,11 @@ export default function PublicHeader({
   const [destDropdownOpen, setDestDropdownOpen] = useState(false);
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
 
-  const displayCities = cities.length > 0 ? cities : [
-    { slug: "paris", name: "Paris", countrySlug: "france" },
-    { slug: "london", name: "London", countrySlug: "united-kingdom" },
-    { slug: "rome", name: "Rome", countrySlug: "italy" },
-    { slug: "new-york", name: "New York City", countrySlug: "united-states" },
-    { slug: "orlando", name: "Orlando", countrySlug: "united-states" },
-    { slug: "barcelona", name: "Barcelona", countrySlug: "spain" },
-  ];
+  // `cities` here is already the admin-curated "Top Destinations" list from
+  // Admin -> Destinations -> Top Destinations (see app/(public)/layout.tsx),
+  // in the exact order and count an admin picked — never a hardcoded list of
+  // city names, and never re-sliced/re-limited here.
+  const displayCities = cities;
 
   const displayCategories = categories.length > 0 ? categories : [
     { slug: "theme-parks-entertainment", name: "Theme Parks & Entertainment" },
@@ -160,15 +157,19 @@ export default function PublicHeader({
               </Link>
               {destDropdownOpen && (
                 <div className="absolute left-0 top-full w-48 rounded-lg border border-slate-200 bg-white py-2 shadow-xl animate-fade-in-up z-50">
-                  {displayCities.slice(0, 5).map((c) => (
-                    <Link
-                      key={c.slug}
-                      href={c.countrySlug ? cityPath(c.countrySlug, c.slug) : "/destinations"}
-                      className="block px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#DC2626]"
-                    >
-                      {c.name}
-                    </Link>
-                  ))}
+                  {displayCities.length === 0 ? (
+                    <p className="px-4 py-2 text-xs text-slate-400">No destinations added yet.</p>
+                  ) : (
+                    displayCities.map((c) => (
+                      <Link
+                        key={c.slug}
+                        href={c.countrySlug ? cityPath(c.countrySlug, c.slug) : "/destinations"}
+                        className="block px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#DC2626]"
+                      >
+                        {c.name}
+                      </Link>
+                    ))
+                  )}
                   <div className="border-t border-slate-100 mt-1 pt-1">
                     <Link
                       href="/destinations"
