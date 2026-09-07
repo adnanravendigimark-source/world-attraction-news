@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import { getFeaturedCategorySlugs, setFeaturedCategorySlugs } from "./settings";
 
 export interface Category {
   id: string;
@@ -29,6 +30,25 @@ export async function getCategoryBySlug(slug: string): Promise<Category | undefi
 export async function getCategoryById(id: string): Promise<Category | undefined> {
   const rows = await sql`SELECT * FROM categories WHERE id = ${id} LIMIT 1`;
   return rows.length ? rowToCategory(rows[0]) : undefined;
+}
+
+// Pure helper mirroring pickFeaturedCities() in lib/cities.ts — see that
+// function's comment for the reasoning. Never a hardcoded list of category
+// names; falls back to the first 6 categories by their own sort_order when
+// nothing has been picked yet in Admin -> Header.
+export function pickFeaturedCategories(allCategories: Category[], featuredSlugs: string[]): Category[] {
+  if (featuredSlugs.length === 0) return allCategories.slice(0, 6);
+  const bySlug = new Map(allCategories.map((c) => [c.slug, c]));
+  return featuredSlugs.map((slug) => bySlug.get(slug)).filter((c): c is Category => Boolean(c));
+}
+
+// Categories for the public navbar's "Categories" dropdown (Admin -> Header
+// -> Top Categories). Convenience wrapper for callers that don't already
+// have the full categories list loaded — see pickFeaturedCategories() above
+// for callers that do (e.g. the public layout).
+export async function getFeaturedCategories(): Promise<Category[]> {
+  const [allCategories, featuredSlugs] = await Promise.all([getCategories(), getFeaturedCategorySlugs()]);
+  return pickFeaturedCategories(allCategories, featuredSlugs);
 }
 
 export async function createCategory(input: {
@@ -63,6 +83,16 @@ export async function updateCategory(id: string, updates: Partial<Omit<Category,
     WHERE id = ${id}
     RETURNING *
   `;
+
+  // Keep the "Top Categories" navbar selection pointed at the right category
+  // if its slug just changed — same reasoning as lib/cities.ts's updateCity.
+  if (next.slug !== current.slug) {
+    const featured = await getFeaturedCategorySlugs();
+    if (featured.includes(current.slug)) {
+      await setFeaturedCategorySlugs(featured.map((s) => (s === current.slug ? next.slug : s)));
+    }
+  }
+
   return rowToCategory(rows[0]);
 }
 
@@ -77,4 +107,13 @@ export async function deleteCategory(id: string): Promise<void> {
     throw new Error(`Can't delete this category — ${count} article(s) are still assigned to it. Reassign or remove those articles first.`);
   }
   await sql`DELETE FROM categories WHERE id = ${id}`;
+
+  // Drop this category from the "Top Categories" navbar selection too, if it
+  // was picked — same cleanup as lib/cities.ts's deleteCity.
+  const [featured, remainingCategories] = await Promise.all([getFeaturedCategorySlugs(), getCategories()]);
+  const stillValidSlugs = new Set(remainingCategories.map((c) => c.slug));
+  const cleaned = featured.filter((s) => stillValidSlugs.has(s));
+  if (cleaned.length !== featured.length) {
+    await setFeaturedCategorySlugs(cleaned);
+  }
 }

@@ -74,17 +74,15 @@ const EMPTY_COUNTRY_FORM: CountryFormState = {
 export default function CitiesManager({
   initialCities,
   initialCountries = [],
-  initialFeaturedSlugs = [],
   articleCounts,
 }: {
   initialCities: City[];
   initialCountries?: Country[];
-  initialFeaturedSlugs?: string[];
   articleCounts: Record<string, { total: number; published: number }>;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<"cities" | "countries" | "topDestinations">("cities");
+  const [activeTab, setActiveTab] = useState<"cities" | "countries">("cities");
   const [cities, setCities] = useState<City[]>(initialCities);
   const [countries, setCountries] = useState<Country[]>(initialCountries);
 
@@ -96,14 +94,6 @@ export default function CitiesManager({
   // Country modal state
   const [countryModalOpen, setCountryModalOpen] = useState(false);
   const [editingCountry, setEditingCountry] = useState<CountryFormState>(EMPTY_COUNTRY_FORM);
-
-  // Top Destinations (public navbar dropdown) state — an ordered list of
-  // city slugs. `savedFeaturedSlugs` tracks what's actually persisted so the
-  // Save button can be disabled when there's nothing new to save.
-  const [featuredSlugs, setFeaturedSlugs] = useState<string[]>(initialFeaturedSlugs);
-  const [savedFeaturedSlugs, setSavedFeaturedSlugs] = useState<string[]>(initialFeaturedSlugs);
-  const [featuredCityToAdd, setFeaturedCityToAdd] = useState("");
-  const [savingFeatured, setSavingFeatured] = useState(false);
 
   const [busy, setBusy] = useState(false);
 
@@ -341,54 +331,6 @@ export default function CitiesManager({
     }
   }
 
-  // Cities not currently selected for the public navbar dropdown — this is
-  // what fills the "Add a destination" picker below.
-  const unselectedCities = useMemo(
-    () => cities.filter((c) => !featuredSlugs.includes(c.slug)),
-    [cities, featuredSlugs]
-  );
-  const citiesBySlug = useMemo(() => new Map(cities.map((c) => [c.slug, c])), [cities]);
-  const featuredDirty = JSON.stringify(featuredSlugs) !== JSON.stringify(savedFeaturedSlugs);
-
-  function addFeaturedCity(slug: string) {
-    if (!slug || featuredSlugs.includes(slug)) return;
-    setFeaturedSlugs((prev) => [...prev, slug]);
-    setFeaturedCityToAdd("");
-  }
-
-  function removeFeaturedCity(slug: string) {
-    setFeaturedSlugs((prev) => prev.filter((s) => s !== slug));
-  }
-
-  function moveFeaturedCity(index: number, direction: -1 | 1) {
-    setFeaturedSlugs((prev) => {
-      const next = [...prev];
-      const target = index + direction;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  }
-
-  async function saveFeaturedDestinations() {
-    setSavingFeatured(true);
-    try {
-      const res = await fetch("/api/admin/featured-destinations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slugs: featuredSlugs }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save Top Destinations.");
-      setFeaturedSlugs(data.slugs);
-      setSavedFeaturedSlugs(data.slugs);
-      toast.success("Top Destinations updated — the public navbar dropdown now reflects this.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't save Top Destinations.");
-    } finally {
-      setSavingFeatured(false);
-    }
-  }
 
   const selectedCountrySlug = form.country ? slugifyCountry(form.country) : "";
   const existingCountryInfo = selectedCountrySlug ? countriesBySlug.get(selectedCountrySlug) : undefined;
@@ -419,17 +361,6 @@ export default function CitiesManager({
             }`}
           >
             Country Hubs ({distinctCountryList.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("topDestinations")}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-              activeTab === "topDestinations"
-                ? "bg-slate-900 text-white shadow-xs"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            Top Destinations ({featuredSlugs.length})
           </button>
         </div>
 
@@ -589,127 +520,6 @@ export default function CitiesManager({
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* =========================================
-          TAB 3: TOP DESTINATIONS (PUBLIC NAVBAR DROPDOWN)
-      ========================================= */}
-      {activeTab === "topDestinations" && (
-        <div className="max-w-2xl space-y-5">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Choose which destinations appear in the <strong>Destinations</strong> dropdown in the
-              public navbar, and in what order. Nothing here is hardcoded — the dropdown always
-              shows exactly this list.
-              {featuredSlugs.length === 0 && (
-                <> Nothing is selected yet, so visitors currently see the first 6 destinations by sort order.</>
-              )}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-              Selected ({featuredSlugs.length})
-            </h3>
-            {featuredSlugs.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-xs text-slate-400">
-                No destinations selected yet.
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {featuredSlugs.map((slug, index) => {
-                  const city = citiesBySlug.get(slug);
-                  return (
-                    <li
-                      key={slug}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5"
-                    >
-                      <span className="text-xs font-semibold text-slate-800">
-                        {city ? city.name : `${slug} (deleted)`}
-                        {city?.country && <span className="text-slate-400 font-normal"> · {city.country}</span>}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          disabled={index === 0}
-                          onClick={() => moveFeaturedCity(index, -1)}
-                          aria-label="Move up"
-                          className="h-7 w-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                          ▲
-                        </button>
-                        <button
-                          type="button"
-                          disabled={index === featuredSlugs.length - 1}
-                          onClick={() => moveFeaturedCity(index, 1)}
-                          aria-label="Move down"
-                          className="h-7 w-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                          ▼
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeFeaturedCity(slug)}
-                          aria-label={`Remove ${city?.name || slug}`}
-                          className="h-7 w-7 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-              Add a destination
-            </h3>
-            {unselectedCities.length === 0 ? (
-              <p className="text-xs text-slate-400">
-                {cities.length === 0
-                  ? "No destinations exist yet — add one from City Destinations first."
-                  : "Every destination is already selected."}
-              </p>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <select
-                  value={featuredCityToAdd}
-                  onChange={(e) => setFeaturedCityToAdd(e.target.value)}
-                  className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none"
-                >
-                  <option value="">Choose a destination…</option>
-                  {unselectedCities.map((c) => (
-                    <option key={c.slug} value={c.slug}>
-                      {c.name}, {c.country}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  disabled={!featuredCityToAdd}
-                  onClick={() => addFeaturedCity(featuredCityToAdd)}
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  Add
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              disabled={!featuredDirty || savingFeatured}
-              onClick={saveFeaturedDestinations}
-              className="rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {savingFeatured ? "Saving..." : "Save Top Destinations"}
-            </button>
-          </div>
         </div>
       )}
 

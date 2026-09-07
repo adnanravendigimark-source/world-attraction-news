@@ -69,6 +69,32 @@ export async function setFeaturedCitySlugs(slugs: string[]): Promise<void> {
   `;
 }
 
+// An admin-curated, ordered list of category slugs for the public navbar's
+// Categories dropdown (Admin -> Header) — the exact same pattern as
+// getFeaturedCitySlugs()/setFeaturedCitySlugs() above, just for categories
+// instead of cities. See getFeaturedCategories() in lib/categories.ts for
+// the fallback behavior when nothing has been picked yet.
+export async function getFeaturedCategorySlugs(): Promise<string[]> {
+  try {
+    const rows = await sql`SELECT featured_category_slugs FROM settings WHERE id = 1 LIMIT 1`;
+    const raw: string = rows.length ? rows[0].featured_category_slugs || "" : "";
+    return raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export async function setFeaturedCategorySlugs(slugs: string[]): Promise<void> {
+  const value = slugs.map((s) => s.trim()).filter(Boolean).join(",");
+  await sql`
+    INSERT INTO settings (id, featured_category_slugs) VALUES (1, ${value})
+    ON CONFLICT (id) DO UPDATE SET featured_category_slugs = EXCLUDED.featured_category_slugs
+  `;
+}
+
 // --- Public footer (fully admin-editable) ---------------------------------
 // Every piece of content components/PublicFooter.tsx renders — the About
 // blurb, the social icon links, every link column, and the copyright line —

@@ -1,27 +1,30 @@
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
 import { getCities, pickFeaturedCities } from "@/lib/cities";
-import { getFeaturedCitySlugs, getFooterConfig } from "@/lib/settings";
-import { getCategories } from "@/lib/categories";
+import { getCategories, pickFeaturedCategories } from "@/lib/categories";
+import { getFeaturedCitySlugs, getFeaturedCategorySlugs, getFooterConfig } from "@/lib/settings";
 import { getPublishedArticles } from "@/lib/articles";
 import { articlePath } from "@/lib/destinations";
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const [cities, featuredSlugs, categories, latestArticles, footerConfig] = await Promise.all([
-    getCities(),
-    getFeaturedCitySlugs(),
-    getCategories(),
-    getPublishedArticles({ limit: 1 }),
-    getFooterConfig(),
-  ]);
+  const [cities, featuredCitySlugs, categories, featuredCategorySlugs, latestArticles, footerConfig] =
+    await Promise.all([
+      getCities(),
+      getFeaturedCitySlugs(),
+      getCategories(),
+      getFeaturedCategorySlugs(),
+      getPublishedArticles({ limit: 1 }),
+      getFooterConfig(),
+    ]);
 
-  // Admin-curated list for the navbar "Destinations" dropdown (Admin ->
-  // Destinations -> Top Destinations) — never a hardcoded city list. Derived
-  // from the same `cities` fetch above rather than a second query.
-  const featuredCities = pickFeaturedCities(cities, featuredSlugs);
+  // Admin-curated lists for the navbar's Destinations/Categories dropdowns
+  // (Admin -> Header) — never hardcoded. Derived from the `cities`/
+  // `categories` fetches above rather than a second query each.
+  const featuredCities = pickFeaturedCities(cities, featuredCitySlugs);
+  const featuredCategories = pickFeaturedCategories(categories, featuredCategorySlugs);
 
   const featuredCityLinks = featuredCities.map((c) => ({ slug: c.slug, name: c.name, countrySlug: c.countrySlug }));
-  const categoryLinks = categories.map((c) => ({ slug: c.slug, name: c.name }));
+  const featuredCategoryLinks = featuredCategories.map((c) => ({ slug: c.slug, name: c.name }));
 
   const topArticle = latestArticles[0];
   const tickerArticle = topArticle
@@ -35,7 +38,7 @@ export default async function PublicLayout({ children }: { children: React.React
     <>
       <PublicHeader
         cities={featuredCityLinks}
-        categories={categoryLinks}
+        categories={featuredCategoryLinks}
         tickerArticle={tickerArticle}
       />
       <main>{children}</main>

@@ -514,6 +514,17 @@ async function createPhase9FooterConfigColumn() {
   console.log("Phase 9 column ready.");
 }
 
+// Phase 10: admin-curated "Top Categories" for the public navbar's
+// Categories dropdown (Admin -> Header), the same pattern as
+// featured_city_slugs/"Top Destinations" — a comma-separated, ordered list
+// of category slugs. Empty means "nothing picked yet"; see
+// getFeaturedCategories() in lib/categories.ts for the fallback behavior.
+async function createPhase10FeaturedCategoriesColumn() {
+  console.log("Ensuring Phase 10 (featured categories) column exists...");
+  await sql`ALTER TABLE settings ADD COLUMN IF NOT EXISTS featured_category_slugs TEXT NOT NULL DEFAULT ''`;
+  console.log("Phase 10 column ready.");
+}
+
 // Same slugify rule as lib/countries.ts's slugifyCountry() — duplicated
 // here in plain JS since this script isn't compiled through TypeScript and
 // can't import a .ts module. Keep the two in sync if either changes.
@@ -1013,6 +1024,7 @@ async function main() {
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
   await createPhase9FooterConfigColumn();
+  await createPhase10FeaturedCategoriesColumn();
   await addCountrySlugColumn();
   await addPerformanceIndexes();
   await backfillUserSlugs();
