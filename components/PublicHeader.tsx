@@ -106,7 +106,7 @@ export default function PublicHeader({
         <Container className="flex min-h-[76px] sm:min-h-[82px] items-center justify-between gap-4 py-3">
           {/* Logo */}
           <Link href="/" className="shrink-0 flex items-center group" onClick={() => setOpen(false)}>
-            <Logo variant="horizontal" showTagline />
+            <Logo variant="horizontal" showTagline={false} />
           </Link>
 
           {/* Desktop Navigation */}
