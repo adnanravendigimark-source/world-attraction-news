@@ -2,8 +2,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { getCityBySlug } from "@/lib/cities";
 import { cityPath } from "@/lib/destinations";
 
-// Legacy URL shim: /cities/[citySlug] moved to /destinations/[country]/[city]
-// as part of the country+city URL restructure. This route no longer renders
+// Legacy URL shim: /cities/[citySlug] moved to /[country]/[city] as part of
+// the country+city URL restructure. This route no longer renders
 // any content itself — it only looks up the city's current country and
 // permanently (308) redirects, so old links and search engine indexing
 // carry over instead of breaking.
