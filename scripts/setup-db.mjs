@@ -1054,6 +1054,18 @@ async function createIndexingSettingsTable() {
   console.log("indexing_settings table ready.");
 }
 
+// Seeding (sample cities/categories/launch articles) used to run
+// unconditionally on every invocation, gated only on "is this table
+// empty?". That's exactly the wrong trigger: if you deliberately wipe the
+// database (scripts/wipe-database.mjs) and later run this script again for
+// an unrelated schema change, every table it checks is empty again, so it
+// silently re-inserts all the original sample content back — which looks
+// indistinguishable from "old deleted data coming back". Seeding now only
+// runs when explicitly requested with --seed, so a plain
+// `node scripts/setup-db.mjs` is purely a schema migration and can never
+// reintroduce data on its own.
+const SHOULD_SEED = process.argv.includes("--seed");
+
 async function main() {
   await createTables();
   await addPhase1Columns();
@@ -1073,9 +1085,15 @@ async function main() {
   await addCountrySlugColumn();
   await addPerformanceIndexes();
   await backfillUserSlugs();
-  await seedCities();
-  await seedCategories();
-  await seedLaunchEditorsAndArticles();
+
+  if (SHOULD_SEED) {
+    await seedCities();
+    await seedCategories();
+    await seedLaunchEditorsAndArticles();
+  } else {
+    console.log("\nSkipping sample-content seeding (schema/migration only). Run with --seed to also seed sample cities/categories/launch articles into empty tables.");
+  }
+
   console.log("\nDone. Your database is ready.");
   console.log(
     "\nReminder: the Admin Panel's first login uses ADMIN_EMAIL / ADMIN_PASSWORD from your .env — see README.md. " +

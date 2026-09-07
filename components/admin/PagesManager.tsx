@@ -78,6 +78,21 @@ function ContactPageEditor({ initialConfig }: { initialConfig: ContactPageConfig
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
           />
         </div>
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            Contact Email
+          </label>
+          <input
+            type="email"
+            value={config.email}
+            onChange={(e) => setConfig({ ...config, email: e.target.value })}
+            placeholder="hello@yoursite.com"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+          />
+          <p className="mt-1 text-[11px] text-slate-400">
+            Shown on this page and reused on the About page&apos;s mailto links — one address, kept in sync.
+          </p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -100,11 +115,6 @@ function ContactPageEditor({ initialConfig }: { initialConfig: ContactPageConfig
             />
           </div>
         </div>
-        <p className="text-[11px] text-slate-400">
-          The email address itself is a sitewide value (used for this and every other mailto link on
-          the site) and isn&apos;t editable from an admin page yet — ask your developer to update
-          CONTACT_EMAIL in lib/site.ts.
-        </p>
       </section>
 
       <SaveBar dirty={dirty} saving={saving} onSave={handleSave} label="Save Contact Page" />

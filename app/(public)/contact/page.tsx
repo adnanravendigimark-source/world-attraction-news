@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Container from "@/components/Container";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { buildMetadata } from "@/lib/seo";
-import { SITE_NAME, CONTACT_EMAIL } from "@/lib/site";
+import { SITE_NAME } from "@/lib/site";
 import { getContactPageConfig } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -41,10 +41,10 @@ export default async function ContactPage() {
           {config.emailCardLabel}
         </p>
         <a
-          href={`mailto:${CONTACT_EMAIL}`}
+          href={`mailto:${config.email}`}
           className="mt-2 inline-block text-xl sm:text-2xl font-black text-[#DC2626] hover:underline break-all"
         >
-          {CONTACT_EMAIL}
+          {config.email}
         </a>
         <p className="mt-4 text-xs text-slate-500">{config.replyNote}</p>
       </div>

@@ -3,10 +3,10 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
 import { getCities } from "@/lib/cities";
-import { getAboutPageConfig } from "@/lib/settings";
+import { getAboutPageConfig, getContactPageConfig } from "@/lib/settings";
 import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
 import { cityPath } from "@/lib/destinations";
-import { SITE_NAME, SITE_TAGLINE, CONTACT_EMAIL } from "@/lib/site";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 // Pure read (just the city list for "Active Destination Bureaus") — real ISR.
 //
@@ -31,7 +31,12 @@ const breadcrumbs = [
 ];
 
 export default async function AboutPage() {
-  const [cities, config] = await Promise.all([getCachedCities(), getAboutPageConfig()]);
+  const [cities, config, contactConfig] = await Promise.all([
+    getCachedCities(),
+    getAboutPageConfig(),
+    getContactPageConfig(),
+  ]);
+  const contactEmail = contactConfig.email;
 
   return (
     <div className="bg-white min-h-screen text-[#0B1527] pb-16">
@@ -79,7 +84,7 @@ export default async function AboutPage() {
               <p className="mt-1 text-[11px] text-slate-500 leading-normal">{config.connectBoxDescription}</p>
               <div className="mt-2.5">
                 <a
-                  href={`mailto:${CONTACT_EMAIL}`}
+                  href={`mailto:${contactEmail}`}
                   className="inline-flex items-center gap-1.5 rounded-md bg-[#DC2626] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
                 >
                   <span>{config.connectBoxButtonText}</span>
@@ -177,10 +182,10 @@ export default async function AboutPage() {
                 </h3>
                 <p className="text-xs text-slate-500 leading-relaxed mb-3">{config.contactBoxDescription}</p>
                 <a
-                  href={`mailto:${CONTACT_EMAIL}`}
+                  href={`mailto:${contactEmail}`}
                   className="text-xs font-bold text-[#DC2626] hover:underline break-all"
                 >
-                  {CONTACT_EMAIL}
+                  {contactEmail}
                 </a>
               </div>
             </div>

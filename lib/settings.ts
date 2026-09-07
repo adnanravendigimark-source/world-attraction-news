@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { SITE_NAME, SITE_TAGLINE } from "./site";
+import { SITE_NAME, SITE_TAGLINE, CONTACT_EMAIL } from "./site";
 
 // --- Owner account password override -------------------------------------
 // The .env ADMIN_EMAIL/ADMIN_PASSWORD "owner" login isn't a row in the
@@ -225,13 +225,17 @@ export async function setFooterConfig(config: FooterConfig): Promise<FooterConfi
 // message) that wrote to contact_messages and emailed a notification — no
 // admin page ever read those messages back, so it was a write-only pipe
 // nobody could see. Replaced with a simple "email us directly" card whose
-// copy lives here. The email address itself is intentionally NOT part of
-// this config — it stays sourced from lib/site.ts's CONTACT_EMAIL (same
-// reasoning as the footer: one sitewide value, not a second editable copy).
+// copy lives here. `email` is the one sitewide contact address, editable
+// here from Admin -> Pages -> Contact — the About page reads this same
+// value (see getAboutPageContactEmail below) rather than having its own
+// separate editable copy, so there's still only one address to keep
+// current. CONTACT_EMAIL from lib/site.ts is now only the fallback default
+// for brand-new installs, not a hardcoded value pages render directly.
 export interface ContactPageConfig {
   badgeText: string;
   heading: string;
   subtitle: string;
+  email: string;
   emailCardLabel: string;
   replyNote: string;
 }
@@ -240,6 +244,7 @@ export const DEFAULT_CONTACT_PAGE_CONFIG: ContactPageConfig = {
   badgeText: "CONTACT",
   heading: "Get in Touch",
   subtitle: "Questions about a story, a correction request, or a general inquiry — reach out directly.",
+  email: CONTACT_EMAIL,
   emailCardLabel: "EMAIL US DIRECTLY",
   replyNote: "We typically reply within 1–2 business days.",
 };
@@ -251,6 +256,7 @@ function normalizeContactPageConfig(raw: any): ContactPageConfig {
     badgeText: str(raw.badgeText, DEFAULT_CONTACT_PAGE_CONFIG.badgeText),
     heading: str(raw.heading, DEFAULT_CONTACT_PAGE_CONFIG.heading),
     subtitle: str(raw.subtitle, DEFAULT_CONTACT_PAGE_CONFIG.subtitle),
+    email: str(raw.email, DEFAULT_CONTACT_PAGE_CONFIG.email),
     emailCardLabel: str(raw.emailCardLabel, DEFAULT_CONTACT_PAGE_CONFIG.emailCardLabel),
     replyNote: str(raw.replyNote, DEFAULT_CONTACT_PAGE_CONFIG.replyNote),
   };
