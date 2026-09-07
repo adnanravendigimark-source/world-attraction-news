@@ -9,7 +9,6 @@ import type { ArticleRevision } from "@/lib/revisions";
 import { articlePath } from "@/lib/destinations";
 import TiptapArticleEditor from "@/components/dashboard/TiptapArticleEditor";
 import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
-import CropModal from "@/components/dashboard/CropModal";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
@@ -102,7 +101,6 @@ export default function ArticleReviewPanel({
   const toast = useToast();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pendingCropFile, setPendingCropFile] = useState<{ file: File; url: string } | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const [busy, setBusy] = useState(false);
@@ -152,9 +150,13 @@ export default function ArticleReviewPanel({
     }
   }
 
-  // --- Image Upload & Crop Handlers ---
+  // --- Image Upload Handler ---
+  // Uploads the file exactly as chosen — no forced crop — so the cover
+  // image keeps its real aspect ratio instead of being cut down to 21:9.
+  // Matches the same change on the contributor side (ArticleEditor.tsx's
+  // ImageUploadField, called here with no aspectRatio).
   function handleFileSelected(file: File) {
-    setPendingCropFile({ file, url: URL.createObjectURL(file) });
+    uploadImageBlob(file);
   }
 
   async function uploadImageBlob(blob: Blob) {
@@ -1331,23 +1333,6 @@ export default function ArticleReviewPanel({
           </div>
         </div>
       </div>
-
-      {/* Image Crop Modal */}
-      {pendingCropFile && (
-        <CropModal
-          src={pendingCropFile.url}
-          aspectRatio={21 / 9}
-          onConfirm={(blob) => {
-            URL.revokeObjectURL(pendingCropFile.url);
-            setPendingCropFile(null);
-            uploadImageBlob(blob);
-          }}
-          onCancel={() => {
-            URL.revokeObjectURL(pendingCropFile.url);
-            setPendingCropFile(null);
-          }}
-        />
-      )}
 
       {/* Article Preview Modal */}
       {previewOpen && (

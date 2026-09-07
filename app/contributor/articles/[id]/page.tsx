@@ -147,11 +147,13 @@ export default async function ArticleDetailPage({ params }: { params: { id: stri
       {/* Cover Image & Content */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-10 shadow-2xs space-y-6">
         {article.image && (
+          // Natural aspect ratio, matching the real public article page and
+          // the preview modal — no max-height/object-cover crop here either.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={article.image}
             alt={article.imageAlt || "Cover"}
-            className="w-full max-h-[28rem] rounded-xl object-cover"
+            className="w-full h-auto rounded-xl"
           />
         )}
         {/* `.rich-content .article-body` — the same real typography this

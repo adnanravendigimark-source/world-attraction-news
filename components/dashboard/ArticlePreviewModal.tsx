@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-
 // A quick "how will this actually look?" check before submitting — renders
 // the article body with `.article-body` (app/globals.css), the app's own
 // real typography/table/figure CSS (the same rules the FigureImage node's
@@ -64,9 +62,13 @@ export default function ArticlePreviewModal({
           </div>
 
           {image && (
-            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-              <Image src={image} alt={imageAlt || title} fill className="object-cover" />
-            </div>
+            // Plain <img> at its natural aspect ratio, matching the real
+            // public article page (ArticleDetailClient.tsx) — the cover
+            // image is no longer cropped into a fixed box there, so this
+            // preview would otherwise mislead contributors into thinking
+            // their upload gets cropped when it won't.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={image} alt={imageAlt || title} className="w-full h-auto rounded-xl border border-slate-200" />
           )}
 
           {contentHtml && contentHtml !== "<p></p>" ? (

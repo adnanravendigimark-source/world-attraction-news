@@ -534,11 +534,14 @@ export default function ArticleEditor({
               </Field>
             </div>
 
+            {/* No aspectRatio — ImageUploadField skips the forced-crop step
+                entirely when it's unset (see its own handleFileSelected) and
+                uploads the file exactly as chosen, so the cover image keeps
+                its real aspect ratio instead of being cropped to 21:9. */}
             <ImageUploadField
               label="Hero / Cover image"
               value={form.image}
               onChange={(url) => update("image", url)}
-              aspectRatio={21 / 9}
             />
             <Field label="Image alt text" hint="Describe the photo for screen readers and search engines.">
               <input

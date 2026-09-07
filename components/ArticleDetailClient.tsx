@@ -212,24 +212,26 @@ export default function ArticleDetailClient({
               </div>
             </div>
 
-            {/* Featured Image */}
-            <div className="mt-6">
-              <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden bg-slate-900 shadow-sm">
-                {article.image && (
-                  <Image
-                    src={article.image}
-                    alt={article.imageAlt || article.title}
-                    fill
-                    priority
-                    sizes="(min-width: 1024px) 65vw, 100vw"
-                    className="object-cover"
-                  />
-                )}
+            {/* Featured Image — shown at its real uploaded aspect ratio, not
+                cropped into a fixed 16:9 box. A plain <img> (not next/image's
+                `fill`) is used deliberately: `fill` requires a box with a
+                predetermined aspect ratio to size against, which is exactly
+                the forced crop this is avoiding — we don't store the
+                image's real width/height to size a non-fill next/image
+                against instead. */}
+            {article.image && (
+              <div className="mt-6">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={article.image}
+                  alt={article.imageAlt || article.title}
+                  className="w-full h-auto rounded-2xl shadow-sm"
+                />
               </div>
-              {article.imageAlt && (
-                <p className="mt-2 text-[11px] text-slate-400 italic text-center">{article.imageAlt}</p>
-              )}
-            </div>
+            )}
+            {article.image && article.imageAlt && (
+              <p className="mt-2 text-[11px] text-slate-400 italic text-center">{article.imageAlt}</p>
+            )}
 
             {/* Article Body Content */}
             <div className="mt-8 article-content text-slate-800 text-sm sm:text-[15px] leading-relaxed">
