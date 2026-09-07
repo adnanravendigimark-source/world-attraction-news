@@ -219,7 +219,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         { score, scoreChanged, feedbackChanged }
       );
 
-      if (author) {
+      // Only notify here when the article has already been through its
+      // initial approve/reject/publish decision — i.e. this save is a
+      // genuine after-the-fact correction. While an article is still
+      // pending/under review/changes-requested/draft, saving score and
+      // feedback here is just staging data ahead of that decision: the
+      // "review" (approve/reject) or "publish" action fired right after
+      // already sends one complete email with the score and feedback
+      // embedded (see notifyArticleApproved / notifyArticlePublished
+      // below), so emailing here too would mean the contributor gets 2-3
+      // separate emails for what is, from their side, a single event.
+      const alreadyDecided = ["approved", "rejected", "published", "scheduled", "unpublished"].includes(before.status);
+      if (author && alreadyDecided) {
         if (scoreChanged && score !== null) {
           await notifyArticleScored({ id: author.id, email: author.email }, { id: article.id, title: article.title }, score);
         }
