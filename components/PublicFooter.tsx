@@ -13,11 +13,11 @@ export default function PublicFooter({
   return (
     <footer className="bg-[#071120] text-slate-300 pt-14 pb-8 border-t border-slate-800">
       <Container>
-        <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 pb-12 border-b border-slate-800/80">
+        <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 pb-12 border-b border-slate-800/80">
           {/* Col 1: Logo & About */}
-          <div className="lg:col-span-1">
+          <div className="sm:col-span-2 lg:col-span-2">
             <Link href="/" className="inline-block">
-              <Logo variant="horizontal" theme="light" showTagline />
+              <Logo variant="horizontal" theme="light" showTagline={false} />
             </Link>
             <p className="mt-4 text-xs leading-relaxed text-slate-400 max-w-xs">
               Your trusted source for the latest news and updates from the world&apos;s top attractions and destinations.
@@ -61,17 +61,7 @@ export default function PublicFooter({
             <ul className="mt-4 space-y-2.5 text-xs">
               <li>
                 <Link href="/write-for-us" className="text-slate-400 hover:text-white transition-colors">
-                  Submit News
-                </Link>
-              </li>
-              <li>
-                <Link href="/write-for-us" className="text-slate-400 hover:text-white transition-colors">
                   Write For Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-slate-400 hover:text-white transition-colors">
-                  Advertise
                 </Link>
               </li>
               <li>
@@ -82,6 +72,11 @@ export default function PublicFooter({
               <li>
                 <Link href="/privacy-policy" className="text-slate-400 hover:text-white transition-colors">
                   Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms-and-conditions" className="text-slate-400 hover:text-white transition-colors">
+                  Terms &amp; Conditions
                 </Link>
               </li>
             </ul>
