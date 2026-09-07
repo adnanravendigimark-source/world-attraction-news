@@ -525,6 +525,18 @@ async function createPhase10FeaturedCategoriesColumn() {
   console.log("Phase 10 column ready.");
 }
 
+// Phase 11: makes the Contact and About pages admin-editable (Admin ->
+// Pages), the same JSONB-blob-per-page pattern as Phase 9's footer_config.
+// NULL means "no override saved yet" — lib/settings.ts's
+// getContactPageConfig()/getAboutPageConfig() fall back to the same copy
+// those pages used to have hardcoded.
+async function createPhase11PageConfigColumns() {
+  console.log("Ensuring Phase 11 (page config) columns exist...");
+  await sql`ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_page_config JSONB`;
+  await sql`ALTER TABLE settings ADD COLUMN IF NOT EXISTS about_page_config JSONB`;
+  console.log("Phase 11 columns ready.");
+}
+
 // Same slugify rule as lib/countries.ts's slugifyCountry() — duplicated
 // here in plain JS since this script isn't compiled through TypeScript and
 // can't import a .ts module. Keep the two in sync if either changes.
@@ -1025,6 +1037,7 @@ async function main() {
   await createPhase8OwnerPasswordColumn();
   await createPhase9FooterConfigColumn();
   await createPhase10FeaturedCategoriesColumn();
+  await createPhase11PageConfigColumns();
   await addCountrySlugColumn();
   await addPerformanceIndexes();
   await backfillUserSlugs();

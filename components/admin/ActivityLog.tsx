@@ -30,6 +30,8 @@ const ACTION_LABELS: Record<string, string> = {
   settings_updated: "Updated site settings",
   admin_password_changed: "Changed admin password",
   footer_updated: "Updated public footer",
+  contact_page_updated: "Updated Contact page",
+  about_page_updated: "Updated About page",
 };
 
 function actionLabel(action: string) {

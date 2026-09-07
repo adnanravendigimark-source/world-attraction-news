@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import { SITE_NAME, SITE_TAGLINE } from "./site";
 
 // --- Owner account password override -------------------------------------
 // The .env ADMIN_EMAIL/ADMIN_PASSWORD "owner" login isn't a row in the
@@ -215,6 +216,174 @@ export async function setFooterConfig(config: FooterConfig): Promise<FooterConfi
   await sql`
     INSERT INTO settings (id, footer_config) VALUES (1, ${JSON.stringify(normalized)})
     ON CONFLICT (id) DO UPDATE SET footer_config = EXCLUDED.footer_config
+  `;
+  return normalized;
+}
+
+// --- Contact page (fully admin-editable) ----------------------------------
+// app/(public)/contact/page.tsx used to be a form (name/email/subject/
+// message) that wrote to contact_messages and emailed a notification — no
+// admin page ever read those messages back, so it was a write-only pipe
+// nobody could see. Replaced with a simple "email us directly" card whose
+// copy lives here. The email address itself is intentionally NOT part of
+// this config — it stays sourced from lib/site.ts's CONTACT_EMAIL (same
+// reasoning as the footer: one sitewide value, not a second editable copy).
+export interface ContactPageConfig {
+  badgeText: string;
+  heading: string;
+  subtitle: string;
+  emailCardLabel: string;
+  replyNote: string;
+}
+
+export const DEFAULT_CONTACT_PAGE_CONFIG: ContactPageConfig = {
+  badgeText: "CONTACT",
+  heading: "Get in Touch",
+  subtitle: "Questions about a story, a correction request, or a general inquiry — reach out directly.",
+  emailCardLabel: "EMAIL US DIRECTLY",
+  replyNote: "We typically reply within 1–2 business days.",
+};
+
+function normalizeContactPageConfig(raw: any): ContactPageConfig {
+  if (!raw || typeof raw !== "object") return DEFAULT_CONTACT_PAGE_CONFIG;
+  const str = (v: any, fallback: string) => (typeof v === "string" && v.trim() ? v : fallback);
+  return {
+    badgeText: str(raw.badgeText, DEFAULT_CONTACT_PAGE_CONFIG.badgeText),
+    heading: str(raw.heading, DEFAULT_CONTACT_PAGE_CONFIG.heading),
+    subtitle: str(raw.subtitle, DEFAULT_CONTACT_PAGE_CONFIG.subtitle),
+    emailCardLabel: str(raw.emailCardLabel, DEFAULT_CONTACT_PAGE_CONFIG.emailCardLabel),
+    replyNote: str(raw.replyNote, DEFAULT_CONTACT_PAGE_CONFIG.replyNote),
+  };
+}
+
+export async function getContactPageConfig(): Promise<ContactPageConfig> {
+  try {
+    const rows = await sql`SELECT contact_page_config FROM settings WHERE id = 1 LIMIT 1`;
+    const raw = rows.length ? rows[0].contact_page_config : null;
+    if (!raw) return DEFAULT_CONTACT_PAGE_CONFIG;
+    return normalizeContactPageConfig(raw);
+  } catch {
+    return DEFAULT_CONTACT_PAGE_CONFIG;
+  }
+}
+
+export async function setContactPageConfig(config: ContactPageConfig): Promise<ContactPageConfig> {
+  const normalized = normalizeContactPageConfig(config);
+  await sql`
+    INSERT INTO settings (id, contact_page_config) VALUES (1, ${JSON.stringify(normalized)})
+    ON CONFLICT (id) DO UPDATE SET contact_page_config = EXCLUDED.contact_page_config
+  `;
+  return normalized;
+}
+
+// --- About page (fully admin-editable) ------------------------------------
+// Two things on this page stay genuinely live/computed rather than becoming
+// admin text, because turning them into static copy would let them go
+// stale the moment reality changes: the "Global City Bureaus" stat (always
+// cities.length) and the "Active Destination Bureaus" city chip list
+// (always the real cities). Everything else — hero copy, the other 3 stat
+// cards, the numbered pillar sections, and both sidebar boxes — is here.
+export interface AboutPageStat {
+  value: string;
+  label: string;
+}
+
+export interface AboutPagePillar {
+  title: string;
+  body: string;
+}
+
+export interface AboutPageConfig {
+  badgeText: string;
+  heading: string;
+  subtitle: string;
+  connectBoxTitle: string;
+  connectBoxDescription: string;
+  connectBoxButtonText: string;
+  stats: AboutPageStat[];
+  pillars: AboutPagePillar[];
+  writeForUsBoxTitle: string;
+  writeForUsBoxDescription: string;
+  contactBoxTitle: string;
+  contactBoxDescription: string;
+}
+
+export const DEFAULT_ABOUT_PAGE_CONFIG: AboutPageConfig = {
+  badgeText: `ABOUT ${SITE_NAME}`.toUpperCase(),
+  heading: "About Our Newsroom",
+  subtitle: `${SITE_TAGLINE}. Delivering verified reporting, opening dates, and intelligence on theme parks and cultural landmarks globally.`,
+  connectBoxTitle: "Connect With Us",
+  connectBoxDescription: "Press inquiries, bureau partnerships, or news tips: reach out to our editorial desk.",
+  connectBoxButtonText: "Email Editorial Desk",
+  stats: [
+    { value: "100%", label: "Independent Coverage" },
+    { value: "24/7", label: "Continuous Wire" },
+    { value: "0", label: "Sponsored Reviews" },
+  ],
+  pillars: [
+    {
+      title: "Our Philosophy & Mission",
+      body: `${SITE_NAME} was established to solve a critical issue in modern travel journalism: automated AI aggregation and undisclosed promotional listicles. We run an independent global newsroom dedicated exclusively to verified reporting on attraction expansions, opening calendars, ticket pricing, and visitor intelligence.`,
+    },
+    {
+      title: "Global Bureaus & Local Correspondents",
+      body: "Rather than reporting remotely from a single desk, our dispatches are anchored in local tourist hubs. Each destination bureau provides first-hand coverage authored by correspondents living and researching in those regions.",
+    },
+    {
+      title: "Strict Editorial Independence",
+      body: "We do not accept paid reviews, undisclosed press trips, or sponsored placements. Every dispatch published undergoes rigorous editorial fact-checking, photo verification, and scoring before syndication.",
+    },
+  ],
+  writeForUsBoxTitle: "Write for Attraction News",
+  writeForUsBoxDescription:
+    "Are you an attraction researcher, local correspondent, or travel journalist? Join our global contributor network.",
+  contactBoxTitle: "Editorial Desk Contact",
+  contactBoxDescription: "For press kits, corrections, or scoops:",
+};
+
+function normalizeAboutPageConfig(raw: any): AboutPageConfig {
+  if (!raw || typeof raw !== "object") return DEFAULT_ABOUT_PAGE_CONFIG;
+  const str = (v: any, fallback: string) => (typeof v === "string" && v.trim() ? v : fallback);
+  return {
+    badgeText: str(raw.badgeText, DEFAULT_ABOUT_PAGE_CONFIG.badgeText),
+    heading: str(raw.heading, DEFAULT_ABOUT_PAGE_CONFIG.heading),
+    subtitle: str(raw.subtitle, DEFAULT_ABOUT_PAGE_CONFIG.subtitle),
+    connectBoxTitle: str(raw.connectBoxTitle, DEFAULT_ABOUT_PAGE_CONFIG.connectBoxTitle),
+    connectBoxDescription: str(raw.connectBoxDescription, DEFAULT_ABOUT_PAGE_CONFIG.connectBoxDescription),
+    connectBoxButtonText: str(raw.connectBoxButtonText, DEFAULT_ABOUT_PAGE_CONFIG.connectBoxButtonText),
+    stats: Array.isArray(raw.stats)
+      ? raw.stats
+          .filter((s: any) => s && typeof s.value === "string" && typeof s.label === "string")
+          .map((s: any) => ({ value: s.value, label: s.label }))
+      : DEFAULT_ABOUT_PAGE_CONFIG.stats,
+    pillars: Array.isArray(raw.pillars)
+      ? raw.pillars
+          .filter((p: any) => p && typeof p.title === "string" && typeof p.body === "string")
+          .map((p: any) => ({ title: p.title, body: p.body }))
+      : DEFAULT_ABOUT_PAGE_CONFIG.pillars,
+    writeForUsBoxTitle: str(raw.writeForUsBoxTitle, DEFAULT_ABOUT_PAGE_CONFIG.writeForUsBoxTitle),
+    writeForUsBoxDescription: str(raw.writeForUsBoxDescription, DEFAULT_ABOUT_PAGE_CONFIG.writeForUsBoxDescription),
+    contactBoxTitle: str(raw.contactBoxTitle, DEFAULT_ABOUT_PAGE_CONFIG.contactBoxTitle),
+    contactBoxDescription: str(raw.contactBoxDescription, DEFAULT_ABOUT_PAGE_CONFIG.contactBoxDescription),
+  };
+}
+
+export async function getAboutPageConfig(): Promise<AboutPageConfig> {
+  try {
+    const rows = await sql`SELECT about_page_config FROM settings WHERE id = 1 LIMIT 1`;
+    const raw = rows.length ? rows[0].about_page_config : null;
+    if (!raw) return DEFAULT_ABOUT_PAGE_CONFIG;
+    return normalizeAboutPageConfig(raw);
+  } catch {
+    return DEFAULT_ABOUT_PAGE_CONFIG;
+  }
+}
+
+export async function setAboutPageConfig(config: AboutPageConfig): Promise<AboutPageConfig> {
+  const normalized = normalizeAboutPageConfig(config);
+  await sql`
+    INSERT INTO settings (id, about_page_config) VALUES (1, ${JSON.stringify(normalized)})
+    ON CONFLICT (id) DO UPDATE SET about_page_config = EXCLUDED.about_page_config
   `;
   return normalized;
 }
