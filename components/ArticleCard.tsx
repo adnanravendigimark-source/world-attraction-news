@@ -20,8 +20,8 @@ export default function ArticleCard({
   showExcerpt?: boolean;
 }) {
   // Real article URL — /latest-news is the listing page, not an article
-  // namespace. The route (see the Destinations country+city URL restructure)
-  // is /destinations/[countrySlug]/[citySlug]/[slug].
+  // namespace. The route (see lib/destinations.ts) is
+  // /[countrySlug]/[citySlug]/[slug].
   const href = articlePath(article.countrySlug, article.citySlug, article.slug);
 
   // Compact wire-feed variant (used in top stories lists, sidebar, trending)

@@ -242,7 +242,7 @@ export async function getPublishedArticleByAnySlug(
 
 // Real page-view counter — called exactly once per real render of the
 // public article page (see
-// app/(public)/destinations/[countrySlug]/[citySlug]/[articleSlug]/page.tsx).
+// app/(public)/[countrySlug]/[citySlug]/[articleSlug]/page.tsx).
 // Never seeded, never fabricated. Best-effort: a failure here must never
 // break the article page itself.
 //

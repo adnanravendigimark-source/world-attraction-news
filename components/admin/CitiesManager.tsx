@@ -678,7 +678,7 @@ export default function CitiesManager({
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-[#DC2626] focus:outline-none"
                 />
                 <p className="mt-1 text-[10px] text-slate-400">
-                  Public URL: /destinations/{form.country ? slugifyCountry(form.country) : "country"}/{form.slug || "slug"}
+                  Public URL: /{form.country ? slugifyCountry(form.country) : "country"}/{form.slug || "slug"}
                 </p>
               </div>
 
@@ -717,7 +717,7 @@ export default function CitiesManager({
                         <p className="text-[10px] text-slate-500">
                           {existingCountryInfo?.intro
                             ? `Loaded existing summary for ${form.country}. You can review or edit it below.`
-                            : `Add or edit the country overview for ${form.country} to display on the /destinations/${slugifyCountry(form.country)} hub.`}
+                            : `Add or edit the country overview for ${form.country} to display on the /${slugifyCountry(form.country)} hub.`}
                         </p>
                       </div>
                     </div>
@@ -870,7 +870,7 @@ export default function CitiesManager({
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
                 />
                 <p className="mt-1 text-[10px] text-slate-500">
-                  This summary is displayed at the top of the /destinations/{editingCountry.slug} page.
+                  This summary is displayed at the top of the /{editingCountry.slug} page.
                 </p>
               </div>
 

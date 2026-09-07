@@ -42,7 +42,7 @@ export default function PublicHeader({
 
   const liveTicker = tickerArticle || {
     title: "Universal Epic Universe Opens: Grand Tour of Celestial Park, Dark Universe & Nintendo World",
-    href: "/destinations/united-states/orlando/universal-epic-universe-grand-opening-preview",
+    href: "/united-states/orlando/universal-epic-universe-grand-opening-preview",
   };
 
   useEffect(() => {

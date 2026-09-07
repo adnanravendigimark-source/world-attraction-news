@@ -2,7 +2,7 @@ import { sql } from "./db";
 
 // City -> Attraction -> Article. An attraction always belongs to exactly
 // one city; its slug is unique within that city (not site-wide), so the
-// public URL is /destinations/[countrySlug]/[citySlug]/attractions/[attractionSlug].
+// public URL is /[countrySlug]/[citySlug]/attractions/[attractionSlug].
 export interface Attraction {
   id: string;
   citySlug: string;

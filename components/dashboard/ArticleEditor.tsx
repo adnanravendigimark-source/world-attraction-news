@@ -8,6 +8,7 @@ import ArticlePreviewModal from "./ArticlePreviewModal";
 import CityAutocomplete, { type CitySelection } from "@/components/CityAutocomplete";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
+import { slugifyCountry } from "@/lib/countries";
 
 // Sentinel value for the Destination <select>'s "Other" option — never a
 // real city id (those are UUIDs from the database), so it can't collide
@@ -195,7 +196,14 @@ export default function ArticleEditor({
 
   const wordCount = useMemo(() => stripHtml(form.contentHtml).split(/\s+/).filter(Boolean).length, [form.contentHtml]);
   const autoExcerpt = useMemo(() => excerptFromContent(form.contentHtml), [form.contentHtml]);
-  const previewCityName = useMemo(() => cities.find((c) => c.id === form.cityId)?.name || "", [cities, form.cityId]);
+  const previewCity = useMemo(() => cities.find((c) => c.id === form.cityId), [cities, form.cityId]);
+  const previewCityName = previewCity?.name || "";
+  // Real articlePath() needs the city's actual countrySlug from the DB, which
+  // this form doesn't have (cities here only carry the display name) — this
+  // is only cosmetic (the Google snippet preview below), so slugifying the
+  // country display name is a fine approximation; the real saved article
+  // always resolves its link through lib/destinations.ts on the server.
+  const previewCountrySlug = previewCity?.country ? slugifyCountry(previewCity.country) : "";
   const previewCategoryName = useMemo(
     () => categories.find((c) => c.id === form.categoryId)?.name || "",
     [categories, form.categoryId]
@@ -589,7 +597,7 @@ export default function ArticleEditor({
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-medium text-slate-800 leading-none">World Attraction News</p>
                   <p className="text-[10px] text-slate-500 truncate leading-none mt-0.5">
-                    https://worldattractionnews.com/destinations/{previewCityName ? slugify(previewCityName) : "city"}/{form.slug || "article-url"}
+                    https://worldattractionnews.com/{previewCountrySlug || "country"}/{previewCityName ? slugify(previewCityName) : "city"}/{form.slug || "article-url"}
                   </p>
                 </div>
               </div>

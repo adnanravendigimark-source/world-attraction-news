@@ -14,7 +14,7 @@ export interface Country {
 }
 
 // Turns a canonical country display name (e.g. "United States") into the stable
-// URL segment used across the site's /destinations/[countrySlug]/... routes.
+// URL segment used across the site's /[countrySlug]/... routes (see lib/destinations.ts).
 export function slugifyCountry(name: string): string {
   return name
     .toLowerCase()

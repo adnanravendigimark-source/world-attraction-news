@@ -12,7 +12,7 @@ Built as a fresh Next.js 14 App Router project with its own theme, brand, and pa
 
 - Every article belongs to exactly one city (`articles.city_id`), chosen by the contributor from a dropdown of real cities when they submit or edit it — validated server-side against the `cities` table on every save.
 - Contributors are not tied to a single city — one approved contributor can write about any city on the site, picking a different one per article if they like.
-- City pages (`/cities/[slug]`) only show published articles for that city; the query is filtered server-side, so there's no way for an article to leak into the wrong city's page. Article URLs are `/cities/[citySlug]/[articleSlug]`.
+- City pages (`/[countrySlug]/[citySlug]`) only show published articles for that city; the query is filtered server-side, so there's no way for an article to leak into the wrong city's page. Article URLs are `/[countrySlug]/[citySlug]/[articleSlug]`; the country hub itself is `/[countrySlug]`. `/destinations` is the browse/index page only — it's never a prefix for an individual city, country, or article URL. `lib/destinations.ts` is the single source of truth for all of these paths; old `/cities/*` and `/destinations/[country]/[city]/...` links still resolve via permanent-redirect shims.
 - Admins manage the list of available cities from **Admin → Cities**.
 
 ## How the approval workflow works

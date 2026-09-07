@@ -50,9 +50,9 @@ export async function getCityById(id: string): Promise<City | undefined> {
   return rows.length ? rowToCity(rows[0]) : undefined;
 }
 
-// Every city belonging to a given /destinations/[countrySlug] country hub
-// page, real article counts included so the hub can show "X dispatches"
-// per city without a second round trip per card.
+// Every city belonging to a given /[countrySlug] country hub page, real
+// article counts included so the hub can show "X dispatches" per city
+// without a second round trip per card.
 export async function getCitiesByCountrySlug(countrySlug: string): Promise<(City & { articleCount: number })[]> {
   try {
     const rows = await sql`

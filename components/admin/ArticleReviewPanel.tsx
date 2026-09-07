@@ -1226,7 +1226,7 @@ export default function ArticleReviewPanel({
                 type="text"
                 value={edit.canonicalUrl}
                 onChange={(e) => updateEdit("canonicalUrl", e.target.value)}
-                placeholder="https://www.worldattractionnews.com/destinations/..."
+                placeholder="https://www.worldattractionnews.com/country/city/article-slug"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-mono text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none shadow-2xs"
               />
               <p className="mt-1 text-[11px] text-slate-500">

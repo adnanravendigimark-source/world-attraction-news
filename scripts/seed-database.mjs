@@ -1766,6 +1766,11 @@ async function seed() {
       console.warn(`⚠️ Warning: Article ${art.slug} has ${wordCount} words (under 600 words)`);
     }
 
+    // canonical_url (below, passed as "") is a deliberate admin override for
+    // syndicated/duplicate content (see lib/seo.ts's canonicalOverride) — it's
+    // never meant to just restate the article's own natural URL, so seed data
+    // leaves it empty ("no override set") rather than hardcoding a URL that
+    // would also need updating every time the site's URL structure changes.
     const artRows = await sql`
       INSERT INTO articles (
         slug,
@@ -1818,7 +1823,7 @@ async function seed() {
         ${art.metaDescription},
         ${art.focusKeyword},
         ${art.tags},
-        ${`https://www.worldattractionnews.com/destinations/${art.citySlug}/${art.slug}`},
+        ${""},
         ${wordCount},
         ${readingTime},
         98.5,
