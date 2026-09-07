@@ -501,6 +501,19 @@ async function createPhase8OwnerPasswordColumn() {
   console.log("Phase 8 column ready.");
 }
 
+// Phase 9: makes every part of the public footer admin-editable (About text,
+// social links, the link columns, and the copyright line) instead of it
+// being hardcoded in components/PublicFooter.tsx. NULL means "no override
+// saved yet" — lib/settings.ts's getFooterConfig() falls back to the same
+// defaults the footer used to have hardcoded, so an un-migrated or
+// freshly-created site still renders a complete footer. See Admin ->
+// Footer (components/admin/FooterManager.tsx).
+async function createPhase9FooterConfigColumn() {
+  console.log("Ensuring Phase 9 (footer config) column exists...");
+  await sql`ALTER TABLE settings ADD COLUMN IF NOT EXISTS footer_config JSONB`;
+  console.log("Phase 9 column ready.");
+}
+
 // Same slugify rule as lib/countries.ts's slugifyCountry() — duplicated
 // here in plain JS since this script isn't compiled through TypeScript and
 // can't import a .ts module. Keep the two in sync if either changes.
@@ -999,6 +1012,7 @@ async function main() {
   await createIndexingSettingsTable();
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
+  await createPhase9FooterConfigColumn();
   await addCountrySlugColumn();
   await addPerformanceIndexes();
   await backfillUserSlugs();

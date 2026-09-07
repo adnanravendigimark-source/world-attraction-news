@@ -68,3 +68,127 @@ export async function setFeaturedCitySlugs(slugs: string[]): Promise<void> {
     ON CONFLICT (id) DO UPDATE SET featured_city_slugs = EXCLUDED.featured_city_slugs
   `;
 }
+
+// --- Public footer (fully admin-editable) ---------------------------------
+// Every piece of content components/PublicFooter.tsx renders — the About
+// blurb, the social icon links, every link column, and the copyright line —
+// comes from here instead of being hardcoded. Stored as one JSONB blob
+// (footer_config) since it's always read/written as a whole from a single
+// Admin -> Footer page, not queried piecemeal.
+export interface FooterLink {
+  label: string;
+  href: string;
+}
+
+export interface FooterColumn {
+  title: string;
+  links: FooterLink[];
+}
+
+export interface FooterSocialLinks {
+  facebook: string;
+  twitter: string;
+  instagram: string;
+  youtube: string;
+}
+
+export interface FooterConfig {
+  about: string;
+  social: FooterSocialLinks;
+  columns: FooterColumn[];
+  // May contain the literal placeholder "{year}", replaced with the current
+  // year at render time so the copyright line never goes stale on its own.
+  copyrightText: string;
+}
+
+// Exactly what components/PublicFooter.tsx used to hardcode — a site that
+// never touches Admin -> Footer, or one running against a database from
+// before this column existed, renders an identical footer to before.
+export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
+  about:
+    "Your trusted source for the latest news and updates from the world's top attractions and destinations.",
+  social: {
+    facebook: "https://facebook.com",
+    twitter: "https://x.com",
+    instagram: "https://instagram.com",
+    youtube: "https://youtube.com",
+  },
+  columns: [
+    {
+      title: "EXPLORE",
+      links: [
+        { label: "Destinations", href: "/destinations" },
+        { label: "Attractions", href: "/destinations" },
+        { label: "Categories", href: "/categories" },
+        { label: "About Us", href: "/about" },
+      ],
+    },
+    {
+      title: "RESOURCES",
+      links: [
+        { label: "Write For Us", href: "/write-for-us" },
+        { label: "Contact Us", href: "/contact" },
+        { label: "Privacy Policy", href: "/privacy-policy" },
+        { label: "Terms & Conditions", href: "/terms-and-conditions" },
+      ],
+    },
+    {
+      title: "POPULAR CATEGORIES",
+      links: [
+        { label: "Theme Parks", href: "/categories/theme-parks" },
+        { label: "Water Parks", href: "/categories/water-parks" },
+        { label: "Zoos & Aquariums", href: "/categories/zoos-and-aquariums" },
+        { label: "Museums", href: "/categories/museums" },
+        { label: "Landmarks", href: "/categories/landmarks" },
+      ],
+    },
+  ],
+  copyrightText: "© {year} {siteName}. All rights reserved.",
+};
+
+function normalizeFooterConfig(raw: any): FooterConfig {
+  if (!raw || typeof raw !== "object") return DEFAULT_FOOTER_CONFIG;
+  return {
+    about: typeof raw.about === "string" ? raw.about : DEFAULT_FOOTER_CONFIG.about,
+    social: {
+      facebook: typeof raw.social?.facebook === "string" ? raw.social.facebook : "",
+      twitter: typeof raw.social?.twitter === "string" ? raw.social.twitter : "",
+      instagram: typeof raw.social?.instagram === "string" ? raw.social.instagram : "",
+      youtube: typeof raw.social?.youtube === "string" ? raw.social.youtube : "",
+    },
+    columns: Array.isArray(raw.columns)
+      ? raw.columns.map((col: any) => ({
+          title: typeof col?.title === "string" ? col.title : "",
+          links: Array.isArray(col?.links)
+            ? col.links
+                .filter((l: any) => l && typeof l.label === "string" && typeof l.href === "string")
+                .map((l: any) => ({ label: l.label, href: l.href }))
+            : [],
+        }))
+      : DEFAULT_FOOTER_CONFIG.columns,
+    copyrightText:
+      typeof raw.copyrightText === "string" && raw.copyrightText.trim()
+        ? raw.copyrightText
+        : DEFAULT_FOOTER_CONFIG.copyrightText,
+  };
+}
+
+export async function getFooterConfig(): Promise<FooterConfig> {
+  try {
+    const rows = await sql`SELECT footer_config FROM settings WHERE id = 1 LIMIT 1`;
+    const raw = rows.length ? rows[0].footer_config : null;
+    if (!raw) return DEFAULT_FOOTER_CONFIG;
+    return normalizeFooterConfig(raw);
+  } catch {
+    return DEFAULT_FOOTER_CONFIG;
+  }
+}
+
+export async function setFooterConfig(config: FooterConfig): Promise<FooterConfig> {
+  const normalized = normalizeFooterConfig(config);
+  await sql`
+    INSERT INTO settings (id, footer_config) VALUES (1, ${JSON.stringify(normalized)})
+    ON CONFLICT (id) DO UPDATE SET footer_config = EXCLUDED.footer_config
+  `;
+  return normalized;
+}

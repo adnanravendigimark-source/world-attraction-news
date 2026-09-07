@@ -1,17 +1,18 @@
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
 import { getCities, pickFeaturedCities } from "@/lib/cities";
-import { getFeaturedCitySlugs } from "@/lib/settings";
+import { getFeaturedCitySlugs, getFooterConfig } from "@/lib/settings";
 import { getCategories } from "@/lib/categories";
 import { getPublishedArticles } from "@/lib/articles";
 import { articlePath } from "@/lib/destinations";
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const [cities, featuredSlugs, categories, latestArticles] = await Promise.all([
+  const [cities, featuredSlugs, categories, latestArticles, footerConfig] = await Promise.all([
     getCities(),
     getFeaturedCitySlugs(),
     getCategories(),
     getPublishedArticles({ limit: 1 }),
+    getFooterConfig(),
   ]);
 
   // Admin-curated list for the navbar "Destinations" dropdown (Admin ->
@@ -19,7 +20,6 @@ export default async function PublicLayout({ children }: { children: React.React
   // from the same `cities` fetch above rather than a second query.
   const featuredCities = pickFeaturedCities(cities, featuredSlugs);
 
-  const cityLinks = cities.map((c) => ({ slug: c.slug, name: c.name, countrySlug: c.countrySlug }));
   const featuredCityLinks = featuredCities.map((c) => ({ slug: c.slug, name: c.name, countrySlug: c.countrySlug }));
   const categoryLinks = categories.map((c) => ({ slug: c.slug, name: c.name }));
 
@@ -39,7 +39,7 @@ export default async function PublicLayout({ children }: { children: React.React
         tickerArticle={tickerArticle}
       />
       <main>{children}</main>
-      <PublicFooter cities={cityLinks} categories={categoryLinks} />
+      <PublicFooter footerConfig={footerConfig} />
     </>
   );
 }
