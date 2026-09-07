@@ -234,7 +234,7 @@ export default function ArticleDetailClient({
             {/* Article Body Content */}
             <div className="mt-8 article-content text-slate-800 text-sm sm:text-[15px] leading-relaxed">
               <div
-                className="prose prose-slate max-w-none prose-headings:font-serif prose-headings:font-black prose-headings:text-[#0B1527] prose-p:leading-relaxed prose-a:text-[#DC2626] prose-a:font-semibold"
+                className="rich-content article-body"
                 dangerouslySetInnerHTML={{ __html: article.contentHtml }}
               />
             </div>
