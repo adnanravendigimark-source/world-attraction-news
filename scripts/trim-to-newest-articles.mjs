@@ -93,7 +93,7 @@ async function main() {
         SELECT a.id, a.slug, a.title, a.status, a.published_at, c.slug AS city_slug
         FROM articles a
         LEFT JOIN cities c ON c.id = a.city_id
-        WHERE a.id NOT IN (${sql.unsafe(keepIds.map((id) => `'${id}'`).join(","))})
+        WHERE NOT (a.id = ANY(${keepIds}::uuid[]))
         ORDER BY a.published_at DESC NULLS LAST
       `
     : await sql`
@@ -122,9 +122,7 @@ async function main() {
   }
 
   const deleteIds = deleteRows.map((r) => r.id);
-  const result = await sql`
-    DELETE FROM articles WHERE id IN (${sql.unsafe(deleteIds.map((id) => `'${id}'`).join(","))})
-  `;
+  await sql`DELETE FROM articles WHERE id = ANY(${deleteIds}::uuid[])`;
   console.log(`\nDeleted ${deleteRows.length} article(s). Cities, categories, and attractions were not touched.`);
 }
 

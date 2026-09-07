@@ -12,6 +12,13 @@
 // (users.city_id) will simply have that reset to NULL by the database's own
 // foreign key rule — the account itself is untouched.
 //
+// Every statement below is a literal, hardcoded tagged-template query (no
+// dynamic table-name interpolation) — @neondatabase/serverless's `sql`
+// function is *only* a tagged-template query runner in this project's
+// installed version (no `.query()` / `.unsafe()` helper), so table names
+// can't be parameterized. Writing each one out explicitly is the reliable
+// way to do this with that driver.
+//
 // Safe by design:
 //   - Defaults to a DRY RUN. It only prints current row counts per table.
 //   - Add --confirm to actually run the deletes. There is no undo.
@@ -52,43 +59,41 @@ const sql = neon(process.env.DATABASE_URL);
 
 const confirmed = process.argv.slice(2).includes("--confirm");
 
-// Order matters: children before parents, so nothing hits a foreign-key
-// error even when run against a database that already had some of these
-// deleted (e.g. articles already wiped by a previous script run).
-const TABLES_IN_DELETE_ORDER = [
-  "article_views",
-  "article_reviews",
-  "article_revisions",
-  "articles",
-  "attractions",
-  "notifications",
-  "activity_log",
-  "contact_messages",
-  "newsletter_subscribers",
-  "rate_limits",
-  "settings",
-  "indexing_settings",
-  "cities",
-  "countries",
-  "categories",
+// Each entry: table label, a COUNT query, and a DELETE query. Order matters
+// — children before parents — so nothing hits a foreign-key error even if
+// run against a database that already had some of these cleared out (e.g.
+// articles already wiped by a previous script run).
+const STEPS = [
+  { table: "article_views", count: () => sql`SELECT COUNT(*)::int AS n FROM article_views`, del: () => sql`DELETE FROM article_views` },
+  { table: "article_reviews", count: () => sql`SELECT COUNT(*)::int AS n FROM article_reviews`, del: () => sql`DELETE FROM article_reviews` },
+  { table: "article_revisions", count: () => sql`SELECT COUNT(*)::int AS n FROM article_revisions`, del: () => sql`DELETE FROM article_revisions` },
+  { table: "articles", count: () => sql`SELECT COUNT(*)::int AS n FROM articles`, del: () => sql`DELETE FROM articles` },
+  { table: "attractions", count: () => sql`SELECT COUNT(*)::int AS n FROM attractions`, del: () => sql`DELETE FROM attractions` },
+  { table: "notifications", count: () => sql`SELECT COUNT(*)::int AS n FROM notifications`, del: () => sql`DELETE FROM notifications` },
+  { table: "activity_log", count: () => sql`SELECT COUNT(*)::int AS n FROM activity_log`, del: () => sql`DELETE FROM activity_log` },
+  { table: "contact_messages", count: () => sql`SELECT COUNT(*)::int AS n FROM contact_messages`, del: () => sql`DELETE FROM contact_messages` },
+  { table: "newsletter_subscribers", count: () => sql`SELECT COUNT(*)::int AS n FROM newsletter_subscribers`, del: () => sql`DELETE FROM newsletter_subscribers` },
+  { table: "rate_limits", count: () => sql`SELECT COUNT(*)::int AS n FROM rate_limits`, del: () => sql`DELETE FROM rate_limits` },
+  { table: "settings", count: () => sql`SELECT COUNT(*)::int AS n FROM settings`, del: () => sql`DELETE FROM settings` },
+  { table: "indexing_settings", count: () => sql`SELECT COUNT(*)::int AS n FROM indexing_settings`, del: () => sql`DELETE FROM indexing_settings` },
+  { table: "cities", count: () => sql`SELECT COUNT(*)::int AS n FROM cities`, del: () => sql`DELETE FROM cities` },
+  { table: "countries", count: () => sql`SELECT COUNT(*)::int AS n FROM countries`, del: () => sql`DELETE FROM countries` },
+  { table: "categories", count: () => sql`SELECT COUNT(*)::int AS n FROM categories`, del: () => sql`DELETE FROM categories` },
 ];
-
-async function countRows(table) {
-  const rows = await sql.query(`SELECT COUNT(*)::int AS n FROM ${table}`);
-  return rows[0]?.n ?? 0;
-}
 
 async function main() {
   console.log(`\n${confirmed ? "Wiping" : "Would wipe"} every table except users:\n`);
 
   const counts = {};
-  for (const table of TABLES_IN_DELETE_ORDER) {
-    counts[table] = await countRows(table);
-    console.log(`  ${table.padEnd(24)} ${counts[table]} row(s)`);
+  for (const step of STEPS) {
+    const rows = await step.count();
+    counts[step.table] = rows[0]?.n ?? 0;
+    console.log(`  ${step.table.padEnd(24)} ${counts[step.table]} row(s)`);
   }
   const totalRows = Object.values(counts).reduce((a, b) => a + b, 0);
 
-  const userCount = await countRows("users");
+  const userRows = await sql`SELECT COUNT(*)::int AS n FROM users`;
+  const userCount = userRows[0]?.n ?? 0;
   console.log(`\n  users${" ".repeat(20)} ${userCount} row(s) — NOT touched\n`);
 
   if (!confirmed) {
@@ -102,17 +107,17 @@ async function main() {
     return;
   }
 
-  for (const table of TABLES_IN_DELETE_ORDER) {
-    if (counts[table] === 0) continue;
-    await sql.query(`DELETE FROM ${table}`);
-    console.log(`  Cleared ${table} (${counts[table]} row(s))`);
+  for (const step of STEPS) {
+    if (counts[step.table] === 0) continue;
+    await step.del();
+    console.log(`  Cleared ${step.table} (${counts[step.table]} row(s))`);
   }
 
   // `settings` is a singleton config row (id = 1) the app expects to exist —
   // put a fresh default row back so /admin/settings doesn't hit a missing row.
   await sql`INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`;
 
-  console.log(`\nDatabase wiped. ${totalRows} row(s) deleted across ${TABLES_IN_DELETE_ORDER.length} tables.`);
+  console.log(`\nDatabase wiped. ${totalRows} row(s) deleted across ${STEPS.length} tables.`);
   console.log("User accounts were left untouched — everyone can still log in.");
 }
 
