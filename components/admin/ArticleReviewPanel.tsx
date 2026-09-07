@@ -387,6 +387,13 @@ export default function ArticleReviewPanel({
 
   const selectedCityName = useMemo(() => cities.find((c) => c.id === edit.cityId)?.name || "", [cities, edit.cityId]);
   const selectedCategoryName = useMemo(() => categories.find((c) => c.id === edit.categoryId)?.name || "", [categories, edit.categoryId]);
+  // Same city-scoped attraction picker as the contributor editor — an
+  // attraction always belongs to exactly one city, so an empty list here
+  // means this destination genuinely has none saved yet, not a filter bug.
+  const attractionsForCity = useMemo(
+    () => attractions.filter((a) => !edit.cityId || a.cityId === edit.cityId),
+    [attractions, edit.cityId]
+  );
 
   const isScoreChanged = score !== (article.score !== null ? String(article.score) : "");
   const isFeedbackChanged = feedback.trim() !== (article.adminFeedback || "").trim();
@@ -602,18 +609,25 @@ export default function ArticleReviewPanel({
                     className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer shadow-2xs appearance-none"
                   >
                     <option value="">Travel Guides / General</option>
-                    {attractions
-                      .filter((a) => !edit.cityId || a.cityId === edit.cityId)
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
+                    {attractionsForCity.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
                   </select>
                   <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 text-[10px]">
                     ▼
                   </span>
                 </div>
+                {edit.cityId && attractionsForCity.length === 0 && (
+                  <p className="mt-1 text-[10.5px] text-slate-500">
+                    No attractions saved yet for {selectedCityName || "this destination"} — add one from{" "}
+                    <Link href="/admin/attractions" className="font-semibold text-[#DC2626] hover:underline">
+                      Admin → Attractions
+                    </Link>
+                    .
+                  </p>
+                )}
               </div>
             </div>
 

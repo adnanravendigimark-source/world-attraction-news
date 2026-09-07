@@ -200,6 +200,15 @@ export default function ArticleEditor({
     () => categories.find((c) => c.id === form.categoryId)?.name || "",
     [categories, form.categoryId]
   );
+  // The picker only ever lists attractions that belong to the currently
+  // selected destination — an attraction is scoped to exactly one city (see
+  // lib/attractions.ts), so this is never "all attractions, filtered down
+  // to nothing by mistake." If this comes back empty, that destination
+  // genuinely has zero attractions saved in Admin -> Attractions yet.
+  const attractionsForCity = useMemo(
+    () => attractions.filter((a) => !form.cityId || a.cityId === form.cityId),
+    [attractions, form.cityId]
+  );
 
   const saveDraft = useCallback(
     async (showNotification = true) => {
@@ -494,20 +503,25 @@ export default function ArticleEditor({
                   </div>
                 )}
               </Field>
-              <Field label="Related Attraction (optional)">
+              <Field
+                label="Related Attraction (optional)"
+                hint={
+                  form.cityId && attractionsForCity.length === 0
+                    ? `No attractions saved yet for ${previewCityName || "this destination"} — an admin can add one from Admin → Attractions.`
+                    : undefined
+                }
+              >
                 <select
                   value={form.attractionId || ""}
                   onChange={(e) => update("attractionId", e.target.value || null)}
                   className={inputClass}
                 >
                   <option value="">General guide (not attraction-specific)</option>
-                  {attractions
-                    .filter((a) => !form.cityId || a.cityId === form.cityId)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
+                  {attractionsForCity.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
               </Field>
             </div>
