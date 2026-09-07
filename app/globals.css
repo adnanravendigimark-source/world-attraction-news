@@ -7,12 +7,22 @@
 html {
   scroll-behavior: smooth;
   color-scheme: light;
-  /* Belt-and-braces against any element (now or added later) computing even
-     1px wider than the viewport on mobile. Every grid/flex track on this
-     page already clamps correctly (Tailwind's grid-cols-N is
-     minmax(0, 1fr), Container's padding is symmetric px-3.5/6/8), but a
-     single un-clamped element anywhere in the tree is enough to shift the
-     visible content right and make the left/right edges look uneven. */
+  /* Guards against any element (now or added later) computing even 1px
+     wider than the viewport on mobile. Every grid/flex track on this page
+     already clamps correctly (Tailwind's grid-cols-N is minmax(0, 1fr),
+     Container's padding is symmetric px-3.5/6/8), but a single un-clamped
+     element anywhere in the tree is enough to shift the visible content
+     right and make the left/right edges look uneven.
+     Deliberately only set here, not also on `body`: per the CSS Overflow
+     spec, setting overflow-x to anything other than `visible` while
+     overflow-y stays `visible` makes the UA compute overflow-y as `auto`
+     too — so `overflow-x: hidden` silently turns an element into a real
+     (vertical) scroll container. Having that happen on BOTH html and body
+     creates two nested scroll containers, which breaks `position: sticky`
+     for everything inside body (exactly what made the article editor's
+     toolbar and every other sticky element on the site stop sticking —
+     the toolbar's own CSS was never the problem). One guard here is
+     enough; don't add the same rule to `body` again. */
   overflow-x: hidden;
 }
 
@@ -23,7 +33,6 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
   width: 100%;
 }
 
