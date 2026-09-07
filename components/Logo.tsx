@@ -20,7 +20,7 @@ export default function Logo({
   const accentRed = "#DC2626"; // Vibrant news wire red
 
   // The Globe & Red Plane Emblem Icon - Clean isolated crop with 0 background or frame artifacts
-  const EmblemIcon = ({ sizeClass = "h-10 xs:h-11 sm:h-12 md:h-13 lg:h-14 w-auto" }: { sizeClass?: string }) => (
+  const EmblemIcon = ({ sizeClass = "h-10 xs:h-11 sm:h-12 md:h-[3.25rem] lg:h-14 w-auto" }: { sizeClass?: string }) => (
     <div className={`relative shrink-0 flex items-center justify-center ${sizeClass}`}>
       <Image
         src="/images/logo-emblem.png"
@@ -108,7 +108,7 @@ export default function Logo({
   // Horizontal variant (default) - Prominent, bold, and responsive on all screens
   return (
     <div className={`inline-flex items-center gap-2.5 sm:gap-3 md:gap-3.5 font-sans group select-none min-w-0 ${className}`}>
-      <EmblemIcon sizeClass="h-10 xs:h-11 sm:h-12 md:h-13 lg:h-14 w-auto shrink-0" />
+      <EmblemIcon sizeClass="h-10 xs:h-11 sm:h-12 md:h-[3.25rem] lg:h-14 w-auto shrink-0" />
       <div className="flex flex-col justify-center leading-none min-w-0">
         <div
           className="text-[11px] xs:text-[12px] sm:text-[13.5px] md:text-[15px] font-black tracking-[0.16em] sm:tracking-[0.18em] uppercase leading-none"

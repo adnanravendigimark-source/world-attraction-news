@@ -283,7 +283,7 @@ export default function HomeHeroCarousel({
                             }`}
                         >
                           <div className="flex items-center gap-2.5">
-                            <div className="relative h-12 w-16 sm:h-13 sm:w-18 shrink-0 rounded-md overflow-hidden bg-slate-100">
+                            <div className="relative h-12 w-16 sm:h-[3.25rem] sm:w-[4.5rem] shrink-0 rounded-md overflow-hidden bg-slate-100">
                               <Image
                                 src={story.image}
                                 alt={story.imageAlt || story.title}

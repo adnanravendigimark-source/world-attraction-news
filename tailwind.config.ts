@@ -7,6 +7,17 @@ const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // "xs" is used throughout Logo.tsx and PublicHeader.tsx (e.g.
+      // `h-10 xs:h-11 sm:h-12`, `hidden xs:inline`) as an intermediate step
+      // between the unprefixed mobile styles and Tailwind's default `sm`
+      // (640px). Without this, "xs:" isn't a real Tailwind variant, so every
+      // one of those utilities was silently dropped at build time — the
+      // logo never scaled up a step and "LIVE UPDATES" never appeared at
+      // any screen width. 480px sits between a typical small phone and the
+      // 640px `sm` breakpoint.
+      screens: {
+        xs: "480px",
+      },
       colors: {
         paper: {
           DEFAULT: "#FAF9F5",
