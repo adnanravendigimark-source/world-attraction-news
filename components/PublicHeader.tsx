@@ -12,10 +12,12 @@ export default function PublicHeader({
   cities = [],
   categories = [],
   tickerArticle,
+  tickerArticles = [],
 }: {
   cities?: { slug: string; name: string; countrySlug?: string }[];
   categories?: { slug: string; name: string }[];
   tickerArticle?: { title: string; href: string };
+  tickerArticles?: { title: string; href: string }[];
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -23,6 +25,8 @@ export default function PublicHeader({
   const [currentDateStr, setCurrentDateStr] = useState("Wednesday, May 14, 2025");
   const [destDropdownOpen, setDestDropdownOpen] = useState(false);
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
+  const [tickerIndex, setTickerIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   // `cities` and `categories` here are already the admin-curated "Top
   // Destinations"/"Top Categories" lists from Admin -> Header (see
@@ -31,10 +35,29 @@ export default function PublicHeader({
   const displayCities = cities;
   const displayCategories = categories;
 
-  const liveTicker = tickerArticle || {
-    title: "Universal Epic Universe Opens: Grand Tour of Celestial Park, Dark Universe & Nintendo World",
-    href: "/united-states/orlando/universal-epic-universe-grand-opening-preview",
-  };
+  const validTickerArticles = (tickerArticles.length > 0 ? tickerArticles : tickerArticle ? [tickerArticle] : []).filter(
+    (item) => Boolean(item && item.title && item.href)
+  );
+
+  const tickerList =
+    validTickerArticles.length > 0
+      ? validTickerArticles
+      : [
+          {
+            title: "Explore the latest attractions, guides & theme park travel news",
+            href: "/latest-news",
+          },
+        ];
+
+  useEffect(() => {
+    if (tickerList.length <= 1 || isPaused) return;
+    const interval = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % tickerList.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [tickerList.length, isPaused]);
+
+  const currentTicker = tickerList[tickerIndex % tickerList.length];
 
   useEffect(() => {
     try {
@@ -59,7 +82,11 @@ export default function PublicHeader({
       {/* Top Dark Bar with Live Ticker */}
       <div className="bg-[#0B1320] px-4 py-1.5 text-white border-b border-slate-800">
         <Container className="flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-2.5 overflow-hidden">
+          <div
+            className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0 mr-3"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+          >
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="inline-flex items-center gap-1 rounded bg-[#DC2626] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
                 <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
@@ -71,11 +98,32 @@ export default function PublicHeader({
             </div>
             <span className="text-slate-600 hidden sm:inline" aria-hidden="true">|</span>
             <Link
-              href={liveTicker.href}
+              key={currentTicker.href}
+              href={currentTicker.href}
               className="text-slate-300 hover:text-white truncate transition-colors font-medium hover:underline"
             >
-              {liveTicker.title}
+              {currentTicker.title}
             </Link>
+            {tickerList.length > 1 && (
+              <div className="hidden md:flex items-center gap-1 shrink-0 ml-1.5 text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => setTickerIndex((prev) => (prev - 1 + tickerList.length) % tickerList.length)}
+                  className="px-1 hover:text-white transition-colors"
+                  aria-label="Previous live update"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTickerIndex((prev) => (prev + 1) % tickerList.length)}
+                  className="px-1 hover:text-white transition-colors"
+                  aria-label="Next live update"
+                >
+                  ›
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4 shrink-0 pl-2 text-slate-300">

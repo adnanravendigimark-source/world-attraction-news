@@ -212,7 +212,7 @@ export async function getPublishedArticles(opts: {
       conditions.push(`att.slug = $${params.length}`);
     }
     params.push(limit);
-    const query = `${JOIN_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY a.published_at DESC LIMIT $${params.length}`;
+    const query = `${JOIN_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY COALESCE(a.published_at, a.updated_at) DESC NULLS LAST LIMIT $${params.length}`;
     const rows = await sql(query, params);
     return rows.map(rowToArticleWithRelations);
   } catch (err) {

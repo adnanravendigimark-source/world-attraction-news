@@ -13,7 +13,7 @@ export default async function PublicLayout({ children }: { children: React.React
       getFeaturedCitySlugs(),
       getCategories(),
       getFeaturedCategorySlugs(),
-      getPublishedArticles({ limit: 1 }),
+      getPublishedArticles({ limit: 6 }),
       getFooterConfig(),
     ]);
 
@@ -25,6 +25,11 @@ export default async function PublicLayout({ children }: { children: React.React
 
   const featuredCityLinks = featuredCities.map((c) => ({ slug: c.slug, name: c.name, countrySlug: c.countrySlug }));
   const featuredCategoryLinks = featuredCategories.map((c) => ({ slug: c.slug, name: c.name }));
+
+  const tickerArticles = latestArticles.map((art) => ({
+    title: art.title,
+    href: articlePath(art.countrySlug, art.citySlug, art.slug),
+  }));
 
   const topArticle = latestArticles[0];
   const tickerArticle = topArticle
@@ -40,6 +45,7 @@ export default async function PublicLayout({ children }: { children: React.React
         cities={featuredCityLinks}
         categories={featuredCategoryLinks}
         tickerArticle={tickerArticle}
+        tickerArticles={tickerArticles}
       />
       <main>{children}</main>
       <PublicFooter footerConfig={footerConfig} />
