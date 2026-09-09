@@ -1,4 +1,4 @@
-// Comprehensive Database Wipe and Master Seed Script for WAT — World Attraction News
+// Comprehensive Database Wipe and Master Seed Script for WAN — World Attraction News
 //
 // What it accomplishes:
 // 1. Clears existing database records cleanly in foreign-key dependency order.
@@ -60,7 +60,7 @@ const COUNTRIES_DATA = [
     intro: "From iconic Parisian monuments and royal châteaux to modern leisure resorts, France stands as the pinnacle of global cultural tourism.",
     hero_image: "/images/countries/france.jpg",
     hero_image_alt: "Eiffel Tower and Paris Cityscape in France",
-    meta_title: "France Attraction News & Cultural Intelligence | WAT",
+    meta_title: "France Attraction News & Cultural Intelligence | WAN",
     meta_description: "Verified news, museum exhibitions, and landmark developments across Paris and French cultural destinations."
   },
   {
@@ -69,7 +69,7 @@ const COUNTRIES_DATA = [
     intro: "Centuries of royal heritage, world-class national galleries, and vibrant modern entertainment across the British Isles.",
     hero_image: "/images/countries/united-kingdom.jpg",
     hero_image_alt: "London Eye and Big Ben in United Kingdom",
-    meta_title: "United Kingdom Attraction News & Heritage Reports | WAT",
+    meta_title: "United Kingdom Attraction News & Heritage Reports | WAN",
     meta_description: "Latest dispatches, West End premieres, and landmark preservation news from across the United Kingdom."
   },
   {
@@ -78,7 +78,7 @@ const COUNTRIES_DATA = [
     intro: "Home to the world's greatest concentration of UNESCO World Heritage sites, classical antiquities, and timeless Renaissance masterworks.",
     hero_image: "/images/countries/italy.jpg",
     hero_image_alt: "Roman Colosseum and Venice Grand Canal in Italy",
-    meta_title: "Italy Attraction News & Archaeological Wire | WAT",
+    meta_title: "Italy Attraction News & Archaeological Wire | WAN",
     meta_description: "Archaeological excavations, Vatican museum guides, and historic restorations across Rome, Venice, and Italy."
   },
   {
@@ -87,7 +87,7 @@ const COUNTRIES_DATA = [
     intro: "A vibrant synthesis of modernist architectural wonders, ancient Moorish fortresses, and world-renowned Mediterranean attractions.",
     hero_image: "/images/countries/spain.jpg",
     hero_image_alt: "Sagrada Familia Basilica in Barcelona, Spain",
-    meta_title: "Spain Attraction News & Architectural Wire | WAT",
+    meta_title: "Spain Attraction News & Architectural Wire | WAN",
     meta_description: "Gaudí architecture updates, museum expansions, and destination guides from Spain."
   },
   {
@@ -96,7 +96,7 @@ const COUNTRIES_DATA = [
     intro: "Historic canal waterways, golden age fine art collections, and forward-looking sustainable cultural tourism.",
     hero_image: "/images/countries/netherlands.jpg",
     hero_image_alt: "Rijksmuseum and Canal Waterways in Amsterdam, Netherlands",
-    meta_title: "Netherlands Attraction News & Museum Guides | WAT",
+    meta_title: "Netherlands Attraction News & Museum Guides | WAN",
     meta_description: "Rijksmuseum exhibitions, canal heritage news, and Dutch cultural reporting."
   },
   {
@@ -105,7 +105,7 @@ const COUNTRIES_DATA = [
     intro: "A dynamic hub of landmark history, world-renowned museum islands, fairy-tale castles, and innovative architectural spaces.",
     hero_image: "/images/countries/germany.jpg",
     hero_image_alt: "Brandenburg Gate in Berlin, Germany",
-    meta_title: "Germany Attraction News & Cultural Reporting | WAT",
+    meta_title: "Germany Attraction News & Cultural Reporting | WAN",
     meta_description: "Brandenburg Gate developments, Museum Island restorations, and German attraction updates."
   },
   {
@@ -114,7 +114,7 @@ const COUNTRIES_DATA = [
     intro: "The cradle of Western civilization, home to monumental classical temples, marble citadels, and ancient Mediterranean heritage.",
     hero_image: "/images/countries/greece.jpg",
     hero_image_alt: "Acropolis and Parthenon in Athens, Greece",
-    meta_title: "Greece Attraction News & Classical Antiquity Wire | WAT",
+    meta_title: "Greece Attraction News & Classical Antiquity Wire | WAN",
     meta_description: "Acropolis smart visitor flows, archaeological restorations, and Greek cultural news."
   },
   {
@@ -123,7 +123,7 @@ const COUNTRIES_DATA = [
     intro: "Imperial Habsburg palaces, baroque gardens, classical musical institutions, and magnificent Alpine cultural landscapes.",
     hero_image: "/images/countries/austria.jpg",
     hero_image_alt: "Schönbrunn Palace in Vienna, Austria",
-    meta_title: "Austria Attraction News & Imperial Heritage | WAT",
+    meta_title: "Austria Attraction News & Imperial Heritage | WAN",
     meta_description: "Schönbrunn Palace restorations, Vienna museum exhibitions, and Austrian heritage intelligence."
   },
   {
@@ -132,7 +132,7 @@ const COUNTRIES_DATA = [
     intro: "Bohemian gothic architecture, centuries-old bridges, fairy-tale castle complexes, and preserved historic city centers.",
     hero_image: "/images/countries/czech-republic.jpg",
     hero_image_alt: "Charles Bridge and Prague Castle in Czech Republic",
-    meta_title: "Czech Republic Attraction News & Bohemian Heritage | WAT",
+    meta_title: "Czech Republic Attraction News & Bohemian Heritage | WAN",
     meta_description: "Charles Bridge preservation, Prague Castle access updates, and Central European travel news."
   },
   {
@@ -141,7 +141,7 @@ const COUNTRIES_DATA = [
     intro: "World-leading theme park resorts, cutting-edge immersive entertainment venues, iconic national monuments, and vast cultural institutions.",
     hero_image: "/images/countries/united-states.jpg",
     hero_image_alt: "Statue of Liberty and Manhattan Skyline in United States",
-    meta_title: "United States Attraction News & Theme Park Wire | WAT",
+    meta_title: "United States Attraction News & Theme Park Wire | WAN",
     meta_description: "Theme park expansions, national landmark reporting, and entertainment wire across the USA."
   }
 ];
@@ -209,7 +209,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/paris.jpg",
     hero_image_alt: "Eiffel Tower and Champ de Mars in Paris, France",
     intro: "The City of Light, home to the Eiffel Tower, the Louvre, Notre-Dame Cathedral, and the grand avenues of French culture.",
-    meta_title: "Paris Attraction News & Cultural Intelligence | WAT",
+    meta_title: "Paris Attraction News & Cultural Intelligence | WAN",
     meta_description: "Latest visitor updates, Eiffel Tower access guidelines, and museum reporting from our Paris bureau.",
     sort_order: 1
   },
@@ -221,7 +221,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/london.jpg",
     hero_image_alt: "London Eye and River Thames at Twilight in London",
     intro: "A global capital where centuries-old royal landmarks meet dynamic contemporary observation wheels and world-class theaters.",
-    meta_title: "London Attraction News & Landmark Wire | WAT",
+    meta_title: "London Attraction News & Landmark Wire | WAN",
     meta_description: "London Eye updates, Tower of London exhibitions, and British heritage news from our London correspondent.",
     sort_order: 2
   },
@@ -233,7 +233,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/rome.jpg",
     hero_image_alt: "The Colosseum in Rome at Sunset",
     intro: "The Eternal City, where the Colosseum, the Roman Forum, and Vatican treasures narrate millennia of civilization.",
-    meta_title: "Rome Attraction News & Archaeological Wire | WAT",
+    meta_title: "Rome Attraction News & Archaeological Wire | WAN",
     meta_description: "Colosseum underground excavations, Roman Forum enhancements, and archaeological dispatches.",
     sort_order: 3
   },
@@ -245,7 +245,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/barcelona.jpg",
     hero_image_alt: "Basílica de la Sagrada Família in Barcelona, Spain",
     intro: "The jewel of Catalonia, world-famous for Antoni Gaudí's Sagrada Família, Park Güell, and vibrant Gothic Quarter.",
-    meta_title: "Barcelona Attraction News & Gaudí Architecture | WAT",
+    meta_title: "Barcelona Attraction News & Gaudí Architecture | WAN",
     meta_description: "Sagrada Família milestone reporting, Park Güell access rules, and Barcelona cultural news.",
     sort_order: 4
   },
@@ -257,7 +257,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/amsterdam.jpg",
     hero_image_alt: "Rijksmuseum and Museumplein in Amsterdam",
     intro: "Famed for its UNESCO canal ring, the masterpieces of the Rijksmuseum and Van Gogh Museum, and historic cycling culture.",
-    meta_title: "Amsterdam Attraction News & Museum Guides | WAT",
+    meta_title: "Amsterdam Attraction News & Museum Guides | WAN",
     meta_description: "Rijksmuseum exhibits, canal waterway initiatives, and Dutch heritage intelligence.",
     sort_order: 5
   },
@@ -269,7 +269,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/berlin.jpg",
     hero_image_alt: "Brandenburg Gate Illuminated at Night in Berlin",
     intro: "A vibrant European capital of memory, art, and modern innovation, anchored by the Brandenburg Gate and Museum Island.",
-    meta_title: "Berlin Attraction News & Historical Corridor | WAT",
+    meta_title: "Berlin Attraction News & Historical Corridor | WAN",
     meta_description: "Brandenburg Gate events, Museum Island masterplan updates, and Berlin cultural reporting.",
     sort_order: 6
   },
@@ -281,7 +281,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/venice.jpg",
     hero_image_alt: "Grand Canal and Historic Palazzos in Venice",
     intro: "The floating city of waterways, bridges, and gilded Byzantine marvels including St. Mark's Basilica and the Doge's Palace.",
-    meta_title: "Venice Attraction News & Lagoon Preservation | WAT",
+    meta_title: "Venice Attraction News & Lagoon Preservation | WAN",
     meta_description: "St. Mark's Basilica glass flood barrier news, gondola heritage, and Venice lagoon travel updates.",
     sort_order: 7
   },
@@ -293,7 +293,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/athens.jpg",
     hero_image_alt: "Acropolis and Parthenon in Athens at Golden Hour",
     intro: "Ancient cradle of democracy and philosophy, crowned by the majestic marble Parthenon atop the sacred Acropolis rock.",
-    meta_title: "Athens Attraction News & Classical Antiquity | WAT",
+    meta_title: "Athens Attraction News & Classical Antiquity | WAN",
     meta_description: "Acropolis visitor capacity systems, Parthenon restoration updates, and Greek archaeological reporting.",
     sort_order: 8
   },
@@ -305,7 +305,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/vienna.jpg",
     hero_image_alt: "Schönbrunn Palace and Imperial Baroque Gardens in Vienna",
     intro: "Imperial capital of music and baroque majesty, celebrated for Schönbrunn Palace, the Hofburg, and historic coffeehouses.",
-    meta_title: "Vienna Attraction News & Imperial Palaces | WAT",
+    meta_title: "Vienna Attraction News & Imperial Palaces | WAN",
     meta_description: "Schönbrunn Palace grand restorations, Belvedere exhibitions, and Viennese heritage updates.",
     sort_order: 9
   },
@@ -317,7 +317,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/prague.jpg",
     hero_image_alt: "Charles Bridge at Dawn Overlooking Prague Castle",
     intro: "The City of a Hundred Spires, renowned for its fairytale medieval center, Charles Bridge, and sprawling Prague Castle complex.",
-    meta_title: "Prague Attraction News & Bohemian Heritage | WAT",
+    meta_title: "Prague Attraction News & Bohemian Heritage | WAN",
     meta_description: "Charles Bridge night access, Prague Castle preservation, and Czech travel intelligence.",
     sort_order: 10
   },
@@ -330,7 +330,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/new-york.jpg",
     hero_image_alt: "Statue of Liberty and Lower Manhattan Skyline at Golden Sunset",
     intro: "The world's preeminent metropolis, featuring the Statue of Liberty, Empire State Building, Central Park, and Broadway.",
-    meta_title: "New York City Attraction News & Harbor Landmarks | WAT",
+    meta_title: "New York City Attraction News & Harbor Landmarks | WAN",
     meta_description: "Statue of Liberty crown access updates, Broadway debuts, and NYC landmark dispatches.",
     sort_order: 11
   },
@@ -342,7 +342,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/orlando.jpg",
     hero_image_alt: "Universal Epic Universe Theme Park Skyline in Orlando",
     intro: "The theme park capital of the world, home to Universal Epic Universe, Walt Disney World Resort, and SeaWorld.",
-    meta_title: "Orlando Attraction News & Theme Park Intelligence | WAT",
+    meta_title: "Orlando Attraction News & Theme Park Intelligence | WAN",
     meta_description: "Universal Epic Universe grand opening previews, ride testing, and Florida theme park wire.",
     sort_order: 12
   },
@@ -354,7 +354,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/san-francisco.jpg",
     hero_image_alt: "Golden Gate Bridge over San Francisco Bay at Sunset",
     intro: "Northern California's coastal icon, celebrated for the Golden Gate Bridge, Alcatraz Island, and historic cable cars.",
-    meta_title: "San Francisco Attraction News & Coastal Landmarks | WAT",
+    meta_title: "San Francisco Attraction News & Coastal Landmarks | WAN",
     meta_description: "Golden Gate Bridge welcome plaza updates, Alcatraz night tours, and SF landmark guides.",
     sort_order: 13
   },
@@ -366,7 +366,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/las-vegas.jpg",
     hero_image_alt: "The Sphere Illuminated at Night in Las Vegas",
     intro: "Global entertainment spectacle, featuring The Sphere, world-class resort attractions, and boundary-pushing experiential shows.",
-    meta_title: "Las Vegas Attraction News & Entertainment Wire | WAT",
+    meta_title: "Las Vegas Attraction News & Entertainment Wire | WAN",
     meta_description: "The Sphere immersive residency announcements, Strip developments, and Vegas entertainment news.",
     sort_order: 14
   },
@@ -378,7 +378,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/los-angeles.jpg",
     hero_image_alt: "Universal Studios Hollywood and Los Angeles Skyline",
     intro: "The entertainment capital of Southern California, home to Universal Studios Hollywood, the Hollywood Sign, and coastal piers.",
-    meta_title: "Los Angeles Attraction News & Studio Parks | WAT",
+    meta_title: "Los Angeles Attraction News & Studio Parks | WAN",
     meta_description: "Universal Studios Hollywood ride expansions, Super Nintendo World updates, and LA landmark wire.",
     sort_order: 15
   },
@@ -390,7 +390,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/chicago.jpg",
     hero_image_alt: "Cloud Gate Bean in Millennium Park, Chicago",
     intro: "Renowned for pioneering skyscraper architecture, Millennium Park's Cloud Gate, and world-class lakefront cultural institutions.",
-    meta_title: "Chicago Attraction News & Architectural Landmarks | WAT",
+    meta_title: "Chicago Attraction News & Architectural Landmarks | WAN",
     meta_description: "Millennium Park Cloud Gate plaza restoration, architecture river cruises, and Chicago cultural news.",
     sort_order: 16
   },
@@ -402,7 +402,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/washington-dc.jpg",
     hero_image_alt: "National Mall and Smithsonian Museums in Washington D.C.",
     intro: "The nation's capital, offering the monuments of the National Mall and the unrivaled collections of the Smithsonian Institution.",
-    meta_title: "Washington D.C. Attraction News & National Mall Wire | WAT",
+    meta_title: "Washington D.C. Attraction News & National Mall Wire | WAN",
     meta_description: "Smithsonian Air & Space revitalization, National Mall monument access, and DC museum reporting.",
     sort_order: 17
   },
@@ -414,7 +414,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/miami.jpg",
     hero_image_alt: "Art Deco Historic District along Ocean Drive in Miami Beach",
     intro: "South Florida's vibrant coastal cultural hub, celebrated for its pastel Art Deco Historic District and open-air arts destinations.",
-    meta_title: "Miami Attraction News & Coastal Art Deco | WAT",
+    meta_title: "Miami Attraction News & Coastal Art Deco | WAN",
     meta_description: "Art Deco preservation corridors, South Beach walking routes, and Miami cultural updates.",
     sort_order: 18
   },
@@ -426,7 +426,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/new-orleans.jpg",
     hero_image_alt: "Historic French Quarter and Jackson Square in New Orleans",
     intro: "A vibrant cultural crossroads famous for the French Quarter, Jackson Square, historic jazz halls, and Mississippi riverboats.",
-    meta_title: "New Orleans Attraction News & French Quarter Heritage | WAT",
+    meta_title: "New Orleans Attraction News & French Quarter Heritage | WAN",
     meta_description: "French Quarter heritage preservation, Jackson Square cultural walking tours, and NOLA travel dispatches.",
     sort_order: 19
   },
@@ -438,7 +438,7 @@ const CITIES_DATA = [
     hero_image: "/images/destinations/honolulu.jpg",
     hero_image_alt: "Diamond Head State Monument and Waikiki Shoreline in Honolulu",
     intro: "Pacific paradise blending solemn history at Pearl Harbor with dramatic volcanic landscapes at Diamond Head and Polynesian heritage.",
-    meta_title: "Honolulu Attraction News & Pacific Heritage | WAT",
+    meta_title: "Honolulu Attraction News & Pacific Heritage | WAN",
     meta_description: "Pearl Harbor National Memorial reservation systems, Diamond Head trail upgrades, and Hawaii visitor guides.",
     sort_order: 20
   }
@@ -454,7 +454,7 @@ const ATTRACTIONS_DATA = [
     description: "Gustave Eiffel's 330-meter wrought-iron masterpiece on the Champ de Mars, the defining symbol of Paris and global architectural triumph.",
     hero_image: "/images/articles/paris-eiffel-tower.jpg",
     hero_image_alt: "Eiffel Tower illuminated against twilight sky",
-    meta_title: "Eiffel Tower Visitor Updates & News | WAT",
+    meta_title: "Eiffel Tower Visitor Updates & News | WAN",
     meta_description: "Ticketing rules, elevator maintenance schedules, and summer season access for the Eiffel Tower in Paris.",
     sort_order: 1
   },
@@ -465,7 +465,7 @@ const ATTRACTIONS_DATA = [
     description: "The world's most iconic cantilevered observation wheel on the South Bank of the River Thames, offering 360-degree panoramic views across London.",
     hero_image: "/images/articles/london-eye-anniversary.jpg",
     hero_image_alt: "The London Eye overlooking River Thames at sunset",
-    meta_title: "The London Eye News & Flight Updates | WAT",
+    meta_title: "The London Eye News & Flight Updates | WAN",
     meta_description: "Pod technological enhancements, milestone anniversary events, and ticket booking guidance for the London Eye.",
     sort_order: 1
   },
@@ -476,7 +476,7 @@ const ATTRACTIONS_DATA = [
     description: "The largest ancient amphitheater ever built, completed in 80 AD, featuring newly excavated underground hypogeum passageways and gladiatorial arenas.",
     hero_image: "/images/articles/rome-colosseum-hypogeum.jpg",
     hero_image_alt: "Colosseum in Rome with golden light across ancient travertine arches",
-    meta_title: "Rome Colosseum Hypogeum & Archaeological News | WAT",
+    meta_title: "Rome Colosseum Hypogeum & Archaeological News | WAN",
     meta_description: "Underground hypogeum walkway openings, evening tours, and ticket reservation updates for Rome's Colosseum.",
     sort_order: 1
   },
@@ -487,7 +487,7 @@ const ATTRACTIONS_DATA = [
     description: "Antoni Gaudí's visionary UNESCO masterpiece, renowned for its soaring organic stone spires, kaleidoscopic stained-glass naves, and biblical facades.",
     hero_image: "/images/articles/barcelona-sagrada-familia-milestone.jpg",
     hero_image_alt: "Sagrada Família spires reaching toward blue sky in Barcelona",
-    meta_title: "Sagrada Família Construction Milestones & Visitor Guide | WAT",
+    meta_title: "Sagrada Família Construction Milestones & Visitor Guide | WAN",
     meta_description: "Chapel of the Assumption construction progress, final tower timelines, and ticket booking for Sagrada Família.",
     sort_order: 1
   },
@@ -498,7 +498,7 @@ const ATTRACTIONS_DATA = [
     description: "The national museum of the Netherlands, housing 8,000 historic and artistic objects including masterpiece galleries by Rembrandt, Vermeer, and Frans Hals.",
     hero_image: "/images/articles/amsterdam-rijksmuseum-vermeer.jpg",
     hero_image_alt: "Rijksmuseum historic facade on the Museumplein in Amsterdam",
-    meta_title: "Rijksmuseum Exhibition News & Gallery Updates | WAT",
+    meta_title: "Rijksmuseum Exhibition News & Gallery Updates | WAN",
     meta_description: "Vermeer and Rembrandt gallery expansions, immersive digital guides, and visitor tips for Amsterdam's Rijksmuseum.",
     sort_order: 1
   },
@@ -509,7 +509,7 @@ const ATTRACTIONS_DATA = [
     description: "An 18th-century neoclassical monument standing at Pariser Platz, symbolizing German unity and serving as the focal point of historic Berlin.",
     hero_image: "/images/articles/berlin-brandenburg-gate-corridor.jpg",
     hero_image_alt: "Brandenburg Gate glowing at dusk in Berlin",
-    meta_title: "Brandenburg Gate Events & Cultural Corridor Wire | WAT",
+    meta_title: "Brandenburg Gate Events & Cultural Corridor Wire | WAN",
     meta_description: "Night illumination corridors, pedestrian plaza enhancements, and historical exhibitions at the Brandenburg Gate.",
     sort_order: 1
   },
@@ -520,7 +520,7 @@ const ATTRACTIONS_DATA = [
     description: "The cathedral church of Venice on Piazza San Marco, famed for its opulent Italo-Byzantine architecture, 8,000 square meters of golden mosaics, and protective glass tide barriers.",
     hero_image: "/images/articles/venice-st-marks-flood-barrier.jpg",
     hero_image_alt: "Venetian waterways and St. Mark's Basilica in Venice",
-    meta_title: "St. Mark's Basilica Lagoon Protection & Mosaic Wire | WAT",
+    meta_title: "St. Mark's Basilica Lagoon Protection & Mosaic Wire | WAN",
     meta_description: "Glass flood barrier performance, mosaic restoration schedules, and timed entry guides for St. Mark's Basilica.",
     sort_order: 1
   },
@@ -531,7 +531,7 @@ const ATTRACTIONS_DATA = [
     description: "An ancient citadel located on a rocky outcrop above the city of Athens, containing the architectural remnants of the Parthenon, Erechtheion, and Propylaea.",
     hero_image: "/images/articles/athens-acropolis-smart-flow.jpg",
     hero_image_alt: "Parthenon temple on the Acropolis of Athens",
-    meta_title: "Acropolis of Athens Smart Flow & Conservation Wire | WAT",
+    meta_title: "Acropolis of Athens Smart Flow & Conservation Wire | WAN",
     meta_description: "Time-slot booking system rollout, western access improvements, and preservation updates for the Acropolis.",
     sort_order: 1
   },
@@ -542,7 +542,7 @@ const ATTRACTIONS_DATA = [
     description: "The 1,441-room baroque former imperial summer residence of the Habsburg monarchs, featuring grand staterooms, formal parterres, and the Gloriette.",
     hero_image: "/images/articles/vienna-schonbrunn-imperial-restoration.jpg",
     hero_image_alt: "Schönbrunn Palace facade and sculpted gardens in Vienna",
-    meta_title: "Schönbrunn Palace Restorations & Garden Tours | WAT",
+    meta_title: "Schönbrunn Palace Restorations & Garden Tours | WAN",
     meta_description: "Imperial Grand Apartments restoration, baroque garden night illumination, and Vienna palace ticketing updates.",
     sort_order: 1
   },
@@ -553,7 +553,7 @@ const ATTRACTIONS_DATA = [
     description: "The historic 14th-century stone arch bridge lined with 30 baroque saint statues, connecting Old Town to the monumental Prague Castle across the Vltava River.",
     hero_image: "/images/articles/prague-charles-bridge-heritage-access.jpg",
     hero_image_alt: "Charles Bridge and Prague Castle illuminated at dawn",
-    meta_title: "Charles Bridge Heritage Access & Castle Wire | WAT",
+    meta_title: "Charles Bridge Heritage Access & Castle Wire | WAN",
     meta_description: "Evening heritage access, stonemasonry conservation, and visitor guidelines for Charles Bridge in Prague.",
     sort_order: 1
   },
@@ -565,7 +565,7 @@ const ATTRACTIONS_DATA = [
     description: "Frédéric-Auguste Bartholdi's colossal neoclassical copper statue on Liberty Island, welcoming visitors to New York Harbor alongside the Ellis Island Immigration Museum.",
     hero_image: "/images/articles/nyc-statue-of-liberty-crown-access.jpg",
     hero_image_alt: "Statue of Liberty overlooking New York Harbor at sunset",
-    meta_title: "Statue of Liberty Crown Access & Harbor Ferry Wire | WAT",
+    meta_title: "Statue of Liberty Crown Access & Harbor Ferry Wire | WAN",
     meta_description: "Crown reservation schedules, security logistics, and Ellis Island museum exhibits in New York Harbor.",
     sort_order: 1
   },
@@ -576,7 +576,7 @@ const ATTRACTIONS_DATA = [
     description: "Universal Orlando Resort's revolutionary brand-new fourth theme park, featuring Celestial Park, The Wizarding World of Harry Potter: Ministry of Magic, Super Nintendo World, How to Train Your Dragon: Isle of Berk, and Dark Universe.",
     hero_image: "/images/articles/orlando-universal-epic-universe-preview.jpg",
     hero_image_alt: "Universal Epic Universe theme park portals and roller coasters at twilight",
-    meta_title: "Universal Epic Universe Theme Park Intelligence | WAT",
+    meta_title: "Universal Epic Universe Theme Park Intelligence | WAN",
     meta_description: "Comprehensive preview of Celestial Park, Dark Universe, Super Nintendo World, ride testing, and ticketing rules.",
     sort_order: 1
   },
@@ -587,7 +587,7 @@ const ATTRACTIONS_DATA = [
     description: "The iconic 1.7-mile suspension bridge spanning the Golden Gate strait, famed for its towering International Orange steel towers and scenic Marin coastal trails.",
     hero_image: "/images/articles/sf-golden-gate-welcome-plaza.jpg",
     hero_image_alt: "Golden Gate Bridge with morning fog rolling across San Francisco Bay",
-    meta_title: "Golden Gate Bridge Welcome Plaza & Trail Updates | WAT",
+    meta_title: "Golden Gate Bridge Welcome Plaza & Trail Updates | WAN",
     meta_description: "Welcome plaza expansions, pedestrian audio walking tours, and viewpoint logistics for San Francisco's Golden Gate Bridge.",
     sort_order: 1
   },
@@ -598,7 +598,7 @@ const ATTRACTIONS_DATA = [
     description: "A monumental spherical music and entertainment arena in Paradise, Nevada, featuring a 580,000-sq-ft programmable LED exterior exosphere and immersive 16K interior wrap-around display.",
     hero_image: "/images/articles/las-vegas-sphere-immersive-exosphere.jpg",
     hero_image_alt: "The Sphere illuminated with vibrant LED visual artwork at night in Las Vegas",
-    meta_title: "The Sphere Las Vegas Concert Residencies & Exosphere Wire | WAT",
+    meta_title: "The Sphere Las Vegas Concert Residencies & Exosphere Wire | WAN",
     meta_description: "Next-gen immersive concert residencies, Exosphere programming schedules, and visitor details for The Sphere.",
     sort_order: 1
   },
@@ -609,7 +609,7 @@ const ATTRACTIONS_DATA = [
     description: "The legendary working film studio and theme park in the San Fernando Valley, featuring the historic World-Famous Studio Tour and cutting-edge Super Nintendo World.",
     hero_image: "/images/articles/la-universal-studios-nintendo-expansion.jpg",
     hero_image_alt: "Universal Studios Hollywood studio lot and attraction lands in Los Angeles",
-    meta_title: "Universal Studios Hollywood Expansions & Studio Tour | WAT",
+    meta_title: "Universal Studios Hollywood Expansions & Studio Tour | WAN",
     meta_description: "Studio Tour upgrades, Super Nintendo World expansions, and Southern California theme park developments.",
     sort_order: 1
   },
@@ -620,7 +620,7 @@ const ATTRACTIONS_DATA = [
     description: "A 24.5-acre public park in the Loop community area of Chicago, celebrated for Sir Anish Kapoor's reflective stainless-steel Cloud Gate sculpture (The Bean) and Jay Pritzker Pavilion.",
     hero_image: "/images/articles/chicago-millennium-park-cloud-gate-restoration.jpg",
     hero_image_alt: "Cloud Gate stainless steel sculpture reflecting Chicago skyscrapers in Millennium Park",
-    meta_title: "Chicago Cloud Gate Plaza Reopening & Millennium Park Wire | WAT",
+    meta_title: "Chicago Cloud Gate Plaza Reopening & Millennium Park Wire | WAN",
     meta_description: "Full plaza accessibility restoration, summer concert series schedules, and architecture guides for Millennium Park.",
     sort_order: 1
   },
@@ -631,7 +631,7 @@ const ATTRACTIONS_DATA = [
     description: "The crown jewel of the Smithsonian Institution on the National Mall, showcasing the Wright Brothers' 1903 Flyer, Apollo 11 Command Module Columbia, and revolutionary aerospace exhibits.",
     hero_image: "/images/articles/dc-smithsonian-air-space-revitalization.jpg",
     hero_image_alt: "National Mall museums and landmarks in Washington D.C.",
-    meta_title: "Smithsonian National Air & Space Museum Revitalization | WAT",
+    meta_title: "Smithsonian National Air & Space Museum Revitalization | WAN",
     meta_description: "Multi-year transformation completion, timed entry pass rules, and transformed gallery guides on the National Mall.",
     sort_order: 1
   },
@@ -642,7 +642,7 @@ const ATTRACTIONS_DATA = [
     description: "The largest collection of Art Deco architecture in the world, featuring over 800 preserved pastel-hued buildings, streamline moderne facades, and neon-lit promenades along Ocean Drive.",
     hero_image: "/images/articles/miami-art-deco-historic-district-preservation.jpg",
     hero_image_alt: "Pastel art deco hotels and palm trees along Ocean Drive in Miami Beach",
-    meta_title: "Miami Art Deco District Walking Corridors & Heritage Wire | WAT",
+    meta_title: "Miami Art Deco District Walking Corridors & Heritage Wire | WAN",
     meta_description: "New guided architectural walking corridors, historic preservation milestones, and visitor tips for South Beach Miami.",
     sort_order: 1
   },
@@ -653,7 +653,7 @@ const ATTRACTIONS_DATA = [
     description: "The historic heart of New Orleans, centered around Jackson Square and St. Louis Cathedral, renowned for ornate wrought-iron balconies, street brass music, and Creole cultural heritage.",
     hero_image: "/images/articles/new-orleans-french-quarter-cultural-corridor.jpg",
     hero_image_alt: "St. Louis Cathedral and Jackson Square in the French Quarter of New Orleans",
-    meta_title: "New Orleans French Quarter Heritage Corridors & Music Wire | WAT",
+    meta_title: "New Orleans French Quarter Heritage Corridors & Music Wire | WAN",
     meta_description: "Jackson Square cultural preservation, pedestrian-friendly walking routes, and historic architecture guides in New Orleans.",
     sort_order: 1
   },
@@ -664,7 +664,7 @@ const ATTRACTIONS_DATA = [
     description: "Honolulu's most revered historic memorial honoring the events of December 7, 1941, paired with the iconic volcanic crater trail of Diamond Head State Monument overlooking Waikiki.",
     hero_image: "/images/articles/honolulu-pearl-harbor-diamond-head-trail-upgrades.jpg",
     hero_image_alt: "Diamond Head volcanic crater and pristine coastline in Honolulu, Hawaii",
-    meta_title: "Pearl Harbor Memorial & Diamond Head Trail Upgrades | WAT",
+    meta_title: "Pearl Harbor Memorial & Diamond Head Trail Upgrades | WAN",
     meta_description: "USS Arizona Memorial reservation protocols, Diamond Head summit trail modernization, and Oahu visitor logistics.",
     sort_order: 1
   }
@@ -684,7 +684,7 @@ const ARTICLES_DATA = [
     tags: ["Paris", "Eiffel Tower", "France", "Landmark", "Visitor Tips", "Architecture"],
     image: "/images/articles/paris-eiffel-tower.jpg",
     imageAlt: "Eiffel Tower illuminated against twilight sky with spring blossoms on the Champ de Mars in Paris",
-    metaTitle: "Eiffel Tower Summer Access & Sustainability Update | WAT Paris",
+    metaTitle: "Eiffel Tower Summer Access & Sustainability Update | WAN Paris",
     metaDescription: "Comprehensive guide to the Eiffel Tower's new visitor capacity systems, renovated garden promenades, and evening elevator bookings.",
     contentHtml: `
       <p class="drop-cap">The Eiffel Tower, the soaring 330-meter wrought-iron centerpiece of Paris and one of the world's most recognizable cultural landmarks, has officially inaugurated an extensive modernization masterplan designed to enhance the visitor experience while protecting the monument's architectural integrity for future generations.</p>
@@ -733,7 +733,7 @@ const ARTICLES_DATA = [
     tags: ["London", "London Eye", "United Kingdom", "Landmarks", "Theme Parks", "Travel Wire"],
     image: "/images/articles/london-eye-anniversary.jpg",
     imageAlt: "London Eye illuminated at twilight over the River Thames with Big Ben and Parliament in the background",
-    metaTitle: "London Eye 25th Anniversary Upgrades & Flight Guide | WAT London",
+    metaTitle: "London Eye 25th Anniversary Upgrades & Flight Guide | WAN London",
     metaDescription: "Verified news on London Eye pod refurbishments, interactive digital guides, and sunset flight booking advice along the Thames.",
     contentHtml: `
       <p class="drop-cap">Since its grand millennium debut on the South Bank of the River Thames, the London Eye has transformed from what was originally conceived as a temporary five-year architectural celebration into the defining silhouette of modern London's skyline. As the world-famous cantilevered observation wheel marks a quarter-century of continuous operation, operator Merlin Entertainments has unveiled a comprehensive suite of guest-facing technological upgrades across all 32 glass capsules.</p>
@@ -777,7 +777,7 @@ const ARTICLES_DATA = [
     tags: ["Rome", "Colosseum", "Italy", "Archaeology", "Historic Wonders", "UNESCO"],
     image: "/images/articles/rome-colosseum-hypogeum.jpg",
     imageAlt: "Golden sunset light across the monumental arches of the Roman Colosseum",
-    metaTitle: "Rome Colosseum Expanded Hypogeum Tours & Visitor Guide | WAT Rome",
+    metaTitle: "Rome Colosseum Expanded Hypogeum Tours & Visitor Guide | WAN Rome",
     metaDescription: "Detailed report on newly opened Colosseum underground walkways, gladiatorial tunnels, and night tour booking logistics in Rome.",
     contentHtml: `
       <p class="drop-cap">In what archaeologists and architectural historians are calling the most significant subterranean restoration of the 21st century, the Parco Archeologico del Colosseo has officially inaugurated expanded public access to the hypogeum—the intricate subterranean labyrinth of tunnels, trapdoors, and staging chambers beneath the Colosseum's legendary arena floor.</p>
@@ -821,7 +821,7 @@ const ARTICLES_DATA = [
     tags: ["Barcelona", "Sagrada Familia", "Spain", "Architecture", "Gaudí", "Landmarks"],
     image: "/images/articles/barcelona-sagrada-familia-milestone.jpg",
     imageAlt: "The soaring spires and Nativity façade of Sagrada Família in Barcelona under bright blue skies",
-    metaTitle: "Sagrada Família Milestone Updates & Ticket Guide | WAT Barcelona",
+    metaTitle: "Sagrada Família Milestone Updates & Ticket Guide | WAN Barcelona",
     metaDescription: "Construction progress on the Tower of Jesus Christ, Chapel of the Assumption, and essential booking advice for Barcelona's Sagrada Família.",
     contentHtml: `
       <p class="drop-cap">More than 140 years after the laying of its cornerstone in 1882, the Basílica de la Sagrada Família in Barcelona has entered its definitive construction phase. The Temple Expiatori foundation has officially announced the structural milestone completion of the Chapel of the Assumption on Carrer de Provença, while assembly of the towering 172.5-meter central spire—the Tower of Jesus Christ—approaches its crowning architectural apex.</p>
@@ -865,7 +865,7 @@ const ARTICLES_DATA = [
     tags: ["Amsterdam", "Rijksmuseum", "Netherlands", "Museums", "Art", "Culture"],
     image: "/images/articles/amsterdam-rijksmuseum-vermeer.jpg",
     imageAlt: "The grand facade of the Rijksmuseum reflected in the Museumplein water basin in Amsterdam",
-    metaTitle: "Amsterdam Rijksmuseum Gallery Immersion & Visitor Guide | WAT Amsterdam",
+    metaTitle: "Amsterdam Rijksmuseum Gallery Immersion & Visitor Guide | WAN Amsterdam",
     metaDescription: "Exhibition highlights, Operation Night Watch updates, and essential booking guidance for the Rijksmuseum in Amsterdam.",
     contentHtml: `
       <p class="drop-cap">Located on Amsterdam's prestigious Museumplein, the Rijksmuseum—the national museum of the Netherlands—has inaugurated a state-of-the-art re-curation of its celebrated Gallery of Honour. The project seamlessly integrates centuries-old masterworks by Rembrandt van Rijn, Johannes Vermeer, and Frans Hals with pioneering non-invasive digital imaging technologies that reveal the hidden brushstrokes of Dutch Golden Age painting.</p>
@@ -909,7 +909,7 @@ const ARTICLES_DATA = [
     tags: ["Berlin", "Brandenburg Gate", "Germany", "Landmarks", "Historic Wonders", "Culture"],
     image: "/images/articles/berlin-brandenburg-gate-corridor.jpg",
     imageAlt: "Brandenburg Gate illuminated with warm golden light against deep indigo night sky in Berlin",
-    metaTitle: "Berlin Brandenburg Gate Cultural Corridor & Visitor Wire | WAT Berlin",
+    metaTitle: "Berlin Brandenburg Gate Cultural Corridor & Visitor Wire | WAN Berlin",
     metaDescription: "Comprehensive report on Berlin's unified heritage trail connecting Brandenburg Gate, Unter den Linden, and Museum Island.",
     contentHtml: `
       <p class="drop-cap">The historic heart of Berlin has reached a triumphant urban milestone with the official opening of the "Kultur-Achse Unter den Linden"—a unified, fully pedestrian-friendly cultural corridor connecting the monumental neoclassical Brandenburg Gate at Pariser Platz with the UNESCO World Heritage-listed Museum Island and the newly reconstructed Berlin Palace (Humboldt Forum).</p>
@@ -953,7 +953,7 @@ const ARTICLES_DATA = [
     tags: ["Venice", "St Marks Basilica", "Italy", "Historic Wonders", "Lagoon", "Preservation"],
     image: "/images/articles/venice-st-marks-flood-barrier.jpg",
     imageAlt: "Gondolas moored on the Grand Canal with St. Mark's Basilica and Venetian palazzos in golden sunrise light",
-    metaTitle: "St. Mark's Basilica Glass Barrier & Mosaic Restoration | WAT Venice",
+    metaTitle: "St. Mark's Basilica Glass Barrier & Mosaic Restoration | WAN Venice",
     metaDescription: "Report on Venice's new protective flood barriers, restored golden mosaics inside St. Mark's Basilica, and timed ticket access.",
     contentHtml: `
       <p class="drop-cap">In the historic maritime republic of Venice, St. Mark's Basilica (Basilica di San Marco)—renowned for over eight centuries as the "Chiesa d'Oro" (Church of Gold)—has achieved a monumental preservation victory. The Procuratoria di San Marco has completed the installation of an advanced subterranean glass flood barrier system that protects the cathedral's irreplaceable marble pavements and Byzantine mosaics from the corrosive tides of the Venetian lagoon.</p>
@@ -997,7 +997,7 @@ const ARTICLES_DATA = [
     tags: ["Athens", "Acropolis", "Greece", "Archaeology", "Parthenon", "Historic Wonders"],
     image: "/images/articles/athens-acropolis-smart-flow.jpg",
     imageAlt: "The Parthenon atop the rocky Acropolis citadel illuminated by Mediterranean afternoon sun in Athens",
-    metaTitle: "Acropolis of Athens Smart Flow & Visitor Guide | WAT Athens",
+    metaTitle: "Acropolis of Athens Smart Flow & Visitor Guide | WAN Athens",
     metaDescription: "Comprehensive report on the Acropolis time-slot booking system, restored Propylaea access paths, and Parthenon viewing advice.",
     contentHtml: `
       <p class="drop-cap">Perched high above the Greek capital upon its iconic limestone outcrop, the Acropolis of Athens—the quintessential symbol of classical civilization, democracy, and ancient architectural mastery—has implemented a groundbreaking sustainable visitor management system. The Greek Ministry of Culture has finalized hourly capacity limits and completed an extensive restoration of the western monumental approach leading to the ancient Propylaea gates.</p>
@@ -1041,7 +1041,7 @@ const ARTICLES_DATA = [
     tags: ["Vienna", "Schönbrunn Palace", "Austria", "Historic Wonders", "Palaces", "Culture"],
     image: "/images/articles/vienna-schonbrunn-imperial-restoration.jpg",
     imageAlt: "Schönbrunn Palace yellow baroque facade framed by sculpted flower gardens in Vienna",
-    metaTitle: "Schönbrunn Palace Restorations & Evening Garden Wire | WAT Vienna",
+    metaTitle: "Schönbrunn Palace Restorations & Evening Garden Wire | WAN Vienna",
     metaDescription: "Guide to the newly restored Grand Apartments, Maria Theresa staterooms, and evening garden tours at Schönbrunn Palace in Vienna.",
     contentHtml: `
       <p class="drop-cap">In the imperial Austrian capital of Vienna, Schönbrunn Palace (Schloss Schönbrunn)—the 1,441-room baroque masterpiece and UNESCO World Heritage residence of the Habsburg emperors—has unveiled the most comprehensive interior restoration of its Imperial Grand Apartments in over fifty years. The project returns the private living quarters of Empress Maria Theresa and Emperor Franz Joseph I to their authentic 18th- and 19th-century brilliance.</p>
@@ -1085,7 +1085,7 @@ const ARTICLES_DATA = [
     tags: ["Prague", "Charles Bridge", "Czech Republic", "Historic Wonders", "Gothic", "Castle"],
     image: "/images/articles/prague-charles-bridge-heritage-access.jpg",
     imageAlt: "Charles Bridge at dawn with historic Gothic towers and Prague Castle glowing in the background",
-    metaTitle: "Charles Bridge & Prague Castle Evening Heritage Guide | WAT Prague",
+    metaTitle: "Charles Bridge & Prague Castle Evening Heritage Guide | WAN Prague",
     metaDescription: "Complete guide to Charles Bridge stonemasonry tours, Old Town Bridge Tower climbs, and Prague Castle evening access.",
     contentHtml: `
       <p class="drop-cap">Spanning the tranquil waters of the Vltava River, Charles Bridge (Karlův most)—the 516-meter medieval Gothic stone arch bridge commissioned by Holy Roman Emperor Charles IV in 1357—has inaugurated a comprehensive heritage conservation program and expanded evening visitor access across its historic guard towers and Prague Castle approach.</p>
@@ -1129,7 +1129,7 @@ const ARTICLES_DATA = [
     tags: ["New York City", "Statue of Liberty", "United States", "Landmarks", "National Parks", "History"],
     image: "/images/articles/nyc-statue-of-liberty-crown-access.jpg",
     imageAlt: "Statue of Liberty on Liberty Island with the Lower Manhattan skyline at golden sunset",
-    metaTitle: "Statue of Liberty Crown Access & Ellis Island Guide | WAT New York",
+    metaTitle: "Statue of Liberty Crown Access & Ellis Island Guide | WAN New York",
     metaDescription: "Verified guide to Statue of Liberty crown reservations, ferry departure points from Battery Park, and Ellis Island museum exhibits.",
     contentHtml: `
       <p class="drop-cap">Standing resolutely upon Liberty Island in New York Harbor, the Statue of Liberty (<em>Liberty Enlightening the World</em>)—the iconic 93-meter neoclassical colossal copper monument gifted by the people of France to the United States in 1886—has implemented an upgraded visitor management and security infrastructure designed by the National Park Service (NPS).</p>
@@ -1173,7 +1173,7 @@ const ARTICLES_DATA = [
     tags: ["Orlando", "Universal Epic Universe", "Theme Parks", "Florida", "Nintendo", "Entertainment"],
     image: "/images/articles/orlando-universal-epic-universe-preview.jpg",
     imageAlt: "Universal Epic Universe theme park entrance portals and roller coasters illuminated at twilight in Orlando",
-    metaTitle: "Universal Epic Universe Complete Guide & Land Previews | WAT Orlando",
+    metaTitle: "Universal Epic Universe Complete Guide & Land Previews | WAN Orlando",
     metaDescription: "Comprehensive first-look preview of Universal Epic Universe in Orlando, featuring Celestial Park, Dark Universe, Harry Potter, and Super Nintendo World.",
     contentHtml: `
       <p class="drop-cap">The global theme park industry is witnessing its most monumental expansion in decades as Universal Orlando Resort prepares to open Universal Epic Universe—a breathtaking 750-acre fourth gate that redefines immersive storytelling, cutting-edge ride mechanics, and luxury resort hospitality in Central Florida.</p>
@@ -1220,7 +1220,7 @@ const ARTICLES_DATA = [
     tags: ["San Francisco", "Golden Gate Bridge", "California", "Landmarks", "Coastal", "Architecture"],
     image: "/images/articles/sf-golden-gate-welcome-plaza.jpg",
     imageAlt: "Golden Gate Bridge International Orange towers rising above San Francisco Bay with rolling morning fog",
-    metaTitle: "Golden Gate Bridge Welcome Plaza & Trail Guide | WAT San Francisco",
+    metaTitle: "Golden Gate Bridge Welcome Plaza & Trail Guide | WAN San Francisco",
     metaDescription: "Visitor guide to Golden Gate Bridge walking routes, Marin Headlands viewpoints, Welcome Plaza exhibits, and transit tips.",
     contentHtml: `
       <p class="drop-cap">Spanning the treacherous mile-wide strait connecting San Francisco Bay to the Pacific Ocean, the Golden Gate Bridge—the internationally celebrated 1.7-mile suspension masterpiece painted in signature International Orange—has completed an extensive enhancement of its southern Welcome Plaza, pedestrian accessibility corridors, and panoramic coastal trail connections.</p>
@@ -1264,7 +1264,7 @@ const ARTICLES_DATA = [
     tags: ["Las Vegas", "The Sphere", "Nevada", "Entertainment", "Technology", "Theme Parks"],
     image: "/images/articles/las-vegas-sphere-immersive-exosphere.jpg",
     imageAlt: "The Sphere illuminated with dazzling cosmic artwork at night in Las Vegas",
-    metaTitle: "The Sphere Las Vegas Concert Residencies & Experience Guide | WAT Vegas",
+    metaTitle: "The Sphere Las Vegas Concert Residencies & Experience Guide | WAN Vegas",
     metaDescription: "In-depth review of The Sphere in Las Vegas, featuring 16K wrap-around displays, beamforming audio, and Exosphere art programming.",
     contentHtml: `
       <p class="drop-cap">Rising 366 feet above the Las Vegas Strip and spanning 516 feet across at its widest point, The Sphere at Venetian Resort has firmly established itself as the world's premier architectural and technological marvel of the live entertainment industry, redefining how music, cinema, and digital art are experienced on a monumental scale.</p>
@@ -1308,7 +1308,7 @@ const ARTICLES_DATA = [
     tags: ["Los Angeles", "Universal Studios Hollywood", "California", "Theme Parks", "Nintendo", "Hollywood"],
     image: "/images/articles/la-universal-studios-nintendo-expansion.jpg",
     imageAlt: "Universal Studios Hollywood studio lot and Super Nintendo World in Los Angeles",
-    metaTitle: "Universal Studios Hollywood Expansions & Studio Tour | WAT Los Angeles",
+    metaTitle: "Universal Studios Hollywood Expansions & Studio Tour | WAN Los Angeles",
     metaDescription: "Guide to Super Nintendo World, electric Studio Tour upgrades, and visitor planning at Universal Studios Hollywood.",
     contentHtml: `
       <p class="drop-cap">Nestled in the historic hills of the San Fernando Valley, Universal Studios Hollywood—the historic birthplace of movie-based theme park entertainment and a functioning television and motion picture studio since 1915—has announced significant expansions across both its upper and lower park lots, headlined by enhanced interactive elements in Super Nintendo World and the complete electrification of its World-Famous Studio Tour tram fleet.</p>
@@ -1352,7 +1352,7 @@ const ARTICLES_DATA = [
     tags: ["Chicago", "Millennium Park", "Cloud Gate", "Illinois", "Architecture", "Art"],
     image: "/images/articles/chicago-millennium-park-cloud-gate-restoration.jpg",
     imageAlt: "Cloud Gate stainless steel sculpture reflecting Chicago skyscrapers in Millennium Park",
-    metaTitle: "Chicago Cloud Gate Plaza Reopening & Millennium Park Guide | WAT Chicago",
+    metaTitle: "Chicago Cloud Gate Plaza Reopening & Millennium Park Guide | WAN Chicago",
     metaDescription: "Visitor guide to Chicago's restored Cloud Gate (The Bean), Millennium Park summer concerts, and architectural tours.",
     contentHtml: `
       <p class="drop-cap">Reflecting the towering architectural canyon of Michigan Avenue and the expansive skies over Lake Michigan, Sir Anish Kapoor's monumental 110-ton seamless stainless-steel sculpture, <em>Cloud Gate</em> (affectionately known worldwide as "The Bean"), has officially reopened its surrounding Grainger Plaza in Chicago's Millennium Park following extensive waterproofing, paving, and accessibility upgrades.</p>
@@ -1399,7 +1399,7 @@ const ARTICLES_DATA = [
     tags: ["Washington DC", "Smithsonian", "National Mall", "Museums", "Aviation", "History"],
     image: "/images/articles/dc-smithsonian-air-space-revitalization.jpg",
     imageAlt: "Smithsonian museums and monuments along the National Mall in Washington D.C.",
-    metaTitle: "Smithsonian Air & Space Museum Revitalization Guide | WAT Washington DC",
+    metaTitle: "Smithsonian Air & Space Museum Revitalization Guide | WAN Washington DC",
     metaDescription: "Guide to the transformed Smithsonian National Air and Space Museum on the National Mall, timed entry passes, and historic aircraft exhibits.",
     contentHtml: `
       <p class="drop-cap">Located along the monumental axis of the National Mall in Washington D.C., the Smithsonian National Air and Space Museum—custodian of the world's most significant collection of aviation and space exploration artifacts—has completed its monumental seven-year, $1 billion exterior and interior revitalization, debuting completely reimagined exhibition halls and next-generation interactive learning labs.</p>
@@ -1448,7 +1448,7 @@ const ARTICLES_DATA = [
     tags: ["Miami", "Art Deco", "South Beach", "Florida", "Architecture", "Landmarks"],
     image: "/images/articles/miami-art-deco-historic-district-preservation.jpg",
     imageAlt: "Pastel art deco boutique hotels and palm trees along Ocean Drive in Miami Beach at sunset",
-    metaTitle: "Miami South Beach Art Deco District Guide & Walking Tours | WAT Miami",
+    metaTitle: "Miami South Beach Art Deco District Guide & Walking Tours | WAN Miami",
     metaDescription: "Complete guide to Miami Beach Art Deco architecture, Ocean Drive preservation corridors, and official walking tours.",
     contentHtml: `
       <p class="drop-cap">Stretching along the sun-drenched Atlantic shoreline of South Beach, the Miami Beach Art Deco Historic District—comprising more than 800 designated historic buildings constructed between 1923 and 1943—has officially inaugurated an upgraded pedestrian cultural corridor and opened the newly renovated Art Deco Museum and Preservation Pavilion on Ocean Drive.</p>
@@ -1492,7 +1492,7 @@ const ARTICLES_DATA = [
     tags: ["New Orleans", "French Quarter", "Jackson Square", "Louisiana", "Heritage", "Culture"],
     image: "/images/articles/new-orleans-french-quarter-cultural-corridor.jpg",
     imageAlt: "St. Louis Cathedral and Jackson Square in the historic French Quarter of New Orleans",
-    metaTitle: "New Orleans French Quarter & Jackson Square Heritage Guide | WAT NOLA",
+    metaTitle: "New Orleans French Quarter & Jackson Square Heritage Guide | WAN NOLA",
     metaDescription: "Guide to Jackson Square, St. Louis Cathedral, historic French Quarter architecture walking routes, and live brass music in New Orleans.",
     contentHtml: `
       <p class="drop-cap">Nestled along a crescent bend of the Mississippi River, the historic French Quarter (Vieux Carré) of New Orleans and its iconic civic epicenter, Jackson Square, have completed an extensive cultural preservation initiative. The project safeguards the architectural integrity of 18th- and 19th-century Spanish colonial and French creole townhouses while expanding pedestrian heritage corridors for global travelers.</p>
@@ -1541,7 +1541,7 @@ const ARTICLES_DATA = [
     tags: ["Honolulu", "Pearl Harbor", "Diamond Head", "Hawaii", "Historic Wonders", "National Parks"],
     image: "/images/articles/honolulu-pearl-harbor-diamond-head-trail-upgrades.jpg",
     imageAlt: "Diamond Head crater and Waikiki coastline in Honolulu, Hawaii",
-    metaTitle: "Pearl Harbor Memorial & Diamond Head Trail Guide | WAT Honolulu",
+    metaTitle: "Pearl Harbor Memorial & Diamond Head Trail Guide | WAN Honolulu",
     metaDescription: "Essential visitor guide to Pearl Harbor National Memorial reservations, USS Arizona boat shuttles, and Diamond Head summit trail passes.",
     contentHtml: `
       <p class="drop-cap">On the Pacific island of Oahu, two of Hawaii's most revered cultural and natural landmarks—the Pearl Harbor National Memorial and the iconic volcanic summit crater of Diamond Head State Monument (Lēʻahi)—have completed vital visitor infrastructure modernizations designed to enhance educational storytelling and protect delicate island ecosystems.</p>
@@ -1575,7 +1575,7 @@ const ARTICLES_DATA = [
 ];
 
 async function seed() {
-  console.log("🚀 Starting database wipe and seed for WAT — World Attraction News...");
+  console.log("🚀 Starting database wipe and seed for WAN — World Attraction News...");
 
   // 1. WIPE ALL EXISTING DATA CLEANLY
   console.log("🧹 Clearing all old database records in foreign-key order...");
@@ -1708,7 +1708,7 @@ async function seed() {
       'contributor',
       'approved',
       'Clara Vance',
-      'Senior Global Bureau Correspondent for WAT — World Attraction News. Clara has covered international architectural preservation, theme park engineering, and cultural landmarks across Europe and North America for over a decade.',
+      'Senior Global Bureau Correspondent for WAN — World Attraction News. Clara has covered international architectural preservation, theme park engineering, and cultural landmarks across Europe and North America for over a decade.',
       '/images/avatars/clara-vance.jpg',
       'clara-vance',
       true,
@@ -1748,7 +1748,7 @@ async function seed() {
 
       <p>The surrounding district offers travelers an array of authentic cultural encounters within easy walking distance. Exploring the adjacent historic streets reveals hidden courtyards, neighborhood bistros, and specialized heritage bookshops that provide deeper insight into the local community's enduring relationship with its world-famous landmark.</p>
 
-      <h2>WAT Editorial Bureau Takeaway & Travel Outlook</h2>
+      <h2>WAN Editorial Bureau Takeaway & Travel Outlook</h2>
       <p>As international travel demand continues to set new benchmarks, this milestone development reinforces the destination's position at the vanguard of cultural stewardship and immersive visitor experience. Whether embarking on a first-time architectural pilgrimage or returning for an in-depth rediscovery, travelers who plan ahead with verified time-slot reservations and respectful cultural awareness will find an encounter of unmatched majesty and inspiration.</p>
     `;
 
@@ -1816,7 +1816,7 @@ async function seed() {
         ${authorId},
         'published',
         10,
-        'Approved by WAT Chief Editor. High-impact journalistic piece with verified visitor intelligence.',
+        'Approved by WAN Chief Editor. High-impact journalistic piece with verified visitor intelligence.',
         ${art.image},
         ${art.imageAlt},
         ${art.metaTitle},
@@ -1883,12 +1883,12 @@ async function seed() {
     )
     VALUES (
       1,
-      'Welcome to WAT — World Attraction News, the premier global wire service covering landmark attractions, theme park expansions, archaeological heritage, and visitor intelligence across Europe, the USA, and top world destinations.',
-      'WAT — World Attraction News delivers verified dispatches, landmark intelligence, theme park developments, and visitor guides across world destinations.',
+      'Welcome to WAN — World Attraction News, the premier global wire service covering landmark attractions, theme park expansions, archaeological heritage, and visitor intelligence across Europe, the USA, and top world destinations.',
+      'WAN — World Attraction News delivers verified dispatches, landmark intelligence, theme park developments, and visitor guides across world destinations.',
       '/images/destinations/paris.jpg',
       'index',
       'paris,london,rome,new-york,orlando,barcelona',
-      'Standard WAT editorial guidelines in effect.',
+      'Standard WAN editorial guidelines in effect.',
       now()
     )
     ON CONFLICT (id) DO UPDATE SET
@@ -1910,14 +1910,14 @@ async function seed() {
       'database_seeded',
       'system',
       'seed',
-      'WAT Master Seed (20 Destinations, 20 Articles, 10 Countries)',
+      'WAN Master Seed (20 Destinations, 20 Articles, 10 Countries)',
       ${JSON.stringify({ articles: articleCount, destinations: CITIES_DATA.length, contributor: "Clara Vance" })},
       now()
     )
   `;
 
   console.log("\n=======================================================");
-  console.log("🎉 WAT — World Attraction News Master Seed Complete!");
+  console.log("🎉 WAN — World Attraction News Master Seed Complete!");
   console.log(`✓ 10 Countries`);
   console.log(`✓ 8 Categories`);
   console.log(`✓ 20 Destinations (10 Europe, 10 USA)`);

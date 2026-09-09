@@ -48,7 +48,7 @@ async function expand() {
 
       <p>The surrounding district offers travelers an array of authentic cultural experiences within easy walking distance. Exploring the adjacent historic alleys reveals hidden courtyards, neighborhood bistros, and specialized heritage bookshops that provide deeper insight into the local community's enduring relationship with its world-famous landmark.</p>
 
-      <h2>WAT Editorial Bureau Takeaway & Travel Outlook</h2>
+      <h2>WAN Editorial Bureau Takeaway & Travel Outlook</h2>
       <p>As international travel demand continues to set new benchmarks, this milestone development reinforces the destination's position at the vanguard of cultural stewardship and immersive visitor experience. Whether embarking on a first-time architectural pilgrimage or returning for an in-depth rediscovery, travelers who plan ahead with verified time-slot reservations and respectful cultural awareness will find an encounter of unmatched majesty and inspiration.</p>
     `;
 
