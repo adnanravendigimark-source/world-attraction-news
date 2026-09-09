@@ -54,6 +54,7 @@ export async function POST(req: Request) {
     revalidateTag("categories");
     return NextResponse.json({ ok: true, category });
   } catch (err) {
+    console.error("[api/admin/categories] create error:", err);
     const message = err instanceof Error ? err.message : "";
     if (message.includes("already exists")) return NextResponse.json({ error: message }, { status: 409 });
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });

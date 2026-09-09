@@ -81,7 +81,7 @@ export async function createCategory(input: {
       ${input.imageAlt || ""},
       ${input.metaTitle || ""},
       ${input.metaDescription || ""},
-      ${input.sortOrder}
+      ${Number.isFinite(input.sortOrder) ? input.sortOrder : 0}
     )
     RETURNING *
   `;
@@ -101,12 +101,12 @@ export async function updateCategory(id: string, updates: Partial<Omit<Category,
     UPDATE categories SET
       slug = ${next.slug},
       name = ${next.name},
-      description = ${next.description},
-      image = ${next.image},
-      image_alt = ${next.imageAlt},
-      meta_title = ${next.metaTitle},
-      meta_description = ${next.metaDescription},
-      sort_order = ${next.sortOrder}
+      description = ${next.description || ""},
+      image = ${next.image || ""},
+      image_alt = ${next.imageAlt || ""},
+      meta_title = ${next.metaTitle || ""},
+      meta_description = ${next.metaDescription || ""},
+      sort_order = ${Number.isFinite(next.sortOrder) ? next.sortOrder : 0}
     WHERE id = ${id}
     RETURNING *
   `;

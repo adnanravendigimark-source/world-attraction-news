@@ -42,6 +42,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     revalidateTag("categories");
     return NextResponse.json({ ok: true, category });
   } catch (err) {
+    console.error("[api/admin/categories/[id]] update error:", err);
     const message = err instanceof Error ? err.message : "";
     if (message.includes("already exists")) return NextResponse.json({ error: message }, { status: 409 });
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
