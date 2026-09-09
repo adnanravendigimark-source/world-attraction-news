@@ -17,7 +17,7 @@ import {
   getTopScoredArticles,
 } from "@/lib/articles";
 import { buildMetadata, resolvePageMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
-import { articlePath, attractionPath, cityPath } from "@/lib/destinations";
+import { articlePath, cityPath } from "@/lib/destinations";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
 
 // Pure read (no per-request writes, no searchParams) — real ISR instead of
@@ -157,9 +157,7 @@ export default async function HomePage() {
     location: a.cityName?.toUpperCase() || "",
     image: a.image,
     imageAlt: a.imageAlt || a.title,
-    href: a.attractionSlug
-      ? attractionPath(a.countrySlug, a.citySlug, a.attractionSlug)
-      : articlePath(a.countrySlug, a.citySlug, a.slug),
+    href: articlePath(a.countrySlug, a.citySlug, a.slug),
   }));
 
   const heroUsedIds = new Set(heroSourceArticles.map((a) => a.id));

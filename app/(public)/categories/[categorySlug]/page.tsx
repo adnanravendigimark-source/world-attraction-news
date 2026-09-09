@@ -33,9 +33,10 @@ export async function generateMetadata({
   const category = await getCategoryBySlug(params.categorySlug);
   if (!category) return {};
   return buildMetadata({
-    title: `${category.name} Attraction Coverage & News | ${SITE_NAME}`,
-    description: category.description || `The latest ${category.name.toLowerCase()} news from attractions around the world.`,
+    title: category.metaTitle || `${category.name} Attraction Coverage & News | ${SITE_NAME}`,
+    description: category.metaDescription || category.description || `The latest ${category.name.toLowerCase()} news from attractions around the world.`,
     path: `/categories/${category.slug}`,
+    image: category.image || undefined,
   });
 }
 

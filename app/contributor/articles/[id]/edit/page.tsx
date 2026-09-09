@@ -4,7 +4,6 @@ import { getSession } from "@/lib/session";
 import { getArticleById } from "@/lib/articles";
 import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
-import { getAttractions } from "@/lib/attractions";
 import ArticleEditor from "@/components/dashboard/ArticleEditor";
 import Link from "next/link";
 
@@ -39,10 +38,9 @@ export default async function EditArticlePage({ params }: { params: { id: string
     );
   }
 
-  const [cities, categories, attractions] = await Promise.all([
+  const [cities, categories] = await Promise.all([
     getCities(),
     getCategories(),
-    getAttractions(),
   ]);
 
   return (
@@ -58,7 +56,6 @@ export default async function EditArticlePage({ params }: { params: { id: string
             contentHtml: article.contentHtml,
             cityId: article.cityId,
             categoryId: article.categoryId,
-            attractionId: article.attractionId,
             image: article.image,
             imageAlt: article.imageAlt,
             metaTitle: article.metaTitle,
@@ -70,7 +67,6 @@ export default async function EditArticlePage({ params }: { params: { id: string
           status={article.status}
           cities={cities.map((c) => ({ id: c.id, name: c.name, country: c.country }))}
           categories={categories.map((c) => ({ id: c.id, name: c.name }))}
-          attractions={attractions.map((a) => ({ id: a.id, name: a.name, cityId: a.cityId }))}
         />
       </div>
     </div>

@@ -104,6 +104,10 @@ async function createTables() {
       slug TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
+      image TEXT NOT NULL DEFAULT '',
+      image_alt TEXT NOT NULL DEFAULT '',
+      meta_title TEXT NOT NULL DEFAULT '',
+      meta_description TEXT NOT NULL DEFAULT '',
       sort_order INTEGER NOT NULL DEFAULT 0
     )
   `;

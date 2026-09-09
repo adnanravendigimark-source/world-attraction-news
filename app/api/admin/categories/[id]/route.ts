@@ -31,6 +31,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       slug: body.slug !== undefined ? String(body.slug).trim().toLowerCase() : undefined,
       name: body.name !== undefined ? body.name : undefined,
       description: body.description !== undefined ? body.description : undefined,
+      image: body.image !== undefined ? body.image : undefined,
+      imageAlt: body.imageAlt !== undefined ? body.imageAlt : undefined,
+      metaTitle: body.metaTitle !== undefined ? body.metaTitle : undefined,
+      metaDescription: body.metaDescription !== undefined ? body.metaDescription : undefined,
       sortOrder: body.sortOrder !== undefined ? Number(body.sortOrder) : undefined,
     });
     await logActivity(session, "category_edited", { type: "category", id: category.id, label: category.name });

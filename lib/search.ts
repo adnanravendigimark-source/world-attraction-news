@@ -13,7 +13,7 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     contentHtml: row.content_html,
     cityId: row.city_id,
     categoryId: row.category_id,
-    attractionId: row.attraction_id ?? null,
+    attractionId: null,
     authorId: row.author_id,
     status: row.status,
     score: row.score === null || row.score === undefined ? null : Number(row.score),
@@ -45,8 +45,8 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     countrySlug: row.country_slug,
     categoryName: row.category_name,
     categorySlug: row.category_slug,
-    attractionName: row.attraction_name ?? null,
-    attractionSlug: row.attraction_slug ?? null,
+    attractionName: null,
+    attractionSlug: null,
     authorName: row.author_name,
     authorEmail: row.author_email,
     authorSlug: row.author_slug ?? null,
@@ -66,12 +66,10 @@ export async function searchArticles(query: string, limit = 20): Promise<Article
     const rows = await sql`
       SELECT a.*, c.name AS city_name, c.slug AS city_slug, c.country_slug AS country_slug,
              cat.name AS category_name, cat.slug AS category_slug,
-             att.name AS attraction_name, att.slug AS attraction_slug,
              u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
       FROM articles a
       JOIN cities c ON c.id = a.city_id
       LEFT JOIN categories cat ON cat.id = a.category_id
-      LEFT JOIN attractions att ON att.id = a.attraction_id
       JOIN users u ON u.id = a.author_id
       WHERE a.status = 'published'
         AND (
@@ -128,6 +126,10 @@ export async function searchCategories(query: string, limit = 10): Promise<Categ
       slug: r.slug,
       name: r.name,
       description: r.description || "",
+      image: r.image || null,
+      imageAlt: r.image_alt || null,
+      metaTitle: r.meta_title || null,
+      metaDescription: r.meta_description || null,
       sortOrder: r.sort_order,
     }));
   } catch {

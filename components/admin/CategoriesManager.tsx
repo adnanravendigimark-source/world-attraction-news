@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { Category } from "@/lib/categories";
+import ImageUploadField from "@/components/ImageUploadField";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
@@ -10,12 +12,20 @@ interface CategoryFormState {
   name: string;
   slug: string;
   description: string;
+  image: string;
+  imageAlt: string;
+  metaTitle: string;
+  metaDescription: string;
 }
 
 const EMPTY: CategoryFormState = {
   name: "",
   slug: "",
   description: "",
+  image: "",
+  imageAlt: "",
+  metaTitle: "",
+  metaDescription: "",
 };
 
 export default function CategoriesManager({
@@ -45,6 +55,10 @@ export default function CategoriesManager({
       name: category.name,
       slug: category.slug,
       description: category.description || "",
+      image: category.image || "",
+      imageAlt: category.imageAlt || "",
+      metaTitle: category.metaTitle || "",
+      metaDescription: category.metaDescription || "",
     });
     setModalOpen(true);
   }
@@ -151,10 +165,27 @@ export default function CategoriesManager({
             return (
               <div
                 key={category.id}
-                className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
+                className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs flex flex-col justify-between hover:shadow-md transition-all"
               >
+                {/* Category Thumbnail / Cover */}
+                {category.image ? (
+                  <div className="relative h-36 w-full bg-slate-100 border-b border-slate-100 overflow-hidden">
+                    <Image
+                      src={category.image}
+                      alt={category.imageAlt || category.name}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-16 w-full bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-100 flex items-center px-6">
+                    <span className="text-xs font-semibold text-slate-400">No cover image</span>
+                  </div>
+                )}
+
                 {/* Card Top Body */}
-                <div className="space-y-2 flex-1 flex flex-col justify-between">
+                <div className="p-6 space-y-2 flex-1 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-base font-bold text-slate-900 leading-tight">
@@ -176,7 +207,7 @@ export default function CategoriesManager({
                 </div>
 
                 {/* Card Footer Actions */}
-                <div className="border-t border-slate-100 pt-3.5 flex items-center justify-between">
+                <div className="border-t border-slate-100 px-6 py-3.5 flex items-center justify-between bg-slate-50/50">
                   <Link
                     href={`/categories/${category.slug}`}
                     target="_blank"
@@ -212,7 +243,7 @@ export default function CategoriesManager({
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={closeModal} />
-          <div className="relative w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
@@ -277,6 +308,48 @@ export default function CategoriesManager({
                   placeholder="What stories fall under this category..."
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
                 />
+              </div>
+
+              <ImageUploadField
+                label="Category Cover Image"
+                value={form.image}
+                onChange={(url) => setForm({ ...form, image: url })}
+                altValue={form.imageAlt}
+                onAltChange={(alt) => setForm({ ...form, imageAlt: alt })}
+                altLabel="Category Cover Image Alt Text"
+                altPlaceholder={`Describe category cover photo (e.g. Theme park roller coaster for ${form.name || "this category"})`}
+                uploadUrl="/api/admin/upload"
+              />
+
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  SEO & Search Metadata
+                </span>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Meta Title (SEO)
+                  </label>
+                  <input
+                    value={form.metaTitle}
+                    onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
+                    placeholder="Custom SEO Title (defaults to category name)"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-[#DC2626] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Meta Description (SEO)
+                  </label>
+                  <textarea
+                    value={form.metaDescription}
+                    onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
+                    rows={2}
+                    placeholder="Brief summary for search engines (defaults to category description)"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none resize-none leading-relaxed"
+                  />
+                </div>
               </div>
             </div>
 

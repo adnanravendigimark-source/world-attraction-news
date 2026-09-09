@@ -138,8 +138,8 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     countrySlug: cCountrySlug,
     categoryName: row.category_name,
     categorySlug: row.category_slug,
-    attractionName: row.attraction_name ?? null,
-    attractionSlug: row.attraction_slug ?? null,
+    attractionName: null,
+    attractionSlug: null,
     authorName: row.author_name,
     authorEmail: row.author_email,
     authorSlug: row.author_slug ?? null,
@@ -172,12 +172,10 @@ const JOIN_SELECT = `
   SELECT a.*, c.name AS city_name, c.slug AS city_slug, c.country AS city_country,
          COALESCE(NULLIF(c.country_slug, ''), '') AS country_slug,
          cat.name AS category_name, cat.slug AS category_slug,
-         att.name AS attraction_name, att.slug AS attraction_slug,
          u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
   FROM articles a
   JOIN cities c ON c.id = a.city_id
   LEFT JOIN categories cat ON cat.id = a.category_id
-  LEFT JOIN attractions att ON att.id = a.attraction_id
   JOIN users u ON u.id = a.author_id
 `;
 
@@ -187,7 +185,6 @@ export async function getPublishedArticles(opts: {
   countrySlug?: string;
   citySlug?: string;
   categorySlug?: string;
-  attractionSlug?: string;
   limit?: number;
 } = {}): Promise<ArticleWithRelations[]> {
   try {
@@ -206,10 +203,6 @@ export async function getPublishedArticles(opts: {
     if (opts.categorySlug) {
       params.push(opts.categorySlug);
       conditions.push(`cat.slug = $${params.length}`);
-    }
-    if (opts.attractionSlug) {
-      params.push(opts.attractionSlug);
-      conditions.push(`att.slug = $${params.length}`);
     }
     params.push(limit);
     const query = `${JOIN_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY COALESCE(a.published_at, a.updated_at) DESC NULLS LAST LIMIT $${params.length}`;
@@ -355,16 +348,6 @@ export async function getRelatedByCategoryPublishedArticles(
   return rows.map(rowToArticleWithRelations);
 }
 
-export async function getRelatedByAttractionPublishedArticles(
-  attractionId: string,
-  excludeArticleId: string,
-  limit = 4
-): Promise<ArticleWithRelations[]> {
-  const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.attraction_id = $1 AND a.id != $2 ORDER BY a.published_at DESC LIMIT $3`;
-  const rows = await sql(query, [attractionId, excludeArticleId, limit]);
-  return rows.map(rowToArticleWithRelations);
-}
-
 // Paginated published-article listing — used by /latest-news and
 // /categories/[slug], which both need a real total count for "page X of Y"
 // / "load more" rather than just a capped list.
@@ -373,7 +356,6 @@ export type ArticleSort = "latest" | "oldest" | "popular";
 export async function getPublishedArticlesPage(opts: {
   citySlug?: string;
   categorySlug?: string;
-  attractionSlug?: string;
   query?: string;
   page?: number;
   pageSize?: number;
@@ -393,10 +375,6 @@ export async function getPublishedArticlesPage(opts: {
       params.push(opts.categorySlug);
       conditions.push(`cat.slug = $${params.length}`);
     }
-    if (opts.attractionSlug) {
-      params.push(opts.attractionSlug);
-      conditions.push(`att.slug = $${params.length}`);
-    }
     if (opts.query && opts.query.trim()) {
       params.push(`%${opts.query.trim()}%`);
       conditions.push(`(a.title ILIKE $${params.length} OR a.excerpt ILIKE $${params.length})`);
@@ -408,7 +386,6 @@ export async function getPublishedArticlesPage(opts: {
       FROM articles a
       JOIN cities c ON c.id = a.city_id
       LEFT JOIN categories cat ON cat.id = a.category_id
-      LEFT JOIN attractions att ON att.id = a.attraction_id
       WHERE ${where}
     `;
     const countRows = await sql(countQuery, params);

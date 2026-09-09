@@ -79,7 +79,6 @@ export interface ArticleFormValues {
   contentHtml: string;
   cityId: string;
   categoryId: string | null;
-  attractionId: string | null;
   image: string;
   imageAlt: string;
   metaTitle: string;
@@ -94,14 +93,12 @@ export default function ArticleEditor({
   status,
   cities,
   categories,
-  attractions,
 }: {
   articleId?: string;
   initial?: Partial<ArticleFormValues>;
   status?: string;
   cities: { id: string; name: string; country: string }[];
   categories: { id: string; name: string }[];
-  attractions: { id: string; name: string; cityId: string }[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -139,7 +136,6 @@ export default function ArticleEditor({
     contentHtml: initial?.contentHtml || "",
     cityId: initial?.cityId || cities[0]?.id || "",
     categoryId: initial?.categoryId ?? (categories[0]?.id || null),
-    attractionId: initial?.attractionId ?? null,
     image: initial?.image || "",
     imageAlt: initial?.imageAlt || "",
     metaTitle: initial?.metaTitle || "",
@@ -149,14 +145,7 @@ export default function ArticleEditor({
   });
 
   function update<K extends keyof ArticleFormValues>(key: K, value: ArticleFormValues[K]) {
-    setForm((p) => {
-      const next = { ...p, [key]: value };
-      if (key === "cityId" && p.attractionId) {
-        const stillValid = attractions.some((a) => a.id === p.attractionId && a.cityId === value);
-        if (!stillValid) next.attractionId = null;
-      }
-      return next;
-    });
+    setForm((p) => ({ ...p, [key]: value }));
     setDirty(true);
     setSaved(false);
   }
@@ -208,15 +197,6 @@ export default function ArticleEditor({
     () => categories.find((c) => c.id === form.categoryId)?.name || "",
     [categories, form.categoryId]
   );
-  // The picker only ever lists attractions that belong to the currently
-  // selected destination — an attraction is scoped to exactly one city (see
-  // lib/attractions.ts), so this is never "all attractions, filtered down
-  // to nothing by mistake." If this comes back empty, that destination
-  // genuinely has zero attractions saved in Admin -> Attractions yet.
-  const attractionsForCity = useMemo(
-    () => attractions.filter((a) => !form.cityId || a.cityId === form.cityId),
-    [attractions, form.cityId]
-  );
 
   const saveDraft = useCallback(
     async (showNotification = true) => {
@@ -230,7 +210,6 @@ export default function ArticleEditor({
         contentHtml: form.contentHtml,
         cityId: form.cityId,
         categoryId: form.categoryId,
-        attractionId: form.attractionId,
         image: form.image,
         imageAlt: form.imageAlt,
         metaTitle: form.metaTitle,
@@ -425,7 +404,7 @@ export default function ArticleEditor({
                 label="URL slug"
                 hint={
                   isNew
-                    ? "Auto-fills from the title. Article will live at /articles/" + (form.slug || "…")
+                    ? "Auto-fills from the title."
                     : "Article address slug."
                 }
               >
@@ -456,7 +435,7 @@ export default function ArticleEditor({
               </Field>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div>
               <Field
                 label="Destination (City)"
                 hint={
@@ -510,27 +489,6 @@ export default function ArticleEditor({
                     </button>
                   </div>
                 )}
-              </Field>
-              <Field
-                label="Related Attraction (optional)"
-                hint={
-                  form.cityId && attractionsForCity.length === 0
-                    ? `No attractions saved yet for ${previewCityName || "this destination"} — an admin can add one from Admin → Attractions.`
-                    : undefined
-                }
-              >
-                <select
-                  value={form.attractionId || ""}
-                  onChange={(e) => update("attractionId", e.target.value || null)}
-                  className={inputClass}
-                >
-                  <option value="">General guide (not attraction-specific)</option>
-                  {attractionsForCity.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
               </Field>
             </div>
 

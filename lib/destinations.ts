@@ -32,16 +32,3 @@ export function articlePath(countrySlug: string, citySlug: string, articleSlug: 
   const a = (articleSlug || "").trim() || "article";
   return `/${cSlug}/${c}/${a}`;
 }
-
-export function attractionsPath(countrySlug: string, citySlug: string): string {
-  const cSlug = (countrySlug || "").trim() || MISSING_SLUG;
-  const c = (citySlug || "").trim() || "city";
-  return `/${cSlug}/${c}/attractions`;
-}
-
-export function attractionPath(countrySlug: string, citySlug: string, attractionSlug: string): string {
-  const cSlug = (countrySlug || "").trim() || MISSING_SLUG;
-  const c = (citySlug || "").trim() || "city";
-  const a = (attractionSlug || "").trim() || "attraction";
-  return `/${cSlug}/${c}/attractions/${a}`;
-}

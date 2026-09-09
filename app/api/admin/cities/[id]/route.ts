@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 import { getCityById, updateCity, deleteCity } from "@/lib/cities";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
-import { countryPath, cityPath, attractionsPath } from "@/lib/destinations";
+import { countryPath, cityPath } from "@/lib/destinations";
 import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -45,14 +45,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     revalidatePath("/destinations");
     revalidatePath(countryPath(city.countrySlug));
     revalidatePath(cityPath(city.countrySlug, city.slug));
-    revalidatePath(attractionsPath(city.countrySlug, city.slug));
     // The city's slug and/or country (and therefore its country slug) may
     // have changed — also invalidate the old URLs so a renamed/re-countried
     // city's stale country/city pages don't keep serving cached content.
     if (before && (before.slug !== city.slug || before.countrySlug !== city.countrySlug)) {
       revalidatePath(countryPath(before.countrySlug));
       revalidatePath(cityPath(before.countrySlug, before.slug));
-      revalidatePath(attractionsPath(before.countrySlug, before.slug));
     }
     revalidatePath("/");
     revalidatePath("/about");
@@ -83,7 +81,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       revalidatePath("/destinations");
       revalidatePath(countryPath(before.countrySlug));
       revalidatePath(cityPath(before.countrySlug, before.slug));
-      revalidatePath(attractionsPath(before.countrySlug, before.slug));
       revalidatePath("/");
       revalidatePath("/about");
       revalidateTag("cities");

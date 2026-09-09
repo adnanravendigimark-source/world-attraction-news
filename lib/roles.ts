@@ -34,7 +34,6 @@ export interface Role {
 export const ADMIN_PAGES: { key: string; label: string }[] = [
   { key: "articles", label: "Articles" },
   { key: "destinations", label: "Destinations" },
-  { key: "attractions", label: "Attractions" },
   { key: "categories", label: "Categories" },
   { key: "contributors", label: "Contributors" },
   { key: "subscribers", label: "Subscribers" },

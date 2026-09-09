@@ -43,6 +43,10 @@ export async function POST(req: Request) {
       slug,
       name,
       description: body.description || "",
+      image: body.image || "",
+      imageAlt: body.imageAlt || "",
+      metaTitle: body.metaTitle || "",
+      metaDescription: body.metaDescription || "",
       sortOrder: Number(body.sortOrder) || 0,
     });
     await logActivity(session, "category_created", { type: "category", id: category.id, label: category.name });

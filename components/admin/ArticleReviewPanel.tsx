@@ -38,7 +38,6 @@ interface EditState {
   contentHtml: string;
   cityId: string;
   categoryId: string | null;
-  attractionId: string | null;
   image: string;
   imageAlt: string;
   metaTitle: string;
@@ -56,7 +55,6 @@ function buildEditState(article: ArticleWithRelations): EditState {
     contentHtml: article.contentHtml || "",
     cityId: article.cityId || "",
     categoryId: article.categoryId,
-    attractionId: article.attractionId,
     image: article.image || "",
     imageAlt: article.imageAlt || "",
     metaTitle: article.metaTitle || "",
@@ -87,13 +85,11 @@ export default function ArticleReviewPanel({
   article,
   cities,
   categories,
-  attractions,
   revisions,
 }: {
   article: ArticleWithRelations;
   cities: { id: string; name: string }[];
   categories: { id: string; name: string }[];
-  attractions: { id: string; name: string; cityId: string }[];
   revisions: ArticleRevision[];
 }) {
   const router = useRouter();
@@ -327,7 +323,6 @@ export default function ArticleReviewPanel({
           contentHtml: edit.contentHtml,
           cityId: edit.cityId,
           categoryId: edit.categoryId,
-          attractionId: edit.attractionId,
           image: edit.image,
           imageAlt: edit.imageAlt,
           metaTitle: edit.metaTitle.trim(),
@@ -389,13 +384,6 @@ export default function ArticleReviewPanel({
 
   const selectedCityName = useMemo(() => cities.find((c) => c.id === edit.cityId)?.name || "", [cities, edit.cityId]);
   const selectedCategoryName = useMemo(() => categories.find((c) => c.id === edit.categoryId)?.name || "", [categories, edit.categoryId]);
-  // Same city-scoped attraction picker as the contributor editor — an
-  // attraction always belongs to exactly one city, so an empty list here
-  // means this destination genuinely has none saved yet, not a filter bug.
-  const attractionsForCity = useMemo(
-    () => attractions.filter((a) => !edit.cityId || a.cityId === edit.cityId),
-    [attractions, edit.cityId]
-  );
 
   const isScoreChanged = score !== (article.score !== null ? String(article.score) : "");
   const isFeedbackChanged = feedback.trim() !== (article.adminFeedback || "").trim();
@@ -410,7 +398,6 @@ export default function ArticleReviewPanel({
       (edit.imageAlt || "") !== (article.imageAlt || "") ||
       edit.cityId !== article.cityId ||
       (edit.categoryId || "") !== (article.categoryId || "") ||
-      (edit.attractionId || "") !== (article.attractionId || "") ||
       (edit.metaTitle || "") !== (article.metaTitle || "") ||
       (edit.metaDescription || "") !== (article.metaDescription || "") ||
       (edit.focusKeyword || "") !== (article.focusKeyword || "") ||
@@ -545,8 +532,8 @@ export default function ArticleReviewPanel({
               <p className="mt-1 text-[11px] text-slate-400">Keep it short, simple and SEO-friendly.</p>
             </div>
 
-            {/* 3-Column Meta Pickers: Destination, Category, Article Beat / Attraction */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* 2-Column Meta Pickers: Destination and Category */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-900 mb-1">
                   Destination <span className="text-[#DC2626]">*</span>
@@ -597,39 +584,6 @@ export default function ArticleReviewPanel({
                     ▼
                   </span>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Article Beat</label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
-                    🏷
-                  </span>
-                  <select
-                    value={edit.attractionId || ""}
-                    onChange={(e) => updateEdit("attractionId", e.target.value || null)}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer shadow-2xs appearance-none"
-                  >
-                    <option value="">Travel Guides / General</option>
-                    {attractionsForCity.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 text-[10px]">
-                    ▼
-                  </span>
-                </div>
-                {edit.cityId && attractionsForCity.length === 0 && (
-                  <p className="mt-1 text-[10.5px] text-slate-500">
-                    No attractions saved yet for {selectedCityName || "this destination"} — add one from{" "}
-                    <Link href="/admin/attractions" className="font-semibold text-[#DC2626] hover:underline">
-                      Admin → Attractions
-                    </Link>
-                    .
-                  </p>
-                )}
               </div>
             </div>
 

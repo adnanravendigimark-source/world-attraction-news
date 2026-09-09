@@ -35,7 +35,6 @@ function buildSections(pendingArticles: number, pendingContributors: number): Ad
       items: [
         { href: "/admin/articles", label: "Articles", icon: "doc", badge: pendingArticles, pageKey: "articles" },
         { href: "/admin/cities", label: "Destinations", icon: "pin", pageKey: "destinations" },
-        { href: "/admin/attractions", label: "Attractions", icon: "flag", pageKey: "attractions" },
         { href: "/admin/categories", label: "Categories", icon: "tag", pageKey: "categories" },
       ],
     },

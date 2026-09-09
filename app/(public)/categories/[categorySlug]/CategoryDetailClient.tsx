@@ -83,19 +83,33 @@ export default function CategoryDetailClient({
           </nav>
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="max-w-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
-                <span className="text-[11px] font-black uppercase tracking-widest text-[#DC2626]">
-                  EDITORIAL BEAT
-                </span>
+            <div className="flex flex-col sm:flex-row gap-5 items-start max-w-2xl">
+              {category.image && (
+                <div className="relative h-28 w-44 sm:h-32 sm:w-48 shrink-0 overflow-hidden rounded-2xl border border-slate-200 shadow-xs">
+                  <Image
+                    src={category.image}
+                    alt={category.imageAlt || category.name}
+                    fill
+                    className="object-cover"
+                    sizes="200px"
+                    priority
+                  />
+                </div>
+              )}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[#DC2626]">
+                    EDITORIAL BEAT
+                  </span>
+                </div>
+                <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#0B1527]">
+                  {category.name}
+                </h1>
+                <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                  {category.description || `Targeted reporting, opening calendars, and attraction developments across ${category.name.toLowerCase()}.`}
+                </p>
               </div>
-              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#0B1527]">
-                {category.name}
-              </h1>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                {category.description || `Targeted reporting, opening calendars, and attraction developments across ${category.name.toLowerCase()}.`}
-              </p>
             </div>
 
             <div className="relative rounded-xl border border-rose-100/80 bg-rose-50/40 p-4 sm:p-5 lg:w-[380px] overflow-hidden">

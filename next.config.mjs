@@ -34,8 +34,9 @@ const nextConfig = {
   async redirects() {
     return [
       { source: "/cities", destination: "/destinations", permanent: true },
-      { source: "/admin/attraction", destination: "/admin/attractions", permanent: true },
-      { source: "/admin/attarction", destination: "/admin/attractions", permanent: true },
+      { source: "/admin/attraction", destination: "/admin/cities", permanent: true },
+      { source: "/admin/attarction", destination: "/admin/cities", permanent: true },
+      { source: "/admin/attractions", destination: "/admin/cities", permanent: true },
       { source: "/admin/article", destination: "/admin/articles", permanent: true },
       { source: "/admin/category", destination: "/admin/categories", permanent: true },
       { source: "/admin/destination", destination: "/admin/cities", permanent: true },

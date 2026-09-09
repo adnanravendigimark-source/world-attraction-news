@@ -113,7 +113,8 @@ export default async function CategoriesPage() {
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {categories.map((cat) => {
-                const image = latestImages[cat.id];
+                const image = cat.image || latestImages[cat.id];
+                const imageAlt = cat.imageAlt || cat.name;
                 const count = counts[cat.id] || 0;
 
                 return (
@@ -126,7 +127,7 @@ export default async function CategoriesPage() {
                       {image ? (
                         <Image
                           src={image}
-                          alt={cat.name}
+                          alt={imageAlt}
                           fill
                           sizes="(min-width: 1024px) 33vw, 50vw"
                           className="object-cover transition-transform duration-500 group-hover:scale-105"

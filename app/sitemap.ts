@@ -3,19 +3,17 @@ import { SITE_URL } from "@/lib/site";
 import { getCities, getCountriesInUse } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
 import { getPublishedArticles } from "@/lib/articles";
-import { getAttractions } from "@/lib/attractions";
 import { getPublishedAuthorSlugs } from "@/lib/users";
-import { cityPath, attractionsPath, attractionPath, articlePath, countryPath } from "@/lib/destinations";
+import { cityPath, articlePath, countryPath } from "@/lib/destinations";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [cities, countries, categories, articles, attractions, authorSlugs] = await Promise.all([
+  const [cities, countries, categories, articles, authorSlugs] = await Promise.all([
     getCities(),
     getCountriesInUse(),
     getCategories(),
     getPublishedArticles({ limit: 5000 }),
-    getAttractions(),
     getPublishedAuthorSlugs(),
   ]);
 
@@ -42,21 +40,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.65,
   }));
 
-  const cityPages: MetadataRoute.Sitemap = cities.flatMap((c) => [
-    { url: `${SITE_URL}${cityPath(c.countrySlug, c.slug)}`, changeFrequency: "daily" as const, priority: 0.8 },
-    { url: `${SITE_URL}${attractionsPath(c.countrySlug, c.slug)}`, changeFrequency: "weekly" as const, priority: 0.5 },
-  ]);
+  const cityPages: MetadataRoute.Sitemap = cities.map((c) => ({
+    url: `${SITE_URL}${cityPath(c.countrySlug, c.slug)}`,
+    changeFrequency: "daily" as const,
+    priority: 0.8,
+  }));
 
   const categoryPages: MetadataRoute.Sitemap = categories.map((c) => ({
     url: `${SITE_URL}/categories/${c.slug}`,
     changeFrequency: "daily",
     priority: 0.7,
-  }));
-
-  const attractionPages: MetadataRoute.Sitemap = attractions.map((a) => ({
-    url: `${SITE_URL}${attractionPath(a.countrySlug, a.citySlug, a.slug)}`,
-    changeFrequency: "weekly",
-    priority: 0.6,
   }));
 
   const articlePages: MetadataRoute.Sitemap = articles.map((a) => ({
@@ -72,5 +65,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.4,
   }));
 
-  return [...staticPages, ...countryPages, ...cityPages, ...categoryPages, ...attractionPages, ...articlePages, ...authorPages];
+  return [...staticPages, ...countryPages, ...cityPages, ...categoryPages, ...articlePages, ...authorPages];
 }
