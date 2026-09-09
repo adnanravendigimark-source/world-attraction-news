@@ -604,6 +604,15 @@ async function addCountrySlugColumn() {
   console.log("cities.country_slug ready.");
 }
 
+async function addCategoryColumns() {
+  console.log("Ensuring category image and SEO columns exist...");
+  await sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS image TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_alt TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_title TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_description TEXT NOT NULL DEFAULT ''`;
+  console.log("Category image and SEO columns ready.");
+}
+
 // Every user row needs a unique slug for /author/[slug] — including
 // accounts created before this column existed. Idempotent: only touches
 // rows where slug IS NULL, so re-running never reshuffles an existing
@@ -1087,6 +1096,7 @@ async function main() {
   await createPhase11PageConfigColumns();
   await createPhase12RbacTables();
   await addCountrySlugColumn();
+  await addCategoryColumns();
   await addPerformanceIndexes();
   await backfillUserSlugs();
 
