@@ -184,6 +184,50 @@ export default function TiptapArticleEditor({
   const editingImageRef = useRef<{ pos: number } | null>(null);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
 
+  function findImageOrFigureNode(
+    tr: any,
+    targetPos: number,
+    fallbackUrl?: string
+  ): { node: any; pos: number } | null {
+    // 1. Direct nodeAt check
+    let node = tr.doc.nodeAt(targetPos);
+    if (node && (node.type.name === "image" || node.type.name === "figure")) {
+      return { node, pos: targetPos };
+    }
+
+    // 2. Resolve targetPos to check ancestors (e.g. if click was on caption or inside figure)
+    try {
+      const safePos = Math.max(0, Math.min(targetPos, tr.doc.content.size));
+      const resolved = tr.doc.resolve(safePos);
+      for (let depth = resolved.depth; depth >= 0; depth--) {
+        const n = resolved.node(depth);
+        if (n && (n.type.name === "image" || n.type.name === "figure")) {
+          return { node: n, pos: resolved.before(depth) };
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3. Fallback: match by image URL in document descendants
+    if (fallbackUrl) {
+      let match: { node: any; pos: number } | null = null;
+      tr.doc.descendants((n: any, p: number) => {
+        if (
+          (n.type.name === "image" || n.type.name === "figure") &&
+          n.attrs?.src === fallbackUrl
+        ) {
+          match = { node: n, pos: p };
+          return false;
+        }
+        return true;
+      });
+      if (match) return match;
+    }
+
+    return null;
+  }
+
   const editor = useEditor({
     immediatelyRender: false,
     content: value || "",
@@ -193,15 +237,16 @@ export default function TiptapArticleEditor({
           "tiptap rich-content max-w-none px-3 py-2.5 text-sm text-stone-900 outline-none [&_img]:cursor-pointer [&_figure]:cursor-pointer",
       },
       transformPastedHTML: allowLinks ? undefined : stripLinks,
-      handleClickOn: (_view: any, pos: number, node: any) => {
+      handleClickOn: (_view: any, pos: number, node: any, nodePos: number) => {
+        const exactPos = typeof nodePos === "number" ? nodePos : pos;
         if (node.type.name === "image") {
-          editingImageRef.current = { pos };
+          editingImageRef.current = { pos: exactPos };
           setEditingImageData({ url: node.attrs.src || "", alt: node.attrs.alt || "", caption: "" });
           setImageModalOpen(true);
           return true;
         }
         if (node.type.name === "figure") {
-          editingImageRef.current = { pos };
+          editingImageRef.current = { pos: exactPos };
           setEditingImageData({
             url: node.attrs.src || "",
             alt: node.attrs.alt || "",
@@ -244,22 +289,6 @@ export default function TiptapArticleEditor({
     };
   }, [editor]);
 
-  const replaceNodeAt = useCallback(
-    (ed: Editor, pos: number, content: Record<string, any>) => {
-      ed.chain()
-        .focus()
-        .command(({ tr }: { tr: any }) => {
-          const current = tr.doc.nodeAt(pos);
-          if (!current) return false;
-          tr.delete(pos, pos + current.nodeSize);
-          return true;
-        })
-        .run();
-      ed.chain().focus().insertContentAt(pos, content).run();
-    },
-    []
-  );
-
   function openNewImageModal() {
     editingImageRef.current = null;
     setEditingImageData(null);
@@ -278,7 +307,20 @@ export default function TiptapArticleEditor({
       : { type: "image", attrs: { src: opts.url, alt: opts.alt || "" } };
 
     if (editingImageRef.current) {
-      replaceNodeAt(editor, editingImageRef.current.pos, content);
+      const targetPos = editingImageRef.current.pos;
+      const currentUrl = editingImageData?.url;
+      editor
+        .chain()
+        .focus()
+        .command(({ tr, editor: ed }: any) => {
+          const found = findImageOrFigureNode(tr, targetPos, currentUrl);
+          if (!found) return false;
+          tr.delete(found.pos, found.pos + found.node.nodeSize);
+          const newNode = ed.schema.nodeFromJSON(content);
+          tr.insert(found.pos, newNode);
+          return true;
+        })
+        .run();
     } else {
       editor.chain().focus().insertContent(content).run();
     }
@@ -289,14 +331,15 @@ export default function TiptapArticleEditor({
 
   function handleImageDelete() {
     if (!editor || !editingImageRef.current) return;
-    const pos = editingImageRef.current.pos;
+    const targetPos = editingImageRef.current.pos;
+    const currentUrl = editingImageData?.url;
     editor
       .chain()
       .focus()
       .command(({ tr }: { tr: any }) => {
-        const node = tr.doc.nodeAt(pos);
-        if (!node) return false;
-        tr.delete(pos, pos + node.nodeSize);
+        const found = findImageOrFigureNode(tr, targetPos, currentUrl);
+        if (!found) return false;
+        tr.delete(found.pos, found.pos + found.node.nodeSize);
         return true;
       })
       .run();

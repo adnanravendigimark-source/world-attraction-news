@@ -185,10 +185,10 @@ export default function RichTextEditor({
           // completely unstyled despite parsing correctly.
           class: "px-4 sm:px-6 py-4 sm:py-6 outline-none [&_img]:cursor-pointer [&_figure]:cursor-pointer",
         },
-        transformPastedHTML: allowLinks ? undefined : stripLinks,
-        handleClickOn(_view, pos, node) {
+        handleClickOn(_view, pos, node, nodePos) {
+          const exactPos = typeof nodePos === "number" ? nodePos : pos;
           if (node.type.name === "image") {
-            editingImagePosRef.current = pos;
+            editingImagePosRef.current = exactPos;
             setImageModalInitial({ url: node.attrs.src || "", alt: node.attrs.alt || "", caption: node.attrs.caption || "" });
             setImageModalOpen(true);
             return true;
@@ -231,18 +231,43 @@ export default function RichTextEditor({
     };
   }, [editor]);
 
-  const replaceNodeAt = useCallback((ed: Editor, pos: number, content: Record<string, any>) => {
-    ed.chain()
-      .focus()
-      .command(({ tr }: { tr: any }) => {
-        const current = tr.doc.nodeAt(pos);
-        if (!current) return false;
-        tr.delete(pos, pos + current.nodeSize);
+  function findImageNode(
+    tr: any,
+    targetPos: number,
+    fallbackUrl?: string
+  ): { node: any; pos: number } | null {
+    let node = tr.doc.nodeAt(targetPos);
+    if (node && (node.type.name === "image" || node.type.name === "figure")) {
+      return { node, pos: targetPos };
+    }
+    try {
+      const safePos = Math.max(0, Math.min(targetPos, tr.doc.content.size));
+      const resolved = tr.doc.resolve(safePos);
+      for (let depth = resolved.depth; depth >= 0; depth--) {
+        const n = resolved.node(depth);
+        if (n && (n.type.name === "image" || n.type.name === "figure")) {
+          return { node: n, pos: resolved.before(depth) };
+        }
+      }
+    } catch {
+      // ignore
+    }
+    if (fallbackUrl) {
+      let match: { node: any; pos: number } | null = null;
+      tr.doc.descendants((n: any, p: number) => {
+        if (
+          (n.type.name === "image" || n.type.name === "figure") &&
+          n.attrs?.src === fallbackUrl
+        ) {
+          match = { node: n, pos: p };
+          return false;
+        }
         return true;
-      })
-      .run();
-    ed.chain().focus().insertContentAt(pos, content).run();
-  }, []);
+      });
+      if (match) return match;
+    }
+    return null;
+  }
 
   function openNewImageModal() {
     editingImagePosRef.current = null;
@@ -261,7 +286,20 @@ export default function RichTextEditor({
     const attrs = { src: data.url, alt: data.alt, caption: data.caption, align: "center" };
 
     if (editingImagePosRef.current !== null) {
-      replaceNodeAt(editor, editingImagePosRef.current, { type: "image", attrs });
+      const targetPos = editingImagePosRef.current;
+      const currentUrl = imageModalInitial?.url;
+      editor
+        .chain()
+        .focus()
+        .command(({ tr, editor: ed }: any) => {
+          const found = findImageNode(tr, targetPos, currentUrl);
+          if (!found) return false;
+          tr.delete(found.pos, found.pos + found.node.nodeSize);
+          const newNode = ed.schema.nodeFromJSON({ type: "image", attrs });
+          tr.insert(found.pos, newNode);
+          return true;
+        })
+        .run();
     } else {
       editor.chain().focus().setFigureImage(attrs).run();
     }
@@ -270,14 +308,15 @@ export default function RichTextEditor({
 
   function handleImageModalRemove() {
     if (!editor || editingImagePosRef.current === null) return;
-    const pos = editingImagePosRef.current;
+    const targetPos = editingImagePosRef.current;
+    const currentUrl = imageModalInitial?.url;
     editor
       .chain()
       .focus()
-      .command(({ tr }) => {
-        const node = tr.doc.nodeAt(pos);
-        if (!node) return false;
-        tr.delete(pos, pos + node.nodeSize);
+      .command(({ tr }: { tr: any }) => {
+        const found = findImageNode(tr, targetPos, currentUrl);
+        if (!found) return false;
+        tr.delete(found.pos, found.pos + found.node.nodeSize);
         return true;
       })
       .run();
