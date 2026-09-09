@@ -24,7 +24,7 @@ import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 // OUT of the protected areas below. Middleware just lets the request
 // through to the stub, which redirects to the real /contributor/* path,
 // which then gets gated on its own merits by the isContributorArea check.
-const PUBLIC_PATHS = ["/admin/login"];
+const PUBLIC_PATHS = ["/admin/login", "/admin"];
 
 function withNoIndex(res: NextResponse) {
   res.headers.set("X-Robots-Tag", "noindex, nofollow");
@@ -85,7 +85,9 @@ export async function middleware(req: NextRequest) {
     if (isApi) {
       return withNoCache(withNoIndex(NextResponse.json({ error: "Admins only." }, { status: 403 })));
     }
-    return withNoCache(withNoIndex(NextResponse.redirect(new URL("/", req.url))));
+    const loginUrl = new URL("/admin/login", req.url);
+    loginUrl.searchParams.set("next", pathname);
+    return withNoCache(withNoIndex(NextResponse.redirect(loginUrl)));
   }
 
   if (isContributorArea && session.role !== "contributor" && session.role !== "admin") {

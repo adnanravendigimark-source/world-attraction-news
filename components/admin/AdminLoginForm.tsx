@@ -25,11 +25,17 @@ export default function AdminLoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid administrator credentials.");
-      router.push(searchParams?.get("next") || "/admin/overview");
-      router.refresh();
+      const nextParam = searchParams?.get("next");
+      const target =
+        nextParam &&
+        nextParam !== "/admin" &&
+        nextParam !== "/admin/" &&
+        nextParam !== "/admin/login"
+          ? nextParam
+          : "/admin/overview";
+      window.location.href = target;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
       setSubmitting(false);
     }
   }

@@ -32,7 +32,27 @@ const nextConfig = {
   // at the old paths that look up the city and permanentRedirect() (see
   // app/(public)/cities/**).
   async redirects() {
-    return [{ source: "/cities", destination: "/destinations", permanent: true }];
+    return [
+      { source: "/cities", destination: "/destinations", permanent: true },
+      { source: "/admin/attraction", destination: "/admin/attractions", permanent: true },
+      { source: "/admin/attarction", destination: "/admin/attractions", permanent: true },
+      { source: "/admin/article", destination: "/admin/articles", permanent: true },
+      { source: "/admin/category", destination: "/admin/categories", permanent: true },
+      { source: "/admin/destination", destination: "/admin/cities", permanent: true },
+      { source: "/admin/destinations", destination: "/admin/cities", permanent: true },
+      { source: "/admin/city", destination: "/admin/cities", permanent: true },
+      { source: "/admin/user", destination: "/admin/users", permanent: true },
+      { source: "/admin/contributor", destination: "/admin/users", permanent: true },
+      { source: "/admin/contributors", destination: "/admin/users", permanent: true },
+      { source: "/admin/subscriber", destination: "/admin/newsletter", permanent: true },
+      { source: "/admin/subscribers", destination: "/admin/newsletter", permanent: true },
+      { source: "/admin/point", destination: "/admin/points", permanent: true },
+      { source: "/admin/ledger", destination: "/admin/points", permanent: true },
+      { source: "/admin/role", destination: "/admin/roles", permanent: true },
+      { source: "/admin/permission", destination: "/admin/roles", permanent: true },
+      { source: "/admin/permissions", destination: "/admin/roles", permanent: true },
+      { source: "/admin/setting", destination: "/admin/settings", permanent: true },
+    ];
   },
 };
 

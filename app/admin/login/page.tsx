@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import Logo from "@/components/Logo";
 import AdminLoginForm from "@/components/admin/AdminLoginForm";
+import { getSession } from "@/lib/session";
 import { SITE_NAME } from "@/lib/site";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: `Admin Control Login | ${SITE_NAME}`,
   robots: { index: false, follow: false },
 };
 
-export default function AdminLoginPage() {
+export default async function AdminLoginPage() {
+  const session = await getSession();
+  if (session?.role === "admin") {
+    redirect("/admin/overview");
+  }
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#070D18] px-4 py-12 relative overflow-hidden">
       {/* Ambient background glow */}
