@@ -12,11 +12,19 @@ export default function ImageUploadField({
   value,
   onChange,
   uploadUrl,
+  altValue,
+  onAltChange,
+  altLabel,
+  altPlaceholder,
 }: {
   label: string;
   value: string;
   onChange: (url: string) => void;
   uploadUrl: string;
+  altValue?: string;
+  onAltChange?: (alt: string) => void;
+  altLabel?: string;
+  altPlaceholder?: string;
 }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -39,24 +47,24 @@ export default function ImageUploadField({
   }
 
   return (
-    <div>
+    <div className="space-y-2">
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
-      <div className="mt-1.5 flex items-start gap-3">
+      <div className="flex items-start gap-3">
         {value ? (
           <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-50">
-            <Image src={value} alt="" fill className="object-cover" />
+            <Image src={value} alt={altValue || ""} fill className="object-cover" />
           </div>
         ) : (
           <div className="flex h-20 w-32 shrink-0 items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-400">
             No image
           </div>
         )}
-        <div>
-          <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+        <div className="flex-1">
+          <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
             {uploading ? "Uploading..." : value ? "Replace image" : "Upload image"}
             <input
               type="file"
-              accept="image/png,image/jpeg,image/webp"
+              accept="image/png,image/jpeg,image/webp,image/avif"
               className="hidden"
               disabled={uploading}
               onChange={(e) => {
@@ -67,9 +75,24 @@ export default function ImageUploadField({
             />
           </label>
           {error && <p className="mt-1.5 text-xs text-[#DC2626]">{error}</p>}
-          <p className="mt-1.5 text-[10px] text-slate-400">JPG, PNG, or WebP. Automatically optimized on upload.</p>
+          <p className="mt-1 text-[10px] text-slate-400">JPG, PNG, WebP or AVIF. Automatically optimized on upload.</p>
         </div>
       </div>
+
+      {onAltChange && (
+        <div className="pt-1">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+            {altLabel || "Image Alt Text"}
+          </label>
+          <input
+            type="text"
+            value={altValue || ""}
+            onChange={(e) => onAltChange(e.target.value)}
+            placeholder={altPlaceholder || "Describe what is shown in the image for SEO & accessibility..."}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none transition-all"
+          />
+        </div>
+      )}
     </div>
   );
 }
