@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { getUsers } from "@/lib/users";
+import { getContributors } from "@/lib/users";
 import UsersTable from "@/components/admin/UsersTable";
 import AccessDenied from "@/components/admin/AccessDenied";
 import { getSession } from "@/lib/session";
@@ -19,7 +19,7 @@ export default async function AdminUsersPage() {
     return <AccessDenied pageLabel="Contributors" />;
   }
 
-  const users = await getUsers();
+  const users = await getContributors();
 
   return (
     <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Loading contributors...</div>}>

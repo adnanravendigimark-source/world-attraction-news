@@ -70,11 +70,13 @@ export default async function AdminOverviewPage() {
     getCategories(),
   ]);
 
+  const contributors = users.filter((u) => u.role === "contributor");
+
   const usersByStatus = {
-    pending: users.filter((u) => u.status === "pending" && u.emailVerified).length,
-    approved: users.filter((u) => u.status === "approved").length,
-    rejected: users.filter((u) => u.status === "rejected").length,
-    suspended: users.filter((u) => u.status === "suspended").length,
+    pending: contributors.filter((u) => u.status === "pending" && u.emailVerified).length,
+    approved: contributors.filter((u) => u.status === "approved").length,
+    rejected: contributors.filter((u) => u.status === "rejected").length,
+    suspended: contributors.filter((u) => u.status === "suspended").length,
   };
 
   const articlesByStatus = {
@@ -90,7 +92,7 @@ export default async function AdminOverviewPage() {
     .filter((a) => a.status === "published")
     .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
     .slice(0, 5);
-  const pendingUsers = users.filter((u) => u.status === "pending" && u.emailVerified).slice(0, 4);
+  const pendingUsers = contributors.filter((u) => u.status === "pending" && u.emailVerified).slice(0, 4);
   const totalArticles = nonDraftArticles.length + draftCount;
 
   return (

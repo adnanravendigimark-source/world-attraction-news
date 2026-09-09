@@ -117,7 +117,7 @@ export async function getUsers(): Promise<User[]> {
 // actionable pending application (an unverified signup isn't one yet).
 export async function getPendingContributorCount(): Promise<number> {
   try {
-    const rows = await sql`SELECT COUNT(*)::int AS count FROM users WHERE status = 'pending' AND email_verified = true`;
+    const rows = await sql`SELECT COUNT(*)::int AS count FROM users WHERE role = 'contributor' AND status = 'pending' AND email_verified = true`;
     return Number(rows[0]?.count || 0);
   } catch {
     return 0;
@@ -126,6 +126,11 @@ export async function getPendingContributorCount(): Promise<number> {
 
 export async function getContributors(): Promise<User[]> {
   const rows = await sql`SELECT * FROM users WHERE role = 'contributor' ORDER BY created_at DESC`;
+  return rows.map(rowToUser);
+}
+
+export async function getAdmins(): Promise<User[]> {
+  const rows = await sql`SELECT * FROM users WHERE role = 'admin' ORDER BY created_at DESC`;
   return rows.map(rowToUser);
 }
 

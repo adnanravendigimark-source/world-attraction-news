@@ -31,7 +31,7 @@ const AVATAR_COLORS = [
 export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] }) {
   const confirm = useConfirm();
   const toast = useToast();
-  const [users, setUsers] = useState<SafeUser[]>(initialUsers);
+  const [users, setUsers] = useState<SafeUser[]>(() => initialUsers.filter((u) => u.role === "contributor"));
   const [tab, setTab] = useState<"all" | "active" | "pending" | "suspended" | "rejected">("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
@@ -52,7 +52,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
   }, [users]);
 
   const filtered = useMemo(() => {
-    let list = users;
+    let list = users.filter((u) => u.role === "contributor");
 
     if (tab === "active") {
       list = list.filter((u) => u.status === "approved");
@@ -139,10 +139,10 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Contributors &amp; Users
+            Contributors
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Manage all contributors, writers, and user accounts.
+            Manage all writers, applications, and contributor accounts.
           </p>
         </div>
 
@@ -192,7 +192,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
 
       {/* 5 KPI Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        {/* Total Users */}
+        {/* Total Contributors */}
         <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shrink-0">
@@ -203,8 +203,8 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
             <p className="text-2xl font-extrabold text-slate-900">{counts.total}</p>
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-700">Total Users</p>
-            <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">↑ 2 this month</p>
+            <p className="text-xs font-bold text-slate-700">Total Contributors</p>
+            <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">Active &amp; pending</p>
           </div>
         </div>
 
@@ -220,7 +220,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
           </div>
           <div>
             <p className="text-xs font-bold text-slate-700">Active Writers</p>
-            <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">↑ 2 this month</p>
+            <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">Approved authors</p>
           </div>
         </div>
 
@@ -236,7 +236,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
           </div>
           <div>
             <p className="text-xs font-bold text-slate-700">Pending Applications</p>
-            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">No change</p>
+            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Awaiting review</p>
           </div>
         </div>
 
@@ -252,7 +252,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
           </div>
           <div>
             <p className="text-xs font-bold text-slate-700">Suspended</p>
-            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">No change</p>
+            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Temporarily blocked</p>
           </div>
         </div>
 
@@ -268,7 +268,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
           </div>
           <div>
             <p className="text-xs font-bold text-slate-700">Rejected</p>
-            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">No change</p>
+            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Declined</p>
           </div>
         </div>
       </div>
@@ -276,7 +276,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
       {/* Filter Tabs */}
       <div className="flex items-center gap-6 border-b border-slate-200 text-xs font-semibold overflow-x-auto no-scrollbar">
         {[
-          { key: "all", label: `All Users (${counts.total})` },
+          { key: "all", label: `All Contributors (${counts.total})` },
           { key: "active", label: `Active Writers (${counts.active})` },
           { key: "pending", label: `Pending Applications (${counts.pending})` },
           { key: "suspended", label: `Suspended (${counts.suspended})` },
@@ -306,7 +306,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: SafeUser[] 
       {paginatedUsers.length === 0 ? (
         <div className="rounded-2xl border border-slate-200/90 bg-white p-12 text-center shadow-2xs">
           <p className="text-sm font-semibold text-slate-700">
-            {users.length === 0 ? "No users registered yet." : "No contributors match this filter or search."}
+            {users.length === 0 ? "No contributors registered yet." : "No contributors match this filter or search."}
           </p>
           <p className="text-xs text-slate-400 mt-1">Try resetting your filter or search query.</p>
         </div>

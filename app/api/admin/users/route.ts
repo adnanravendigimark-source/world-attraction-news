@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { getUsers, createContributorByAdmin, setUserRoleId } from "@/lib/users";
+import { getContributors, createContributorByAdmin, setUserRoleId } from "@/lib/users";
 import { getRoleById } from "@/lib/roles";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
@@ -13,7 +13,7 @@ export async function GET() {
   const denied = await requireApiPermission(session, "contributors", "read");
   if (denied) return denied;
   try {
-    const users = await getUsers();
+    const users = await getContributors();
     return NextResponse.json({ users });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
