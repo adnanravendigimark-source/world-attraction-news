@@ -262,6 +262,65 @@ export default function RolesManager({
     }
   }
 
+  async function handleToggleSuspend(user: SafeUser) {
+    const isSuspended = user.status === "suspended";
+    const nextStatus = isSuspended ? "approved" : "suspended";
+    const actionLabel = isSuspended ? "Reactivate" : "Suspend";
+
+    const ok = await confirm({
+      title: `${actionLabel} ${user.displayName}?`,
+      description: isSuspended
+        ? "They will regain access to the Admin Panel with their assigned role."
+        : "They will be immediately blocked from logging into the Admin Panel.",
+      confirmLabel: `${actionLabel} Admin`,
+      danger: !isSuspended,
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed to ${actionLabel.toLowerCase()} user.`);
+      setAdminList((prev) => prev.map((u) => (u.id === user.id ? { ...u, status: nextStatus } : u)));
+      toast.success(`Admin account ${isSuspended ? "reactivated" : "suspended"}.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Failed to ${actionLabel.toLowerCase()} user.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteUser(user: SafeUser) {
+    const ok = await confirm({
+      title: `Delete ${user.displayName}?`,
+      description: "This will permanently delete this admin account. This action cannot be undone.",
+      confirmLabel: "Delete Admin",
+      danger: true,
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to delete user.");
+      setAdminList((prev) => prev.filter((u) => u.id !== user.id));
+      if (user.roleId) {
+        setUserCounts((prev) => ({ ...prev, [user.roleId!]: Math.max(0, (prev[user.roleId!] || 1) - 1) }));
+      }
+      toast.success("Admin account deleted.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete user.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-8 pb-24">
       {/* ============ ROLES ============ */}
@@ -369,24 +428,47 @@ export default function RolesManager({
               <thead>
                 <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   <th className="px-4 py-3">Admin</th>
+                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {adminList.map((user) => {
                   const isSelf = user.id === currentUserId;
+                  const isSuspended = user.status === "suspended";
                   return (
-                    <tr key={user.id} className="border-b border-slate-50 last:border-0">
+                    <tr key={user.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-slate-900">{user.displayName}</div>
-                        <div className="text-[11px] text-slate-400">{user.email}</div>
+                        <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                          {user.displayName}
+                          {isSelf && (
+                            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-600">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-mono">{user.email}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {isSuspended ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-bold text-rose-700 border border-rose-200">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                            Suspended
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            Active
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <select
                           value={user.roleId || ""}
-                          disabled={isSelf || assigning[user.id]}
+                          disabled={isSelf || assigning[user.id] || isSuspended}
                           onChange={(e) => handleAssignRole(user.id, e.target.value)}
-                          title={isSelf ? "You can't change your own role assignment." : undefined}
+                          title={isSelf ? "You can't change your own role assignment." : isSuspended ? "Unsuspend account to change role." : undefined}
                           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-[#DC2626] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                           <option value="">Unrestricted (Full Access)</option>
@@ -400,6 +482,34 @@ export default function RolesManager({
                           <p className="mt-1 text-[10px] text-slate-400">
                             {isOwnerAccount ? "Owner account — always full access." : "You can't edit your own role."}
                           </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {isSelf ? (
+                          <span className="text-[11px] text-slate-400 italic">Current user</span>
+                        ) : (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => handleToggleSuspend(user)}
+                              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer ${
+                                isSuspended
+                                  ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                                  : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+                              }`}
+                            >
+                              {isSuspended ? "Reactivate" : "Suspend"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => handleDeleteUser(user)}
+                              className="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

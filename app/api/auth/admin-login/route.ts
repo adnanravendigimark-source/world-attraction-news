@@ -74,6 +74,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: DB_ERROR_MESSAGE }, { status: 500 });
     }
     if (user && user.role === "admin") {
+      if (user.status === "suspended") {
+        return NextResponse.json(
+          { error: "Your admin account has been suspended. Please contact an administrator." },
+          { status: 403 }
+        );
+      }
       session = { userId: user.id, email: user.email, role: "admin", displayName: user.displayName, cityId: null };
       await touchLastLogin(user.id);
     }

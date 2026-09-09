@@ -4,27 +4,21 @@ import { updateUser, deleteUser, findUserById } from "@/lib/users";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { notifyAccountApproved, notifyAccountRejected } from "@/lib/notifications";
-import { requireApiPermission } from "@/lib/permissions";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
-// Approve/reject/suspend/reactivate a registration from the Admin Panel's
-// Users page. Contributors aren't tied to a single city, so approval
-// doesn't require (or accept) a city assignment — they choose which city
-// each article belongs to when they submit it.
-//
-// Deliberately does NOT accept a `role` field. Every account is created as
-// "contributor" at signup (password or Google — see registerContributor/
-// findOrCreateGoogleUser in lib/users.ts, both hardcode it), and "admin" is
-// only ever the env-driven owner account or a direct database change —
-// this page never offers a way to change a user's role.
+// Approve/reject/suspend/reactivate/edit a user from the Admin Panel.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const denied = await requireApiPermission(session, "contributors", "update");
-  if (denied) return denied;
+  const effective = await getEffectivePermissions(session);
+  const canUpdate = hasPermission(effective, "contributors", "update") || hasPermission(effective, "roles", "update");
+  if (!canUpdate) {
+    return NextResponse.json({ error: "You don't have permission to update users." }, { status: 403 });
+  }
 
   let body: any;
   try {
@@ -35,6 +29,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const target = await findUserById(params.id).catch(() => undefined);
   if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
+
+  if (body.status === "suspended" && params.id === session.userId) {
+    return NextResponse.json({ error: "You cannot suspend your own account." }, { status: 400 });
+  }
 
   const nextStatus =
     body.status === "pending" ||
@@ -81,7 +79,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // rejection is silent and they have no way to know they can now log in
     // (or that their application didn't go through). Best-effort: never
     // blocks the response, since createNotification() itself never throws.
-    if (nextStatus && nextStatus !== target.status) {
+    if (nextStatus && nextStatus !== target.status && target.role === "contributor") {
       const notifyUser = {
         id: target.id,
         email: target.email,
@@ -111,8 +109,15 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const denied = await requireApiPermission(session, "contributors", "delete");
-  if (denied) return denied;
+  const effective = await getEffectivePermissions(session);
+  const canDelete = hasPermission(effective, "contributors", "delete") || hasPermission(effective, "roles", "delete");
+  if (!canDelete) {
+    return NextResponse.json({ error: "You don't have permission to delete users." }, { status: 403 });
+  }
+
+  if (params.id === session.userId) {
+    return NextResponse.json({ error: "You cannot delete your own account." }, { status: 400 });
+  }
 
   const target = await findUserById(params.id).catch(() => undefined);
 

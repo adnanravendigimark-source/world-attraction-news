@@ -31,7 +31,7 @@ export async function getEffectivePermissions(session: Session | null): Promise<
 
   try {
     const user = await findUserById(session.userId);
-    if (!user || user.role !== "admin") return normalizeRolePermissions({});
+    if (!user || user.role !== "admin" || user.status === "suspended") return normalizeRolePermissions({});
 
     // No role assigned = unrestricted. This is what preserves 100% of
     // existing behavior for every admin that existed before RBAC shipped.
