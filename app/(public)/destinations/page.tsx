@@ -1,32 +1,32 @@
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
-import DestinationsClient, { DestinationCity } from "./DestinationsClient";
+import DestinationsClient, { DestinationCity, DestinationCountryData } from "./DestinationsClient";
 import { getCitiesWithArticleCounts } from "@/lib/cities";
+import { getAllCountries } from "@/lib/countries";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
-import { cityPath } from "@/lib/destinations";
+import { countryPath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams (search/sort/filter is client-side over the
-// full list) — real ISR. City counts change slowly enough that a wider
-// window is safe; admin city create/edit/delete calls revalidatePath("/destinations").
-//
-// `revalidate` alone doesn't achieve this: lib/db.ts's sql() issues every
-// query with `fetchOptions: { cache: "no-store" }`, and a no-store fetch
-// anywhere in a route's render forces the WHOLE route dynamic regardless of
-// its own `revalidate` export. unstable_cache wraps the DB call's *return
-// value* at the framework level, independent of the no-store fetch inside
-// it, so this page can actually be served from cache between requests.
+// full list) — real ISR. City & country counts change slowly enough that a wider
+// window is safe; admin mutations call revalidatePath("/destinations").
 export const revalidate = 300;
 
 const getDestinationsPageData = unstable_cache(
-  async () => getCitiesWithArticleCounts(),
-  ["destinations-page-data"],
-  { revalidate: 300, tags: ["cities"] }
+  async () => {
+    const [cities, countries] = await Promise.all([
+      getCitiesWithArticleCounts(),
+      getAllCountries(),
+    ]);
+    return { cities, countries };
+  },
+  ["destinations-page-data-v3"],
+  { revalidate: 300, tags: ["cities", "countries"] }
 );
 
 export const metadata: Metadata = buildMetadata({
-  title: `Destinations — Global Attraction News & Travel Updates | ${SITE_NAME}`,
-  description: "Explore the latest attraction news and travel updates from the world's most iconic destinations.",
+  title: `Destinations by Country — Global Attraction News & Travel Intelligence | ${SITE_NAME}`,
+  description: "Explore destination countries and city bureaus for the latest attraction news, theme park updates, and travel dispatches.",
   path: "/destinations",
 });
 
@@ -36,7 +36,7 @@ const breadcrumbs = [
 ];
 
 export default async function DestinationsPage() {
-  const cities = await getDestinationsPageData();
+  const { cities, countries } = await getDestinationsPageData();
 
   const mappedCities: DestinationCity[] = cities.map((c) => ({
     id: c.id,
@@ -50,15 +50,24 @@ export default async function DestinationsPage() {
     articleCount: c.articleCount,
   }));
 
+  const mappedCountries: DestinationCountryData[] = countries.map((co) => ({
+    id: co.id,
+    slug: co.slug,
+    name: co.name,
+    intro: co.intro,
+    heroImage: co.heroImage,
+    heroImageAlt: co.heroImageAlt || co.name,
+  }));
+
   return (
     <>
-      <DestinationsClient dbCities={mappedCities} />
+      <DestinationsClient dbCities={mappedCities} dbCountries={mappedCountries} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
-            itemListJsonLd(cities.map((c) => ({ name: c.name, path: cityPath(c.countrySlug, c.slug) }))),
+            itemListJsonLd(countries.map((c) => ({ name: c.name, path: countryPath(c.slug) }))),
           ]),
         }}
       />
