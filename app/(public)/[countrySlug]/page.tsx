@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { getCitiesByCountrySlug, getCityBySlug } from "@/lib/cities";
 import { getCountryBySlug } from "@/lib/countries";
 import { getPublishedArticles, getPublishedArticleByAnySlug } from "@/lib/articles";
-import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
+import { resolvePageMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { cityPath, countryPath, articlePath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 import CountryClient from "./CountryClient";
@@ -38,10 +38,18 @@ export async function generateMetadata({ params }: { params: { countrySlug: stri
       ? country.intro.slice(0, 155)
       : `Explore attraction news and travel updates from ${countryName}'s cities: ${cities.map((c) => c.name).join(", ")}.`);
 
-  return buildMetadata({
+  // resolvePageMetadata (not buildMetadata directly) so an admin's
+  // noindex/nofollow override for this country (Admin -> Indexing ->
+  // Country Hubs, key `country:<slug>` — see lib/countryHubs.ts) actually
+  // reaches this page's own <meta name="robots"> tag — previously this
+  // page ignored that override entirely, so toggling it in Admin had no
+  // effect on the live page (only on whether the country showed up in
+  // /sitemap-country.xml, which reads the same override independently —
+  // see lib/sitemaps.ts). Matched here via `url`, not `key`, so this works
+  // regardless of exactly how the override was keyed when it was saved.
+  return resolvePageMetadata(countryPath(params.countrySlug), {
     title,
     description,
-    path: countryPath(params.countrySlug),
   });
 }
 

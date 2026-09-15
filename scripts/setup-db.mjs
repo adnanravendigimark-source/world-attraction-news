@@ -1067,6 +1067,103 @@ async function createIndexingSettingsTable() {
   console.log("indexing_settings table ready.");
 }
 
+// Admin-managed sitemap configuration — see lib/sitemaps.ts and
+// app/sitemap.xml/route.ts (the master sitemap index) + the five
+// app/sitemap-*.xml/route.ts child routes. `type` strictly controls which
+// single content type a row is allowed to populate (never a generic mixed
+// query) — enforced both by this CHECK constraint and, independently, by
+// lib/sitemaps.ts never having a query function that spans more than one
+// type. `path` is UNIQUE so two rows (built-in or admin-added) can never
+// collide on the same served URL.
+async function createSitemapsTable() {
+  console.log("Ensuring sitemaps table exists...");
+  await sql`
+    CREATE TABLE IF NOT EXISTS sitemaps (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('STATIC','COUNTRY','CITY','CATEGORY','ARTICLE')),
+      path TEXT NOT NULL UNIQUE,
+      enabled BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  // The 5 built-in sitemaps are required configuration, not sample content
+  // — without these rows /sitemap.xml has nothing to index and every child
+  // route 404s (each child route looks up its own row by `type`, see
+  // lib/sitemaps.ts's getEnabledSitemapByType()). Seeded unconditionally
+  // here, unlike seedCities()/seedCategories() below which stay behind
+  // --seed, so a plain `node scripts/setup-db.mjs` always leaves the
+  // sitemap system functional out of the box. ON CONFLICT (path) DO
+  // NOTHING makes this safe to re-run — an admin who has since edited,
+  // disabled, or deleted one of these rows never gets it silently
+  // recreated or reset.
+  const DEFAULT_SITEMAPS = [
+    { name: "Static Pages", type: "STATIC", path: "/sitemap-static.xml" },
+    { name: "Countries", type: "COUNTRY", path: "/sitemap-country.xml" },
+    { name: "Cities", type: "CITY", path: "/sitemap-city.xml" },
+    { name: "Categories", type: "CATEGORY", path: "/sitemap-category.xml" },
+    { name: "Articles", type: "ARTICLE", path: "/sitemap-article.xml" },
+  ];
+  for (const s of DEFAULT_SITEMAPS) {
+    await sql`
+      INSERT INTO sitemaps (name, type, path, enabled)
+      VALUES (${s.name}, ${s.type}, ${s.path}, true)
+      ON CONFLICT (path) DO NOTHING
+    `;
+  }
+  console.log("sitemaps table ready.");
+}
+
+// Retired: CUSTOM sitemaps used to briefly support admin-typed manual URL
+// entries stored here (before the Content Source registry, itself since
+// retired too — see removeCustomSitemapType() below). Follows the same drop
+// pattern as dropEventsTable() above: check the table exists before
+// dropping, so this is a no-op (not an error) on a database that never had
+// it or has already been migrated.
+async function dropSitemapEntriesTable() {
+  const exists = await sql`SELECT to_regclass('public.sitemap_entries') AS reg`;
+  if (!exists[0]?.reg) return;
+  console.log("Removing retired 'sitemap_entries' table...");
+  await sql`DROP TABLE IF EXISTS sitemap_entries`;
+  console.log("'sitemap_entries' table removed.");
+}
+
+// Removes the CUSTOM sitemap type entirely. There is no code path left that
+// serves a CUSTOM sitemap (the app/sitemap-custom/[...slug] catch-all route
+// and lib/sitemapContentSources.ts registry have both been deleted), so:
+//   1. Delete any existing CUSTOM rows (e.g. an admin-created "Events" one)
+//      — they'd otherwise sit in the table forever pointing at a route that
+//      no longer exists, and would 404 the moment they're hit.
+//   2. Drop the now-unused content_source column.
+//   3. Re-create the `type` CHECK constraint without CUSTOM, so a CUSTOM
+//      row can never be inserted again at the DB layer either — not just
+//      blocked by the admin UI/API.
+// Safe to re-run: DELETE/DROP COLUMN/DROP CONSTRAINT are all no-ops once
+// already applied.
+async function removeCustomSitemapType() {
+  const exists = await sql`SELECT to_regclass('public.sitemaps') AS reg`;
+  if (!exists[0]?.reg) return;
+
+  const removed = await sql`DELETE FROM sitemaps WHERE type = 'CUSTOM' RETURNING id, name, path`;
+  if (removed.length > 0) {
+    console.log(
+      `Removed ${removed.length} CUSTOM sitemap row(s) (Custom sitemaps are no longer supported): ${removed
+        .map((r) => `${r.name} (${r.path})`)
+        .join(", ")}`
+    );
+  }
+
+  await sql`ALTER TABLE sitemaps DROP COLUMN IF EXISTS content_source`;
+
+  await sql`ALTER TABLE sitemaps DROP CONSTRAINT IF EXISTS sitemaps_type_check`;
+  await sql`
+    ALTER TABLE sitemaps
+    ADD CONSTRAINT sitemaps_type_check CHECK (type IN ('STATIC','COUNTRY','CITY','CATEGORY','ARTICLE'))
+  `;
+}
+
 // Seeding (sample cities/categories/launch articles) used to run
 // unconditionally on every invocation, gated only on "is this table
 // empty?". That's exactly the wrong trigger: if you deliberately wipe the
@@ -1089,6 +1186,9 @@ async function main() {
   await dropEventsTable();
   await createArticleViewsTable();
   await createIndexingSettingsTable();
+  await createSitemapsTable();
+  await dropSitemapEntriesTable();
+  await removeCustomSitemapType();
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
   await createPhase9FooterConfigColumn();

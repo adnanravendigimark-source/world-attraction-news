@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import CityDetailClient from "./CityDetailClient";
 import { getCityBySlug } from "@/lib/cities";
 import { getPublishedArticles, getPublishedArticleByAnySlug } from "@/lib/articles";
-import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
+import { resolvePageMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { cityPath, countryPath, articlePath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 
@@ -35,10 +35,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const city = await getCachedCityBySlug(params.citySlug);
   if (!city || city.countrySlug !== params.countrySlug) return {};
-  return buildMetadata({
+  // resolvePageMetadata so an admin's noindex/nofollow override for this
+  // city (Admin -> Indexing -> Destinations, key `city:<id>`) actually
+  // reaches the live page — buildMetadata alone ignored it, same gap fixed
+  // on the country page (see that file's comment) and now fixed here too
+  // for consistency, since the Indexing admin UI already implied this
+  // toggle worked for cities.
+  return resolvePageMetadata(cityPath(city.countrySlug, city.slug), {
     title: city.metaTitle || `${city.name} Attraction News & Travel Intelligence | ${SITE_NAME}`,
     description: city.metaDescription || city.intro,
-    path: cityPath(city.countrySlug, city.slug),
     image: city.heroImage,
   });
 }

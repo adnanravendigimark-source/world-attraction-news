@@ -4,7 +4,7 @@ import CategoryDetailClient from "./CategoryDetailClient";
 import { getCategoryBySlug, getCategories } from "@/lib/categories";
 import { getPublishedArticlesPage, type ArticleSort } from "@/lib/articles";
 import { getCities } from "@/lib/cities";
-import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
+import { resolvePageMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { articlePath } from "@/lib/destinations";
 import { SITE_NAME } from "@/lib/site";
 
@@ -32,10 +32,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const category = await getCategoryBySlug(params.categorySlug);
   if (!category) return {};
-  return buildMetadata({
+  // resolvePageMetadata so an admin's noindex/nofollow override for this
+  // category (Admin -> Indexing -> Category Pages, key `category:<id>`)
+  // actually reaches the live page — same fix as the country/city pages,
+  // see the country page's comment for the full reasoning.
+  return resolvePageMetadata(`/categories/${category.slug}`, {
     title: category.metaTitle || `${category.name} Attraction Coverage & News | ${SITE_NAME}`,
     description: category.metaDescription || category.description || `The latest ${category.name.toLowerCase()} news from attractions around the world.`,
-    path: `/categories/${category.slug}`,
     image: category.image || undefined,
   });
 }

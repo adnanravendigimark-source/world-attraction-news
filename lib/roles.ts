@@ -39,6 +39,7 @@ export const ADMIN_PAGES: { key: string; label: string }[] = [
   { key: "subscribers", label: "Subscribers" },
   { key: "points", label: "Points Ledger" },
   { key: "indexing", label: "Indexing" },
+  { key: "sitemaps", label: "Sitemaps" },
   { key: "header", label: "Header" },
   { key: "footer", label: "Footer" },
   { key: "pages", label: "Pages" },

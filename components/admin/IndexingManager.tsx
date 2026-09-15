@@ -39,6 +39,8 @@ function sectionTitle(type: IndexingPageType) {
       return "Core Site Pages";
     case "legal":
       return "Legal & Policy Pages";
+    case "country":
+      return "Country Hubs";
     case "destination":
       return "Destinations & City Hubs";
     case "category":
@@ -203,7 +205,7 @@ export default function IndexingManager({ initial }: { initial: IndexingRow[] })
 
   // Grouping
   const grouped = useMemo(() => {
-    const order: IndexingPageType[] = ["core", "legal", "destination", "category", "article"];
+    const order: IndexingPageType[] = ["core", "legal", "country", "destination", "category", "article"];
     const map: Record<string, { type: IndexingPageType; rows: IndexingRow[] }> = {};
     for (const t of order) {
       const inType = filteredRows.filter((r) => r.type === t);
@@ -259,6 +261,7 @@ export default function IndexingManager({ initial }: { initial: IndexingRow[] })
             { id: "all", label: "All Pages", count: totalCount },
             { id: "core", label: "Core Pages", count: rows.filter((r) => r.type === "core").length },
             { id: "article", label: "Articles", count: rows.filter((r) => r.type === "article").length },
+            { id: "country", label: "Countries", count: rows.filter((r) => r.type === "country").length },
             { id: "destination", label: "Destinations", count: rows.filter((r) => r.type === "destination").length },
             { id: "category", label: "Categories", count: rows.filter((r) => r.type === "category").length },
             { id: "legal", label: "Legal", count: rows.filter((r) => r.type === "legal").length },

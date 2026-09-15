@@ -2,9 +2,10 @@ import { sql } from "./db";
 import { getPublishedArticles } from "./articles";
 import { getCities } from "./cities";
 import { getCategories } from "./categories";
-import { articlePath, cityPath } from "./destinations";
+import { getCountryHubs } from "./countryHubs";
+import { articlePath, cityPath, countryPath } from "./destinations";
 
-export type IndexingPageType = "core" | "legal" | "destination" | "category" | "article";
+export type IndexingPageType = "core" | "legal" | "country" | "destination" | "category" | "article";
 
 export interface IndexingRow {
   key: string;
@@ -35,11 +36,12 @@ const STATIC_LEGAL_PAGES: Array<{ key: string; label: string; url: string }> = [
 
 export async function getIndexingOverview(): Promise<IndexingRow[]> {
   try {
-    const [overridesRows, articles, cities, categories] = await Promise.all([
+    const [overridesRows, articles, cities, categories, countries] = await Promise.all([
       sql`SELECT key, no_index, no_follow FROM indexing_settings`.catch(() => []),
       getPublishedArticles({ limit: 500 }).catch(() => []),
       getCities().catch(() => []),
       getCategories().catch(() => []),
+      getCountryHubs().catch(() => []),
     ]);
 
     const overrideMap = new Map<string, { noIndex: boolean; noFollow: boolean }>();
@@ -78,7 +80,28 @@ export async function getIndexingOverview(): Promise<IndexingRow[]> {
       });
     }
 
-    // 3. Destinations (cities)
+    // 3. Countries — key `country:<slug>` (slug, not id: a country here
+    // may only exist via its cities — see lib/countryHubs.ts's
+    // getCountryHubs() — with no `countries` table row and therefore no
+    // id at all; slug is the one identifier every country page always
+    // has). Same override convention as cities/categories/articles below,
+    // and the one lib/sitemaps.ts's getCountrySitemapUrls() now checks
+    // before including a country in /sitemap-country.xml.
+    for (const country of countries) {
+      const url = countryPath(country.slug);
+      const key = `country:${country.slug}`;
+      const ov = overrideMap.get(key) || overrideMap.get(url);
+      rows.push({
+        key,
+        type: "country",
+        label: country.name,
+        url,
+        noIndex: ov?.noIndex ?? false,
+        noFollow: ov?.noFollow ?? false,
+      });
+    }
+
+    // 4. Destinations (cities)
     for (const city of cities) {
       const url = cityPath(city.countrySlug, city.slug);
       const key = `city:${city.id}`;
@@ -93,7 +116,7 @@ export async function getIndexingOverview(): Promise<IndexingRow[]> {
       });
     }
 
-    // 4. Categories
+    // 5. Categories
     for (const cat of categories) {
       const url = `/categories/${cat.slug}`;
       const key = `category:${cat.id}`;
@@ -108,7 +131,7 @@ export async function getIndexingOverview(): Promise<IndexingRow[]> {
       });
     }
 
-    // 5. Published Articles
+    // 6. Published Articles
     for (const art of articles) {
       const url = articlePath(art.countrySlug, art.citySlug, art.slug);
       const key = `article:${art.id}`;
