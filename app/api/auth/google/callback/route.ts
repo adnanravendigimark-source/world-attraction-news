@@ -117,6 +117,17 @@ export async function GET(req: Request) {
     // error from a schema that's missing the Phase 1 columns, etc.) shows
     // up in the terminal instead of only a generic message in the browser.
     console.error("[google oauth callback] failed:", err);
-    return redirectAndClearState("/login?error=google_failed", req);
+    // Also surface a short, safe reason code through the redirect (never
+    // the full error/stack, which could contain internal details) so this
+    // is diagnosable from the browser alone, without needing to pull
+    // Vercel's function logs.
+    const rawReason = err instanceof Error ? err.message : String(err);
+    const reason = rawReason.slice(0, 60).replace(/[^a-zA-Z0-9_:.\- ]/g, "");
+    const url = new URL("/login", getAppUrl(req));
+    url.searchParams.set("error", "google_failed");
+    if (reason) url.searchParams.set("reason", reason);
+    const res = NextResponse.redirect(url);
+    res.cookies.set("atn_oauth_state", "", { path: "/", maxAge: 0 });
+    return res;
   }
 }

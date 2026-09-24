@@ -74,7 +74,23 @@ export async function exchangeGoogleCode(code: string, req?: Request): Promise<G
   });
 
   if (!res.ok) {
-    throw new Error("Google sign-in failed — the authorization code could not be exchanged.");
+    // Google returns a JSON body describing exactly what went wrong here
+    // (e.g. {"error":"redirect_uri_mismatch"} or {"error":"invalid_grant"}),
+    // but that detail was being discarded — every failure surfaced to the
+    // user as the same generic "Google sign-in failed" message with no way
+    // to tell a misconfigured redirect URI apart from an expired code.
+    // Log Google's real error server-side and carry its short `error` code
+    // (never the full body, which can echo back the client_id) through to
+    // the caller so it ends up in the /login?error=... redirect.
+    let errorCode = `http_${res.status}`;
+    try {
+      const body = await res.json();
+      console.error("[google oauth] token exchange failed:", body);
+      if (typeof body?.error === "string") errorCode = body.error;
+    } catch {
+      console.error("[google oauth] token exchange failed with non-JSON body, status:", res.status);
+    }
+    throw new Error(`google_token_exchange_failed:${errorCode}`);
   }
 
   const data = await res.json();

@@ -22,7 +22,12 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const recaptcha = useAuthRecaptcha();
-  const [error, setError] = useState(GOOGLE_ERROR_MESSAGES[searchParams?.get("error") || ""] || "");
+  const googleErrorCode = searchParams?.get("error") || "";
+  const googleErrorReason = searchParams?.get("reason") || "";
+  const initialGoogleError = GOOGLE_ERROR_MESSAGES[googleErrorCode]
+    ? `${GOOGLE_ERROR_MESSAGES[googleErrorCode]}${googleErrorReason ? ` (${googleErrorReason})` : ""}`
+    : "";
+  const [error, setError] = useState(initialGoogleError);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
