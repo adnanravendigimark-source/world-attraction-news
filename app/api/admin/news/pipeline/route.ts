@@ -6,20 +6,24 @@ import { logActivity } from "@/lib/activity";
 import { checkDailyCap, getLatestResearch, runResearch } from "@/lib/news/research";
 import { createDraftFromStory } from "@/lib/news/drafts";
 import { writeArticle } from "@/lib/news/writer";
+import { checkAndRevise } from "@/lib/news/factcheck";
+import { storyBusy } from "@/lib/news/jobs";
 import { enrichArticle } from "@/lib/news/seo";
 import { ensureImages } from "@/lib/news/imagegen";
 import { computeQuality } from "@/lib/news/quality";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
 
 // One step of "Create news draft". The browser calls these in order so each
 // request stays under the time limit:
-//   research -> write (draft + article + SEO + links) -> images -> quality
+//   research -> write (draft + article + SEO + links) -> check (fact check,
+//   one automatic revision) -> images -> quality
 export async function POST(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "create");
-  if (denied || !session) return denied;
+  if (denied) return denied;
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const body = await req.json().catch(() => null);
   const step = String(body?.step || "");
   const clusterId = String(body?.clusterId || "");
@@ -38,11 +42,20 @@ export async function POST(req: Request) {
     }
     if (step === "write") {
       if (!clusterId) return NextResponse.json({ error: "clusterId is required." }, { status: 400 });
+      if (await storyBusy(clusterId)) {
+        return NextResponse.json({ error: "Automation is writing this story right now. Open it from Articles in a few minutes." }, { status: 409 });
+      }
       const { article, created } = await createDraftFromStory(clusterId);
       if (created) await logActivity(session, "news_draft_created", { type: "article", id: article.id, label: article.title });
       const w = await writeArticle(article.id);
       const e = await enrichArticle(article.id);
-      return NextResponse.json({ ok: true, articleId: article.id, adminUrl: `/admin/articles/${article.id}`, wordCount: w.wordCount, verdict: w.check.verdict, issues: w.check.issues.length, links: e.links });
+      return NextResponse.json({ ok: true, articleId: article.id, adminUrl: `/admin/articles/${article.id}`, wordCount: w.wordCount, links: e.links });
+    }
+    if (step === "check") {
+      if (!articleId) return NextResponse.json({ error: "articleId is required." }, { status: 400 });
+      const r = await checkAndRevise(articleId);
+      if (r.revised) await enrichArticle(articleId);
+      return NextResponse.json({ ok: true, verdict: r.check.verdict, issues: r.check.issues.length, revised: r.revised });
     }
     if (step === "images") {
       if (!articleId) return NextResponse.json({ error: "articleId is required." }, { status: 400 });

@@ -132,6 +132,7 @@ export function normalizeUrl(raw: string): string {
     for (const k of [...u.searchParams.keys()]) {
       if (/^(utm_|fbclid|gclid|mc_|ref$|source$|cmpid)/i.test(k)) u.searchParams.delete(k);
     }
+    if (u.pathname.length > 1 && u.pathname.endsWith("/")) u.pathname = u.pathname.replace(/\/+$/, "");
     let s = u.toString();
     if (s.endsWith("/")) s = s.slice(0, -1);
     return s.toLowerCase();

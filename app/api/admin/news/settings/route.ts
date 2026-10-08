@@ -23,7 +23,8 @@ export async function GET() {
 export async function PUT(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
-  if (denied || !session) return denied;
+  if (denied) return denied;
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   let body: any;
   try {
     body = await req.json();

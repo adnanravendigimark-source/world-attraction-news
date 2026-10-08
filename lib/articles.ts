@@ -4,6 +4,7 @@ import { publishDueScheduledArticles } from "./scheduling";
 import type { ModerationSignals } from "./moderation";
 import { sanitizeArticleHtml, stripLinkTags } from "./sanitizeHtml";
 import { slugifyCountry } from "./countries";
+import { contentHash } from "./news/contentHash";
 
 // Full editorial workflow (Final Phase spec):
 //   draft -> pending (submitted) -> under_review -> changes_requested -> pending (resubmitted)
@@ -959,7 +960,7 @@ export async function updateArticleReview(
 // Quality gate for news: returns the reasons an article must not go live yet.
 // Guides are not gated.
 export async function newsPublishProblems(id: string): Promise<string[]> {
-  const rows = await sql`SELECT type, title, excerpt, content_html, word_count FROM articles WHERE id = ${id} LIMIT 1`;
+  const rows = await sql`SELECT type, title, excerpt, content_html, word_count, news_cluster_id FROM articles WHERE id = ${id} LIMIT 1`;
   const a = rows[0];
   if (!a || a.type !== "news") return [];
   const problems: string[] = [];
@@ -969,10 +970,18 @@ export async function newsPublishProblems(id: string): Promise<string[]> {
   if (Number(a.word_count || 0) < 100) problems.push("Article is too short (aim for 180–300 words).");
   const src = await sql`SELECT COUNT(*)::int AS n FROM article_sources WHERE article_id = ${id}`;
   if (Number(src[0]?.n ?? 0) < 1) problems.push("Add at least one source.");
+  // Fact check: an AI-researched story needs a check of its current text.
+  // A failed check blocks publishing unless an editor overrode it with a
+  // reason; "needs_review" only asks for a look and does not block.
   try {
-    const chk = await sql`SELECT verdict, overridden FROM news_article_checks WHERE article_id = ${id} LIMIT 1`;
-    if (chk[0]?.verdict === "fail" && !chk[0].overridden) {
-      problems.push("The fact check found unsupported claims. Fix them, re-run the check, or approve the override.");
+    const chk = await sql`SELECT * FROM news_article_checks WHERE article_id = ${id} LIMIT 1`;
+    const c = chk[0];
+    if (!c) {
+      if (a.news_cluster_id) problems.push("Run the fact check before publishing.");
+    } else if (c.content_hash && c.content_hash !== contentHash(html)) {
+      problems.push("The article changed after the last fact check. Re-run the check.");
+    } else if ((c.verdict === "fail" || c.verdict === "failed") && !c.overridden) {
+      problems.push("The fact check found unsupported claims. Fix them and re-run the check, or approve the override with a reason.");
     }
   } catch {
     /* table not migrated yet: no check recorded */

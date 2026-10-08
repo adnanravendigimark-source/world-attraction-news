@@ -8,11 +8,11 @@
 // nothing here can publish.
 import { sql } from "../db";
 import { createNewsDraft, getArticleById, type Article } from "../articles";
-import { getLatestResearch } from "./research";
+import { getLatestResearch, isKnown } from "./research";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const todo = (hint: string) => `<p><em>TODO: ${esc(hint)}</em></p>`;
-const known = (v: string | undefined) => (v && v !== "Not stated in sources" ? v : "");
+const known = (v: string | undefined) => (isKnown(v) ? v : "");
 
 export async function findExistingNewsDraft(clusterId: string): Promise<{ id: string } | null> {
   const rows = await sql`SELECT id FROM articles WHERE news_cluster_id = ${clusterId} AND type = 'news' ORDER BY updated_at DESC LIMIT 1`;

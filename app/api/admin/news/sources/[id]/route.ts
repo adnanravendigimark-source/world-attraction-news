@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
-  if (denied || !session) return denied;
+  if (denied) return denied;
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   let body: any;
   try {
     body = await req.json();
@@ -47,7 +48,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "delete");
-  if (denied || !session) return denied;
+  if (denied) return denied;
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   try {
     const existing = await getNewsSource(params.id);
     if (!existing) return NextResponse.json({ error: "Source not found." }, { status: 404 });

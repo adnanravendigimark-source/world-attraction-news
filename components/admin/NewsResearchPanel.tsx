@@ -62,6 +62,8 @@ export default function NewsResearchPanel({ clusterId, canEdit, initialStatus, o
       await step({ step: "research", clusterId });
       setStage("Writing the article, SEO and internal links…");
       const w = await step({ step: "write", clusterId });
+      setStage("Checking every claim against the research…");
+      await step({ step: "check", articleId: w.articleId });
       setStage("Finding a relevant image…");
       await step({ step: "images", articleId: w.articleId });
       setStage("Running quality checks…");
@@ -90,7 +92,7 @@ export default function NewsResearchPanel({ clusterId, canEdit, initialStatus, o
             {drafting ? "Creating draft…" : "Create news draft"}
           </button>
           <button onClick={run} disabled={running} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-ink-800 disabled:opacity-60">
-            {running ? "Researching… (up to 60s)" : rec ? "Run again" : "Run research"}
+            {running ? "Researching… (up to 90s)" : rec ? "Run again" : "Run research"}
           </button>
           </div>
         )}

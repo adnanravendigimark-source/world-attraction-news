@@ -7,6 +7,7 @@
 // needs two independent sources or an official source.
 import { sql } from "../db";
 import { fetchPageText, isGoogleNewsRedirect, isPublicUrl } from "./extract";
+import { chatJson } from "./aiClient";
 
 export interface ResearchSource {
   n: number;
@@ -196,33 +197,24 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
       );
     });
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
+    let ai;
+    try {
+      ai = await chatJson({
+        kind: "research",
         model,
         temperature: 0.1,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Event headline: ${clusters[0].canonical_title}\n\n${blocks.join("\n\n---\n\n")}` },
-        ],
-      }),
-      signal: AbortSignal.timeout(40_000),
-    });
-    const json: any = await res.json().catch(() => null);
-    if (!res.ok) return await fail(`OpenAI error: ${json?.error?.message || `HTTP ${res.status}`}`, sources);
-    const content = json?.choices?.[0]?.message?.content;
-    let facts: ResearchFacts;
-    try {
-      facts = normalizeFacts(JSON.parse(content), sources.length);
-    } catch {
-      return await fail("The model returned an unreadable response.", sources);
+        timeoutMs: 90_000,
+        system: SYSTEM_PROMPT,
+        user: `Event headline: ${clusters[0].canonical_title}\n\n${blocks.join("\n\n---\n\n")}`,
+      });
+    } catch (err: any) {
+      return await fail(String(err?.message || err), sources);
     }
+    const facts = normalizeFacts(ai.json, sources.length, sources);
 
     await sql`
       UPDATE story_research SET status = 'done', facts = ${JSON.stringify(facts)}::jsonb, sources = ${JSON.stringify(sources)}::jsonb,
-        tokens_in = ${json?.usage?.prompt_tokens ?? null}, tokens_out = ${json?.usage?.completion_tokens ?? null}, finished_at = now()
+        tokens_in = ${ai.tokensIn}, tokens_out = ${ai.tokensOut}, finished_at = now()
       WHERE id = ${researchId}
     `;
     return (await getLatestResearch(clusterId)) as ResearchRecord;
@@ -232,20 +224,29 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
   }
 }
 
-const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 600) : "Not stated in sources");
+export const NOT_STATED = "Not stated in sources";
+// The model is told to answer "Not clear from sources" or "Not stated in
+// sources" when a field is unknown; store every such variant the same way so
+// later steps can recognise it and never pass it on as a fact.
+const UNKNOWN = /^(not (stated|clear|mentioned|specified|known|available)|unknown|unclear|n\/a|none)\b/i;
+const str = (v: unknown) => (typeof v === "string" && v.trim() && !UNKNOWN.test(v.trim()) ? v.trim().slice(0, 600) : NOT_STATED);
+export const isKnown = (v: string | undefined | null): v is string => !!v && v !== NOT_STATED && !UNKNOWN.test(v.trim());
 const strList = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()).map((x) => String(x).trim().slice(0, 400)).slice(0, 12) : []);
 const nums = (v: unknown, max: number): number[] =>
   Array.isArray(v) ? [...new Set(v.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= max))] : [];
 
 // Never trust model output shape: coerce, cap, and drop facts with no valid citation.
-export function normalizeFacts(raw: any, sourceCount: number): ResearchFacts {
+export function normalizeFacts(raw: any, sourceCount: number, sources: Pick<ResearchSource, "n" | "official">[] = []): ResearchFacts {
+  const official = new Set(sources.filter((s) => s.official).map((s) => s.n));
   const conf = (c: unknown): ResearchFact["confidence"] => (c === "confirmed" || c === "conflicting" ? c : "single_source");
   const facts: ResearchFact[] = (Array.isArray(raw?.important_facts) ? raw.important_facts : [])
     .map((f: any) => ({ claim: typeof f?.claim === "string" ? f.claim.trim().slice(0, 500) : "", sources: nums(f?.sources, sourceCount), confidence: conf(f?.confidence) }))
     .filter((f: ResearchFact) => f.claim && f.sources.length > 0)
     .slice(0, 25);
-  // A "confirmed" fact citing a single source is downgraded (unless that source is official, which the UI shows separately).
-  for (const f of facts) if (f.confidence === "confirmed" && f.sources.length < 2) f.confidence = "single_source";
+  // "Confirmed" needs two independent sources, or one official source.
+  for (const f of facts) {
+    if (f.confidence === "confirmed" && f.sources.length < 2 && !f.sources.some((n) => official.has(n))) f.confidence = "single_source";
+  }
   const numbers = (Array.isArray(raw?.confirmed_numbers) ? raw.confirmed_numbers : [])
     .map((n: any) => ({ value: typeof n?.value === "string" ? n.value.slice(0, 120) : String(n?.value ?? ""), context: typeof n?.context === "string" ? n.context.slice(0, 300) : "", sources: nums(n?.sources, sourceCount) }))
     .filter((n: any) => n.value && n.sources.length > 0)

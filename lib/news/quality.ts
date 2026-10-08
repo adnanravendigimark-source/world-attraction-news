@@ -2,7 +2,7 @@
 // nothing here calls a model. The score is the weighted share of checks passed.
 import { sql } from "../db";
 import { getLatestResearch } from "./research";
-import { getFactCheck } from "./writer";
+import { getFactCheck } from "./factcheck";
 import { getImageMeta } from "./images";
 import { getExtra } from "./seo";
 import { prepareTitle, sameStoryPrepared } from "./similarity";
@@ -39,7 +39,14 @@ export async function computeQuality(articleId: string): Promise<QualityReport> 
   // Fact check
   const fc = await getFactCheck(articleId);
   const high = fc ? fc.issues.filter((i) => i.severity === "high").length : 0;
-  add("facts", "Facts supported by research", 20, fc ? (fc.verdict === "pass" || fc.overridden ? 1 : 0) : 0, !fc ? "Fact check not run" : fc.overridden ? "Failed check overridden by an editor" : fc.verdict === "pass" ? "No unsupported claims found" : `${high} issue(s) to review`);
+  let fcScore = 0;
+  let fcNote = "Fact check not run";
+  if (fc?.stale) fcNote = "Text changed since the last check; re-run it";
+  else if (fc?.verdict === "passed") [fcScore, fcNote] = [1, "No unsupported claims found"];
+  else if (fc?.verdict === "needs_review") [fcScore, fcNote] = [0.5, `${fc.issues.length} hint(s) for an editor to review`];
+  else if (fc?.overridden) [fcScore, fcNote] = [1, "Failed check overridden by an editor"];
+  else if (fc) fcNote = `${high} issue(s) to fix`;
+  add("facts", "Facts supported by research", 20, fcScore, fcNote);
 
   // Article
   const words = Number(a.word_count || 0);

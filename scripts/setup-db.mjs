@@ -1300,8 +1300,6 @@ async function createNewsTables() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS article_sources_article_idx ON article_sources (article_id, n)`;
-  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS queries JSONB NOT NULL DEFAULT '[]'::jsonb`;
-  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS inline JSONB NOT NULL DEFAULT '[]'::jsonb`;
   // Extra generated SEO/link data for news articles (see lib/news/seo.ts).
   await sql`
     CREATE TABLE IF NOT EXISTS news_article_extra (
@@ -1346,6 +1344,22 @@ async function createNewsTables() {
   await sql`CREATE INDEX IF NOT EXISTS news_jobs_status_idx ON news_jobs (status, run_after)`;
   // One live (queued/running) or finished job per step per story.
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS news_jobs_unique_idx ON news_jobs (kind, cluster_id) WHERE status IN ('queued', 'running', 'done')`;
+  // Pipeline reliability: workers refresh heartbeat_at while a job runs, so a
+  // job is only re-queued once its worker has really stopped.
+  await sql`ALTER TABLE news_jobs ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ`;
+  await sql`CREATE INDEX IF NOT EXISTS news_jobs_cluster_kind_idx ON news_jobs (cluster_id, kind)`;
+  // Fact-check redesign: three verdicts (passed | needs_review | failed),
+  // claim-by-claim results, a hash of the checked text (an edit makes the
+  // check stale) and a required reason for overrides.
+  await sql`ALTER TABLE news_article_checks ADD COLUMN IF NOT EXISTS claims JSONB NOT NULL DEFAULT '[]'::jsonb`;
+  await sql`ALTER TABLE news_article_checks ADD COLUMN IF NOT EXISTS content_hash TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE news_article_checks ADD COLUMN IF NOT EXISTS override_reason TEXT NOT NULL DEFAULT ''`;
+  await sql`UPDATE news_article_checks SET verdict = 'passed' WHERE verdict = 'pass'`;
+  await sql`UPDATE news_article_checks SET verdict = 'failed' WHERE verdict = 'fail'`;
+  await sql`ALTER TABLE news_article_checks ALTER COLUMN verdict SET DEFAULT 'passed'`;
+  // Indexes for the news inbox and job eligibility queries.
+  await sql`CREATE INDEX IF NOT EXISTS articles_news_cluster_idx ON articles (news_cluster_id) WHERE news_cluster_id IS NOT NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS news_items_cluster_rel_idx ON news_items (cluster_id, relevance_score)`;
   // Where a news cover image came from and under what terms it may be used.
   // source_type: licensed | own | permission | ai | unverified
   await sql`
@@ -1358,6 +1372,8 @@ async function createNewsTables() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `;
+  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS queries JSONB NOT NULL DEFAULT '[]'::jsonb`;
+  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS inline JSONB NOT NULL DEFAULT '[]'::jsonb`;
   // System byline for news. No password and no login: it can only be used as
   // an author reference.
   await sql`

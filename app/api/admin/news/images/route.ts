@@ -6,7 +6,7 @@ import { getImageMeta, saveImageMeta, listCandidates, importCandidate } from "@/
 import { ensureImages, generateCoverImage } from "@/lib/news/imagegen";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
 
 // GET ?articleId= → { meta, candidates }
 export async function GET(req: Request) {

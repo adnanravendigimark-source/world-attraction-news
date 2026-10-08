@@ -1,6 +1,8 @@
 // Phase 10 — automation. A Postgres job table worked by Vercel Cron.
-// Pipeline per story: research → draft → cover image. Nothing is ever
-// published here: drafts land in the normal review queue as Pending Review.
+// Pipeline per story: research → draft → write → check → image. Each step is
+// its own job and makes at most a few model calls, so no step can outrun the
+// function time limit. Nothing is ever published here: drafts land in the
+// normal review queue as Pending Review.
 import { sql } from "../db";
 import { loadFilterConfig } from "./filter";
 import { runResearch } from "./research";
@@ -8,8 +10,9 @@ import { createDraftFromStory } from "./drafts";
 import { ensureImages } from "./imagegen";
 import { enrichArticle } from "./seo";
 import { writeArticle } from "./writer";
+import { checkAndRevise } from "./factcheck";
 
-export type JobKind = "research" | "draft" | "write" | "image";
+export type JobKind = "research" | "draft" | "write" | "check" | "image";
 
 export interface AutomationConfig {
   enabled: boolean;
@@ -122,12 +125,45 @@ export async function countEligible(cfg?: AutomationConfig): Promise<number> {
   return Number(r[0]?.n ?? 0);
 }
 
+// A running job's worker refreshes heartbeat_at every 20 seconds. A job with
+// no heartbeat for this long has lost its worker (the function was stopped)
+// and is freed for a retry. Function runs are capped at 300 s, so a live job
+// never goes this long without a heartbeat.
+const STALE_MINUTES = 6;
+
+async function releaseDeadJobs(): Promise<void> {
+  try {
+    await sql`UPDATE news_jobs SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'queued' END,
+                error = CASE WHEN attempts >= max_attempts THEN 'Stopped before finishing (timed out).' ELSE 'Retrying after the previous run stopped.' END,
+                finished_at = CASE WHEN attempts >= max_attempts THEN now() ELSE NULL END, locked_at = NULL
+              WHERE status = 'running' AND GREATEST(heartbeat_at, locked_at) < now() - (${STALE_MINUTES} * interval '1 minute')`;
+  } catch {
+    // heartbeat_at not migrated yet (run scripts/setup-db.mjs): fall back to the lock time.
+    await sql`UPDATE news_jobs SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'queued' END,
+                error = CASE WHEN attempts >= max_attempts THEN 'Stopped before finishing (timed out).' ELSE error END,
+                finished_at = CASE WHEN attempts >= max_attempts THEN now() ELSE NULL END, locked_at = NULL
+              WHERE status = 'running' AND locked_at < now() - interval '10 minutes'`;
+  }
+}
+
+function startHeartbeat(id: number): () => void {
+  const beat = () => {
+    sql`UPDATE news_jobs SET heartbeat_at = now() WHERE id = ${id} AND status = 'running'`.catch(() => {});
+  };
+  beat();
+  const timer = setInterval(beat, 20_000);
+  return () => clearInterval(timer);
+}
+
+// True while automation is working on this story's write/check steps, so a
+// manual "Create news draft" doesn't write the same article at the same time.
+export async function storyBusy(clusterId: string): Promise<boolean> {
+  const rows = await sql`SELECT 1 FROM news_jobs WHERE cluster_id = ${clusterId} AND kind IN ('draft', 'write', 'check') AND status = 'running' LIMIT 1`.catch(() => []);
+  return rows.length > 0;
+}
+
 async function claimNext(): Promise<any | null> {
-  // Free jobs whose worker died mid-run.
-  await sql`UPDATE news_jobs SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'queued' END,
-              error = CASE WHEN attempts >= max_attempts THEN 'Timed out.' ELSE error END,
-              finished_at = CASE WHEN attempts >= max_attempts THEN now() ELSE NULL END, locked_at = NULL
-            WHERE status = 'running' AND locked_at < now() - interval '10 minutes'`;
+  await releaseDeadJobs();
   const rows = await sql`
     UPDATE news_jobs SET status = 'running', locked_at = now(), attempts = attempts + 1
     WHERE id = (SELECT id FROM news_jobs WHERE status = 'queued' AND run_after <= now()
@@ -151,10 +187,18 @@ async function execute(job: any, cfg: AutomationConfig): Promise<{ result: any; 
   }
   if (job.kind === "write") {
     if (!job.article_id) throw new Error("No article for this write job.");
-    const { wordCount, check } = await writeArticle(job.article_id as string);
+    const { wordCount } = await writeArticle(job.article_id as string);
     await enrichArticle(job.article_id as string);
+    await enqueueJob("check", clusterId, job.article_id as string);
+    return { result: { wordCount }, articleId: job.article_id };
+  }
+  if (job.kind === "check") {
+    if (!job.article_id) throw new Error("No article for this check job.");
+    const { check, revised } = await checkAndRevise(job.article_id as string);
+    // A revision rewrites the text; re-apply internal links to it.
+    if (revised) await enrichArticle(job.article_id as string);
     if (cfg.image) await enqueueJob("image", clusterId, job.article_id as string);
-    return { result: { wordCount, verdict: check.verdict, issues: check.issues.length }, articleId: job.article_id };
+    return { result: { verdict: check.verdict, issues: check.issues.length, revised }, articleId: job.article_id };
   }
   if (job.kind === "image") {
     if (!job.article_id) throw new Error("No article for this image job.");
@@ -164,17 +208,22 @@ async function execute(job: any, cfg: AutomationConfig): Promise<{ result: any; 
   throw new Error(`Unknown job kind: ${job.kind}`);
 }
 
+// The worst single job (check + one revision + re-check) takes up to about
+// 3.75 minutes of model time (three calls of up to 75 s). Routes that call runJobs set maxDuration = 300,
+// so a new job is only started while that much time is still left.
+const JOB_RESERVE_MS = 230_000;
+
 export async function runJobs(opts: { budgetMs?: number } = {}): Promise<{ processed: number; done: number; failed: number; retried: number }> {
   const started = Date.now();
-  const budget = opts.budgetMs ?? 45_000;
+  const budget = opts.budgetMs ?? 290_000;
   const cfg = await loadAutomation();
   const out = { processed: 0, done: 0, failed: 0, retried: 0 };
-  // Research and image calls can take ~30s each, so only start a job if there's room.
   while (true) {
-    if (out.processed > 0 && Date.now() - started > budget - 30_000) break;
+    if (out.processed > 0 && budget - (Date.now() - started) < JOB_RESERVE_MS) break;
     const job = await claimNext();
     if (!job) break;
     out.processed++;
+    const stopBeat = startHeartbeat(Number(job.id));
     try {
       const { result, articleId } = await execute(job, cfg);
       await sql`UPDATE news_jobs SET status = 'done', result = ${JSON.stringify(result)}::jsonb, article_id = COALESCE(${articleId ?? null}, article_id),
@@ -193,6 +242,8 @@ export async function runJobs(opts: { budgetMs?: number } = {}): Promise<{ proce
                     run_after = now() + (${minutes} * interval '1 minute') WHERE id = ${job.id}`;
         out.retried++;
       }
+    } finally {
+      stopBeat();
     }
   }
   return out;

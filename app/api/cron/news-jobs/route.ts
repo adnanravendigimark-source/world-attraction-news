@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { enqueueEligible, loadAutomation, runJobs } from "@/lib/news/jobs";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
 
 // Vercel Cron (see vercel.json) runs this every 10 minutes: when automation is
 // switched on it queues the best un-started stories, then works the queue.

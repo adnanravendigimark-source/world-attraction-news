@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { cancelJob, countEligible, enqueueEligible, enqueueJob, jobStats, listJobs, loadAutomation, retryJob, runJobs, saveAutomation } from "@/lib/news/jobs";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
 
 export async function GET() {
   const session = await getSession();
@@ -25,7 +25,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
-  if (denied || !session) return denied;
+  if (denied) return denied;
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const body = await req.json().catch(() => null);
   const action = String(body?.action || "");
   try {
