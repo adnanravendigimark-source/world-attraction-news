@@ -1164,6 +1164,236 @@ async function removeCustomSitemapType() {
   `;
 }
 
+
+// ---------------------------------------------------------------------------
+// Trending News — Phases 1–3 (source registry, raw collection, run log).
+// Purely additive: new tables only, nothing existing is altered.
+//   news_sources    — admin-managed registry of RSS feeds / API queries
+//   news_items      — raw discovery layer (one row per discovered story link)
+//   news_fetch_runs — one row per collector run, for the admin run history
+// ---------------------------------------------------------------------------
+async function createNewsTables() {
+  console.log("Creating Trending News tables (if they don't already exist)...");
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS news_sources (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'rss',
+      url TEXT NOT NULL DEFAULT '',
+      rss_url TEXT NOT NULL DEFAULT '',
+      api_provider TEXT NOT NULL DEFAULT '',
+      query TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      country TEXT NOT NULL DEFAULT '',
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      reliability_score INTEGER NOT NULL DEFAULT 50,
+      fetch_interval_minutes INTEGER NOT NULL DEFAULT 30,
+      etag TEXT NOT NULL DEFAULT '',
+      last_modified TEXT NOT NULL DEFAULT '',
+      last_fetched_at TIMESTAMPTZ,
+      last_status TEXT NOT NULL DEFAULT '',
+      last_error TEXT NOT NULL DEFAULT '',
+      last_item_count INTEGER NOT NULL DEFAULT 0,
+      consecutive_failures INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS news_sources_feed_uniq ON news_sources (lower(rss_url)) WHERE rss_url <> ''`;
+  await sql`CREATE INDEX IF NOT EXISTS news_sources_active_idx ON news_sources (is_active, last_fetched_at)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS news_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      source_id UUID NOT NULL REFERENCES news_sources(id) ON DELETE CASCADE,
+      external_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      url TEXT NOT NULL DEFAULT '',
+      image_url TEXT NOT NULL DEFAULT '',
+      author TEXT NOT NULL DEFAULT '',
+      published_at TIMESTAMPTZ,
+      category TEXT NOT NULL DEFAULT '',
+      country TEXT NOT NULL DEFAULT '',
+      content_hash TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (source_id, external_id)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS news_items_published_idx ON news_items (published_at DESC NULLS LAST)`;
+  await sql`CREATE INDEX IF NOT EXISTS news_items_hash_idx ON news_items (content_hash)`;
+  await sql`CREATE INDEX IF NOT EXISTS news_items_status_idx ON news_items (status, created_at DESC)`;
+
+  // Phase 3 — travel relevance filter. filter_status: pending | relevant |
+  // borderline | irrelevant. Existing rows stay 'pending' until re-filtered.
+  await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS relevance_score INTEGER`;
+  await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS relevance_category TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS filter_status TEXT NOT NULL DEFAULT 'pending'`;
+  await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS filter_reason TEXT NOT NULL DEFAULT ''`;
+  await sql`CREATE INDEX IF NOT EXISTS news_items_filter_idx ON news_items (filter_status, published_at DESC NULLS LAST)`;
+
+  // Phase 4 — story clusters. One cluster = one real-world event reported by
+  // one or more items/sources. An item belongs to at most one cluster.
+  await sql`
+    CREATE TABLE IF NOT EXISTS story_clusters (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      canonical_title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT '',
+      first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      published_first_at TIMESTAMPTZ,
+      item_count INTEGER NOT NULL DEFAULT 1,
+      source_count INTEGER NOT NULL DEFAULT 1,
+      trend_score INTEGER,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS story_clusters_seen_idx ON story_clusters (last_seen_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS story_clusters_status_idx ON story_clusters (status, last_seen_at DESC)`;
+  await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS cluster_id UUID REFERENCES story_clusters(id) ON DELETE SET NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS news_items_cluster_idx ON news_items (cluster_id)`;
+
+  // Phase 5 — trend scoring. Per-factor breakdown stored as JSON so the admin
+  // can see exactly why a story ranks where it does.
+  await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS trend_breakdown JSONB`;
+  await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS trend_scored_at TIMESTAMPTZ`;
+  await sql`CREATE INDEX IF NOT EXISTS story_clusters_trend_idx ON story_clusters (trend_score DESC NULLS LAST)`;
+
+  // Phase 6 — research. One row per research run on a story cluster. Stores the
+  // extracted facts and the list of sources used, never the source page text.
+  await sql`
+    CREATE TABLE IF NOT EXISTS story_research (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      cluster_id UUID NOT NULL REFERENCES story_clusters(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'running',
+      model TEXT NOT NULL DEFAULT '',
+      facts JSONB,
+      sources JSONB,
+      error TEXT NOT NULL DEFAULT '',
+      tokens_in INTEGER,
+      tokens_out INTEGER,
+      requested_by TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      finished_at TIMESTAMPTZ
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS story_research_cluster_idx ON story_research (cluster_id, created_at DESC)`;
+
+  // Phase 9 groundwork — news articles reuse `articles`. type = 'guide' (all
+  // existing rows) or 'news'. News has no destination, so city_id is optional.
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'guide'`;
+  await sql`ALTER TABLE articles ALTER COLUMN city_id DROP NOT NULL`;
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS news_cluster_id UUID REFERENCES story_clusters(id) ON DELETE SET NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS articles_type_status_idx ON articles (type, status, published_at DESC)`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS article_sources (
+      id SERIAL PRIMARY KEY,
+      article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+      n INTEGER NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      url TEXT NOT NULL DEFAULT '',
+      publisher TEXT NOT NULL DEFAULT '',
+      is_official BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS article_sources_article_idx ON article_sources (article_id, n)`;
+  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS queries JSONB NOT NULL DEFAULT '[]'::jsonb`;
+  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS inline JSONB NOT NULL DEFAULT '[]'::jsonb`;
+  // Extra generated SEO/link data for news articles (see lib/news/seo.ts).
+  await sql`
+    CREATE TABLE IF NOT EXISTS news_article_extra (
+      article_id UUID PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+      secondary_keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
+      og_title TEXT NOT NULL DEFAULT '',
+      og_description TEXT NOT NULL DEFAULT '',
+      internal_links JSONB NOT NULL DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  // Latest fact-check result per news article (see lib/news/writer.ts).
+  await sql`
+    CREATE TABLE IF NOT EXISTS news_article_checks (
+      article_id UUID PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+      verdict TEXT NOT NULL DEFAULT 'pass',
+      issues JSONB NOT NULL DEFAULT '[]'::jsonb,
+      overridden BOOLEAN NOT NULL DEFAULT false,
+      model TEXT NOT NULL DEFAULT '',
+      checked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  // Background job queue for the news pipeline (research, draft, cover image).
+  // Worked by Vercel Cron; no external queue needed.
+  await sql`
+    CREATE TABLE IF NOT EXISTS news_jobs (
+      id BIGSERIAL PRIMARY KEY,
+      kind TEXT NOT NULL,
+      cluster_id UUID NOT NULL,
+      article_id UUID,
+      status TEXT NOT NULL DEFAULT 'queued',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 3,
+      run_after TIMESTAMPTZ NOT NULL DEFAULT now(),
+      locked_at TIMESTAMPTZ,
+      result JSONB,
+      error TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      finished_at TIMESTAMPTZ
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS news_jobs_status_idx ON news_jobs (status, run_after)`;
+  // One live (queued/running) or finished job per step per story.
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS news_jobs_unique_idx ON news_jobs (kind, cluster_id) WHERE status IN ('queued', 'running', 'done')`;
+  // Where a news cover image came from and under what terms it may be used.
+  // source_type: licensed | own | permission | ai | unverified
+  await sql`
+    CREATE TABLE IF NOT EXISTS article_image_meta (
+      article_id UUID PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+      source_type TEXT NOT NULL DEFAULT 'unverified',
+      credit TEXT NOT NULL DEFAULT '',
+      license TEXT NOT NULL DEFAULT '',
+      source_url TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  // System byline for news. No password and no login: it can only be used as
+  // an author reference.
+  await sql`
+    INSERT INTO users (email, role, status, display_name, bio, auth_provider, email_verified, approved_at)
+    VALUES ('news@worldattractionnews.system', 'contributor', 'approved', 'World Attraction News',
+            'Original travel news coverage from the World Attraction News team.', 'system', true, now())
+    ON CONFLICT (email) DO NOTHING
+  `;
+  await sql`UPDATE users SET slug = 'world-attraction-news' WHERE email = 'news@worldattractionnews.system' AND slug IS NULL
+            AND NOT EXISTS (SELECT 1 FROM users WHERE slug = 'world-attraction-news')`;
+
+  // Admin-editable settings (filter keywords/thresholds now; trend weights later).
+  await sql`
+    CREATE TABLE IF NOT EXISTS news_settings (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS news_fetch_runs (
+      id SERIAL PRIMARY KEY,
+      trigger TEXT NOT NULL DEFAULT 'cron',
+      started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      finished_at TIMESTAMPTZ,
+      sources_checked INTEGER NOT NULL DEFAULT 0,
+      items_found INTEGER NOT NULL DEFAULT 0,
+      items_new INTEGER NOT NULL DEFAULT 0,
+      errors INTEGER NOT NULL DEFAULT 0,
+      summary JSONB
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS news_fetch_runs_started_idx ON news_fetch_runs (started_at DESC)`;
+}
+
 // Seeding (sample cities/categories/launch articles) used to run
 // unconditionally on every invocation, gated only on "is this table
 // empty?". That's exactly the wrong trigger: if you deliberately wipe the
@@ -1199,6 +1429,7 @@ async function main() {
   await addCategoryColumns();
   await addPerformanceIndexes();
   await backfillUserSlugs();
+  await createNewsTables();
 
   if (SHOULD_SEED) {
     await seedCities();

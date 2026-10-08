@@ -273,7 +273,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       });
 
       await logActivity(session, "article_published", { type: "article", id: article.id, label: article.title });
-      const url = articlePath(before.countrySlug, before.citySlug, article.slug);
+      const url = article.type === "news" ? `/news/${article.slug}` : articlePath(before.countrySlug, before.citySlug, article.slug);
       if (author) {
         await notifyArticlePublished(
           { id: author.id, email: author.email },
@@ -425,6 +425,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (
       message.includes("already used by another article") ||
       message.includes("can't be empty") ||
+      message.startsWith("Can't publish yet") ||
+      message.startsWith("Can't schedule yet") ||
       message.includes("can't be published") ||
       message.includes("can be scheduled") ||
       message.includes("currently scheduled") ||

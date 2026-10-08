@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPublishedArticles } from "@/lib/articles";
-import { articlePath } from "@/lib/destinations";
+import { getPublishedNews, newsPath } from "@/lib/articles";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Google News sitemap — a separate, purpose-built XML file from the general
@@ -30,7 +29,7 @@ export async function GET() {
   // Published-most-recent-first (see getPublishedArticles' own ORDER BY) —
   // 200 is comfortably more than any real 2-day window will produce, so the
   // recency filter below does the actual trimming.
-  const articles = await getPublishedArticles({ limit: 200 });
+  const { articles } = await getPublishedNews({ limit: 100 });
   const cutoff = Date.now() - TWO_DAYS_MS;
 
   const recent = articles.filter((a) => {
@@ -41,7 +40,7 @@ export async function GET() {
 
   const urls = recent
     .map((a) => {
-      const loc = `${SITE_URL}${articlePath(a.countrySlug, a.citySlug, a.slug)}`;
+      const loc = `${SITE_URL}${newsPath(a.slug)}`;
       const publicationDate = new Date(a.publishedAt as string).toISOString();
       return `  <url>
     <loc>${escapeXml(loc)}</loc>

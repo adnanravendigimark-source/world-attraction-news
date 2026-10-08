@@ -54,7 +54,7 @@ export default async function EditArticlePage({ params }: { params: { id: string
             title: article.title,
             excerpt: article.excerpt,
             contentHtml: article.contentHtml,
-            cityId: article.cityId,
+            cityId: article.cityId ?? undefined,
             categoryId: article.categoryId,
             image: article.image,
             imageAlt: article.imageAlt,

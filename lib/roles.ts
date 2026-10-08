@@ -33,6 +33,7 @@ export interface Role {
 // role — see app/api/admin/profile/password/route.ts).
 export const ADMIN_PAGES: { key: string; label: string }[] = [
   { key: "articles", label: "Articles" },
+  { key: "news", label: "Trending News" },
   { key: "destinations", label: "Destinations" },
   { key: "categories", label: "Categories" },
   { key: "contributors", label: "Contributors" },

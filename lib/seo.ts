@@ -171,7 +171,7 @@ export function newsArticleJsonLd(article: {
   authorSlug?: string | null;
   publishedAt: string | null;
   updatedAt: string;
-  cityName: string;
+  cityName?: string;
 }) {
   return {
     "@context": "https://schema.org",
@@ -188,7 +188,7 @@ export function newsArticleJsonLd(article: {
     },
     publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
     mainEntityOfPage: `${SITE_URL}${article.path}`,
-    contentLocation: { "@type": "Place", name: article.cityName },
+    contentLocation: article.cityName ? { "@type": "Place", name: article.cityName } : undefined,
   };
 }
 

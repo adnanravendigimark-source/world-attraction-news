@@ -116,6 +116,53 @@ body {
   color: #111318;
 }
 
+/* News articles: plain newspaper-style prose, no drop cap */
+.news-body > p:first-of-type::first-letter {
+  float: none;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: inherit;
+  margin: 0;
+  color: inherit;
+}
+.news-body {
+  font-size: 1.14rem;
+  line-height: 1.8;
+}
+.news-body > p:first-of-type {
+  font-size: 1.28rem;
+  line-height: 1.65;
+  color: #111318;
+  font-weight: 500;
+}
+.news-body h2 {
+  font-size: 1.35rem;
+  margin-top: 2.2rem;
+}
+.news-body figure.news-figure {
+  margin: 2.25rem 0;
+}
+.news-body figure.news-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 0.75rem;
+  box-shadow: none;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.news-body figure.news-figure figcaption {
+  margin-top: 0.55rem;
+  text-align: left;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.news-body figure.news-figure figcaption a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .article-body h1,
 .editor-body h1 {
   font-family: "Plus Jakarta Sans", sans-serif;

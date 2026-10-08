@@ -11,7 +11,8 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     title: row.title,
     excerpt: row.excerpt,
     contentHtml: row.content_html,
-    cityId: row.city_id,
+    type: row.type === "news" ? "news" : "guide",
+    cityId: row.city_id ?? null,
     categoryId: row.category_id,
     attractionId: null,
     authorId: row.author_id,
@@ -71,7 +72,7 @@ export async function searchArticles(query: string, limit = 20): Promise<Article
       JOIN cities c ON c.id = a.city_id
       LEFT JOIN categories cat ON cat.id = a.category_id
       JOIN users u ON u.id = a.author_id
-      WHERE a.status = 'published'
+      WHERE a.type = 'guide' AND a.status = 'published'
         AND (
           a.title ILIKE ${q}
           OR a.excerpt ILIKE ${q}

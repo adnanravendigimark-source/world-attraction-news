@@ -32,22 +32,22 @@ export async function publishDueScheduledArticles(): Promise<number> {
         const { articlePath } = await import("./destinations");
         for (const row of rows) {
           const fullRows = await sql`
-            SELECT a.title, a.excerpt, a.image, a.slug, c.slug AS city_slug, co.slug AS country_slug, c.name AS city_name
+            SELECT a.title, a.excerpt, a.image, a.slug, a.type, c.slug AS city_slug, co.slug AS country_slug, c.name AS city_name
             FROM articles a
-            JOIN cities c ON c.id = a.city_id
-            JOIN countries co ON co.id = c.country_id
+            LEFT JOIN cities c ON c.id = a.city_id
+            LEFT JOIN countries co ON co.id = c.country_id
             WHERE a.id = ${row.id}
             LIMIT 1
           `;
           if (fullRows.length) {
             const f = fullRows[0];
-            const url = articlePath(f.country_slug, f.city_slug, f.slug);
+            const url = f.type === "news" ? `/news/${f.slug}` : articlePath(f.country_slug, f.city_slug, f.slug);
             notifySubscribersOfNewArticle({
               title: f.title,
               excerpt: f.excerpt,
               image: f.image,
               url,
-              cityName: f.city_name,
+              cityName: f.city_name || "World Attraction News",
             }).catch(() => {});
           }
         }

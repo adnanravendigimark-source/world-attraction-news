@@ -32,7 +32,8 @@ export interface Article {
   title: string;
   excerpt: string;
   contentHtml: string;
-  cityId: string;
+  type: "guide" | "news";
+  cityId: string | null;
   categoryId: string | null;
   attractionId: string | null;
   authorId: string;
@@ -91,7 +92,8 @@ function rowToArticle(row: any): Article {
     title: row.title,
     excerpt: row.excerpt,
     contentHtml: row.content_html,
-    cityId: row.city_id,
+    type: row.type === "news" ? "news" : "guide",
+    cityId: row.city_id ?? null,
     categoryId: row.category_id,
     attractionId: row.attraction_id ?? null,
     authorId: row.author_id,
@@ -125,16 +127,20 @@ function rowToArticle(row: any): Article {
 }
 
 function rowToArticleWithRelations(row: any): ArticleWithRelations {
-  const cCountrySlug =
-    row.country_slug ||
-    (row.city_country ? slugifyCountry(row.city_country) : "") ||
-    (row.country ? slugifyCountry(row.country) : "") ||
-    "united-states";
+  // News articles have no city; guides always do. Only guides get the
+  // "united-states" last-resort country fallback.
+  const hasCity = !!row.city_slug;
+  const cCountrySlug = hasCity
+    ? row.country_slug ||
+      (row.city_country ? slugifyCountry(row.city_country) : "") ||
+      (row.country ? slugifyCountry(row.country) : "") ||
+      "united-states"
+    : "";
 
   return {
     ...rowToArticle(row),
-    cityName: row.city_name,
-    citySlug: row.city_slug,
+    cityName: row.city_name ?? "",
+    citySlug: row.city_slug ?? "",
     countrySlug: cCountrySlug,
     categoryName: row.category_name,
     categorySlug: row.category_slug,
@@ -174,7 +180,7 @@ const JOIN_SELECT = `
          cat.name AS category_name, cat.slug AS category_slug,
          u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
   FROM articles a
-  JOIN cities c ON c.id = a.city_id
+  LEFT JOIN cities c ON c.id = a.city_id
   LEFT JOIN categories cat ON cat.id = a.category_id
   JOIN users u ON u.id = a.author_id
 `;
@@ -190,7 +196,7 @@ export async function getPublishedArticles(opts: {
   try {
     await publishDueScheduledArticles();
     const limit = opts.limit ?? 200;
-    const conditions = ["a.status = 'published'"];
+    const conditions = ["a.type = 'guide' AND a.status = 'published'"];
     const params: any[] = [];
     if (opts.countrySlug) {
       params.push(opts.countrySlug);
@@ -219,7 +225,7 @@ export async function getPublishedArticleBySlug(
   articleSlug: string
 ): Promise<ArticleWithRelations | undefined> {
   await publishDueScheduledArticles();
-  const query = `${JOIN_SELECT} WHERE a.status = 'published' AND c.slug = $1 AND a.slug = $2 LIMIT 1`;
+  const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND c.slug = $1 AND a.slug = $2 LIMIT 1`;
   const rows = await sql(query, [citySlug, articleSlug]);
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
 }
@@ -228,7 +234,7 @@ export async function getPublishedArticleByAnySlug(
   slug: string
 ): Promise<ArticleWithRelations | undefined> {
   await publishDueScheduledArticles();
-  const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.slug = $1 LIMIT 1`;
+  const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.slug = $1 LIMIT 1`;
   const rows = await sql(query, [slug]);
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
 }
@@ -333,7 +339,7 @@ export async function getRelatedPublishedArticles(
   excludeArticleId: string,
   limit = 4
 ): Promise<ArticleWithRelations[]> {
-  const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.city_id = $1 AND a.id != $2 ORDER BY a.published_at DESC LIMIT $3`;
+  const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.city_id = $1 AND a.id != $2 ORDER BY a.published_at DESC LIMIT $3`;
   const rows = await sql(query, [cityId, excludeArticleId, limit]);
   return rows.map(rowToArticleWithRelations);
 }
@@ -343,7 +349,7 @@ export async function getRelatedByCategoryPublishedArticles(
   excludeArticleId: string,
   limit = 4
 ): Promise<ArticleWithRelations[]> {
-  const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.category_id = $1 AND a.id != $2 ORDER BY a.published_at DESC LIMIT $3`;
+  const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.category_id = $1 AND a.id != $2 ORDER BY a.published_at DESC LIMIT $3`;
   const rows = await sql(query, [categoryId, excludeArticleId, limit]);
   return rows.map(rowToArticleWithRelations);
 }
@@ -365,7 +371,7 @@ export async function getPublishedArticlesPage(opts: {
   const pageSize = opts.pageSize ?? 12;
   try {
     await publishDueScheduledArticles();
-    const conditions = ["a.status = 'published'"];
+    const conditions = ["a.type = 'guide' AND a.status = 'published'"];
     const params: any[] = [];
     if (opts.citySlug) {
       params.push(opts.citySlug);
@@ -384,7 +390,7 @@ export async function getPublishedArticlesPage(opts: {
     const countQuery = `
       SELECT COUNT(*)::int AS count
       FROM articles a
-      JOIN cities c ON c.id = a.city_id
+      LEFT JOIN cities c ON c.id = a.city_id
       LEFT JOIN categories cat ON cat.id = a.category_id
       WHERE ${where}
     `;
@@ -424,14 +430,14 @@ export async function getTrendingArticles(limit = 6): Promise<ArticleWithRelatio
   try {
     const recentQuery = `
       ${JOIN_SELECT}
-      WHERE a.status = 'published' AND a.published_at >= now() - interval '30 days'
+      WHERE a.type = 'guide' AND a.status = 'published' AND a.published_at >= now() - interval '30 days'
       ORDER BY a.view_count DESC, a.score DESC NULLS LAST, a.published_at DESC
       LIMIT $1
     `;
     const recentRows = await sql(recentQuery, [limit]);
     if (recentRows.length) return recentRows.map(rowToArticleWithRelations);
 
-    const fallbackQuery = `${JOIN_SELECT} WHERE a.status = 'published' ORDER BY a.published_at DESC LIMIT $1`;
+    const fallbackQuery = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' ORDER BY a.published_at DESC LIMIT $1`;
     const fallbackRows = await sql(fallbackQuery, [limit]);
     return fallbackRows.map(rowToArticleWithRelations);
   } catch (err) {
@@ -446,7 +452,7 @@ export async function getTrendingArticles(limit = 6): Promise<ArticleWithRelatio
 // Favorites" / Popular Attractions section.
 export async function getTopScoredArticles(limit = 6): Promise<ArticleWithRelations[]> {
   try {
-    const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.score IS NOT NULL ORDER BY a.score DESC, a.published_at DESC LIMIT $1`;
+    const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.score IS NOT NULL ORDER BY a.score DESC, a.published_at DESC LIMIT $1`;
     const rows = await sql(query, [limit]);
     return rows.map(rowToArticleWithRelations);
   } catch (err) {
@@ -460,7 +466,7 @@ export async function getTopScoredArticles(limit = 6): Promise<ArticleWithRelati
 // these directly so "what's Featured" is exactly what an editor chose.
 async function getFlaggedArticles(column: "featured" | "trending" | "editors_pick" | "breaking", limit = 6): Promise<ArticleWithRelations[]> {
   try {
-    const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.${column} = true ORDER BY a.published_at DESC LIMIT $1`;
+    const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.${column} = true ORDER BY a.published_at DESC LIMIT $1`;
     const rows = await sql(query, [limit]);
     return rows.map(rowToArticleWithRelations);
   } catch (err) {
@@ -478,7 +484,7 @@ export const getPinnedTrendingArticles = (limit = 6) => getFlaggedArticles("tren
 // here comes straight from a COUNT(*) against real rows, never a placeholder.
 export async function getPublishedArticleCountsByCity(): Promise<Record<string, number>> {
   try {
-    const rows = await sql`SELECT city_id, COUNT(*)::int AS count FROM articles WHERE status = 'published' GROUP BY city_id`;
+    const rows = await sql`SELECT city_id, COUNT(*)::int AS count FROM articles WHERE type = 'guide' AND status = 'published' GROUP BY city_id`;
     return Object.fromEntries(rows.map((r: any) => [r.city_id, r.count]));
   } catch {
     return {};
@@ -489,7 +495,7 @@ export async function getPublishedArticleCountsByCategory(): Promise<Record<stri
   try {
     const rows = await sql`
       SELECT category_id, COUNT(*)::int AS count FROM articles
-      WHERE status = 'published' AND category_id IS NOT NULL
+      WHERE type = 'guide' AND status = 'published' AND category_id IS NOT NULL
       GROUP BY category_id
     `;
     return Object.fromEntries(rows.map((r: any) => [r.category_id, r.count]));
@@ -507,7 +513,7 @@ export async function getLatestPublishedArticleImageByCategory(): Promise<Record
     const rows = await sql`
       SELECT DISTINCT ON (category_id) category_id, image
       FROM articles
-      WHERE status = 'published' AND category_id IS NOT NULL AND image IS NOT NULL AND image != ''
+      WHERE type = 'guide' AND status = 'published' AND category_id IS NOT NULL AND image IS NOT NULL AND image != ''
       ORDER BY category_id, published_at DESC
     `;
     return Object.fromEntries(rows.map((r: any) => [r.category_id, r.image]));
@@ -557,7 +563,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 export async function getPublishedArticlesByAuthorId(authorId: string, limit = 100): Promise<ArticleWithRelations[]> {
   if (!authorId || !UUID_REGEX.test(authorId)) return [];
   try {
-    const query = `${JOIN_SELECT} WHERE a.status = 'published' AND a.author_id = $1 ORDER BY a.published_at DESC LIMIT $2`;
+    const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.author_id = $1 ORDER BY a.published_at DESC LIMIT $2`;
     const rows = await sql(query, [authorId, limit]);
     return rows.map(rowToArticleWithRelations);
   } catch (err) {
@@ -950,7 +956,39 @@ export async function updateArticleReview(
   return rowToArticle(rows[0]);
 }
 
+// Quality gate for news: returns the reasons an article must not go live yet.
+// Guides are not gated.
+export async function newsPublishProblems(id: string): Promise<string[]> {
+  const rows = await sql`SELECT type, title, excerpt, content_html, word_count FROM articles WHERE id = ${id} LIMIT 1`;
+  const a = rows[0];
+  if (!a || a.type !== "news") return [];
+  const problems: string[] = [];
+  const html = String(a.content_html || "");
+  if (/TODO/.test(html) || /TODO/.test(String(a.excerpt || ""))) problems.push('Remove the "TODO" placeholders from the article.');
+  if (!String(a.excerpt || "").trim()) problems.push("Add a short excerpt.");
+  if (Number(a.word_count || 0) < 100) problems.push("Article is too short (aim for 180–300 words).");
+  const src = await sql`SELECT COUNT(*)::int AS n FROM article_sources WHERE article_id = ${id}`;
+  if (Number(src[0]?.n ?? 0) < 1) problems.push("Add at least one source.");
+  try {
+    const chk = await sql`SELECT verdict, overridden FROM news_article_checks WHERE article_id = ${id} LIMIT 1`;
+    if (chk[0]?.verdict === "fail" && !chk[0].overridden) {
+      problems.push("The fact check found unsupported claims. Fix them, re-run the check, or approve the override.");
+    }
+  } catch {
+    /* table not migrated yet: no check recorded */
+  }
+  const img = await sql`
+    SELECT a.image, m.source_type, m.credit FROM articles a
+    LEFT JOIN article_image_meta m ON m.article_id = a.id WHERE a.id = ${id} LIMIT 1`;
+  if (!img[0]?.image) problems.push("Add a cover image.");
+  else if (!img[0].source_type || img[0].source_type === "unverified") problems.push("Record the cover image's rights (source type, credit, license).");
+  else if (img[0].source_type !== "ai" && !String(img[0].credit || "").trim()) problems.push("Add an image credit.");
+  return problems;
+}
+
 export async function publishArticle(id: string): Promise<Article> {
+  const problems = await newsPublishProblems(id);
+  if (problems.length) throw new Error(`Can't publish yet: ${problems.join(" ")}`);
   const rows = await sql`
     UPDATE articles
     SET status = 'published', published_at = now(), scheduled_at = NULL, updated_at = now()
@@ -965,6 +1003,8 @@ export async function publishArticle(id: string): Promise<Article> {
 // lib/scheduling.ts publishDueScheduledArticles() for the mechanism that
 // actually flips it live once the time comes.
 export async function scheduleArticle(id: string, scheduledAt: Date): Promise<Article> {
+  const problems = await newsPublishProblems(id);
+  if (problems.length) throw new Error(`Can't schedule yet: ${problems.join(" ")}`);
   const rows = await sql`
     UPDATE articles
     SET status = 'scheduled', scheduled_at = ${scheduledAt.toISOString()}, updated_at = now()
@@ -1074,6 +1114,10 @@ export async function adminUpdateArticle(
 
   const nextContent = updates.contentHtml !== undefined ? sanitizeArticleHtml(updates.contentHtml) : c.content_html;
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
+  // News articles have no destination: an empty cityId clears it. Guides keep
+  // their existing city when the field is blank.
+  const nextCityId =
+    updates.cityId === undefined ? c.city_id : updates.cityId.trim() ? updates.cityId : c.type === "news" ? null : c.city_id;
 
   const rows = await sql`
     UPDATE articles
@@ -1081,7 +1125,7 @@ export async function adminUpdateArticle(
         slug = ${slug},
         excerpt = ${updates.excerpt ?? c.excerpt},
         content_html = ${nextContent},
-        city_id = ${updates.cityId ?? c.city_id},
+        city_id = ${nextCityId},
         category_id = ${updates.categoryId !== undefined ? updates.categoryId : c.category_id},
         attraction_id = ${updates.attractionId !== undefined ? updates.attractionId : c.attraction_id},
         image = ${updates.image ?? c.image},
@@ -1152,4 +1196,94 @@ export function summarizePoints(articles: Article[]): PointsSummary {
     scoredArticleCount: scored.length,
     publishedCount,
   };
+}
+
+
+// --- News articles (type = 'news') ---------------------------------------
+// News shares the articles table, workflow, SEO fields and editor with guides
+// but has no city/country: it lives at /news/[slug]. Public guide readers
+// above all filter on type = 'guide', so news never appears in city pages,
+// category lists or guide counts.
+
+export const NEWS_AUTHOR_EMAIL = "news@worldattractionnews.system";
+
+export async function getNewsAuthorId(): Promise<string | null> {
+  const rows = await sql`SELECT id FROM users WHERE email = ${NEWS_AUTHOR_EMAIL} LIMIT 1`;
+  return rows[0]?.id ?? null;
+}
+
+export interface NewsSourceLink {
+  n: number;
+  title: string;
+  url: string;
+  publisher: string;
+  isOfficial: boolean;
+}
+
+export async function getArticleSources(articleId: string): Promise<NewsSourceLink[]> {
+  try {
+    const rows = await sql`SELECT n, title, url, publisher, is_official FROM article_sources WHERE article_id = ${articleId} ORDER BY n ASC`;
+    return rows.map((r: any) => ({ n: r.n, title: r.title, url: r.url, publisher: r.publisher, isOfficial: !!r.is_official }));
+  } catch {
+    return [];
+  }
+}
+
+export async function createNewsDraft(input: {
+  title: string;
+  contentHtml: string;
+  excerpt?: string;
+  clusterId?: string | null;
+  categoryId?: string | null;
+  sources?: { title: string; url: string; publisher: string; isOfficial?: boolean }[];
+}): Promise<Article> {
+  const authorId = await getNewsAuthorId();
+  if (!authorId) throw new Error('The "World Attraction News" author is missing. Run `node scripts/setup-db.mjs`.');
+  const slug = await generateUniqueSlug(input.title || "untitled-news");
+  const safe = sanitizeArticleHtml(input.contentHtml || "");
+  const { wordCount, readingTimeMinutes } = computeContentStats(safe);
+  const rows = await sql`
+    INSERT INTO articles (slug, title, excerpt, content_html, type, city_id, category_id, author_id, status,
+      news_cluster_id, word_count, reading_time_minutes, updated_at)
+    VALUES (${slug}, ${input.title}, ${input.excerpt || ""}, ${safe}, 'news', NULL, ${input.categoryId ?? null}, ${authorId}, 'pending',
+      ${input.clusterId ?? null}, ${wordCount}, ${readingTimeMinutes}, now())
+    RETURNING *
+  `;
+  const article = rowToArticle(rows[0]);
+  const sources = input.sources || [];
+  for (let i = 0; i < sources.length; i++) {
+    const s = sources[i];
+    await sql`
+      INSERT INTO article_sources (article_id, n, title, url, publisher, is_official)
+      VALUES (${article.id}, ${i + 1}, ${s.title.slice(0, 300)}, ${s.url}, ${s.publisher.slice(0, 120)}, ${!!s.isOfficial})
+    `;
+  }
+  return article;
+}
+
+export async function getPublishedNews(opts: { limit?: number; offset?: number } = {}): Promise<{ articles: ArticleWithRelations[]; total: number }> {
+  try {
+    await publishDueScheduledArticles();
+    const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
+    const offset = Math.max(opts.offset ?? 0, 0);
+    const rows = await sql(
+      `${JOIN_SELECT} WHERE a.type = 'news' AND a.status = 'published' ORDER BY COALESCE(a.published_at, a.updated_at) DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    const count = await sql`SELECT COUNT(*)::int AS n FROM articles WHERE type = 'news' AND status = 'published'`;
+    return { articles: rows.map(rowToArticleWithRelations), total: Number(count[0]?.n ?? 0) };
+  } catch (err) {
+    console.error("[getPublishedNews error]:", err);
+    return { articles: [], total: 0 };
+  }
+}
+
+export async function getPublishedNewsBySlug(slug: string): Promise<ArticleWithRelations | undefined> {
+  await publishDueScheduledArticles();
+  const rows = await sql(`${JOIN_SELECT} WHERE a.type = 'news' AND a.status = 'published' AND a.slug = $1 LIMIT 1`, [slug]);
+  return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
+}
+
+export function newsPath(slug: string): string {
+  return `/news/${slug}`;
 }

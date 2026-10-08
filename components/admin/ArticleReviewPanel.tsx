@@ -8,7 +8,8 @@ import type { ArticleWithRelations } from "@/lib/articles";
 import type { ArticleRevision } from "@/lib/revisions";
 import { articlePath } from "@/lib/destinations";
 import TiptapArticleEditor from "@/components/dashboard/TiptapArticleEditor";
-import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
+import NewsImagePanel from "@/components/admin/NewsImagePanel";
+import NewsWriterPanel from "@/components/admin/NewsWriterPanel";import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
@@ -452,7 +453,7 @@ export default function ArticleReviewPanel({
 
           {article.status === "published" && (
             <Link
-              href={articlePath(article.countrySlug, article.citySlug, article.slug)}
+              href={article.type === "news" ? `/news/${article.slug}` : articlePath(article.countrySlug, article.citySlug, article.slug)}
               target="_blank"
               className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100 transition-colors"
             >
@@ -536,7 +537,7 @@ export default function ArticleReviewPanel({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-900 mb-1">
-                  Destination <span className="text-[#DC2626]">*</span>
+                  Destination {article.type === "news" ? <span className="text-slate-400 font-normal">(optional for news)</span> : <span className="text-[#DC2626]">*</span>}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
@@ -547,7 +548,7 @@ export default function ArticleReviewPanel({
                     onChange={(e) => updateEdit("cityId", e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer shadow-2xs appearance-none"
                   >
-                    <option value="">Select destination</option>
+                    <option value="">{article.type === "news" ? "No destination (news)" : "Select destination"}</option>
                     {cities.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -606,6 +607,8 @@ export default function ArticleReviewPanel({
               />
             </div>
 
+            {article.type === "news" && <NewsWriterPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
+
             {/* Featured Image */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-900">Featured Image</label>
@@ -652,6 +655,13 @@ export default function ArticleReviewPanel({
                 placeholder="Image alt text for accessibility and SEO..."
                 className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none"
               />
+              {article.type === "news" && (
+                <NewsImagePanel articleId={article.id} onImported={(url, alt) => {
+                    updateEdit("image", url);
+                    if (alt && !edit.imageAlt) updateEdit("imageAlt", alt);
+                  }}
+                />
+              )}
             </div>
 
             {/* Article Content with Rich Text Editor */}
@@ -846,7 +856,7 @@ export default function ArticleReviewPanel({
                       Live on Public Site
                     </span>
                     <Link
-                      href={articlePath(article.countrySlug, article.citySlug, article.slug)}
+                      href={article.type === "news" ? `/news/${article.slug}` : articlePath(article.countrySlug, article.citySlug, article.slug)}
                       target="_blank"
                       className="font-bold underline text-emerald-900 hover:text-emerald-700"
                     >

@@ -61,7 +61,7 @@ export default async function ArticlePage({
   article.viewCount = updatedViews;
 
   const [related, trending] = await Promise.all([
-    getRelatedPublishedArticles(article.cityId, article.id, 4),
+    article.cityId ? getRelatedPublishedArticles(article.cityId, article.id, 4) : Promise.resolve([]),
     getTrendingArticles(5),
   ]);
 
