@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>Alaska Airlines, Hawaiian Airlines and Horizon Air</title>
+	<atom:link href="https://news.alaskaair.com/feed/" rel="self" type="application/rss+xml" />
+	<link>https://news.alaskaair.com/</link>
+	<description><![CDATA[Find the latest stories, travel updates and important information about Alaska Airlines.]]></description>
+	<lastBuildDate>Thu, 08 Oct 2026 20:22:46 +0000</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	
+
+<image>
+	<url>https://news.alaskaair.com/wp-content/uploads/2024/12/cropped-cropped-cropped-Favicon-1-1.png?w=32</url>
+	<title>Alaska Airlines, Hawaiian Airlines and Horizon Air</title>
+	<link>https://news.alaskaair.com/</link>
+	<width>32</width>
+	<height>32</height>
+</image> 
+<site xmlns="com-wordpress:feed-additions:1">203925525</site>	<item>
+		<title>October&#8217;s Atmos™ Members Day flight deals unlock six charming winter destinations</title>
+		<link>https://news.alaskaair.com/loyalty/october-global-getaways-atmos-rewards/#utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=october-global-getaways-atmos-rewards</link>
+		
+		<dc:creator><![CDATA[Marissa Villegas]]></dc:creator>
+		<pubDate>Wed, 07 Oct 2026 14:00:00 +0000</pubDate>
+				<category><![CDATA[Loyalty]]></category>
+		<category><![CDATA[Alaska Airlines]]></category>
+		<category><![CDATA[Atmos Members Day]]></category>
+		<category><![CDATA[Atmos Rewards]]></category>
+		<category><![CDATA[Global Getaways]]></category>
+		<category><![CDATA[Hawaiian Airlines]]></category>
+		<category><![CDATA[Horizon Air]]></category>
+		<guid isPermaLink="false">https://news.alaskaair.com/?p=116202</guid>
+
+					<description><![CDATA[Through Oct. 10, Atmos Rewards members can save up to 50% on award travel to Helsinki, Munich, Paris, Sapporo, Seoul and Stavanger, where winter is a way of life. The post October&#8217;s Atmos™ Membe]]></description>
+		
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">116202</post-id>	</item>
+<item>
+		<title>Atmos™ Rewards expands with new Unlocked experiences from Alterra Mountain Company, Nordstrom and Pebble Beach Resorts</title>
+		<link>https://news.alaskaair.com/loyalty/atmos-unlocked-expands-with-new-experiences-from-alterra-mountain-company-nordstrom-and-pebble-beach-resorts/#utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=atmos-unlocked-expands-with-new-experiences-from-alterra-mountain-company-nordstrom-and-pebble-beach-resorts</link>
+		
+		<dc:creator><![CDATA[Marissa Villegas]]></dc:creator>
+		<pubDate>Wed, 07 Oct 2026 13:00:00 +0000</pubDate>
+				<category><![CDATA[Loyalty]]></category>
+		<category><![CDATA[Alaska Airlines]]></category>
+		<category><![CDATA[Atmos Members Day]]></category>
+		<category><![CDATA[Atmos Rewards]]></category>
+		<category><![CDATA[Atmos Unlocked]]></category>
+		<category><![CDATA[Hawaiian Airlines]]></category>
+		<category><![CDATA[Horizon Air]]></category>
+		<guid isPermaLink="false">https://news.alaskaair.com/?p=116219</guid>
+
+					<description><![CDATA[New offerings include ski-and-stay packages, heli-skiing experiences, private holiday shopping events, golf getaways, culinary experiences and other premium lifestyle experiences. The post Atmos™ Rewa]]></description>
+		
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">116219</post-id>	</item>
+<item>
+		<title>Alaska Air Group announces webcast of third-quarter 2026 financial results</title>
+		<link>https://news.alaskaair.com/company/alaska-air-group-announces-webcast-of-third-quarter-2026-financial-results/#utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=alaska-air-group-announces-webcast-of-third-quarter-2026-financial-results</link>
+		
+		<dc:creator><![CDATA[Marissa Villegas]]></dc:creator>
+		<pubDate>Wed, 07 Oct 2026 12:00:00 +0000</pubDate>
+				<category><![CDATA[Company]]></category>
+		<category><![CDATA[Alaska Airlines]]></category>
+		<category><![CDATA[Hawaiian Airlines]]></category>
+		<category><![CDATA[Horizon Air]]></category>
+		<category><![CDATA[Investors]]></category>
+		<guid isPermaLink="false">https://news.alaskaair.com/?p=116350</guid>
+
+					<description><![CDATA[Alaska Air Group Inc. will hold its quarterly conference call to discuss 2026 third quarter financial results on Wednesday, Oct. 21, 2026. The post Alaska Air Group announces webcast of third-quarter ]]></description>
+		
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">116350</post-id>	</item>
+	</channel>
+</rss>

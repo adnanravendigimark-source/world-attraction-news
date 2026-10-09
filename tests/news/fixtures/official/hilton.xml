@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>Stories From Hilton</title>
+	<atom:link href="https://stories.hilton.com/feed" rel="self" type="application/rss+xml" />
+	<link>https://stories.hilton.com</link>
+	<description><![CDATA[News from Hilton]]></description>
+	<lastBuildDate>Thu, 08 Oct 2026 21:07:11 +0000</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	<generator>https://wordpress.org/?v=7.0.7</generator>
+<site xmlns="com-wordpress:feed-additions:1">200890798</site>	<item>
+		<title>Meet the Canopy Xi’an Qujiang Team Connecting the City’s Past and Present</title>
+		<link>https://stories.hilton.com/hilton-culture/behind-the-stay-canopy-xian-qujiang</link>
+		
+		<dc:creator><![CDATA[Stories From Hilton - APAC]]></dc:creator>
+		<pubDate>Fri, 09 Oct 2026 02:00:00 +0000</pubDate>
+				<category><![CDATA[Videos]]></category>
+		<guid isPermaLink="false">https://stories.hilton.com/stories/behind-the-stay-canopy-xian-qujiang</guid>
+
+					<description><![CDATA[In Xi’an, China, the past is never far away. With a history stretching back thousands of years, the city invites travelers to step into another era while simultaneously experiencing the vibrant energy]]></description>
+										
+					
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">48634</post-id><enclosure url="https://stories-editor.hilton.com/wp-content/uploads/2026/10/Canopy-Xian-Qujiang-Team-Members.jpg" length="441111" type="image/jpeg" />
+	</item>
+<item>
+		<title>Cooking with Chris: Recreating a Culinary Icon from Waldorf Astoria New York</title>
+		<link>https://stories.hilton.com/food-beverage/cooking-with-chris-waldorf-salad</link>
+		
+		<dc:creator><![CDATA[Lee Brannan]]></dc:creator>
+		<pubDate>Wed, 07 Oct 2026 13:30:50 +0000</pubDate>
+				<category><![CDATA[Recipes]]></category>
+		<category><![CDATA[Videos]]></category>
+		<guid isPermaLink="false">https://stories.hilton.com/?post_type=story&#038;p=48406</guid>
+
+					<description><![CDATA[For more than a century, the Waldorf Salad has carried the name of one of the world’s most legendary hotels to dining tables around the globe. Crisp apples, celery and a creamy dressing formed the fou]]></description>
+										
+					
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">48406</post-id><enclosure url="https://stories-editor.hilton.com/wp-content/uploads/2026/10/Cooking-with-Chris-Chef-Michael-Anthony-and-Chris-Nassetta-1.jpg" length="21645702" type="image/jpeg" />
+	</item>
+<item>
+		<title>Waldorf Astoria London – Admiralty Arch Announces OSKIA as Spa Partner</title>
+		<link>https://stories.hilton.com/releases/waldorf-astoria-london-admiralty-arch-announces-oskia-as-spa-partner</link>
+		
+		<dc:creator><![CDATA[Stories From Hilton - EMEA]]></dc:creator>
+		<pubDate>Wed, 07 Oct 2026 07:00:00 +0000</pubDate>
+				<guid isPermaLink="false">https://stories.hilton.com/stories/waldorf-astoria-london-admiralty-arch-announces-oskia-as-spa-partner</guid>
+
+					<description><![CDATA[LONDON &#8211; Waldorf Astoria London &#8211; Admiralty Arch announces OSKIA, the award-winning British skincare brand as the hotel and residences’ exclusive spa skincare and treatment partner when it]]></description>
+										
+					
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">48476</post-id><enclosure url="https://stories-editor.hilton.com/wp-content/uploads/2026/10/Waldorf-Astoria-London-Admiralty-Arch-Spa-Pool-Area.jpg" length="19961909" type="image/jpeg" />
+	</item>
+	</channel>
+</rss>

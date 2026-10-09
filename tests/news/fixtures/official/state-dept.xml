@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+  <channel>
+    <title>travel.state.gov: Travel Advisories</title>
+    <link>https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html</link>
+    <description><![CDATA[As a first step in planning any trip abroad, check the Travel Advisories for your intended destination.]]></description>
+    <pubDate>Fri, 09 Oct 2026 06:48:03 GMT</pubDate>
+    <dc:date>2026-10-09T06:48:03Z</dc:date>
+    <item>
+      <title>Saudi Arabia - Level 3: Reconsider Travel</title>
+      <link>https://travel.state.gov/content/tsg_aem/us/en/home/international-travel/travel-advisories/destination.sau.html</link>
+      <pubDate>Tue, 15 Sep 2026</pubDate>
+      <description><![CDATA[Reconsider travel to Saudi Arabia due to risk of Iranian drone and missile targeting of American interests, armed conflict, terrorism, exit bans , and local laws regarding social media activity . Some]]></description>
+      <category domain="Threat-Level">Level 3: Reconsider Travel</category>
+      <category domain="Country-Tag">SA</category>
+      <category domain="Keyword">advisory</category>
+      <guid>https://travel.state.gov/content/tsg_aem/us/en/home/international-travel/travel-advisories/destination.sau.html</guid>
+      <dc:identifier>SA,advisory</dc:identifier>
+    </item>
+<item>
+      <title>Cambodia - Level 2: Exercise Increased Caution</title>
+      <link>https://travel.state.gov/content/tsg_aem/us/en/home/international-travel/travel-advisories/destination.khm.html</link>
+      <pubDate>Tue, 15 Sep 2026</pubDate>
+      <description><![CDATA[Exercise increased caution in Cambodia due to crime , unrest , and unexploded ordnance . Exercise increased caution &nbsp;in Cambodia due to crime , unrest , and unexploded ordnance . Some areas have ]]></description>
+      <category domain="Threat-Level">Level 2: Exercise Increased Caution</category>
+      <category domain="Country-Tag">KH</category>
+      <category domain="Keyword">advisory</category>
+      <guid>https://travel.state.gov/content/tsg_aem/us/en/home/international-travel/travel-advisories/destination.khm.html</guid>
+      <dc:identifier>KH,advisory</dc:identifier>
+    </item>
+<item>
+      <title>Italy - Level 2: Exercise Increased Caution</title>
+      <link>https://travel.state.gov/content/tsg_aem/us/en/home/international-travel/travel-advisories/destination.ita.html</link>
+      <pubDate>Thu, 10 Sep 2026</pubDate>
+      <description><![CDATA[Exercise increased caution in Italy due to terrorism . There is risk of terrorist violence, including terrorist attacks and other activity in Italy. Visit the U.S. Department of State's country report]]></description>
+      <category domain="Threat-Level">Level 2: Exercise Increased Caution</category>
+      <category domain="Country-Tag">IT</category>
+      <category domain="Keyword">advisory</category>
+      <guid>https://travel.state.gov/content/tsg_aem/us/en/home/international-travel/travel-advisories/destination.ita.html</guid>
+      <dc:identifier>IT,advisory</dc:identifier>
+    </item>
+  </channel>
+</rss>

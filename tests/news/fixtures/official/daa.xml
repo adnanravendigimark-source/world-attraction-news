@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>daa</title>
+	<atom:link href="https://www.daa.ie/feed/" rel="self" type="application/rss+xml" />
+	<link>https://www.daa.ie/</link>
+	<description><![CDATA[Just another WordPress site]]></description>
+	<lastBuildDate>Wed, 23 Sep 2026 09:45:48 +0000</lastBuildDate>
+	<language>en-GB</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+		<item>
+		<title>daa delivers strong first-half performance and continues to invest for future growth </title>
+		<link>https://www.daa.ie/daa-delivers-strong-first-half-performance-and-continues-to-invest-for-future-growth/</link>
+		
+		<dc:creator><![CDATA[Deola Mako]]></dc:creator>
+		<pubDate>Wed, 23 Sep 2026 05:00:29 +0000</pubDate>
+				<category><![CDATA[Uncategorised]]></category>
+		<guid isPermaLink="false">https://www.daa.ie/?p=11995</guid>
+
+					<description><![CDATA[daa, the global airport and travel retail group and operator of Dublin and Cork airports, has reported a strong financial and operational performance for the first six months of 2026, driven by contin]]></description>
+										
+					
+		
+		
+			</item>
+<item>
+		<title>Lead one of Ireland’s most significant organisations</title>
+		<link>https://www.daa.ie/lead-one-of-irelands-most-significant-organisations/</link>
+		
+		<dc:creator><![CDATA[Deola Mako]]></dc:creator>
+		<pubDate>Fri, 31 Jul 2026 05:01:28 +0000</pubDate>
+				<category><![CDATA[2026]]></category>
+		<guid isPermaLink="false">https://www.daa.ie/?p=11790</guid>
+
+					<description><![CDATA[daa is one of Ireland’s most significant commercial organisations, connecting almost 40 million passengers in Ireland each year, while growing an international airport and travel retail business acros]]></description>
+										
+					
+		
+		
+			</item>
+<item>
+		<title>Minister O’Brien announces appointments to Board of daa</title>
+		<link>https://www.daa.ie/minister-obrien-announces-appointments-to-board-of-daa/</link>
+		
+		<dc:creator><![CDATA[Deola Mako]]></dc:creator>
+		<pubDate>Fri, 17 Jul 2026 08:00:43 +0000</pubDate>
+				<category><![CDATA[2026]]></category>
+		<guid isPermaLink="false">https://www.daa.ie/?p=11754</guid>
+
+					<description><![CDATA[Minister for Transport Darragh O’Brien has announced his intention to appoint four new members to the board of daa plc. Fred Barry, Laura Burke, Lisa Dillon and Niamh O’Regan will be appointed with ef]]></description>
+										
+					
+		
+		
+			</item>
+	</channel>
+</rss>

@@ -9,6 +9,13 @@ export const NEWS_SOURCE_TYPES: { value: NewsSourceType; label: string }[] = [
   { value: "currents", label: "Currents API query" },
 ];
 
+// Aggregators relay other publishers' stories, so they can never be official.
+export const AGGREGATOR_TYPES: NewsSourceType[] = ["google_news_rss", "newsapi", "currents"];
+
+// Priority 1 (lowest) to 5 (highest): the collector checks higher-priority
+// sources first when its time budget is short, and research reads them first.
+export const DEFAULT_PRIORITY = 3;
+
 export const NEWS_CATEGORIES = [
   "Aviation",
   "Destinations",
@@ -33,6 +40,10 @@ export interface NewsSource {
   isActive: boolean;
   reliabilityScore: number;
   fetchIntervalMinutes: number;
+  // The publisher is the body the news is about (a government, airline,
+  // airport, operator or tourism board), so research treats it as official.
+  isOfficial: boolean;
+  priority: number;
   etag: string;
   lastModified: string;
   lastFetchedAt: string | null;
@@ -62,6 +73,8 @@ export function rowToSource(row: any): NewsSource {
     isActive: !!row.is_active,
     reliabilityScore: Number(row.reliability_score ?? 50),
     fetchIntervalMinutes: Number(row.fetch_interval_minutes ?? 30),
+    isOfficial: !!row.is_official,
+    priority: Number(row.priority ?? DEFAULT_PRIORITY),
     etag: row.etag || "",
     lastModified: row.last_modified || "",
     lastFetchedAt: iso(row.last_fetched_at),
@@ -78,10 +91,12 @@ export function rowToSource(row: any): NewsSource {
 // starting judgement, editable per source in Admin → Trending News → Sources.
 // The Google News queries are discovery-only: they surface headlines and the
 // original publisher; facts must still be verified against primary sources.
-export const DEFAULT_NEWS_SOURCES: Omit<
+export type NewsSourceSeed = Omit<
   NewsSource,
   "id" | "etag" | "lastModified" | "lastFetchedAt" | "lastStatus" | "lastError" | "lastItemCount" | "consecutiveFailures" | "createdAt"
->[] = [
+>;
+
+export const DEFAULT_NEWS_SOURCES: NewsSourceSeed[] = [
   {
     name: "Skift",
     type: "rss",
@@ -94,6 +109,8 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 80,
     fetchIntervalMinutes: 30,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
   {
     name: "Simple Flying",
@@ -107,6 +124,8 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 65,
     fetchIntervalMinutes: 30,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
   {
     name: "Travel And Tour World",
@@ -120,6 +139,8 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 55,
     fetchIntervalMinutes: 30,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
   {
     name: "The Points Guy",
@@ -133,6 +154,8 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 65,
     fetchIntervalMinutes: 60,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
   {
     name: "Cruise Industry News",
@@ -146,6 +169,8 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 70,
     fetchIntervalMinutes: 60,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
   {
     name: "Euronews Travel",
@@ -159,6 +184,8 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 75,
     fetchIntervalMinutes: 30,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
   {
     name: "Google News: visa & entry rules",
@@ -172,6 +199,8 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 50,
     fetchIntervalMinutes: 60,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
   {
     name: "Google News: new attractions & visitor changes",
@@ -185,6 +214,8 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 50,
     fetchIntervalMinutes: 60,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
   {
     name: "Google News: airlines, routes & airports",
@@ -198,11 +229,39 @@ export const DEFAULT_NEWS_SOURCES: Omit<
     isActive: true,
     reliabilityScore: 50,
     fetchIntervalMinutes: 60,
+    isOfficial: false,
+    priority: DEFAULT_PRIORITY,
   },
+];
+
+// Official sources: the body the news is about speaking for itself. Every
+// feed was fetched and parsed when this list was written (October 2026).
+// They are added inactive so an editor can check each one before the
+// collector starts reading it. Their stories are often corporate (results,
+// staff profiles), so the travel filter still decides what reaches Stories.
+export const OFFICIAL_NEWS_SOURCES: NewsSourceSeed[] = [
+  { name: "US State Department: travel advisories", type: "rss", url: "https://travel.state.gov", rssUrl: "https://travel.state.gov/_res/rss/TAsTWs.xml", apiProvider: "", query: "", category: "Travel Rules", country: "United States", isActive: false, reliabilityScore: 95, fetchIntervalMinutes: 60, isOfficial: true, priority: 5 },
+  { name: "UK FCDO: foreign travel advice", type: "rss", url: "https://www.gov.uk/foreign-travel-advice", rssUrl: "https://www.gov.uk/foreign-travel-advice.atom", apiProvider: "", query: "", category: "Travel Rules", country: "United Kingdom", isActive: false, reliabilityScore: 95, fetchIntervalMinutes: 60, isOfficial: true, priority: 5 },
+  { name: "CDC: travel health notices", type: "rss", url: "https://wwwnc.cdc.gov/travel", rssUrl: "https://wwwnc.cdc.gov/travel/rss/notices.xml", apiProvider: "", query: "", category: "Travel Rules", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 180, isOfficial: true, priority: 4 },
+  { name: "European Commission: migration and home affairs", type: "rss", url: "https://home-affairs.ec.europa.eu", rssUrl: "https://home-affairs.ec.europa.eu/node/2/rss_en", apiProvider: "", query: "", category: "Travel Rules", country: "European Union", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 180, isOfficial: true, priority: 4 },
+  { name: "Delta Air Lines newsroom", type: "rss", url: "https://www.delta.com", rssUrl: "https://news.delta.com/rss.xml", apiProvider: "", query: "", category: "Aviation", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 60, isOfficial: true, priority: 4 },
+  { name: "United Airlines newsroom", type: "rss", url: "https://www.united.com", rssUrl: "https://united.mediaroom.com/news-releases?pagetemplate=rss", apiProvider: "", query: "", category: "Aviation", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 60, isOfficial: true, priority: 4 },
+  { name: "Alaska Airlines newsroom", type: "rss", url: "https://www.alaskaair.com", rssUrl: "https://news.alaskaair.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 60, isOfficial: true, priority: 4 },
+  { name: "KLM newsroom", type: "rss", url: "https://www.klm.com", rssUrl: "https://news.klm.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "Netherlands", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 60, isOfficial: true, priority: 4 },
+  { name: "Amsterdam Schiphol Airport news", type: "rss", url: "https://www.schiphol.nl", rssUrl: "https://news.schiphol.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "Netherlands", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 120, isOfficial: true, priority: 4 },
+  { name: "daa (Dublin and Cork airports)", type: "rss", url: "https://www.daa.ie", rssUrl: "https://www.daa.ie/feed/", apiProvider: "", query: "", category: "Aviation", country: "Ireland", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 180, isOfficial: true, priority: 3 },
+  { name: "Amtrak media", type: "rss", url: "https://www.amtrak.com", rssUrl: "https://media.amtrak.com/feed/", apiProvider: "", query: "", category: "Travel Industry", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 120, isOfficial: true, priority: 3 },
+  { name: "Hilton stories", type: "rss", url: "https://www.hilton.com", rssUrl: "https://stories.hilton.com/feed", apiProvider: "", query: "", category: "Hotels", country: "", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 180, isOfficial: true, priority: 3 },
+  { name: "Carnival Corporation news", type: "rss", url: "https://www.carnivalcorp.com", rssUrl: "https://www.carnivalcorp.com/rss", apiProvider: "", query: "", category: "Cruises", country: "", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 180, isOfficial: true, priority: 3 },
+  { name: "Disney Parks Blog", type: "rss", url: "https://disneyparks.disney.go.com", rssUrl: "https://disneyparksblog.com/feed/", apiProvider: "", query: "", category: "Attractions", country: "", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 120, isOfficial: true, priority: 3 },
+  { name: "Universal Orlando blog", type: "rss", url: "https://www.universalorlando.com", rssUrl: "https://blog.universalorlando.com/feed/", apiProvider: "", query: "", category: "Attractions", country: "United States", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 180, isOfficial: true, priority: 3 },
+  { name: "U.S. Travel Association", type: "rss", url: "https://www.ustravel.org", rssUrl: "https://www.ustravel.org/rss.xml", apiProvider: "", query: "", category: "Travel Industry", country: "United States", isActive: false, reliabilityScore: 80, fetchIntervalMinutes: 360, isOfficial: true, priority: 2 },
 ];
 
 export async function getNewsSources(): Promise<NewsSource[]> {
   const rows = await sql`SELECT * FROM news_sources ORDER BY is_active DESC, name ASC`;
+  // Rows read before scripts/setup-db.mjs added is_official/priority simply
+  // come back without them; rowToSource defaults both.
   return rows.map(rowToSource);
 }
 
@@ -222,6 +281,8 @@ export interface NewsSourceInput {
   isActive?: boolean;
   reliabilityScore?: number;
   fetchIntervalMinutes?: number;
+  isOfficial?: boolean;
+  priority?: number;
 }
 
 export function validateNewsSourceInput(input: any): string | null {
@@ -238,6 +299,9 @@ export function validateNewsSourceInput(input: any): string | null {
   if (!Number.isFinite(score) || score < 0 || score > 100) return "Reliability must be 0–100.";
   const interval = Number(input.fetchIntervalMinutes ?? 30);
   if (!Number.isFinite(interval) || interval < 10 || interval > 1440) return "Check interval must be 10–1440 minutes.";
+  const priority = Number(input.priority ?? DEFAULT_PRIORITY);
+  if (!Number.isInteger(priority) || priority < 1 || priority > 5) return "Priority must be 1–5.";
+  if (input.isOfficial && AGGREGATOR_TYPES.includes(input.type)) return "Search and aggregator sources can't be official; only a feed published by the body itself can.";
   return null;
 }
 
@@ -248,11 +312,12 @@ function providerFor(type: string): string {
 export async function createNewsSource(input: NewsSourceInput): Promise<NewsSource> {
   const rows = await sql`
     INSERT INTO news_sources
-      (name, type, url, rss_url, api_provider, query, category, country, is_active, reliability_score, fetch_interval_minutes)
+      (name, type, url, rss_url, api_provider, query, category, country, is_active, reliability_score, fetch_interval_minutes, is_official, priority)
     VALUES (
       ${input.name.trim()}, ${input.type}, ${(input.url || "").trim()}, ${(input.rssUrl || "").trim()},
       ${providerFor(input.type)}, ${(input.query || "").trim()}, ${(input.category || "").trim()}, ${(input.country || "").trim()},
-      ${input.isActive !== false}, ${Math.round(Number(input.reliabilityScore ?? 50))}, ${Math.round(Number(input.fetchIntervalMinutes ?? 30))}
+      ${input.isActive !== false}, ${Math.round(Number(input.reliabilityScore ?? 50))}, ${Math.round(Number(input.fetchIntervalMinutes ?? 30))},
+      ${!!input.isOfficial}, ${Math.round(Number(input.priority ?? DEFAULT_PRIORITY))}
     )
     RETURNING *
   `;
@@ -273,6 +338,8 @@ export async function updateNewsSource(id: string, input: NewsSourceInput): Prom
       is_active = ${input.isActive !== false},
       reliability_score = ${Math.round(Number(input.reliabilityScore ?? 50))},
       fetch_interval_minutes = ${Math.round(Number(input.fetchIntervalMinutes ?? 30))},
+      is_official = ${!!input.isOfficial},
+      priority = ${Math.round(Number(input.priority ?? DEFAULT_PRIORITY))},
       etag = '',
       last_modified = ''
     WHERE id = ${id}
@@ -291,18 +358,21 @@ export async function deleteNewsSource(id: string): Promise<void> {
 
 // Adds any recommended source not already present (matched on feed URL).
 // Never overwrites or reactivates anything an admin has edited or disabled.
-export async function loadDefaultNewsSources(): Promise<number> {
+// Official sources arrive inactive, for an editor to review.
+export async function loadDefaultNewsSources(): Promise<{ added: number; official: number }> {
   let added = 0;
-  for (const s of DEFAULT_NEWS_SOURCES) {
+  let official = 0;
+  for (const s of [...DEFAULT_NEWS_SOURCES, ...OFFICIAL_NEWS_SOURCES]) {
     const rows = await sql`
       INSERT INTO news_sources
-        (name, type, url, rss_url, api_provider, query, category, country, is_active, reliability_score, fetch_interval_minutes)
+        (name, type, url, rss_url, api_provider, query, category, country, is_active, reliability_score, fetch_interval_minutes, is_official, priority)
       VALUES (${s.name}, ${s.type}, ${s.url}, ${s.rssUrl}, ${s.apiProvider}, ${s.query}, ${s.category}, ${s.country},
-              ${s.isActive}, ${s.reliabilityScore}, ${s.fetchIntervalMinutes})
+              ${s.isActive}, ${s.reliabilityScore}, ${s.fetchIntervalMinutes}, ${s.isOfficial}, ${s.priority})
       ON CONFLICT (lower(rss_url)) WHERE rss_url <> '' DO NOTHING
       RETURNING id
     `;
     added += rows.length;
+    if (s.isOfficial) official += rows.length;
   }
-  return added;
+  return { added, official };
 }

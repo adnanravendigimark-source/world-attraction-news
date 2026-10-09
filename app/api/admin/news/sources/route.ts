@@ -4,6 +4,7 @@ import { dbErrorMessage } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { createNewsSource, getNewsSources, loadDefaultNewsSources, validateNewsSourceInput } from "@/lib/news/sources";
+import { previewFeed } from "@/lib/news/collector";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +33,18 @@ export async function POST(req: Request) {
   try {
     // { loadDefaults: true } adds the recommended starter sources.
     if (body?.loadDefaults) {
-      const added = await loadDefaultNewsSources();
-      await logActivity(session, "news_sources_defaults_loaded", { type: "news_source", id: "defaults", label: `${added} added` });
-      return NextResponse.json({ ok: true, added, sources: await getNewsSources() });
+      const { added, official } = await loadDefaultNewsSources();
+      await logActivity(session, "news_sources_defaults_loaded", { type: "news_source", id: "defaults", label: `${added} added (${official} official, inactive)` });
+      return NextResponse.json({ ok: true, added, official, sources: await getNewsSources() });
+    }
+    // { testFeed: url } fetches and parses a feed without storing anything.
+    if (typeof body?.testFeed === "string") {
+      try {
+        return NextResponse.json({ ok: true, preview: await previewFeed(body.testFeed, String(body.category || "")) });
+      } catch (err: any) {
+        const msg = err?.name === "AbortError" ? "Timed out after 15s." : String(err?.message || err);
+        return NextResponse.json({ error: msg.slice(0, 300) }, { status: 422 });
+      }
     }
     const invalid = validateNewsSourceInput(body);
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });

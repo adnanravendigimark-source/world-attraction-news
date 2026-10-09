@@ -6,6 +6,7 @@ import { getNewsSources, rowToSource, type NewsSource } from "./sources";
 import { mergeDuplicateClusters, runClustering } from "./cluster";
 import { runTrendScoring } from "./trend";
 import { isTravelSource, loadFilterConfig, scoreRelevance } from "./filter";
+import { isPublicUrl } from "./extract";
 
 const USER_AGENT = "WorldAttractionNewsBot/1.0 (+news discovery; contact via site)";
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -118,6 +119,35 @@ async function storeItems(source: NewsSource, items: ParsedFeedItem[]): Promise<
   return rows.length;
 }
 
+export interface FeedPreview {
+  itemCount: number;
+  travelCount: number; // items the travel filter would keep (relevant or borderline)
+  newestAt: string | null;
+  sample: { title: string; url: string; publishedAt: string | null; travel: boolean }[];
+}
+
+// Fetches and parses a feed without storing anything, so an editor can check
+// a feed before adding it.
+export async function previewFeed(rssUrl: string, category = ""): Promise<FeedPreview> {
+  const url = String(rssUrl || "").trim();
+  if (!/^https?:\/\//i.test(url) || !isPublicUrl(url)) throw new Error("Enter a public http(s) feed URL.");
+  const res = await fetchFeedXml({ rssUrl: url, etag: "", lastModified: "" } as NewsSource);
+  if (res.notModified) throw new Error("The server answered 304 Not Modified to a fresh request.");
+  const items = parseFeed(res.xml, url);
+  if (items.length === 0) throw new Error("The feed parsed but has no items.");
+  const config = await loadFilterConfig().catch(() => null);
+  const travel = items.map((it) =>
+    config ? scoreRelevance({ title: it.title, description: it.description, sourceCategory: category, sourceIsTravel: !!category }, config).status !== "irrelevant" : true
+  );
+  const dates = items.map((i) => i.publishedAt).filter((d): d is string => !!d).sort();
+  return {
+    itemCount: items.length,
+    travelCount: travel.filter(Boolean).length,
+    newestAt: dates.length ? dates[dates.length - 1] : null,
+    sample: items.slice(0, 5).map((it, i) => ({ title: it.title, url: it.url, publishedAt: it.publishedAt, travel: travel[i] })),
+  };
+}
+
 export async function collectSource(source: NewsSource): Promise<SourceResult> {
   const base = { sourceId: source.id, name: source.name };
   try {
@@ -174,6 +204,9 @@ export async function runFetch(opts: { trigger: string; force?: boolean; sourceI
   let sources = await getNewsSources();
   if (opts.sourceId) sources = sources.filter((s) => s.id === opts.sourceId);
   const due = opts.force || opts.sourceId ? sources.filter((s) => s.isActive || opts.sourceId) : sources.filter((s) => isDue(s, started));
+  // Higher-priority sources first, so they are the ones checked when the
+  // time budget runs out.
+  due.sort((a, b) => b.priority - a.priority);
 
   const results: SourceResult[] = [];
   const queue = [...due];

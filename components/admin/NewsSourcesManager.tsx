@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
 import type { NewsSource } from "@/lib/news/sources";
+import type { FeedPreview } from "@/lib/news/collector";
 
 interface Props {
   initialSources: NewsSource[];
@@ -25,7 +26,11 @@ const EMPTY = {
   reliabilityScore: 50,
   fetchIntervalMinutes: 30,
   isActive: true,
+  isOfficial: false,
+  priority: 3,
 };
+
+const AGGREGATORS = ["google_news_rss", "newsapi", "currents"];
 
 function ago(iso: string | null): string {
   if (!iso) return "never";
@@ -44,6 +49,9 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [preview, setPreview] = useState<FeedPreview | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [filter, setFilter] = useState<"all" | "official" | "review">("all");
 
   const isApi = form.type === "newsapi" || form.type === "currents";
   const input = "w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-ink-400 focus:outline-none";
@@ -66,9 +74,27 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
     try {
       const data = await call("/api/admin/news/sources", "POST", { loadDefaults: true });
       setSources(data.sources);
-      toast.success(data.added ? `${data.added} recommended source(s) added.` : "All recommended sources are already present.");
+      toast.success(
+        data.added
+          ? `${data.added} source(s) added${data.official ? `, including ${data.official} official source(s) left inactive for you to review` : ""}.`
+          : "All recommended sources are already present."
+      );
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function testFeed() {
+    setBusy("preview");
+    setPreview(null);
+    setPreviewError("");
+    try {
+      const data = await call("/api/admin/news/sources", "POST", { testFeed: form.rssUrl, category: form.category });
+      setPreview(data.preview);
+    } catch (e: any) {
+      setPreviewError(e.message);
     } finally {
       setBusy(null);
     }
@@ -133,6 +159,8 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
   }
 
   function edit(s: NewsSource) {
+    setPreview(null);
+    setPreviewError("");
     setForm({ ...s });
     setEditingId(s.id);
     setShowForm(true);
@@ -146,7 +174,8 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
           <h1 className="mt-1 font-serif text-2xl font-bold text-ink-900">News Sources</h1>
           <p className="mt-1 max-w-2xl text-sm text-ink-600">
             Feeds and API queries the collector checks. Reliability (0–100) is your judgement of how much a source can be
-            trusted; it will weigh the verification step later. Google News and API results are leads only.
+            trusted. Official sources (a government, airline, airport or operator speaking for itself) count as confirmation
+            in research and lift a story&apos;s reliability score. Google News and API results are leads only.
           </p>
         </div>
         {canEdit && (
@@ -156,6 +185,8 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
             </button>
             <button
               onClick={() => {
+                setPreview(null);
+                setPreviewError("");
                 setForm(EMPTY);
                 setEditingId(null);
                 setShowForm(true);
@@ -175,6 +206,17 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
         <span className={`rounded-full px-3 py-1 ${keys.currents ? "bg-emerald-100 text-emerald-800" : "bg-ink-100 text-ink-600"}`}>
           Currents key: {keys.currents ? "set" : "not set (CURRENTS_API_KEY)"}
         </span>
+        <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-800">
+          Official: {sources.filter((s) => s.isOfficial && s.isActive && s.lastStatus !== "error").length} active and healthy of{" "}
+          {sources.filter((s) => s.isOfficial).length}
+        </span>
+        <span className="ml-auto flex gap-1">
+          {(["all", "official", "review"] as const).map((f) => (
+            <button key={f} onClick={() => setFilter(f)} className={`rounded-full px-3 py-1 ${filter === f ? "bg-ink-900 text-white" : "bg-ink-100 text-ink-700"}`}>
+              {f === "all" ? "All" : f === "official" ? "Official" : "To review"}
+            </button>
+          ))}
+        </span>
       </div>
 
       {showForm && (
@@ -187,7 +229,7 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
             </label>
             <label className="text-sm">
               <span className="text-ink-700">Type</span>
-              <select className={input} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <select className={input} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, isOfficial: AGGREGATORS.includes(e.target.value) ? false : form.isOfficial })}>
                 {types.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
@@ -200,10 +242,31 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
               </label>
             ) : (
               <>
-                <label className="text-sm md:col-span-2">
+                <div className="text-sm md:col-span-2">
                   <span className="text-ink-700">Feed URL</span>
-                  <input className={input} value={form.rssUrl} onChange={(e) => setForm({ ...form, rssUrl: e.target.value })} placeholder="https://example.com/feed/" />
-                </label>
+                  <div className="flex gap-2">
+                    <input className={input} value={form.rssUrl} onChange={(e) => setForm({ ...form, rssUrl: e.target.value })} placeholder="https://example.com/feed/" />
+                    <button type="button" onClick={testFeed} disabled={busy === "preview" || !form.rssUrl} className="shrink-0 rounded-lg border border-ink-200 px-3 py-2 text-sm hover:bg-ink-50 disabled:opacity-50">
+                      {busy === "preview" ? "Testing…" : "Test feed"}
+                    </button>
+                  </div>
+                  {previewError && <p className="mt-2 text-xs text-[#DC2626]">Feed check failed: {previewError}</p>}
+                  {preview && (
+                    <div className="mt-2 rounded-lg border border-ink-200 bg-ink-50 p-3 text-xs">
+                      <p className="font-medium text-ink-900">
+                        {preview.itemCount} items, {preview.travelCount} look travel-related · newest{" "}
+                        {preview.newestAt ? new Date(preview.newestAt).toLocaleDateString() : "undated"} · nothing was saved
+                      </p>
+                      <ul className="mt-1 space-y-0.5">
+                        {preview.sample.map((it, i) => (
+                          <li key={i} className={it.travel ? "text-ink-800" : "text-ink-400"}>
+                            {it.travel ? "✓" : "·"} {it.title}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
                 <label className="text-sm md:col-span-2">
                   <span className="text-ink-700">Website (optional)</span>
                   <input className={input} value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://example.com" />
@@ -225,6 +288,30 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
             <label className="text-sm">
               <span className="text-ink-700">Reliability (0–100)</span>
               <input type="number" min={0} max={100} className={input} value={form.reliabilityScore} onChange={(e) => setForm({ ...form, reliabilityScore: Number(e.target.value) })} />
+            </label>
+            <label className="text-sm">
+              <span className="text-ink-700">Priority</span>
+              <select className={input} value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}>
+                {[5, 4, 3, 2, 1].map((p) => (
+                  <option key={p} value={p}>{p}{p === 5 ? " (highest)" : p === 1 ? " (lowest)" : ""}</option>
+                ))}
+              </select>
+            </label>
+            <label className={`flex items-start gap-2 text-sm ${AGGREGATORS.includes(form.type) ? "opacity-50" : ""}`}>
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.isOfficial}
+                disabled={AGGREGATORS.includes(form.type)}
+                onChange={(e) => setForm({ ...form, isOfficial: e.target.checked })}
+              />
+              <span>
+                <span className="text-ink-700">Official source</span>
+                <span className="block text-xs text-ink-500">
+                  Published by the body the news is about: a government, airline, airport, operator or tourism board. Research
+                  treats one official source as enough to confirm a fact.
+                </span>
+              </span>
             </label>
             <label className="text-sm">
               <span className="text-ink-700">Check every (minutes, 10–1440)</span>
@@ -252,6 +339,7 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
                 <th className="px-4 py-2">Source</th>
                 <th className="px-4 py-2">Category</th>
                 <th className="px-4 py-2">Rel.</th>
+                <th className="px-4 py-2">Prio.</th>
                 <th className="px-4 py-2">Every</th>
                 <th className="px-4 py-2">Last check</th>
                 <th className="px-4 py-2">Active</th>
@@ -259,14 +347,21 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
-              {sources.map((s) => (
+              {sources
+                .filter((s) => filter === "all" || (filter === "official" ? s.isOfficial : s.isOfficial && !s.isActive && !s.lastFetchedAt))
+                .map((s) => (
                 <tr key={s.id} className={s.isActive ? "" : "opacity-50"}>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-ink-900">{s.name}</div>
+                    <div className="font-medium text-ink-900">
+                      {s.name}
+                      {s.isOfficial && <span className="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800">Official</span>}
+                      {s.isOfficial && !s.isActive && !s.lastFetchedAt && <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">To review</span>}
+                    </div>
                     <div className="max-w-xs truncate text-xs text-ink-500">{s.type === "newsapi" || s.type === "currents" ? s.query : s.rssUrl}</div>
                   </td>
                   <td className="px-4 py-3 text-ink-700">{s.category || "—"}</td>
                   <td className="px-4 py-3">{s.reliabilityScore}</td>
+                  <td className="px-4 py-3">{s.priority}</td>
                   <td className="px-4 py-3">{s.fetchIntervalMinutes}m</td>
                   <td className="px-4 py-3 text-xs">
                     {s.lastStatus === "error" ? (
@@ -285,7 +380,7 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
                   {canEdit && (
                     <td className="whitespace-nowrap px-4 py-3 text-right text-xs">
                       <button onClick={() => test(s)} disabled={busy === s.id} className="mr-2 underline disabled:opacity-50">
-                        {busy === s.id ? "Testing…" : "Test"}
+                        {busy === s.id ? "Fetching…" : "Fetch now"}
                       </button>
                       <button onClick={() => edit(s)} className="mr-2 underline">Edit</button>
                       <button onClick={() => remove(s)} className="text-[#DC2626] underline">Delete</button>

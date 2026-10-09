@@ -8,6 +8,8 @@
 import { sql } from "../db";
 import { fetchPageText, isGoogleNewsRedirect, isPublicUrl } from "./extract";
 import { chatJson } from "./aiClient";
+import { isOfficialSource, officialSites } from "./official";
+import { AGGREGATOR_TYPES } from "./sources";
 import { publisherUrlForItem } from "./googleNews";
 
 export interface ResearchSource {
@@ -106,17 +108,6 @@ important_facts (array of {claim: string, sources: number[], confidence: "confir
 confirmed_numbers (array of {value: string, context: string, sources: number[]}),
 uncertain_claims (string[]), conflicts (string[]), missing_info (string[]).`;
 
-const OFFICIAL_HINTS = [/\.gov(\.|\/|$)/i, /\.gob\./i, /\.gouv\./i, /\.go\.[a-z]{2}(\/|$)/i, /europa\.eu/i, /\.int(\/|$)/i, /airport/i, /airlines?\./i, /tourism/i];
-
-function looksOfficial(url: string): boolean {
-  try {
-    const host = new URL(url).hostname;
-    return OFFICIAL_HINTS.some((re) => re.test(host));
-  } catch {
-    return false;
-  }
-}
-
 export async function checkDailyCap(): Promise<{ used: number; cap: number; ok: boolean }> {
   const cap = researchDailyCap();
   const rows = await sql`SELECT COUNT(*)::int AS n FROM story_research WHERE status <> 'failed' AND created_at > now() - interval '24 hours'`;
@@ -147,23 +138,33 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
   };
 
   try {
-    // resolved_url caches a Google News link's publisher URL; fall back to a
-    // query without it until scripts/setup-db.mjs has added the column.
+    // resolved_url caches a Google News link's publisher URL; is_official and
+    // priority mark sources an editor vouched for. Fall back to a query
+    // without them until scripts/setup-db.mjs has added the columns.
     const items = (await sql`
-      SELECT i.id, i.title, i.description, i.url, i.resolved_url, s.reliability_score,
+      SELECT i.id, i.title, i.description, i.url, i.resolved_url, s.reliability_score, s.type AS source_type,
+             s.is_official, s.priority,
              CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN i.author ELSE s.name END AS publisher
       FROM news_items i JOIN news_sources s ON s.id = i.source_id
       WHERE i.cluster_id = ${clusterId}
-      ORDER BY s.reliability_score DESC, COALESCE(i.published_at, i.created_at) ASC
+      ORDER BY s.is_official DESC, s.priority DESC, s.reliability_score DESC, COALESCE(i.published_at, i.created_at) ASC
     `.catch(
       () => sql`
-      SELECT i.id, i.title, i.description, i.url, NULL AS resolved_url, s.reliability_score,
+      SELECT i.id, i.title, i.description, i.url, NULL AS resolved_url, s.reliability_score, s.type AS source_type,
+             false AS is_official, 3 AS priority,
              CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN i.author ELSE s.name END AS publisher
       FROM news_items i JOIN news_sources s ON s.id = i.source_id
       WHERE i.cluster_id = ${clusterId}
       ORDER BY s.reliability_score DESC, COALESCE(i.published_at, i.created_at) ASC
     `
     )) as any[];
+    const sites = officialSites(
+      ((await sql`SELECT url, rss_url, is_official FROM news_sources WHERE is_official`.catch(() => [])) as any[]).map((r) => ({
+        url: r.url,
+        rssUrl: r.rss_url,
+        isOfficial: true,
+      }))
+    );
     if (items.length === 0) return await fail("This story has no items.");
 
     // One source per publisher, best reliability first.
@@ -195,7 +196,13 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
       const n = idx + 1;
       const page = pages[idx];
       const usedText = !!page?.ok;
-      const official = looksOfficial(page?.finalUrl || it.url || "");
+      // The editor's flag decides; aggregator links fall back to the
+      // publisher's host (government domain or an official source's site).
+      const official = isOfficialSource({
+        flagged: !!it.is_official && !AGGREGATOR_TYPES.includes(it.source_type),
+        url: page?.finalUrl || it.resolved_url || it.url || "",
+        sites,
+      });
       const body = usedText ? page!.text.slice(0, perSource) : `${it.description || ""}`.slice(0, 600);
       sources.push({
         n,

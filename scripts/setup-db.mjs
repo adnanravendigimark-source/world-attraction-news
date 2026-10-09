@@ -1208,6 +1208,11 @@ async function createNewsTables() {
   `;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS news_sources_feed_uniq ON news_sources (lower(rss_url)) WHERE rss_url <> ''`;
   await sql`CREATE INDEX IF NOT EXISTS news_sources_active_idx ON news_sources (is_active, last_fetched_at)`;
+  // Phase 4 — official sources. is_official: the publisher is the body the
+  // news is about; research treats it as official. priority 1–5 orders
+  // fetching and research.
+  await sql`ALTER TABLE news_sources ADD COLUMN IF NOT EXISTS is_official BOOLEAN NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE news_sources ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 3`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS news_items (

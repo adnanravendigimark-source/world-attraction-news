@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>Disney Parks Blog</title>
+	<atom:link href="https://disneyparksblog.com/feed/" rel="self" type="application/rss+xml" />
+	<link>https://disneyparksblog.com/</link>
+	<description><![CDATA[Disney Parks Blog]]></description>
+	<lastBuildDate>Thu, 08 Oct 2026 21:19:32 +0000</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	
+
+<image>
+	<url>https://disneyparksblog.com/app/uploads/2024/05/cropped-24_DX_DPB_Favicons_B_v1_st-32x32.png</url>
+	<title>Disney Parks Blog</title>
+	<link>https://disneyparksblog.com/</link>
+	<width>32</width>
+	<height>32</height>
+</image> 
+	<item>
+		<title>Disney Believe Updates: New Disney Cruise Ship Sailing in Late 2027</title>
+		<link>https://disneyparksblog.com/dcl/meet-the-disney-believe-the-next-disney-cruise-line-ship/</link>
+		
+		<dc:creator><![CDATA[The Editors]]></dc:creator>
+		<pubDate>Thu, 08 Oct 2026 20:36:36 +0000</pubDate>
+				<category><![CDATA[Disney Cruise Line]]></category>
+		<category><![CDATA[D23]]></category>
+		<category><![CDATA[News]]></category>
+		<guid isPermaLink="false">https://disneyparksblog.com/?p=393457</guid>
+
+					<description><![CDATA[Calling all dreamers and doers, Disney Cruise Line fans and future voyagers, welcome to the official Disney Believe Ship’s Log. Setting sail in late 2027, the Disney Believe promises new one-of-a-kind]]></description>
+										
+					
+		
+		
+			</item>
+<item>
+		<title>Sneak Peek at New Treats and Sips Coming to the Disney Believe </title>
+		<link>https://disneyparksblog.com/dcl/sneak-peek-at-new-treats-and-sips-coming-to-the-disney-believe/</link>
+		
+		<dc:creator><![CDATA[The Editors]]></dc:creator>
+		<pubDate>Thu, 08 Oct 2026 20:36:30 +0000</pubDate>
+				<category><![CDATA[Disney Cruise Line]]></category>
+		<category><![CDATA[Disney Believe]]></category>
+		<category><![CDATA[News]]></category>
+		<guid isPermaLink="false">https://disneyparksblog.com/?p=397052</guid>
+
+					<description><![CDATA[Foodies will be dreaming of the delicious creations planned for the Disney Believe when it sets sail December 2027. To get you excited (and hungry), we have a sneak peek at some of the eats and sips c]]></description>
+										
+					
+		
+		
+			</item>
+<item>
+		<title>A Hero&#8217;s Welcome: Disneyland Resort Honors Medal of Honor Recipient Royce Williams</title>
+		<link>https://disneyparksblog.com/disney-experiences/disneyland-honors-medal-of-honor-recipient-royce-williams/</link>
+		
+		<dc:creator><![CDATA[The Editors]]></dc:creator>
+		<pubDate>Thu, 08 Oct 2026 17:00:00 +0000</pubDate>
+				<category><![CDATA[Disney Experiences]]></category>
+		<category><![CDATA[Storytelling]]></category>
+		<guid isPermaLink="false">https://disneyparksblog.com/?p=396983</guid>
+
+					<description><![CDATA[Disneyland Resort recently welcomed 101-year-old Congressional Medal of Honor recipient and retired U.S. Navy Capt. E. Royce Williams to The Happiest Place on Earth, honoring his remarkable courage an]]></description>
+										
+					
+		
+		
+			</item>
+	</channel>
+</rss>

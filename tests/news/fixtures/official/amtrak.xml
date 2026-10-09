@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>Amtrak Media</title>
+	<atom:link href="https://media.amtrak.com/feed/" rel="self" type="application/rss+xml" />
+	<link>https://media.amtrak.com/</link>
+	<description><![CDATA[]]></description>
+	<lastBuildDate>Thu, 08 Oct 2026 19:36:43 +0000</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	<generator>https://wordpress.org/?v=7.0.5</generator>
+
+<image>
+	<url>https://media.amtrak.com/wp-content/uploads/2020/04/cropped-amtrak-logo-blue-background-32x32.png</url>
+	<title>Amtrak Media</title>
+	<link>https://media.amtrak.com/</link>
+	<width>32</width>
+	<height>32</height>
+</image> 
+	<item>
+		<title>Amtrak Advances Planning for Replacement of Bush and Gunpowder River Bridges in Maryland</title>
+		<link>https://media.amtrak.com/2026/10/amtrak-advances-planning-for-replacement-of-bush-and-gunpowder-river-bridges-in-maryland/</link>
+		
+		<dc:creator><![CDATA[Cheyenne Mathews]]></dc:creator>
+		<pubDate>Thu, 08 Oct 2026 18:33:54 +0000</pubDate>
+				<category><![CDATA[Major Projects]]></category>
+		<category><![CDATA[News]]></category>
+		<category><![CDATA[Amtrak New Era]]></category>
+		<category><![CDATA[bush river bridge]]></category>
+		<category><![CDATA[gunpowder river bridge]]></category>
+		<category><![CDATA[Infrastructure]]></category>
+		<category><![CDATA[Infrastructure Investment]]></category>
+		<guid isPermaLink="false">https://media.amtrak.com/?p=12301</guid>
+
+					<description><![CDATA[The post Amtrak Advances Planning for Replacement of Bush and Gunpowder River Bridges in Maryland appeared first on Amtrak Media .]]></description>
+										
+					
+		
+		
+			</item>
+<item>
+		<title>Amtrak Celebrates Completion of Accessibility Improvements at Hamlet and Rocky Mount Stations</title>
+		<link>https://media.amtrak.com/2026/10/amtrak-celebrates-completion-of-accessibility-improvements-at-hamlet-and-rocky-mount-stations/</link>
+		
+		<dc:creator><![CDATA[Beth Toll]]></dc:creator>
+		<pubDate>Wed, 07 Oct 2026 20:17:50 +0000</pubDate>
+				<category><![CDATA[News]]></category>
+		<guid isPermaLink="false">https://media.amtrak.com/?p=12297</guid>
+
+					<description><![CDATA[Over $10 million invested in North Carolina station accessibility improvements HAMLET AND ROCKY MOUNT, N.C., Oct. 7, 2026 – Amtrak joined federal, state and local officials this week to celebrate... T]]></description>
+										
+					
+		
+		
+			</item>
+<item>
+		<title>Amtrak Expands Pennsylvanian Service with Second Daily Round Trip Beginning Nov. 18</title>
+		<link>https://media.amtrak.com/2026/10/amtrak-expands-pennsylvanian-service-with-second-daily-round-trip-beginning-nov-18/</link>
+		
+		<dc:creator><![CDATA[Beth Toll]]></dc:creator>
+		<pubDate>Wed, 07 Oct 2026 16:01:40 +0000</pubDate>
+				<category><![CDATA[News]]></category>
+		<guid isPermaLink="false">https://media.amtrak.com/?p=12295</guid>
+
+					<description><![CDATA[Tickets available now for expanded service between New York and Pittsburgh via Philadelphia and Harrisburg Amtrak will soon expand service on the Pennsylvanian with a second daily round trip beginning]]></description>
+										
+					
+		
+		
+			</item>
+	</channel>
+</rss>

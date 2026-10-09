@@ -138,7 +138,11 @@ export interface ClusterFacts {
   avgReliability: number;
   matchesCoverage: boolean; // names a country/city the site covers
   duplicatesPublished: boolean; // we've already published this story
+  official?: boolean; // at least one item comes from a source marked official
 }
+
+// An official source vouches for the story, so reliability is at least this.
+export const OFFICIAL_RELIABILITY = 90;
 
 export function scoreCluster(f: ClusterFacts, cfg: TrendConfig, now = Date.now()): TrendBreakdown {
   const ageHours = Math.max(0, (now - f.newestAt.getTime()) / 3_600_000);
@@ -147,7 +151,8 @@ export function scoreCluster(f: ClusterFacts, cfg: TrendConfig, now = Date.now()
   const catW = cfg.categoryWeights[f.category] ?? cfg.defaultCategoryWeight;
   const impact = Math.round(0.5 * f.maxRelevance + 0.5 * catW);
   const audience = f.matchesCoverage ? 100 : 40;
-  const reliability = Math.round(0.6 * f.maxReliability + 0.4 * f.avgReliability);
+  const blended = Math.round(0.6 * f.maxReliability + 0.4 * f.avgReliability);
+  const reliability = f.official ? Math.max(blended, OFFICIAL_RELIABILITY) : blended;
   const uniqueness = f.duplicatesPublished ? 0 : 100;
 
   const w = cfg.weights;
@@ -169,6 +174,7 @@ export function scoreCluster(f: ClusterFacts, cfg: TrendConfig, now = Date.now()
     `${f.sourceCount} source${f.sourceCount === 1 ? "" : "s"}`,
     f.matchesCoverage ? "covers a place on this site" : "no match to site coverage",
   ];
+  if (f.official) notes.push("official source");
   if (f.duplicatesPublished) notes.push("already published");
 
   return { freshness, sources, impact, audience, reliability, uniqueness, total, tier, notes };
@@ -194,11 +200,25 @@ export async function runTrendScoring(): Promise<{ scored: number }> {
            MAX(COALESCE(i.relevance_score, 0))::int AS max_rel,
            MAX(s.reliability_score)::int AS max_rely,
            AVG(s.reliability_score)::float AS avg_rely,
+           BOOL_OR(s.is_official AND s.type NOT IN ('google_news_rss', 'newsapi', 'currents')) AS official,
            MAX(COALESCE(i.published_at, i.created_at)) AS newest_at
     FROM news_items i JOIN news_sources s ON s.id = i.source_id
     WHERE i.cluster_id = ANY(${ids}::uuid[])
     GROUP BY i.cluster_id
-  `) as any[];
+  `.catch(
+    // Before scripts/setup-db.mjs adds news_sources.is_official.
+    () => sql`
+    SELECT i.cluster_id,
+           MAX(COALESCE(i.relevance_score, 0))::int AS max_rel,
+           MAX(s.reliability_score)::int AS max_rely,
+           AVG(s.reliability_score)::float AS avg_rely,
+           false AS official,
+           MAX(COALESCE(i.published_at, i.created_at)) AS newest_at
+    FROM news_items i JOIN news_sources s ON s.id = i.source_id
+    WHERE i.cluster_id = ANY(${ids}::uuid[])
+    GROUP BY i.cluster_id
+  `
+  )) as any[];
   const byId = new Map(stats.map((r) => [r.cluster_id, r]));
 
   // Places this site covers (countries + cities) for the audience factor.
@@ -228,6 +248,7 @@ export async function runTrendScoring(): Promise<{ scored: number }> {
       avgReliability: Number(st.avg_rely || 50),
       matchesCoverage: !!placeRe && placeRe.test(title.toLowerCase()),
       duplicatesPublished: publishedPrepared.some((q) => sameStoryPrepared(p, q)),
+      official: !!st.official,
     };
     const breakdown = scoreCluster(facts, cfg);
     scored.push({ id: c.id, total: breakdown.total, breakdown });

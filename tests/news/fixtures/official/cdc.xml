@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="https://www.w3.org/2005/Atom">
+    <channel>
+        <title>Travel Notices - CDC Travelers&#39; Health </title>
+        <description><![CDATA[Travel notices are designed to inform travelers and clinicians about current health issues related to specific destinations. These issues may arise from disease outbreaks, special events or gatherings]]></description>
+        <link>https://wwwnc.cdc.gov/travel/notices</link>
+        <atom:link href="https://wwwnc.cdc.gov/travel/rss/notices.xml" rel="self" type="application/rss+xml" />
+        <image>
+            <title>Travel Notices - CDC Travelers&#39; Health </title>
+            <url>http://www2c.cdc.gov/podcasts/images/cdclogo.jpg</url>
+            <link>https://wwwnc.cdc.gov/travel/notices</link>
+            <width>95</width>
+            <height>60</height>
+            <description><![CDATA[CDC logo]]></description>
+        </image>
+        <language>en-us</language>
+                        <item>
+                    <title>Level 1 - Global Dengue</title>
+                    <description><![CDATA[Dengue is a year-round risk in many parts of the world, with outbreaks commonly occurring every 2–5 years. Travelers to risk areas should prevent mosquito bites. Country List : Colombia, Vietnam, Mald]]></description>
+                    <link>https://wwwnc.cdc.gov/travel/notices/level1/dengue-global</link>
+                    <pubDate>Fri, 02 Oct 2026 04:00:00 GMT</pubDate>
+                    <guid>https://wwwnc.cdc.gov/travel/notices/level1/dengue-global</guid>
+                </item>
+<item>
+                    <title>Level 2 - Global Polio</title>
+                    <description><![CDATA[Some international destinations have circulating poliovirus. Before any international travel, make sure you are up to date on your polio vaccines. Country List : Afghanistan, Algeria, Benin, Cameroon,]]></description>
+                    <link>https://wwwnc.cdc.gov/travel/notices/level2/global-polio</link>
+                    <pubDate>Wed, 23 Sep 2026 04:00:00 GMT</pubDate>
+                    <guid>https://wwwnc.cdc.gov/travel/notices/level2/global-polio</guid>
+                </item>
+<item>
+                    <title>Level 2 - Yellow Fever in Colombia</title>
+                    <description><![CDATA[An increased number of cases of yellow fever have been reported in Colombia.]]></description>
+                    <link>https://wwwnc.cdc.gov/travel/notices/level2/yellow-fever-colombia</link>
+                    <pubDate>Fri, 18 Sep 2026 04:00:00 GMT</pubDate>
+                    <guid>https://wwwnc.cdc.gov/travel/notices/level2/yellow-fever-colombia</guid>
+                </item> 
+
+    </channel>    
+</rss>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:media="http://search.yahoo.com/mrss/" version="2.0" xml:base="https://news.delta.com/">
+  <channel>
+    <title>Delta News Hub</title>
+    <link>https://news.delta.com/</link>
+    <description><![CDATA[The latest Delta Air Lines news covering business, health and safety, leadership, routes and waivers, Delta people, our values and more.]]></description>
+    <language>en</language>
+        <atom:link rel="self" href="https://news.delta.com/rss.xml"/>
+<category>News</category>
+<managingEditor>laura.mcgill@delta.com</managingEditor>
+<webMaster>philip.denlinger@delta.com</webMaster>
+<ttl>15</ttl>
+<lastBuildDate>Fri, 09 Oct 2026 00:34:55 -0400</lastBuildDate>
+<pubDate>Tue, 06 Oct 2026 13:15:00 -0400</pubDate>
+<item>
+  <title>Update on global technology issue</title>
+  <link>https://news.delta.com/update-global-technology-issue</link>
+  <description><![CDATA[&lt;p&gt;&lt;strong&gt; &lt;/strong&gt;&lt;/p&gt; &lt;p&gt;Delta systems are stabilizing after a limited global technology issue that affected data connectivity to some of our systems behind-the-scene]]></description>
+  <author>Staff Writer</author>
+          <guid isPermaLink="false">node/69991</guid>
+          <pubDate>
+Tue, 06 Oct 2026 13:15:00 -0400
+</pubDate>
+          <source url="https://news.delta.com/rss.xml">Delta News Hub</source>
+          </item>
+<item>
+  <title>Delta delivers limited-time fares and special Delta Comfort upgrade offers</title>
+  <link>https://news.delta.com/delta-delivers-limited-time-fares-and-special-delta-comfort-upgrade-offers</link>
+  <description><![CDATA[&lt;p&gt;&lt;strong&gt; &lt;/strong&gt;&lt;/p&gt; &lt;div&gt;&lt;p&gt;Delta is making authentic adventures and dream getaways easier with a limited-time fare sale for customers traveling to and from S]]></description>
+  <author>Staff Writer</author>
+          <enclosure url="https://news.delta.com/sites/default/files/styles/schema_share_1200x800/public/2022-07/767-300_6.jpg?itok=Abqr-zlk" type="image/jpeg" length="276115"/><guid isPermaLink="false">node/69986</guid>
+          <pubDate>
+Tue, 06 Oct 2026 10:00:00 -0400
+</pubDate>
+          <source url="https://news.delta.com/rss.xml">Delta News Hub</source>
+          </item>
+<item>
+  <title>Delta and LATAM mark four years of Joint Venture with 31% increase in capacity and 17.4 million customers carried between North and South America</title>
+  <link>https://news.delta.com/delta-and-latam-mark-four-years-joint-venture-31-increase-capacity-and-174-million-customers</link>
+  <description><![CDATA[&lt;p&gt;&lt;strong&gt; &lt;/strong&gt;&lt;/p&gt; &lt;div&gt;&lt;p&gt;Four years after launching their Joint Venture, Delta Air Lines and LATAM Airlines are taking stock of a partnership that has cont]]></description>
+  <author>Staff Writer</author>
+          <enclosure url="https://news.delta.com/sites/default/files/styles/schema_share_1200x800/public/2025-04/deltalatam.jpg?itok=ZtFPHvKf" type="image/jpeg" length="70594"/><guid isPermaLink="false">node/69971</guid>
+          <pubDate>
+Mon, 05 Oct 2026 10:15:00 -0400
+</pubDate>
+          <source url="https://news.delta.com/rss.xml">Delta News Hub</source>
+          </item>
+</channel>
+</rss>
