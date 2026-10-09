@@ -1,8 +1,8 @@
 import { sql } from "../db";
-import { uploadImage } from "../blob";
+import { uploadNewsCover } from "../blob";
 import { getLatestResearch } from "./research";
-import { saveImageMeta, type ImageMeta } from "./images";
-import { captionHtml, creditLine, figureHtml, findPhoto, getQueries, insertFigures, stripOurFigures, storePhoto, type FoundPhoto } from "./media";
+import { saveCoverSize, saveImageMeta, type ImageMeta } from "./images";
+import { altForPhoto, captionHtml, creditLine, figureHtml, findPhoto, getQueries, insertFigures, stripOurFigures, storePhoto, type FoundPhoto } from "./media";
 import { computeContentStats } from "../articles";
 
 const IMAGE_MODEL = () => process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
@@ -95,9 +95,13 @@ export async function generateCoverImage(articleId: string, extra = ""): Promise
   }
 
   const file = new File([new Uint8Array(png)], "cover.png", { type: "image/png" });
-  const uploaded = await uploadImage(file, "news");
+  const uploaded = await uploadNewsCover(file);
+  await saveCoverSize(articleId, uploaded);
   const title = String((await sql`SELECT title FROM articles WHERE id = ${articleId} LIMIT 1`)[0]?.title || "");
-  const alt = `Illustrative image: ${title}`.slice(0, 200);
+  // Say what the picture shows (the search subject, else the headline) and
+  // that it is an illustration.
+  const subject = (await getQueries(articleId))[0] || title;
+  const alt = `AI-generated illustration: ${subject}`.slice(0, 200);
   await sql`
     UPDATE articles SET image = ${uploaded.url}, image_alt = ${alt}, updated_at = now()
     WHERE id = ${articleId}`;
@@ -120,9 +124,11 @@ export function inlinePhotoLimit(words: number): number {
 
 export async function ensureImages(
   articleId: string,
-  opts: { allowAi?: boolean } = {}
+  opts: { allowAi?: boolean; inline?: boolean } = {}
 ): Promise<{ cover: "licensed" | "ai" | "none"; inline: number }> {
   const allowAi = opts.allowAi !== false;
+  // Photos inside the text are optional: per call, else the automation setting.
+  const wantInline = opts.inline ?? (await import("./jobs").then((m) => m.loadAutomation()).then((c) => c.inlinePhotos).catch(() => true));
   const rows = await sql`SELECT title, content_html FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`;
   const a = rows[0];
   if (!a) throw new Error("News article not found.");
@@ -133,7 +139,7 @@ export async function ensureImages(
 
   // A cover always; photos inside the text only when the story is long
   // enough that they don't break it up (see inlinePhotoLimit).
-  const inlineLimit = inlinePhotoLimit(computeContentStats(stripOurFigures(String(a.content_html || ""))).wordCount);
+  const inlineLimit = wantInline ? inlinePhotoLimit(computeContentStats(stripOurFigures(String(a.content_html || ""))).wordCount) : 0;
   const used = new Set<string>();
   const photos: FoundPhoto[] = [];
   for (let i = 0; i < 1 + inlineLimit; i++) {
@@ -144,10 +150,11 @@ export async function ensureImages(
   }
 
   let cover: "licensed" | "ai" | "none" = "none";
-  const stored: { url: string; photo: FoundPhoto }[] = [];
+  // The first photo that stores becomes the cover (cropped to 1200×675).
+  const stored: { url: string; photo: FoundPhoto; width: number; height: number; originalUrl: string }[] = [];
   for (const p of photos) {
     try {
-      stored.push({ url: (await storePhoto(p)).url, photo: p });
+      stored.push({ ...(await storePhoto(p, { cover: stored.length === 0 })), photo: p });
     } catch {
       /* skip photos that fail to download */
     }
@@ -158,7 +165,8 @@ export async function ensureImages(
   const first = stored[0];
   let inlinePhotos = stored;
   if (first) {
-    await sql`UPDATE articles SET image = ${first.url}, image_alt = ${first.photo.title.slice(0, 120) || title.slice(0, 200)}, updated_at = now() WHERE id = ${articleId}`;
+    await sql`UPDATE articles SET image = ${first.url}, image_alt = ${altForPhoto(first.photo)}, updated_at = now() WHERE id = ${articleId}`;
+    await saveCoverSize(articleId, first);
     await saveImageMeta(articleId, {
       sourceType: "licensed",
       credit: creditLine(first.photo),
@@ -176,7 +184,7 @@ export async function ensureImages(
     }
   }
 
-  const figures = inlinePhotos.map((s) => figureHtml(s.url, s.photo.title.slice(0, 140) || title, captionHtml(s.photo)));
+  const figures = inlinePhotos.map((s) => figureHtml(s.url, altForPhoto(s.photo), captionHtml(s.photo)));
   const base = stripOurFigures(String(a.content_html || ""));
   const html = insertFigures(base, figures);
   if (html !== a.content_html) {

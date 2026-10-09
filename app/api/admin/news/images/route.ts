@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { dbErrorMessage } from "@/lib/db";
+import { dbErrorMessage, sql } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
-import { getImageMeta, saveImageMeta, listCandidates, importCandidate } from "@/lib/news/images";
+import { getImageMeta, saveImageMeta, listCandidates, importCandidate, recropCover } from "@/lib/news/images";
 import { ensureImages, generateCoverImage } from "@/lib/news/imagegen";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +16,12 @@ export async function GET(req: Request) {
   const articleId = new URL(req.url).searchParams.get("articleId") || "";
   if (!articleId) return NextResponse.json({ error: "articleId is required." }, { status: 400 });
   try {
-    const [meta, candidates] = await Promise.all([getImageMeta(articleId), listCandidates(articleId)]);
-    return NextResponse.json({ meta, candidates });
+    const [meta, candidates, rows] = await Promise.all([
+      getImageMeta(articleId),
+      listCandidates(articleId),
+      sql`SELECT image FROM articles WHERE id = ${articleId} LIMIT 1`,
+    ]);
+    return NextResponse.json({ meta, candidates, image: rows[0]?.image || "" });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
@@ -51,11 +55,23 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (body?.articleId && body?.auto) {
     try {
-      const result = await ensureImages(String(body.articleId), { allowAi: body.allowAi !== false });
+      const result = await ensureImages(String(body.articleId), {
+        allowAi: body.allowAi !== false,
+        inline: typeof body.inline === "boolean" ? body.inline : undefined,
+      });
       return NextResponse.json({ ok: true, ...result });
     } catch (err: any) {
       console.error("[news/images] auto failed:", err);
       return NextResponse.json({ error: err?.message || "Photo search failed." }, { status: 400 });
+    }
+  }
+  // { articleId, recrop: true } → crop the current cover to 1200×675
+  if (body?.articleId && body?.recrop) {
+    try {
+      const result = await recropCover(String(body.articleId));
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err: any) {
+      return NextResponse.json({ error: err?.message || "Cropping failed." }, { status: 400 });
     }
   }
   if (body?.articleId && body?.generate) {

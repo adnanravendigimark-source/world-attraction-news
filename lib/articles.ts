@@ -997,6 +997,11 @@ export async function newsPublishProblems(
   if (!img[0]?.image) problems.push("Add a cover image.");
   else if (!img[0].source_type || img[0].source_type === "unverified") problems.push("Record the cover image's rights (source type, credit, license).");
   else if (img[0].source_type !== "ai" && !String(img[0].credit || "").trim()) problems.push("Add an image credit.");
+  if (img[0]?.image) {
+    // Covers are 1200×675 (Phase 9). Older covers can be re-cropped in one click.
+    const { getImageMeta, isNewsCoverSize } = await import("./news/images");
+    if (!isNewsCoverSize(await getImageMeta(id), String(img[0].image))) problems.push("Crop the cover to 1200×675 (Re-crop in the image panel).");
+  }
 
   // Quality: no passage copied word for word from a source, and the score
   // reaches the minimum set on Admin -> Trending News -> Automation.

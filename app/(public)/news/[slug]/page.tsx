@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArticleSources, getPublishedNews, getPublishedNewsBySlug } from "@/lib/articles";
 import { breadcrumbJsonLd, jsonLdScript, newsArticleJsonLd, resolvePageMetadata } from "@/lib/seo";
-import { getImageMeta } from "@/lib/news/images";
+import { getImageMeta, isNewsCoverSize } from "@/lib/news/images";
 import { getExtra } from "@/lib/news/seo";
 import { getPageIndexing } from "@/lib/indexing";
 
@@ -61,6 +61,7 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
               title: article.title,
               description: article.metaDescription || article.excerpt,
               image: article.image,
+              imageSize: isNewsCoverSize(imageMeta, article.image) ? { width: imageMeta.width!, height: imageMeta.height! } : null,
               path,
               authorName: article.authorName,
               authorSlug: article.authorSlug,
@@ -110,7 +111,7 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
       {article.image && (
         <figure className="mt-7">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={article.image} alt={article.imageAlt || article.title} className="w-full rounded-xl object-cover" style={{ aspectRatio: "16 / 9" }} />
+          <img src={article.image} alt={article.imageAlt || article.title} width={1200} height={675} className="w-full rounded-xl object-cover" style={{ aspectRatio: "16 / 9" }} />
           {(imageMeta.credit || imageMeta.sourceType === "ai") && (
             <figcaption className="mt-2 text-xs text-slate-500">
               {imageMeta.sourceType === "ai" ? (

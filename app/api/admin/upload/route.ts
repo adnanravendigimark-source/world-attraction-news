@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { uploadImage } from "@/lib/blob";
+import { uploadImage, uploadNewsCover } from "@/lib/blob";
+import { saveCoverSize } from "@/lib/news/images";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No file uploaded." }, { status: 400 });
   }
   try {
+    // A news cover is cropped to 1200×675 and its original kept.
+    const newsArticleId = String(formData?.get("newsArticleId") || "");
+    if (newsArticleId) {
+      const isNews = (await sql`SELECT 1 FROM articles WHERE id = ${newsArticleId} AND type = 'news' LIMIT 1`).length > 0;
+      if (isNews) {
+        const cover = await uploadNewsCover(file);
+        await saveCoverSize(newsArticleId, cover);
+        return NextResponse.json({ ok: true, ...cover });
+      }
+    }
     const result = await uploadImage(file, "admin");
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {

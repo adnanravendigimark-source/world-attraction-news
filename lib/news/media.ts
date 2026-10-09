@@ -4,7 +4,7 @@
 // are accepted, and every photo keeps its author, licence and source link so a
 // caption can be shown.
 import { sql } from "../db";
-import { uploadImage } from "../blob";
+import { uploadImage, uploadNewsCover } from "../blob";
 import { isPublicUrl } from "./extract";
 
 export interface FoundPhoto {
@@ -15,6 +15,7 @@ export interface FoundPhoto {
   license: string; // e.g. "CC BY-SA 4.0", "Unsplash License"
   licenseUrl: string;
   title: string;
+  description?: string; // what the photo shows, when the provider says
   query: string;
 }
 
@@ -26,6 +27,44 @@ function stripTags(s: string): string {
 
 const OK_LICENSE = /^(CC0|Public domain|PD\b|CC BY(?:-SA)?\b)/i;
 const BAD_LICENSE = /\b(NC|ND)\b|non-?commercial|no ?derivs|fair use|GFDL only/i;
+
+// Licences we can use commercially with a credit: CC0, public domain, CC BY
+// and CC BY-SA. Anything non-commercial, no-derivatives or "fair use" is out.
+export function isAllowedLicense(license: string): boolean {
+  return !!license && OK_LICENSE.test(license) && !BAD_LICENSE.test(license);
+}
+
+// Alt text that says what the photo shows. Unsplash gives a description of
+// the picture; Wikimedia gives a file name and a caption. File names are
+// cleaned ("Heathrow_Terminal_5_(2019).jpg" -> "Heathrow Terminal 5") and
+// used only when there is no usable caption.
+export function altForPhoto(p: Pick<FoundPhoto, "provider" | "title" | "description" | "query">): string {
+  const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
+  const sentence = (s: string) => {
+    const t = tidy(s).replace(/^(this is |an? (photo|picture|image) of )/i, "");
+    const first = t.split(/(?<=[.!?])\s/)[0].replace(/[.!?]+$/, "");
+    return first.length >= 8 && first.length <= 125 ? first.charAt(0).toUpperCase() + first.slice(1) : "";
+  };
+  if (p.provider === "unsplash") {
+    const alt = sentence(p.title || "");
+    if (alt) return alt;
+  } else {
+    const fromCaption = sentence(p.description || "");
+    if (fromCaption) return fromCaption;
+    const file = tidy(
+      String(p.title || "")
+        .split(/\.(jpe?g|png|tiff?|webp)\b/i)[0]
+        .replace(/^File:/i, "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\(?\b(19|20)\d{2}\b\)?/g, " ")
+        .replace(/\b(IMG|DSC|DSCF|DJI|P)\s?\d+\b/gi, " ")
+        .replace(/[()]/g, " ")
+    );
+    if (file.length >= 6 && /[a-z]{3}/i.test(file)) return file.slice(0, 125);
+  }
+  const q = tidy(p.query);
+  return (q.charAt(0).toUpperCase() + q.slice(1)).slice(0, 125);
+}
 
 const STOP = new Set("the a an of in on at and or for to with from by news airport airline flights flight new".split(" "));
 
@@ -53,6 +92,7 @@ async function searchUnsplash(query: string): Promise<FoundPhoto[]> {
     license: "Unsplash License",
     licenseUrl: "https://unsplash.com/license",
     title: r?.alt_description || r?.description || query,
+    description: r?.description || r?.alt_description || "",
     query,
     _download: r?.links?.download_location as string,
   }));
@@ -73,7 +113,7 @@ async function searchWikimedia(query: string): Promise<FoundPhoto[]> {
     if ((ii.width || 0) < 1000 || (ii.width || 0) < (ii.height || 0)) continue; // landscape, decent size
     const m = ii.extmetadata || {};
     const license = stripTags(String(m.LicenseShortName?.value || ""));
-    if (!license || !OK_LICENSE.test(license) || BAD_LICENSE.test(license)) continue;
+    if (!isAllowedLicense(license)) continue;
     const author = stripTags(String(m.Artist?.value || "")).slice(0, 120) || "Wikimedia Commons contributor";
     const desc = stripTags(String(m.ImageDescription?.value || ""));
     out.push({
@@ -84,6 +124,7 @@ async function searchWikimedia(query: string): Promise<FoundPhoto[]> {
       license,
       licenseUrl: String(m.LicenseUrl?.value || ""),
       title: `${String(p.title || "").replace(/^File:/, "")} ${desc}`.slice(0, 300),
+      description: desc.slice(0, 300),
       query,
     });
   }
@@ -115,20 +156,25 @@ export async function findPhoto(queries: string[], exclude: Set<string> = new Se
   return null;
 }
 
-// Downloads the photo, re-encodes it and stores it in our own storage.
-export async function storePhoto(photo: FoundPhoto): Promise<{ url: string }> {
+// Downloads the photo, re-encodes it and stores it in our own storage. A cover
+// is cropped to 1200×675 and its original kept; an inline photo keeps its shape.
+export async function storePhoto(
+  photo: FoundPhoto,
+  opts: { cover?: boolean } = {}
+): Promise<{ url: string; width: number; height: number; originalUrl: string }> {
   const res = await fetch(photo.imageUrl, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`Photo download failed (HTTP ${res.status}).`);
   const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
   if (!["image/jpeg", "image/png", "image/webp"].includes(type)) throw new Error("Unsupported photo type.");
   const buf = await res.arrayBuffer();
   if (buf.byteLength > 12 * 1024 * 1024) throw new Error("Photo is too large.");
-  const uploaded = await uploadImage(new File([buf], "photo", { type }), "news");
+  const file = new File([buf], "photo", { type });
+  const uploaded = opts.cover ? await uploadNewsCover(file) : { ...(await uploadImage(file, "news")), originalUrl: "" };
   // Unsplash asks for a download ping when a photo is used.
   const dl = (photo as any)._download as string | undefined;
   const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
   if (dl && key) fetch(dl, { headers: { Authorization: `Client-ID ${key}` } }).catch(() => {});
-  return { url: uploaded.url };
+  return uploaded;
 }
 
 export function creditLine(p: FoundPhoto): string {

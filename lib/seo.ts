@@ -171,6 +171,7 @@ export function newsArticleJsonLd(article: {
   title: string;
   description: string;
   image: string;
+  imageSize?: { width: number; height: number } | null; // known cover size (news covers are 1200×675)
   path: string;
   authorName: string;
   authorSlug?: string | null;
@@ -190,7 +191,11 @@ export function newsArticleJsonLd(article: {
     "@type": "NewsArticle",
     headline: article.title.slice(0, 110),
     description: article.description,
-    image: article.image ? [article.image] : undefined,
+    image: article.image
+      ? article.imageSize
+        ? [{ "@type": "ImageObject", url: article.image, width: article.imageSize.width, height: article.imageSize.height }]
+        : [article.image]
+      : undefined,
     datePublished: article.publishedAt || article.updatedAt,
     dateModified: article.updatedAt,
     author,

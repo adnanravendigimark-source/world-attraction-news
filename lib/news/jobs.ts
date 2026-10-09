@@ -22,6 +22,7 @@ export interface AutomationConfig {
   maxAgeHours: number; // ignore stories not seen within this window
   draft: boolean; // create a draft after research
   image: boolean; // generate an AI cover after the draft
+  inlinePhotos: boolean; // add photos inside long articles (350+ words)
   minQuality: number; // quality score an article needs before it can be published
 }
 
@@ -32,6 +33,7 @@ export const DEFAULT_AUTOMATION: AutomationConfig = {
   maxAgeHours: 48,
   draft: true,
   image: true,
+  inlinePhotos: true,
   minQuality: 75,
 };
 
@@ -68,6 +70,7 @@ export async function saveAutomation(patch: Partial<AutomationConfig>): Promise<
     maxAgeHours: clampInt(patch.maxAgeHours, 6, 168, cur.maxAgeHours),
     draft: typeof patch.draft === "boolean" ? patch.draft : cur.draft,
     image: typeof patch.image === "boolean" ? patch.image : cur.image,
+    inlinePhotos: typeof patch.inlinePhotos === "boolean" ? patch.inlinePhotos : cur.inlinePhotos,
     minQuality: clampInt(patch.minQuality, 0, 100, cur.minQuality),
   };
   await sql`

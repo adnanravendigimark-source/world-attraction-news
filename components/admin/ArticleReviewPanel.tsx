@@ -173,6 +173,8 @@ export default function ArticleReviewPanel({
     try {
       const formData = new FormData();
       formData.append("file", blob, "featured-cover.jpg");
+      // News covers are cropped to 1200×675 on upload.
+      if (article.type === "news") formData.append("newsArticleId", article.id);
       const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed.");

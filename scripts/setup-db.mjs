@@ -1413,6 +1413,12 @@ async function createNewsTables() {
   `;
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS queries JSONB NOT NULL DEFAULT '[]'::jsonb`;
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS inline JSONB NOT NULL DEFAULT '[]'::jsonb`;
+  // Phase 9 — cover size and the uncropped original (covers are 1200×675).
+  // cover_url says which image the size describes.
+  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS cover_url TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS width INTEGER`;
+  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS height INTEGER`;
+  await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS original_url TEXT NOT NULL DEFAULT ''`;
   // System byline for news. No password and no login: it can only be used as
   // an author reference.
   await sql`

@@ -10,6 +10,7 @@ interface Config {
   maxAgeHours: number;
   draft: boolean;
   image: boolean;
+  inlinePhotos: boolean;
   minQuality: number;
 }
 interface Job {
@@ -123,6 +124,9 @@ export default function NewsAutomation({ canEdit }: { canEdit: boolean }) {
           </label>
           <label className="flex items-center gap-2 text-sm text-ink-700">
             <input type="checkbox" checked={config.image} disabled={!canEdit} onChange={(e) => set({ image: e.target.checked })} /> AI cover
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink-700" title="Free-licence photos between paragraphs, only in stories of 350+ words">
+            <input type="checkbox" checked={config.inlinePhotos !== false} disabled={!canEdit} onChange={(e) => set({ inlinePhotos: e.target.checked })} /> Photos inside long stories
           </label>
         </div>
         <p className="mt-3 text-xs text-ink-600">

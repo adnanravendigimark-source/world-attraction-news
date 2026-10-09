@@ -7,7 +7,7 @@ import { sql } from "../db";
 import { checkOriginality } from "../originality";
 import { getLatestResearch } from "./research";
 import { getFactCheck } from "./factcheck";
-import { getImageMeta } from "./images";
+import { getImageMeta, isNewsCoverSize } from "./images";
 import { getExtra } from "./seo";
 import { prepareTitle, sameStoryPrepared } from "./similarity";
 import { OVERLAP_WORDS, sourceOverlap, type OverlapMatch } from "./overlap";
@@ -115,9 +115,18 @@ export async function computeQuality(articleId: string): Promise<QualityReport> 
   const missing = seoParts.filter(([, v]) => !v).map(([k]) => k);
   add("seo", "SEO complete", 10, (seoParts.length - missing.length) / seoParts.length, missing.length ? `Missing: ${missing.join(", ")}` : "All SEO fields set");
 
-  // Image (10) + provenance (5)
-  add("image", "Image added", 10, a.image && a.image_alt ? 1 : a.image ? 0.5 : 0, a.image ? (a.image_alt ? "Hero image with alt text" : "Image has no alt text") : "No hero image");
+  // Image (10): a 1200×675 cover with alt text. Provenance (5).
   const meta = await getImageMeta(articleId);
+  const sized = isNewsCoverSize(meta, a.image);
+  add(
+    "image",
+    "Image added",
+    10,
+    !a.image ? 0 : (a.image_alt ? 0.5 : 0) + (sized ? 0.5 : 0),
+    !a.image
+      ? "No hero image"
+      : [sized ? "1200×675 cover" : "Not cropped to 1200×675 (Re-crop in the image panel)", a.image_alt ? "alt text set" : "no alt text"].join(", ")
+  );
   const provOk = !!a.image && meta.sourceType !== "unverified" && (meta.sourceType === "ai" || !!meta.credit);
   add("provenance", "Image rights recorded", 5, provOk ? 1 : 0, !a.image ? "No image" : meta.sourceType === "unverified" ? "Rights not recorded" : meta.sourceType === "ai" ? "AI-generated, labelled" : `${meta.sourceType}: ${meta.credit || "no credit"}`);
 
