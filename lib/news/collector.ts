@@ -5,7 +5,7 @@ import { fetchNewsApi, fetchCurrents } from "./providers";
 import { getNewsSources, rowToSource, type NewsSource } from "./sources";
 import { mergeDuplicateClusters, runClustering } from "./cluster";
 import { runTrendScoring } from "./trend";
-import { isTravelSource, loadFilterConfig, scoreRelevance } from "./filter";
+import { isOfficialFeed, isTravelSource, loadFilterConfig, scoreRelevance } from "./filter";
 import { isPublicUrl } from "./extract";
 
 const USER_AGENT = "WorldAttractionNewsBot/1.0 (+news discovery; contact via site)";
@@ -89,7 +89,10 @@ async function storeItems(source: NewsSource, items: ParsedFeedItem[]): Promise<
   const config = await loadFilterConfig();
   const travelSource = isTravelSource(source.type, source.category);
   const rel = fresh.map((i) =>
-    scoreRelevance({ title: i.title, description: i.description, sourceCategory: source.category, sourceIsTravel: travelSource }, config)
+    scoreRelevance(
+      { title: i.title, description: i.description, sourceCategory: source.category, sourceIsTravel: travelSource, sourceIsOfficial: isOfficialFeed(source.type, source.isOfficial) },
+      config
+    )
   );
 
   const rows = await sql`
@@ -128,7 +131,7 @@ export interface FeedPreview {
 
 // Fetches and parses a feed without storing anything, so an editor can check
 // a feed before adding it.
-export async function previewFeed(rssUrl: string, category = ""): Promise<FeedPreview> {
+export async function previewFeed(rssUrl: string, category = "", isOfficial = false): Promise<FeedPreview> {
   const url = String(rssUrl || "").trim();
   if (!/^https?:\/\//i.test(url) || !isPublicUrl(url)) throw new Error("Enter a public http(s) feed URL.");
   const res = await fetchFeedXml({ rssUrl: url, etag: "", lastModified: "" } as NewsSource);
@@ -137,7 +140,7 @@ export async function previewFeed(rssUrl: string, category = ""): Promise<FeedPr
   if (items.length === 0) throw new Error("The feed parsed but has no items.");
   const config = await loadFilterConfig().catch(() => null);
   const travel = items.map((it) =>
-    config ? scoreRelevance({ title: it.title, description: it.description, sourceCategory: category, sourceIsTravel: !!category }, config).status !== "irrelevant" : true
+    config ? scoreRelevance({ title: it.title, description: it.description, sourceCategory: category, sourceIsTravel: !!category, sourceIsOfficial: isOfficial }, config).status !== "irrelevant" : true
   );
   const dates = items.map((i) => i.publishedAt).filter((d): d is string => !!d).sort();
   return {
@@ -229,6 +232,7 @@ export async function runFetch(opts: { trigger: string; force?: boolean; sourceI
   } catch (err) {
     console.error("[news] clustering/scoring failed:", err);
   }
+  await pruneOldItems().catch((err) => console.error("[news] retention failed:", err));
 
   const summary: FetchRunSummary = {
     runId: null,
@@ -254,6 +258,19 @@ export async function runFetch(opts: { trigger: string; force?: boolean; sourceI
     console.error("[news] failed to write run log:", err);
   }
   return summary;
+}
+
+// Retention: items the filter rejected and no story uses are only kept for a
+// month (the feed and its run log stay readable for recent ones).
+export const RETENTION_DAYS = 30;
+export async function pruneOldItems(): Promise<number> {
+  const rows = await sql`
+    DELETE FROM news_items
+    WHERE filter_status = 'irrelevant' AND cluster_id IS NULL
+      AND created_at < now() - (${RETENTION_DAYS}::int * interval '1 day')
+    RETURNING id
+  `;
+  return rows.length;
 }
 
 export { rowToSource };

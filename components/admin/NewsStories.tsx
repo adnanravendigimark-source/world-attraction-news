@@ -181,6 +181,42 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
     }
   }
 
+  async function postStories(body: Record<string, unknown>): Promise<any> {
+    const res = await fetch("/api/admin/news/stories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || "Request failed.");
+    return d;
+  }
+
+  // Editor merge: everything in `sourceId` joins `targetId`.
+  async function mergeStory(source: Story, targetId: string) {
+    const target = stories.find((x) => x.id === targetId);
+    const ok = await confirm({
+      title: "Merge these stories?",
+      description: `“${source.title.slice(0, 90)}” and its ${source.itemCount} item(s) join “${(target?.title || "").slice(0, 90)}”.`,
+      confirmLabel: "Merge",
+    });
+    if (!ok) return;
+    try {
+      await postStories({ action: "merge", targetId, ids: [source.id] });
+      toast.success("Stories merged.");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  // Editor split/move: one item to another story, or to a new story ("").
+  async function moveStoryItem(itemId: string, targetId: string) {
+    try {
+      await postStories({ action: "move", itemId, targetId: targetId || null });
+      toast.success(targetId ? "Item moved." : "Item split into a new story. The two won't be merged again automatically.");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
   async function setStatus(id: string, status: string) {
     const res = await fetch("/api/admin/news/stories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "status", id, status }) });
     if (!res.ok) return toast.error("Could not update story.");
@@ -391,9 +427,45 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
                         <li key={it.id} className="text-sm">
                           <a href={it.url} target="_blank" rel="noopener noreferrer nofollow" className="text-ink-800 hover:underline">{it.title}</a>
                           <span className="ml-2 text-xs text-ink-500">{it.publisher} · reliability {it.reliabilityScore} · {ago(it.publishedAt)}</span>
+                          {canEdit && (s.items.length > 1 || stories.length > 1) && (
+                            <select
+                              value="none"
+                              onChange={(e) => e.target.value !== "none" && moveStoryItem(it.id, e.target.value === "new" ? "" : e.target.value)}
+                              className="ml-2 max-w-[14rem] rounded border border-ink-200 bg-white px-1 py-0.5 text-xs text-ink-600"
+                              aria-label="Move this item"
+                            >
+                              <option value="none">Move…</option>
+                              {s.items.length > 1 && <option value="new">Split into a new story</option>}
+                              {stories
+                                .filter((o) => o.id !== s.id)
+                                .slice(0, 60)
+                                .map((o) => (
+                                  <option key={o.id} value={o.id}>To: {o.title.slice(0, 70)}</option>
+                                ))}
+                            </select>
+                          )}
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {isOpen && canEdit && stories.length > 1 && !s.pipeline.articleId && (
+                    <div className="mt-2 flex items-center gap-2 pl-4 text-xs text-ink-600">
+                      <span>Same event as another story?</span>
+                      <select
+                        value="none"
+                        onChange={(e) => e.target.value !== "none" && mergeStory(s, e.target.value)}
+                        className="max-w-md rounded border border-ink-200 bg-white px-1 py-0.5 text-xs"
+                        aria-label="Merge this story into another"
+                      >
+                        <option value="none">Merge into…</option>
+                        {stories
+                          .filter((o) => o.id !== s.id)
+                          .slice(0, 60)
+                          .map((o) => (
+                            <option key={o.id} value={o.id}>{o.title.slice(0, 80)}</option>
+                          ))}
+                      </select>
+                    </div>
                   )}
                 </li>
               );

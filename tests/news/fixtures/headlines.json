@@ -1,0 +1,685 @@
+{
+ "_note": "Labelled headlines for the story matcher. 'real-' items are headlines collected by this site in October 2026, grouped by the matcher and then reviewed by hand (the YouGov tourist-tax poll pair is a known miss). 'syn-' items are hand-written edge cases: one-word advisory headlines told apart by their teasers, same company different news, same city different news, opposite actions. Evergreen listicles and multi-story roundups are left out: they report no single event.",
+ "items": [
+  {
+   "title": "Somerville’s 189-year-old courthouse reopens as local history museum - Decatur Daily",
+   "event": "real-e1"
+  },
+  {
+   "title": "Jet 2 launches Summer 2028 holiday programme from Bournemouth Airport - Dorset Echo",
+   "event": "real-e2"
+  },
+  {
+   "title": "Blagoveshchensk Airport's New Terminal Welcomes First Flights from Vietnam: What Will Change for Passengers - Первый технический",
+   "event": "real-e3"
+  },
+  {
+   "title": "Airlines Suspend Flights To Riyadh After Terrorist Attack Destroys Saudia Airbus A320",
+   "event": "real-e4"
+  },
+  {
+   "title": "Air Canada Cancels All Flights To 6 International Destinations: See Full List Now",
+   "event": "real-e5"
+  },
+  {
+   "title": "Are you an Alaska Airlines loyalist? Here's why you need the Citi / AAdvantage Executive",
+   "event": "real-e6"
+  },
+  {
+   "title": "Disney Believe: 5 just-announced experiences I'm most excited about on Disney's next cruise ship",
+   "event": "real-e7"
+  },
+  {
+   "title": "Princess Cruises’ Captain’s Circle loyalty program: Everything you need to know",
+   "event": "real-e8"
+  },
+  {
+   "title": "Higher Airfares Are Here to Stay, but Don’t Expect Airline Profits to Rise",
+   "event": "real-e9"
+  },
+  {
+   "title": "More Than a Quarter of Saudi Flights Disrupted by Houthi Strikes",
+   "event": "real-e4"
+  },
+  {
+   "title": "Duetto Buys Flyr Hospitality as Airline Tech Firm Exits Hotel Pricing",
+   "event": "real-e10"
+  },
+  {
+   "title": "Japarov proposes that Central Asian countries and Azerbaijan introduce a single tourist visa - 1News.az",
+   "event": "real-e11"
+  },
+  {
+   "title": "Highland Council to run webinars on proposed tourist tax - Ross-shire Journal",
+   "event": "real-e12"
+  },
+  {
+   "title": "Highland MSP challenges government over concerns that tourist tax will impact medical visitors - Inverness Courier",
+   "event": "real-e13"
+  },
+  {
+   "title": "What The New Us Crackdown On Birth Tourism Actually Changes For Travelers - ИФЗ РАН",
+   "event": "real-e14"
+  },
+  {
+   "title": "Thailand’s Immigration Crackdown: Visa Holders Being Denied Entry - Chiang Rai Times",
+   "event": "real-e15"
+  },
+  {
+   "title": "Demings pitches $800M in tourist tax for 13 ideas — including UCF sports facilities - Orlando Sentinel",
+   "event": "real-e16"
+  },
+  {
+   "title": "Lee Tourist Tax awards - Boca Beacon",
+   "event": "real-e17"
+  },
+  {
+   "title": "eVisas.com Expands Digital Visa Assistance for U.S. Travelers to 29 Destinations - USA Today",
+   "event": "real-e18"
+  },
+  {
+   "title": "Uzbek Travelers Face New Egypt Entry Requirements from Nov. 1 - Caspian Post",
+   "event": "real-e19"
+  },
+  {
+   "title": "USA Ends Passport Stamps for Travelers; What It Means for Green Card and Visa Holders - IndianEagle",
+   "event": "real-e20"
+  },
+  {
+   "title": "Edinburgh and Cornwall support a tourist tax – despite most of UK being against it - The Independent",
+   "event": "real-e21"
+  },
+  {
+   "title": "Scottish hotels end summer on high but fears grow over tourist tax impact - The Scotsman",
+   "event": "real-e22"
+  },
+  {
+   "title": "Tourist tax warning as new levy could put extra pressure on small businesses - Yahoo News UK",
+   "event": "real-e23"
+  },
+  {
+   "title": "Belgrade introduces new tourist tax: From October 15th, stays will be more expensive - Слободен печат",
+   "event": "real-e24"
+  },
+  {
+   "title": "Thailand Approves Major Visa Rule Changes for Tourists and Visa on Arrival in 2026 - https://safariindia.com/",
+   "event": "real-e25"
+  },
+  {
+   "title": "Carnival Shares Update as Storms Form in the Caribbean and West Coast",
+   "event": "real-e26"
+  },
+  {
+   "title": "Nicko Adjusts Itinerary of 2026-2027 World Cruise; Adds Overland Program",
+   "event": "real-e27"
+  },
+  {
+   "title": "Windstar Hosting Five James Beard Foundation Chef Sailings in 2027",
+   "event": "real-e28"
+  },
+  {
+   "title": "Oslo Planning New Tax for Cruise Passengers",
+   "event": "real-e29"
+  },
+  {
+   "title": "P&O Unveils Winter 2028-29 Collection",
+   "event": "real-e30"
+  },
+  {
+   "title": "ACI EUROPE launches Sustainability Strategy for Airports 2.0 - Airport Suppliers",
+   "event": "real-e31"
+  },
+  {
+   "title": "Air India cancels Riyadh flights after attack on airport - Rediff",
+   "event": "real-e4"
+  },
+  {
+   "title": "ACI Europe Launches Sustainability Strategy for Airports 2.0 - Airport Industry-News",
+   "event": "real-e31"
+  },
+  {
+   "title": "Chief Secretary Ashish Kundra inspects new terminal of KBR Airport ahead of inauguration. - Administration of Union Territory of Ladakh",
+   "event": "real-e32"
+  },
+  {
+   "title": "PAL cancels Riyadh flights after Saudi airport attacks - BusinessWorld Online",
+   "event": "real-e4"
+  },
+  {
+   "title": "Toronto Airport Doubles Its U.S. Flights This January: See Every New Route - TheTravel",
+   "event": "real-e33"
+  },
+  {
+   "title": "PAL cancels Riyadh flights as Houthis target Saudi airport - Gulf News",
+   "event": "real-e4"
+  },
+  {
+   "title": "IAF to transfer land for new terminal at Nagpur airport - Indian Aviation News Net",
+   "event": "real-e34"
+  },
+  {
+   "title": "Nayarit Airport will have a new terminal - MEXICONOW",
+   "event": "real-e35"
+  },
+  {
+   "title": "Air India cancels flights to and from Riyadh till October 10 after Houthis claim they struck airport | India News - Hindustan Times",
+   "event": "real-e4"
+  },
+  {
+   "title": "Air Canada Cancels All Flights To 6 International Destinations: See Full List Now - Simple Flying",
+   "event": "real-e5"
+  },
+  {
+   "title": "Philippine Airlines cancels flights to Riyadh following Houthi attacks on Saudi Arabia - Khaleej Times",
+   "event": "real-e4"
+  },
+  {
+   "title": "The Goya Museum in Zaragoza Reopens Its Doors with the Exhibition ‘Solo Goya. The Art of Seeing’ - Arquitectura Viva",
+   "event": "real-e36"
+  },
+  {
+   "title": "Kangwon Land turns abandoned mine facilities into tourist attractions, officially opens M650 Museum in Sabuk - 스포츠조선",
+   "event": "real-e37"
+  },
+  {
+   "title": "Dolly Parton inspired hotel, museum opens in Nashville - WWLTV.com",
+   "event": "real-e38"
+  },
+  {
+   "title": "Disney Just Raised Theme Park Prices on Both Coasts for October 2026, With Some Tickets Now Topping $200 - AOL.com",
+   "event": "real-e39"
+  },
+  {
+   "title": "A new destination opens in New Brunswick as Portal, Devco unveil New Jersey Innovation Hub — helping to launch city’s landmark HELIX campus - Real Estate NJ",
+   "event": "real-e40"
+  },
+  {
+   "title": "Largs Museum closes doors for winter after welcoming more than 2,500 visitors - Largs and Millport Weekly News",
+   "event": "real-e41"
+  },
+  {
+   "title": "RM’s SFMOMA exhibition draws 7,500 visitors, generates record ticket demand - Korea JoongAng Daily",
+   "event": "real-e42"
+  },
+  {
+   "title": "UK airport e-gates to become passport-free and contactless by early 2027",
+   "event": "real-e43"
+  },
+  {
+   "title": "Santorini: Wine, gastronomy and unique experiences beyond the famous sunsets",
+   "event": "real-e44"
+  },
+  {
+   "title": "The 5 best destinations you can visit on a Ponant cruise ship",
+   "event": "real-e45"
+  },
+  {
+   "title": "American Airlines cuts 6 routes, adds 2 in New York airport swap",
+   "event": "real-e46"
+  },
+  {
+   "title": "2 Citi / AAdvantage cards have highest-ever offers: Earn up to 125,000 miles",
+   "event": "real-e47"
+  },
+  {
+   "title": "Icelandair adding St. Louis, a stronghold for partner Southwest Airlines",
+   "event": "real-e48"
+  },
+  {
+   "title": "8 ways to use points and miles for an incredible trip to Sydney",
+   "event": "real-e49"
+  },
+  {
+   "title": "American Airlines plans massive (and badly-needed) lounge at Charlotte hub",
+   "event": "real-e50"
+  },
+  {
+   "title": "5 Reasons Why Private Jets Almost Always Cruise Above Airline Traffic",
+   "event": "real-e51"
+  },
+  {
+   "title": "Canada Just Doubled The Number Of Passenger Flights Allowed To This Transatlantic Destination",
+   "event": "real-e52"
+  },
+  {
+   "title": "How Porter Airlines Is Building Montreal's 2nd Airport Without Repeating A $30 Billion Disaster",
+   "event": "real-e53"
+  },
+  {
+   "title": "Royal Orchid Follows Indian Travelers Beyond the Metros, From Pilgrim Towns to Branded Homes",
+   "event": "real-e54"
+  },
+  {
+   "title": "Airlines Get More Time on Mumbai Airport Cuts — But the Move to Navi Mumbai Is Still Coming",
+   "event": "real-e55"
+  },
+  {
+   "title": "Gallery of Design Museum Gent Reopens with New Wing by Carmody Groarke and ATAMA - 16 - ArchDaily",
+   "event": "real-e56"
+  },
+  {
+   "title": "Gallery of Design Museum Gent Reopens with New Wing by Carmody Groarke and ATAMA - 12 - ArchDaily",
+   "event": "real-e56"
+  },
+  {
+   "title": "Gallery of Design Museum Gent Reopens with New Wing by Carmody Groarke and ATAMA - 7 - ArchDaily",
+   "event": "real-e56"
+  },
+  {
+   "title": "Disney theme park ticket prices are up again. Here’s what visitors will pay - kiiitv.com",
+   "event": "real-e39"
+  },
+  {
+   "title": "Gallery of Design Museum Gent Reopens with New Wing by Carmody Groarke and ATAMA - 14 - ArchDaily",
+   "event": "real-e56"
+  },
+  {
+   "title": "Disney raises some theme park ticket prices, Disney World passes - Washington Times",
+   "event": "real-e39"
+  },
+  {
+   "title": "Gallery of Design Museum Gent Reopens with New Wing by Carmody Groarke and ATAMA - 9 - ArchDaily",
+   "event": "real-e56"
+  },
+  {
+   "title": "The Guggenheim Museum Bilbao and the Bilbao Fine Arts Museum Have Agreed on a Joint Ticket - ArtDependence",
+   "event": "real-e57"
+  },
+  {
+   "title": "Gallery of Design Museum Gent Reopens with New Wing by Carmody Groarke and ATAMA - 13 - ArchDaily",
+   "event": "real-e56"
+  },
+  {
+   "title": "African American Civil War Museum Reopens With Expanded Galleries - The Black Chronicle",
+   "event": "real-e58"
+  },
+  {
+   "title": "From an indoor forest to a toilet made with seaweed: Design Museum Gent reopens after €20m eco-focused expansion - The Art Newspaper",
+   "event": "real-e56"
+  },
+  {
+   "title": "Dolly Parton’s Songteller Hotel and Museum opens downtown - WSMV",
+   "event": "real-e38"
+  },
+  {
+   "title": "Gallery of Design Museum Gent Reopens with New Wing by Carmody Groarke and ATAMA - 20 - ArchDaily",
+   "event": "real-e56"
+  },
+  {
+   "title": "Dolly Parton opens Nashville hotel and museum - cbs19.tv",
+   "event": "real-e38"
+  },
+  {
+   "title": "Dolly Parton SongTeller Hotel And Museum Opens - Noise11",
+   "event": "real-e38"
+  },
+  {
+   "title": "Dolly Parton Opens Nashville’s SongTeller Hotel And ‘Life Of Many Colors’ Museum - That Eric Alper",
+   "event": "real-e38"
+  },
+  {
+   "title": "Gichigamiin Indigenous Nations Museum reopens with four new exhibits - The Daily Northwestern",
+   "event": "real-e59"
+  },
+  {
+   "title": "Ottoman-era mansion in Safranbolu reopens as coffee museum - Türkiye Today",
+   "event": "real-e60"
+  },
+  {
+   "title": "Shafaq News..Al-Anbar museum reopens after ISIS-era damage - شفق نيوز",
+   "event": "real-e61"
+  },
+  {
+   "title": "Gallery of Design Museum Gent Reopens with New Wing by Carmody Groarke and ATAMA - 5 - ArchDaily",
+   "event": "real-e56"
+  },
+  {
+   "title": "Do Britons support a tourist tax? - YouGov",
+   "event": "real-e21"
+  },
+  {
+   "title": "New tourist tax of 450 baht a step closer with officials targeting early 2027 after cabinet approval is obtained - Thai Examiner",
+   "event": "real-e63"
+  },
+  {
+   "title": "North Yorkshire Airbnbs will not be exempt from tourist tax - mayor - BBC",
+   "event": "real-e64"
+  },
+  {
+   "title": "Belgrade tourist tax rises from 160 to 240 dinars - srpske.rs",
+   "event": "real-e24"
+  },
+  {
+   "title": "Sri Lanka, Thailand to renew 30-day tourist visa exemption - EconomyNext",
+   "event": "real-e65"
+  },
+  {
+   "title": "Tourist tax goes ahead despite floods - Bangkok Post",
+   "event": "real-e66"
+  },
+  {
+   "title": "Thailand Tourist Tax Moves Forward Despite Severe Floods - Chiang Rai Times",
+   "event": "real-e66"
+  },
+  {
+   "title": "Turkmenistan introduces new rules for travelers. What changes for Belarusian tourists - BelTA – News",
+   "event": "real-e67"
+  },
+  {
+   "title": "Government and opposition councillors in agreement on tourist tax for Dublin - Dublin People",
+   "event": "real-e68"
+  },
+  {
+   "title": "Saudi Tourist Visa Opens to Kosovo and Guyana: eVisa and Visa on Arrival From October 2026 - Wego Travel Blog",
+   "event": "real-e69"
+  },
+  {
+   "title": "You can now travel to Turkmenistan with an e-visa and without a mandatory invitation - Наша Ніва",
+   "event": "real-e70"
+  },
+  {
+   "title": "Higher rate of tourist tax could dent ADR, industry expert warns - The Caterer",
+   "event": "real-e71"
+  },
+  {
+   "title": "'Stop the tourist tax or will do great harm to the local economy' - Bournemouth Echo",
+   "event": "real-e72"
+  },
+  {
+   "title": "€1 tourist tax proposed to fight poverty in the Canary Islands - Canarian Weekly",
+   "event": "real-e73"
+  },
+  {
+   "title": "Tourist tax fears dominate talks as Sidmouth businesses meet local leaders - Sidmouth Herald",
+   "event": "real-e74"
+  },
+  {
+   "title": "The Wanderlust Surge: Visa Demands Skyrocket as Filipino Travelers Fly Out in Record Numbers - When In Manila",
+   "event": "real-e75"
+  },
+  {
+   "title": "Planning a US trip? Social media rules differ for journalists and tourists - Briefly.co.za",
+   "event": "real-e76"
+  },
+  {
+   "title": "Why longer Visitor visas remain out of reach for many parents - The Indian Sun",
+   "event": "real-e77"
+  },
+  {
+   "title": "The State Tax Service has launched a dashboard for analyzing the tourist tax - Visit Ukraine Today",
+   "event": "real-e78"
+  },
+  {
+   "title": "They propose a tourist tax of one euro in the Canary Islands to fight child poverty - La Voz de Lanzarote",
+   "event": "real-e73"
+  },
+  {
+   "title": "eVisas.com Expands Digital Visa Assistance for U.S. Travelers to 29 Destinations - greatreporter",
+   "event": "real-e18"
+  },
+  {
+   "title": "European Alliance proposes increasing tourist tax - Agencija MINA",
+   "event": "real-e79"
+  },
+  {
+   "title": "Belgrade increases visitor fee – Tourist tax set at 240 dinars per day starting October 15 - eKapija",
+   "event": "real-e24"
+  },
+  {
+   "title": "Interlaken vs Innsbruck: How Europe’s adventure travel hotspots compare for a winter holiday",
+   "event": "real-e80"
+  },
+  {
+   "title": "Central Europe should be marketed as one destination, tourism leaders tell Euronews Travel & Tourism Summit",
+   "event": "real-e81"
+  },
+  {
+   "title": "‘Set-jetting’ trips: How to holiday like the Gilmore Girls in Stars Hollow",
+   "event": "real-e82"
+  },
+  {
+   "title": "Iconic London hotel Dukes is set to reopen in mid-2027",
+   "event": "real-e83"
+  },
+  {
+   "title": "Euronews Travel & Tourism Summit: US envoy says Global Entry for Belgians could come by end of 2026",
+   "event": "real-e84"
+  },
+  {
+   "title": "Where to celebrate Halloween 2026 in Europe: Spooky cities, haunted hotels and scary events",
+   "event": "real-e85"
+  },
+  {
+   "title": "Azerbaijan Tourism Board CEO: Baku-Brussels flights on the horizon for 2027",
+   "event": "real-e86"
+  },
+  {
+   "title": "From food-led escapes to trip of a lifetime hotels: How luxury travel has evolved and ‘doesn’t look one way’",
+   "event": "real-e87"
+  },
+  {
+   "title": "These are the best-value winter sun destinations to head to in 2026",
+   "event": "real-e88"
+  },
+  {
+   "title": "Which European passports are the strongest for visa-free travel?",
+   "event": "real-e89"
+  },
+  {
+   "title": "Aman set to open first hotel in the Maldives complete with an entire island dedicated to wellness",
+   "event": "real-e90"
+  },
+  {
+   "title": "Simpler itineraries, longer stays: How travellers embrace doing less while on holiday",
+   "event": "real-e91"
+  },
+  {
+   "title": "Euronews Travel & Tourism Summit 2026: Five of the key takeaways",
+   "event": "real-e84"
+  },
+  {
+   "title": "Explained: How the EU’s new cabin baggage rules will work – and when they start",
+   "event": "real-e92"
+  },
+  {
+   "title": "These 10 airlines have the best in-flight wifi – and only one is European",
+   "event": "real-e93"
+  },
+  {
+   "title": "Emirates launches Helsinki flights as airline reaches 93% of pre-disruption capacity",
+   "event": "real-e94"
+  },
+  {
+   "title": "Alaska Airlines Cancels 7 Nonstop Routes From San Francisco: See Which Flights Now - Simple Flying",
+   "event": "real-e95"
+  },
+  {
+   "title": "SOUTHWEST AIRLINES LAUNCHES FIRST-OF-ITS-KIND U.S. AIRLINE PLUGIN IN CHATGPT - PR Newswire",
+   "event": "real-e96"
+  },
+  {
+   "title": "Passengers face travel nightmare as United Airlines cancels flight after brutal 12-hour delay - New York Post",
+   "event": "real-e97"
+  },
+  {
+   "title": "Adani Airport Launches Swirl Transit Hotel at Navi Mumbai International Airport - ET HospitalityWorld",
+   "event": "real-e98"
+  },
+  {
+   "title": "Airline cancels flight during Covid, refund ‘disputed’, passenger gets Rs 1.06 lakh relief - The Indian Express",
+   "event": "real-e99"
+  },
+  {
+   "title": "PAL cancels Oct. 8 Manila-Riyadh flights amid regional tensions, monitors airport conditions - Bilyonaryo Business",
+   "event": "real-e4"
+  },
+  {
+   "title": "Air Force has agreed to transfer land for new terminal building at Nagpur airport: Fadnavis - ET Infra",
+   "event": "real-e34"
+  },
+  {
+   "title": "Brussels Airlines Cancels 40% of Flights on Friday Due to Alyzia Strike - The Aviation Hub",
+   "event": "real-e100"
+  },
+  {
+   "title": "Inside Pittsburgh International Airport’s new terminal: One year on - Future Travel Experience",
+   "event": "real-e101"
+  },
+  {
+   "title": "American Airlines Cancels Passenger's 16 Flights And Demands More Money Over Price Error - TheTravel",
+   "event": "real-e102"
+  },
+  {
+   "title": "Senai Airport Cancels, Turns Away Flights As Haze Cuts Visibility - BusinessToday Malaysia",
+   "event": "real-e103"
+  },
+  {
+   "title": "Adani Airport Launches Swirl Transit Hotel at Navi Mumbai International Airport - Northeast Live",
+   "event": "real-e98"
+  },
+  {
+   "title": "Emirates launches Helsinki flights as airline reaches 93% of pre-disruption capacity - Yahoo News Singapore",
+   "event": "real-e94"
+  },
+  {
+   "title": "Hollywood Burbank Airport Unveils Nearly $1.3 Billion Terminal Ahead of Oct. 13 Opening Officials on Monday celebrated the completion of Hollywood Burbank Airport’s nearly $1.3 billion replacement passenger terminal, eight days before the 14-gate facility i - Facebook",
+   "event": "real-e104"
+  },
+  {
+   "title": "Brussels Airlines cancels around 40% of flights on Friday due to Alyzia disruption - Aviation24.be",
+   "event": "real-e100"
+  },
+  {
+   "title": "United Airlines Issues Travel Warning As Employee Strike Cancels Flights At Major International Hub - TheTravel",
+   "event": "real-e105"
+  },
+  {
+   "title": "Airline launches direct Abuja-Gusau flight - The Nation Newspaper",
+   "event": "real-e106"
+  },
+  {
+   "title": "Adani Airport Launches Swirl Transit Hotel At Navi Mumbai International Airport - NDTV",
+   "event": "real-e98"
+  },
+  {
+   "title": "ACI EUROPE launches Sustainability Strategy for Airports 2.0 - Airline Routes & Ground Services",
+   "event": "real-e31"
+  },
+  {
+   "title": "Saudi airline Flyadeal launches Mumbai-Riyadh flights, bets on price-sensitive flyers - CNBC TV18",
+   "event": "real-e107"
+  },
+  {
+   "title": "Adani Airport Launches Swirl Transit Hotel at Navi Mumbai International Airport - Adani",
+   "event": "real-e98"
+  },
+  {
+   "title": "Flydubai Cancels Dubai Flights to Damascus, Erbil and Abha - Rus Tourism News",
+   "event": "real-e108"
+  },
+  {
+   "title": "WestJet Cancels All Flights To 13 International Destinations: See Full List Now - Simple Flying",
+   "event": "real-e109"
+  },
+  {
+   "title": "Another new route for the summer 2027 flight schedule: Jet2.com connects Pula and Edinburgh - Routesonline",
+   "event": "real-e110"
+  },
+  {
+   "title": "Porter Airlines launches five new Canadian routes from London airport - London Free Press",
+   "event": "real-e111"
+  },
+  {
+   "title": "Burbank Airport new terminal — $1.3B Replacement Opens - The Korea Daily",
+   "event": "real-e104"
+  },
+  {
+   "title": "Carnival Adventure to Make U.S. Debut in 2028",
+   "event": "real-e112"
+  },
+  {
+   "title": "Carnival Spirit Delays Return to Seattle After Undergoing Repairs",
+   "event": "real-e113"
+  },
+  {
+   "title": "New Cruise Terminal Construction Progressing in Setúbal",
+   "event": "real-e114"
+  },
+  {
+   "title": "Disney Believe to Sail from Port Everglades",
+   "event": "real-e115"
+  },
+  {
+   "title": "P&O Details Arcadia’s Farewell 2029 Season Ahead of Holland America Move",
+   "event": "real-e116"
+  },
+  {
+   "title": "Chilean Port to Welcome First Cruise Ship in November",
+   "event": "real-e117"
+  },
+  {
+   "title": "Galveston Wharves Board Votes to Continue Fifth Cruise Terminal Talks",
+   "event": "real-e118"
+  },
+  {
+   "title": "Chile",
+   "description": "Information on heavy rain and severe mudslides in eastern Santiago (Warnings and insurance page).",
+   "event": "syn-chile-mudslides"
+  },
+  {
+   "title": "Chile",
+   "description": "Updated warnings: heavy rain and severe mudslides in eastern Santiago, travellers should follow local advice.",
+   "event": "syn-chile-mudslides"
+  },
+  {
+   "title": "Chile",
+   "description": "New entry requirements for visitors arriving by land from Peru and Bolivia.",
+   "event": "syn-chile-entry"
+  },
+  {
+   "title": "Mexico",
+   "description": "Information about tropical storm Simon approaching the Pacific coast.",
+   "event": "syn-mexico-storm"
+  },
+  {
+   "title": "Lufthansa pilots to strike on Friday, hundreds of flights cancelled",
+   "event": "syn-lh-strike"
+  },
+  {
+   "title": "Lufthansa pilots strike Friday: what passengers need to know",
+   "event": "syn-lh-strike"
+  },
+  {
+   "title": "Lufthansa adds new Frankfurt to Tokyo route next summer",
+   "event": "syn-lh-route"
+  },
+  {
+   "title": "Paris Louvre closes for the day as staff strike",
+   "event": "syn-louvre"
+  },
+  {
+   "title": "Paris metro strike disrupts commuters and tourists",
+   "event": "syn-metro"
+  },
+  {
+   "title": "Japan updates tourist entry rules",
+   "event": "syn-japan-rules"
+  },
+  {
+   "title": "Japan changes rules for tourists",
+   "event": "syn-japan-rules"
+  },
+  {
+   "title": "Vietnam updates tourist entry rules",
+   "event": "syn-vietnam-rules"
+  },
+  {
+   "title": "Flyadeal resumes Jeddah flights after airport attack",
+   "event": "syn-flyadeal-resume"
+  },
+  {
+   "title": "Flyadeal suspends Jeddah flights after airport attack",
+   "event": "syn-flyadeal-suspend"
+  }
+ ]
+}

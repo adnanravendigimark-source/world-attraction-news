@@ -4,7 +4,7 @@ import { dbErrorMessage, sql } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { listStories } from "@/lib/news/stories";
-import { mergeDuplicateClusters, resetClustering, runClustering } from "@/lib/news/cluster";
+import { mergeDuplicateClusters, mergeStories, moveItem, resetClustering, runClustering } from "@/lib/news/cluster";
 import { runTrendScoring } from "@/lib/news/trend";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,8 @@ export async function GET(req: Request) {
   }
 }
 
-// Body: { action: "cluster" | "rebuild" } or { action: "status", id, status }
+// Body: { action: "cluster" | "rebuild" | "score" }, { action: "status", id, status },
+// { action: "merge", targetId, ids } or { action: "move", itemId, targetId | null }
 export async function POST(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
@@ -49,6 +50,30 @@ export async function POST(req: Request) {
       }
       await sql`UPDATE story_clusters SET status = ${body.status} WHERE id = ${String(body.id)}`;
       return NextResponse.json({ ok: true });
+    }
+    // Editor merge: { action: "merge", targetId, ids: [...] }
+    if (body.action === "merge") {
+      if (!body.targetId || !Array.isArray(body.ids)) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+      try {
+        const r = await mergeStories(String(body.targetId), body.ids.map(String));
+        await runTrendScoring();
+        await logActivity(session, "news_stories_merged", { type: "news_cluster", id: String(body.targetId), label: `${r.merged} merged` });
+        return NextResponse.json({ ok: true, ...r });
+      } catch (e: any) {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
+    }
+    // Editor split/move: { action: "move", itemId, targetId | null }
+    if (body.action === "move") {
+      if (!body.itemId) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+      try {
+        const r = await moveItem(String(body.itemId), body.targetId ? String(body.targetId) : null);
+        await runTrendScoring();
+        await logActivity(session, body.targetId ? "news_item_moved" : "news_item_split", { type: "news_cluster", id: r.clusterId, label: String(body.itemId) });
+        return NextResponse.json({ ok: true, ...r });
+      } catch (e: any) {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
     }
     if (body.action === "score") {
       const r = await runTrendScoring();

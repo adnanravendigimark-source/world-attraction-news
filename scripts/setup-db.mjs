@@ -1378,6 +1378,9 @@ async function createNewsTables() {
   await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS resolved_url TEXT`;
   // A story merged into another one (same event found twice) points at it.
   await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS merged_into UUID REFERENCES story_clusters(id) ON DELETE SET NULL`;
+  // Phase 5 — stories an editor split apart are never merged back
+  // automatically; each lists the others it must stay apart from.
+  await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS kept_apart UUID[] NOT NULL DEFAULT '{}'`;
   // Where a news cover image came from and under what terms it may be used.
   // source_type: licensed | own | permission | ai | unverified
   await sql`

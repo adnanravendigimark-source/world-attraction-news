@@ -11,25 +11,22 @@ const FIXTURES: Record<string, string> = {
   "https://travel.state.gov/_res/rss/TAsTWs.xml": "state-dept",
   "https://www.gov.uk/foreign-travel-advice.atom": "fcdo",
   "https://wwwnc.cdc.gov/travel/rss/notices.xml": "cdc",
-  "https://home-affairs.ec.europa.eu/node/2/rss_en": "ec-home-affairs",
   "https://news.delta.com/rss.xml": "delta",
   "https://united.mediaroom.com/news-releases?pagetemplate=rss": "united",
   "https://news.alaskaair.com/feed/": "alaska",
-  "https://news.klm.com/feed/": "klm",
-  "https://news.schiphol.com/feed/": "schiphol",
   "https://www.daa.ie/feed/": "daa",
   "https://media.amtrak.com/feed/": "amtrak",
+  "https://news.flyfrontier.com/feed/": "frontier",
   "https://stories.hilton.com/feed": "hilton",
   "https://www.carnivalcorp.com/rss": "carnival",
   "https://disneyparksblog.com/feed/": "disney-parks",
   "https://blog.universalorlando.com/feed/": "universal-orlando",
-  "https://www.ustravel.org/rss.xml": "ustravel",
 };
 const fixture = (name: string) => readFileSync(path.join(__dirname, "fixtures/official", `${name}.xml`), "utf8");
 
 describe("official source list", () => {
-  it("has 15-30 official feeds, all inactive for review", () => {
-    expect(OFFICIAL_NEWS_SOURCES.length).toBeGreaterThanOrEqual(15);
+  it("has 12-30 official feeds, all inactive for review", () => {
+    expect(OFFICIAL_NEWS_SOURCES.length).toBeGreaterThanOrEqual(12);
     expect(OFFICIAL_NEWS_SOURCES.length).toBeLessThanOrEqual(30);
     for (const s of OFFICIAL_NEWS_SOURCES) {
       expect(s.isOfficial).toBe(true);

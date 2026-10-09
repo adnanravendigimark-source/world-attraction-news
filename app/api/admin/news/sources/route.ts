@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     // { testFeed: url } fetches and parses a feed without storing anything.
     if (typeof body?.testFeed === "string") {
       try {
-        return NextResponse.json({ ok: true, preview: await previewFeed(body.testFeed, String(body.category || "")) });
+        return NextResponse.json({ ok: true, preview: await previewFeed(body.testFeed, String(body.category || ""), !!body.isOfficial) });
       } catch (err: any) {
         const msg = err?.name === "AbortError" ? "Timed out after 15s." : String(err?.message || err);
         return NextResponse.json({ error: msg.slice(0, 300) }, { status: 422 });

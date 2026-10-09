@@ -91,7 +91,7 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
     setPreview(null);
     setPreviewError("");
     try {
-      const data = await call("/api/admin/news/sources", "POST", { testFeed: form.rssUrl, category: form.category });
+      const data = await call("/api/admin/news/sources", "POST", { testFeed: form.rssUrl, category: form.category, isOfficial: !!form.isOfficial });
       setPreview(data.preview);
     } catch (e: any) {
       setPreviewError(e.message);

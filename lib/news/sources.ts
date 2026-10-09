@@ -235,7 +235,10 @@ export const DEFAULT_NEWS_SOURCES: NewsSourceSeed[] = [
 ];
 
 // Official sources: the body the news is about speaking for itself. Every
-// feed was fetched and parsed when this list was written (October 2026).
+// feed was fetched and parsed when this list was written (October 2026), and
+// reviewed by hand: English, news rather than site pages, updated recently.
+// (KLM and Schiphol publish their feeds in Dutch only; the EU Home Affairs
+// feed is mostly migration policy.)
 // They are added inactive so an editor can check each one before the
 // collector starts reading it. Their stories are often corporate (results,
 // staff profiles), so the travel filter still decides what reaches Stories.
@@ -243,19 +246,16 @@ export const OFFICIAL_NEWS_SOURCES: NewsSourceSeed[] = [
   { name: "US State Department: travel advisories", type: "rss", url: "https://travel.state.gov", rssUrl: "https://travel.state.gov/_res/rss/TAsTWs.xml", apiProvider: "", query: "", category: "Travel Rules", country: "United States", isActive: false, reliabilityScore: 95, fetchIntervalMinutes: 60, isOfficial: true, priority: 5 },
   { name: "UK FCDO: foreign travel advice", type: "rss", url: "https://www.gov.uk/foreign-travel-advice", rssUrl: "https://www.gov.uk/foreign-travel-advice.atom", apiProvider: "", query: "", category: "Travel Rules", country: "United Kingdom", isActive: false, reliabilityScore: 95, fetchIntervalMinutes: 60, isOfficial: true, priority: 5 },
   { name: "CDC: travel health notices", type: "rss", url: "https://wwwnc.cdc.gov/travel", rssUrl: "https://wwwnc.cdc.gov/travel/rss/notices.xml", apiProvider: "", query: "", category: "Travel Rules", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 180, isOfficial: true, priority: 4 },
-  { name: "European Commission: migration and home affairs", type: "rss", url: "https://home-affairs.ec.europa.eu", rssUrl: "https://home-affairs.ec.europa.eu/node/2/rss_en", apiProvider: "", query: "", category: "Travel Rules", country: "European Union", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 180, isOfficial: true, priority: 4 },
   { name: "Delta Air Lines newsroom", type: "rss", url: "https://www.delta.com", rssUrl: "https://news.delta.com/rss.xml", apiProvider: "", query: "", category: "Aviation", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 60, isOfficial: true, priority: 4 },
   { name: "United Airlines newsroom", type: "rss", url: "https://www.united.com", rssUrl: "https://united.mediaroom.com/news-releases?pagetemplate=rss", apiProvider: "", query: "", category: "Aviation", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 60, isOfficial: true, priority: 4 },
   { name: "Alaska Airlines newsroom", type: "rss", url: "https://www.alaskaair.com", rssUrl: "https://news.alaskaair.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 60, isOfficial: true, priority: 4 },
-  { name: "KLM newsroom", type: "rss", url: "https://www.klm.com", rssUrl: "https://news.klm.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "Netherlands", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 60, isOfficial: true, priority: 4 },
-  { name: "Amsterdam Schiphol Airport news", type: "rss", url: "https://www.schiphol.nl", rssUrl: "https://news.schiphol.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "Netherlands", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 120, isOfficial: true, priority: 4 },
   { name: "daa (Dublin and Cork airports)", type: "rss", url: "https://www.daa.ie", rssUrl: "https://www.daa.ie/feed/", apiProvider: "", query: "", category: "Aviation", country: "Ireland", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 180, isOfficial: true, priority: 3 },
+  { name: "Frontier Airlines newsroom", type: "rss", url: "https://www.flyfrontier.com", rssUrl: "https://news.flyfrontier.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "United States", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 120, isOfficial: true, priority: 3 },
   { name: "Amtrak media", type: "rss", url: "https://www.amtrak.com", rssUrl: "https://media.amtrak.com/feed/", apiProvider: "", query: "", category: "Travel Industry", country: "United States", isActive: false, reliabilityScore: 90, fetchIntervalMinutes: 120, isOfficial: true, priority: 3 },
   { name: "Hilton stories", type: "rss", url: "https://www.hilton.com", rssUrl: "https://stories.hilton.com/feed", apiProvider: "", query: "", category: "Hotels", country: "", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 180, isOfficial: true, priority: 3 },
   { name: "Carnival Corporation news", type: "rss", url: "https://www.carnivalcorp.com", rssUrl: "https://www.carnivalcorp.com/rss", apiProvider: "", query: "", category: "Cruises", country: "", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 180, isOfficial: true, priority: 3 },
   { name: "Disney Parks Blog", type: "rss", url: "https://disneyparks.disney.go.com", rssUrl: "https://disneyparksblog.com/feed/", apiProvider: "", query: "", category: "Attractions", country: "", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 120, isOfficial: true, priority: 3 },
   { name: "Universal Orlando blog", type: "rss", url: "https://www.universalorlando.com", rssUrl: "https://blog.universalorlando.com/feed/", apiProvider: "", query: "", category: "Attractions", country: "United States", isActive: false, reliabilityScore: 85, fetchIntervalMinutes: 180, isOfficial: true, priority: 3 },
-  { name: "U.S. Travel Association", type: "rss", url: "https://www.ustravel.org", rssUrl: "https://www.ustravel.org/rss.xml", apiProvider: "", query: "", category: "Travel Industry", country: "United States", isActive: false, reliabilityScore: 80, fetchIntervalMinutes: 360, isOfficial: true, priority: 2 },
 ];
 
 export async function getNewsSources(): Promise<NewsSource[]> {
