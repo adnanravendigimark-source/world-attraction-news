@@ -147,6 +147,16 @@ export function unsupportedNames(articleHtml: string, factsText: string): string
   return [...bad];
 }
 
+// Promotional wording a news story shouldn't carry.
+const PROMOTIONAL =
+  /\b(unique opportunity|once[- ]in[- ]a[- ]lifetime|unforgettable|breathtaking|stunning|must[- ]see|world[- ]class|iconic|amazing|incredible|perfect (?:time|way|place|opportunity)|ideal (?:time|way|place|opportunity)|bucket[- ]list|hidden gem|paradise|don'?t miss|relaxation)\b/gi;
+
+export function promotionalWording(articleHtml: string, factsText = ""): string[] {
+  const hay = factsText.toLowerCase();
+  const hits = plain(articleHtml).match(PROMOTIONAL) || [];
+  return [...new Set(hits.map((h) => h.toLowerCase()))].filter((h) => !hay.includes(h));
+}
+
 export function ruleIssues(html: string, facts: string): FactIssue[] {
   const issues: FactIssue[] = unsupportedNumbers(html, facts).map((n) => ({
     text: n,
@@ -156,6 +166,9 @@ export function ruleIssues(html: string, facts: string): FactIssue[] {
   }));
   for (const s of speculativeWording(html, facts)) {
     issues.push({ text: s, problem: "Speculative or causal wording that the facts don't state. Check it is supported.", severity: "low", origin: "rule" });
+  }
+  for (const s of promotionalWording(html, facts)) {
+    issues.push({ text: s, problem: "Promotional wording. News copy should describe, not sell.", severity: "low", origin: "rule" });
   }
   for (const w of unsupportedNames(html, facts)) {
     issues.push({ text: w, problem: "This name isn't in the researched facts. Check it is correct and supported.", severity: "low", origin: "rule" });

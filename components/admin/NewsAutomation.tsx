@@ -10,6 +10,7 @@ interface Config {
   maxAgeHours: number;
   draft: boolean;
   image: boolean;
+  minQuality: number;
 }
 interface Job {
   id: number;
@@ -113,6 +114,9 @@ export default function NewsAutomation({ canEdit }: { canEdit: boolean }) {
           </label>
           <label className="flex items-center gap-2 text-sm text-ink-700">Max age (hours)
             <input type="number" min={6} max={168} className={field} value={config.maxAgeHours} disabled={!canEdit} onChange={(e) => set({ maxAgeHours: Number(e.target.value) })} />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink-700" title="A news article can only be published once its quality score reaches this number (0 turns the requirement off).">Min quality to publish
+            <input type="number" min={0} max={100} className={field} value={config.minQuality} disabled={!canEdit} onChange={(e) => set({ minQuality: Number(e.target.value) })} />
           </label>
           <label className="flex items-center gap-2 text-sm text-ink-700">
             <input type="checkbox" checked={config.draft} disabled={!canEdit} onChange={(e) => set({ draft: e.target.checked })} /> Create draft

@@ -21,6 +21,7 @@ export interface AutomationConfig {
   maxAgeHours: number; // ignore stories not seen within this window
   draft: boolean; // create a draft after research
   image: boolean; // generate an AI cover after the draft
+  minQuality: number; // quality score an article needs before it can be published
 }
 
 export const DEFAULT_AUTOMATION: AutomationConfig = {
@@ -30,6 +31,7 @@ export const DEFAULT_AUTOMATION: AutomationConfig = {
   maxAgeHours: 48,
   draft: true,
   image: true,
+  minQuality: 75,
 };
 
 export interface NewsJob {
@@ -65,6 +67,7 @@ export async function saveAutomation(patch: Partial<AutomationConfig>): Promise<
     maxAgeHours: clampInt(patch.maxAgeHours, 6, 168, cur.maxAgeHours),
     draft: typeof patch.draft === "boolean" ? patch.draft : cur.draft,
     image: typeof patch.image === "boolean" ? patch.image : cur.image,
+    minQuality: clampInt(patch.minQuality, 0, 100, cur.minQuality),
   };
   await sql`
     INSERT INTO news_settings (key, value, updated_at) VALUES ('automation', ${JSON.stringify(next)}::jsonb, now())

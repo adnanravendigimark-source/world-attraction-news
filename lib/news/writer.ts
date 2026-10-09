@@ -14,11 +14,12 @@ export { factCheckArticle, checkAndRevise, getFactCheck, overrideFactCheck, type
 
 // Bump when WRITER_PROMPT changes, so every article records which version of
 // the instructions wrote it (stored with the article; see saveGeneration).
-export const WRITER_PROMPT_VERSION = "news-writer-v3-2026-10-09";
+export const WRITER_PROMPT_VERSION = "news-writer-v4-2026-10-09";
 
 // Length the house style aims for, and the limits the code enforces.
 export const TARGET_WORDS = { min: 200, max: 300 };
 const HARD_MIN = 150; // fewer than this: the facts are too thin to publish
+export const MIN_FACTS = 3; // fewer researched facts than this: don't try to write
 const SOFT_MAX = 360; // more than this: one "tighten" pass
 
 export type LengthStatus = "too_short" | "ok" | "too_long";
@@ -42,7 +43,7 @@ HOW THE STORY READS
 - Then follow the inverted pyramid: the next most important detail first, background and smaller details later. Each paragraph is 1 to 3 sentences and moves the story forward. Connect paragraphs with natural transitions.
 - Include one paragraph, usually near the end, that tells travelers what this means for them in practice, built only from the facts: who is affected, from when, and what to check (bookings, tickets, entry rules, flights, opening times). Write it as ordinary news prose with no label. Hedge anything that comes from the "Traveler impact" line ("travelers booked on these flights may want to check…"). If the facts give nothing practical, leave this paragraph out and end on the latest detail or what happens next.
 - Length: ${TARGET_WORDS.min} to ${TARGET_WORDS.max} words. Concise and useful; never pad, never repeat a fact, never add a moral or a generic summary.
-- Vary the lede and the order of paragraphs from story to story so articles do not read alike. Plain, neutral, confident news voice; no hype, no clickbait, no marketing language, no emojis.
+- Vary the lede and the order of paragraphs from story to story so articles do not read alike. Plain, neutral, confident news voice; no hype, no clickbait, no emojis, and no marketing language (never "unique opportunity", "unforgettable", "stunning", "perfect for", "must-see", "a chance to relax"). Describe what happens; do not sell it.
 - Do not turn facts into a bullet list. Use a <ul> only for a true schedule (for example a list of new routes with start dates).
 
 ACCURACY RULES (strict)
@@ -96,6 +97,15 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
   if (["published", "scheduled"].includes(a.status)) throw new Error("Unpublish the article before rewriting it.");
   const research = await getLatestResearch(String(a.news_cluster_id));
   if (!research || research.status !== "done" || !research.facts) throw new Error("Run research for this story first.");
+  // Too little to write a story from: stop before paying for a model call.
+  const factCount = research.facts.important_facts.length + research.facts.confirmed_numbers.length;
+  if (factCount < MIN_FACTS) {
+    const readable = research.sources.filter((s) => s.usedText).length;
+    throw new Error(
+      `Research found only ${factCount} fact(s) (${readable} of ${research.sources.length} source(s) could be read in full), not enough for a ${TARGET_WORDS.min}-${TARGET_WORDS.max} word story. ` +
+        "Add a readable source (the original publisher, not a Google News link) and run research again."
+    );
+  }
 
   const cats = (await sql`SELECT id, name FROM categories ORDER BY sort_order, name`.catch(() => [])) as any[];
   const catBlock = `\n\nAVAILABLE CATEGORIES: ${cats.map((c) => c.name).join(", ") || "(none)"}`;

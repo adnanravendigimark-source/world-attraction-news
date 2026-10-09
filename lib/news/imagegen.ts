@@ -112,6 +112,12 @@ export async function generateCoverImage(articleId: string, extra = ""): Promise
 
 // Finds real, free-to-use photos for an article: one cover (AI fallback only
 // if none is found) plus up to two inline photos placed between paragraphs.
+// Inline photos per story length: none under 350 words (a 200-300 word news
+// story reads as one piece), one up to 600, two beyond.
+export function inlinePhotoLimit(words: number): number {
+  return words < 350 ? 0 : words < 600 ? 1 : 2;
+}
+
 export async function ensureImages(
   articleId: string,
   opts: { allowAi?: boolean } = {}
@@ -125,9 +131,12 @@ export async function ensureImages(
   if (queries.length === 0) queries = [title];
   else queries = [...queries, title];
 
+  // A cover always; photos inside the text only when the story is long
+  // enough that they don't break it up (see inlinePhotoLimit).
+  const inlineLimit = inlinePhotoLimit(computeContentStats(stripOurFigures(String(a.content_html || ""))).wordCount);
   const used = new Set<string>();
   const photos: FoundPhoto[] = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 1 + inlineLimit; i++) {
     const p = await findPhoto(queries.slice(i), used).catch(() => null);
     if (!p) break;
     used.add(p.imageUrl);
@@ -157,7 +166,7 @@ export async function ensureImages(
       sourceUrl: first.photo.pageUrl,
     });
     cover = "licensed";
-    inlinePhotos = stored.slice(1);
+    inlinePhotos = stored.slice(1, 1 + inlineLimit);
   } else if (allowAi && !hasCover) {
     try {
       await generateCoverImage(articleId);

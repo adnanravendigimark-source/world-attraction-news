@@ -9,7 +9,10 @@ import type { ArticleRevision } from "@/lib/revisions";
 import { articlePath } from "@/lib/destinations";
 import TiptapArticleEditor from "@/components/dashboard/TiptapArticleEditor";
 import NewsImagePanel from "@/components/admin/NewsImagePanel";
-import NewsWriterPanel from "@/components/admin/NewsWriterPanel";import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
+import NewsWriterPanel from "@/components/admin/NewsWriterPanel";
+import NewsReadyBar from "@/components/admin/NewsReadyBar";
+import NewsSourcesPanel from "@/components/admin/NewsSourcesPanel";
+import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
@@ -494,6 +497,8 @@ export default function ArticleReviewPanel({
       </div>
 
       {/* Main 2-Column Split */}
+      {article.type === "news" && <NewsReadyBar articleId={article.id} refreshKey={article.updatedAt} />}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ================= LEFT MAIN CANVAS (lg:col-span-8) ================= */}
         <div className="lg:col-span-8 space-y-6">
@@ -608,6 +613,7 @@ export default function ArticleReviewPanel({
             </div>
 
             {article.type === "news" && <NewsWriterPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
+            {article.type === "news" && <NewsSourcesPanel articleId={article.id} />}
 
             {/* Featured Image */}
             <div className="space-y-2">

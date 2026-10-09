@@ -24,7 +24,9 @@ export default async function AdminArticleDetailPage({ params }: { params: { id:
   // reviews, and it's deliberately excluded from the /admin/articles list
   // above. Guard the direct-URL path too, so there's no way to land on an
   // admin review screen for an article that was never submitted.
-  if (!article || article.status === "draft") notFound();
+  // News drafts are the exception: the news pipeline creates them for the
+  // admin desk itself (older ones were saved with status 'draft').
+  if (!article || (article.status === "draft" && article.type !== "news")) notFound();
 
   const [cities, categories, revisions] = await Promise.all([
     getCities(),

@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // writeArticle talks to the database and OpenAI; both are replaced here.
 const calls: { kind?: string; system: string; user: string }[] = [];
+let factCount = 3;
+const factsList = () =>
+  Array.from({ length: factCount }, (_, i) => ({ claim: `Fact number ${i + 1} about the route.`, sources: [1], confidence: "single_source" }));
 let replies: any[] = [];
 const updates: string[] = [];
 
@@ -24,7 +27,7 @@ vi.mock("@/lib/db", () => ({
             who_is_affected: "Passengers flying to Japan",
             what_changed: "A new daily flight",
             traveler_impact: "Travelers may want to compare fares.",
-            important_facts: [{ claim: "The flight runs daily.", sources: [1], confidence: "single_source" }],
+            important_facts: factsList(),
             confirmed_numbers: [],
             uncertain_claims: [],
             conflicts: [],
@@ -56,6 +59,7 @@ const para = (n: number) => `<p>${Array.from({ length: n }, (_, i) => `word${i}`
 const article = (body: string) => ({ title: "Lufthansa adds Frankfurt-Tokyo route", excerpt: "x", body_html: body, tags: ["airlines"], category: "Aviation" });
 
 beforeEach(() => {
+  factCount = 3;
   calls.length = 0;
   updates.length = 0;
   replies = [];
@@ -99,6 +103,12 @@ describe("writeArticle", () => {
   it("refuses a story that is too thin", async () => {
     replies = [article(para(100))];
     await expect(writeArticle("a1")).rejects.toThrow(/too short \(100 words; the minimum is 150\)/);
+  });
+
+  it("does not call the model when research found too few facts", async () => {
+    factCount = 1;
+    await expect(writeArticle("a1")).rejects.toThrow(/Research found only 1 fact/);
+    expect(calls).toHaveLength(0);
   });
 
   it("tightens a long story once", async () => {

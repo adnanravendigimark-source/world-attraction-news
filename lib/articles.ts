@@ -961,7 +961,10 @@ export async function updateArticleReview(
 
 // Quality gate for news: returns the reasons an article must not go live yet.
 // Guides are not gated.
-export async function newsPublishProblems(id: string): Promise<string[]> {
+export async function newsPublishProblems(
+  id: string,
+  opts: { quality?: { score: number; overlap: { phrase: string; source: string }[] } } = {}
+): Promise<string[]> {
   const rows = await sql`SELECT type, title, excerpt, content_html, word_count, news_cluster_id FROM articles WHERE id = ${id} LIMIT 1`;
   const a = rows[0];
   if (!a || a.type !== "news") return [];
@@ -994,6 +997,21 @@ export async function newsPublishProblems(id: string): Promise<string[]> {
   if (!img[0]?.image) problems.push("Add a cover image.");
   else if (!img[0].source_type || img[0].source_type === "unverified") problems.push("Record the cover image's rights (source type, credit, license).");
   else if (img[0].source_type !== "ai" && !String(img[0].credit || "").trim()) problems.push("Add an image credit.");
+
+  // Quality: no passage copied word for word from a source, and the score
+  // reaches the minimum set on Admin -> Trending News -> Automation.
+  // (Imported here, not at the top: lib/news modules import this file.)
+  try {
+    const [{ computeQuality }, { loadAutomation }] = await Promise.all([import("./news/quality"), import("./news/jobs")]);
+    const q = opts.quality ?? (await computeQuality(id));
+    if (q.overlap.length) {
+      problems.push(`Rewrite the passage copied from ${q.overlap[0].source}: "${q.overlap[0].phrase.slice(0, 90)}…"`);
+    }
+    const min = (await loadAutomation()).minQuality;
+    if (min > 0 && q.score < min) problems.push(`The quality score is ${q.score}; it needs at least ${min}. See the quality checks for what is missing.`);
+  } catch {
+    /* quality could not be computed (tables not migrated): don't block on it */
+  }
   return problems;
 }
 

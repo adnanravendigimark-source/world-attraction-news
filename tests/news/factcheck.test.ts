@@ -119,3 +119,13 @@ describe("AI client", () => {
     expect(fake).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("promotional wording", () => {
+  it("hints at selling language the facts don't use", async () => {
+    const { promotionalWording, ruleIssues: rules, verdictFor: verdict } = await import("@/lib/news/factcheck");
+    const html = "<p>Travelers may want to check their bookings for the overland program, which offers a unique opportunity for cultural exploration and relaxation.</p>";
+    expect(promotionalWording(html)).toEqual(["unique opportunity", "relaxation"]);
+    const issues = rules(html, "FACTS\nF1 An overland program in Egypt was added.");
+    expect(verdict(issues)).toBe("needs_review");
+  });
+});
