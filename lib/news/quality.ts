@@ -48,10 +48,18 @@ export async function computeQuality(articleId: string): Promise<QualityReport> 
   else if (fc) fcNote = `${high} issue(s) to fix`;
   add("facts", "Facts supported by research", 20, fcScore, fcNote);
 
-  // Article
+  // Article: house length is 200-300 words (150-360 tolerated).
   const words = Number(a.word_count || 0);
   const todo = /TODO/.test(String(a.content_html || ""));
-  add("article", "Article generated", 10, todo ? 0 : words >= 150 ? 1 : words >= 100 ? 0.5 : 0, todo ? "Still contains TODO placeholders" : `${words} words`);
+  const headings = /<h[1-6][\s>]/i.test(String(a.content_html || ""));
+  const inRange = words >= 180 && words <= 360;
+  add(
+    "article",
+    "Article generated",
+    10,
+    todo ? 0 : inRange && !headings ? 1 : words >= 150 ? 0.5 : 0,
+    todo ? "Still contains TODO placeholders" : headings ? `${words} words; remove the headings (news stories carry none)` : inRange ? `${words} words` : `${words} words (aim for 200-300)`
+  );
 
   // SEO completeness
   const extra = await getExtra(articleId);

@@ -1,10 +1,7 @@
 // Create a news draft (articles.type = 'news') from a story cluster.
 //
-// No AI is involved here. The draft is a scaffold in the house structure
-// (What happened / What travelers need to know / Why it matters / What this
-// means for travelers). If research exists, its extracted facts pre-fill the
-// sections as notes for the editor; otherwise each section holds a clear
-// "TODO" marker. It always lands as a DRAFT in the normal review workflow —
+// No AI is involved here. The draft holds the researched facts as editor
+// notes (no headings: news stories carry none) plus a "TODO" marker. It always lands as a DRAFT in the normal review workflow —
 // nothing here can publish.
 import { sql } from "../db";
 import { createNewsDraft, getArticleById, type Article } from "../articles";
@@ -41,19 +38,18 @@ export async function createDraftFromStory(clusterId: string): Promise<{ article
     .join(" ");
   const facts = (f?.important_facts || []).filter((x) => x.confidence !== "conflicting");
 
+  // Editor notes, not a template: plain paragraphs and a fact list with TODO
+  // markers. The AI writer replaces all of it; the TODO markers keep the
+  // publish gate closed if nobody does.
   const html = [
-    "<h2>What happened</h2>",
-    happened ? `<p>${esc(happened)}</p>` : todo("Summarise the event in 2–3 sentences, in your own words."),
+    happened ? `<p>${esc(happened)}</p>` : todo("Write the lede: who did what, where and when, in your own words."),
     detail ? `<p>${esc(detail)}</p>` : "",
-    "<h2>What travelers need to know</h2>",
-    facts.length
-      ? `<ul>${facts.map((x) => `<li>${esc(x.claim)}</li>`).join("")}</ul>`
-      : todo("List the key facts travelers need (dates, numbers, rules)."),
-    "<h2>Why it matters</h2>",
-    todo("Explain the significance for people planning trips."),
-    "<h2>What this means for travelers</h2>",
+    facts.length ? `<ul>${facts.map((x) => `<li>${esc(x.claim)}</li>`).join("")}</ul>` : "",
     known(f?.who_is_affected) ? `<p>${esc(f!.who_is_affected)}</p>` : "",
-    known(f?.traveler_impact) ? `<p><em>Editor note (unverified reading): ${esc(f!.traveler_impact)}</em></p>` : todo("Who is affected, when, and what should they do?"),
+    known(f?.traveler_impact)
+      ? `<p><em>Editor note (unverified reading): ${esc(f!.traveler_impact)}</em></p>`
+      : "",
+    todo("Turn these notes into a 200-300 word news story (or use Write article with AI)."),
   ]
     .filter(Boolean)
     .join("\n");

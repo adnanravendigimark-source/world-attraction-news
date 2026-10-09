@@ -277,7 +277,7 @@ export async function factCheckArticle(articleId: string): Promise<FactCheck> {
 }
 
 const REVISE_PROMPT = `You are revising a news article after a fact check. Fix ONLY the listed problems, using only the FACTS provided.
-Remove or rewrite each flagged sentence so every claim, name, place and number is stated in the facts. Remove speculation and cause or purpose statements the facts don't give. Keep the rest of the article word for word, the same structure (<h2>, <p>, <ul>, <li>, <strong>, <a>), and a plain neutral tone. Do not add new content.
+Remove or rewrite each flagged sentence so every claim, name, place and number is stated in the facts. Remove speculation and cause or purpose statements the facts don't give. Keep the rest of the article word for word, the same paragraphs (<p>, <ul>, <li>, <strong>, <a>; no headings), and a plain neutral tone. Do not add new content.
 Return JSON: {"body_html": "..."}`;
 
 // Checks, and if the check fails, makes one automatic revision of the

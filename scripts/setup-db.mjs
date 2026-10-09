@@ -1360,6 +1360,8 @@ async function createNewsTables() {
   // Indexes for the news inbox and job eligibility queries.
   await sql`CREATE INDEX IF NOT EXISTS articles_news_cluster_idx ON articles (news_cluster_id) WHERE news_cluster_id IS NOT NULL`;
   await sql`CREATE INDEX IF NOT EXISTS news_items_cluster_rel_idx ON news_items (cluster_id, relevance_score)`;
+  // Which model and writer-prompt version wrote each AI news article.
+  await sql`ALTER TABLE news_article_extra ADD COLUMN IF NOT EXISTS generation JSONB`;
   // Where a news cover image came from and under what terms it may be used.
   // source_type: licensed | own | permission | ai | unverified
   await sql`

@@ -967,7 +967,7 @@ export async function newsPublishProblems(id: string): Promise<string[]> {
   const html = String(a.content_html || "");
   if (/TODO/.test(html) || /TODO/.test(String(a.excerpt || ""))) problems.push('Remove the "TODO" placeholders from the article.');
   if (!String(a.excerpt || "").trim()) problems.push("Add a short excerpt.");
-  if (Number(a.word_count || 0) < 100) problems.push("Article is too short (aim for 180–300 words).");
+  if (Number(a.word_count || 0) < 150) problems.push("Article is too short (aim for 200–300 words).");
   const src = await sql`SELECT COUNT(*)::int AS n FROM article_sources WHERE article_id = ${id}`;
   if (Number(src[0]?.n ?? 0) < 1) problems.push("Add at least one source.");
   // Fact check: an AI-researched story needs a check of its current text.
