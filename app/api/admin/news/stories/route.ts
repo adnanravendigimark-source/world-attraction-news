@@ -4,7 +4,7 @@ import { dbErrorMessage, sql } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { listStories } from "@/lib/news/stories";
-import { resetClustering, runClustering } from "@/lib/news/cluster";
+import { mergeDuplicateClusters, resetClustering, runClustering } from "@/lib/news/cluster";
 import { runTrendScoring } from "@/lib/news/trend";
 
 export const dynamic = "force-dynamic";
@@ -55,12 +55,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, scored: r.scored });
     }
     if (body.action === "rebuild") await resetClustering();
-    const result = await runClustering();
+    const grouped = await runClustering();
+    const { merged } = await mergeDuplicateClusters();
+    const result = { ...grouped, merged };
     await runTrendScoring();
     await logActivity(session, body.action === "rebuild" ? "news_clusters_rebuilt" : "news_clustered", {
       type: "news_cluster",
       id: "run",
-      label: `${result.newClusters} new, ${result.assigned} items`,
+      label: `${result.newClusters} new, ${result.assigned} items, ${result.merged} duplicate stories merged`,
     });
     return NextResponse.json({ ok: true, result });
   } catch (err) {

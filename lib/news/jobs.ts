@@ -98,7 +98,7 @@ export async function enqueueEligible(cfg?: AutomationConfig): Promise<{ queued:
   const minRel = (await loadFilterConfig()).relevantMin;
   const rows = await sql`
     SELECT sc.id FROM story_clusters sc
-    WHERE sc.status NOT IN ('ignored')
+    WHERE sc.status NOT IN ('ignored', 'merged')
       AND sc.trend_score >= ${c.minScore}
       AND EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = sc.id AND i.relevance_score >= ${minRel})
       AND sc.last_seen_at > now() - (${c.maxAgeHours} * interval '1 hour')
@@ -119,7 +119,7 @@ export async function countEligible(cfg?: AutomationConfig): Promise<number> {
   const minRel = (await loadFilterConfig()).relevantMin;
   const r = await sql`
     SELECT COUNT(*)::int AS n FROM story_clusters sc
-    WHERE sc.status NOT IN ('ignored')
+    WHERE sc.status NOT IN ('ignored', 'merged')
       AND sc.trend_score >= ${c.minScore}
       AND EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = sc.id AND i.relevance_score >= ${minRel})
       AND sc.last_seen_at > now() - (${c.maxAgeHours} * interval '1 hour')

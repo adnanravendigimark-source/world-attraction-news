@@ -5,7 +5,7 @@ import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { checkDailyCap, getLatestResearch, runResearch } from "@/lib/news/research";
 import { createDraftFromStory } from "@/lib/news/drafts";
-import { writeArticle } from "@/lib/news/writer";
+import { MIN_FACTS, writeArticle } from "@/lib/news/writer";
 import { checkAndRevise } from "@/lib/news/factcheck";
 import { storyBusy } from "@/lib/news/jobs";
 import { enrichArticle } from "@/lib/news/seo";
@@ -32,7 +32,11 @@ export async function POST(req: Request) {
     if (step === "research") {
       if (!clusterId) return NextResponse.json({ error: "clusterId is required." }, { status: 400 });
       const existing = await getLatestResearch(clusterId);
-      if (existing?.status === "done") return NextResponse.json({ ok: true, skipped: true, facts: existing.facts?.important_facts.length ?? 0 });
+      // Reuse finished research unless it came out too thin to write from
+      // (for example a story researched before Google News links could be
+      // opened); then research it again.
+      const known = (existing?.facts?.important_facts.length ?? 0) + (existing?.facts?.confirmed_numbers.length ?? 0);
+      if (existing?.status === "done" && known >= MIN_FACTS) return NextResponse.json({ ok: true, skipped: true, facts: known });
       if (!process.env.OPENAI_API_KEY?.trim()) return NextResponse.json({ error: "OPENAI_API_KEY is not set." }, { status: 400 });
       const cap = await checkDailyCap();
       if (!cap.ok) return NextResponse.json({ error: `Daily research limit reached (${cap.used}/${cap.cap}).` }, { status: 429 });

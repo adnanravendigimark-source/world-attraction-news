@@ -71,3 +71,31 @@ describe("page extraction safety", () => {
     expect(text).not.toContain("nav");
   });
 });
+
+describe("duplicate stories", () => {
+  it("matches the two Belgrade tourist tax headlines", async () => {
+    const { sameStoryTitles: same } = await import("@/lib/news/similarity");
+    expect(
+      same(
+        "Belgrade increases visitor fee – Tourist tax set at 240 dinars per day starting October 15 - eKapija",
+        "Belgrade introduces new tourist tax: From October 15th, stays will be more expensive - Слободен печат"
+      )
+    ).toBe(true);
+  });
+
+  it("still keeps different events in the same place apart", async () => {
+    const { sameStoryTitles: same } = await import("@/lib/news/similarity");
+    expect(same("Paris opens new Louvre entrance for visitors", "Paris metro strike disrupts airport trains")).toBe(false);
+    expect(same("Lufthansa adds daily Frankfurt to Tokyo flights", "Lufthansa pilots announce strike on Friday")).toBe(false);
+  });
+
+  it("plans merges: keeps the story with an article as the target and never merges one away", async () => {
+    const { planMerges } = await import("@/lib/news/cluster");
+    const plans = planMerges([
+      { id: "a", titles: ["Belgrade increases visitor fee – Tourist tax set at 240 dinars per day starting October 15"], hasArticle: true, itemCount: 2, firstSeen: 1 },
+      { id: "b", titles: ["Belgrade introduces new tourist tax: From October 15th, stays will be more expensive"], hasArticle: false, itemCount: 1, firstSeen: 2 },
+      { id: "c", titles: ["Air Canada cancels flights to six destinations"], hasArticle: false, itemCount: 1, firstSeen: 3 },
+    ]);
+    expect(plans).toEqual([{ target: "a", merge: ["b"] }]);
+  });
+});

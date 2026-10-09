@@ -184,7 +184,7 @@ export async function runTrendScoring(): Promise<{ scored: number }> {
   const clusters = (await sql`
     SELECT id, canonical_title, category, source_count, last_seen_at, published_first_at
     FROM story_clusters
-    WHERE last_seen_at > now() - (${cfg.windowDays}::int * interval '1 day')
+    WHERE last_seen_at > now() - (${cfg.windowDays}::int * interval '1 day') AND status <> 'merged'
   `) as any[];
   if (clusters.length === 0) return { scored: 0 };
   const ids = clusters.map((c) => c.id);

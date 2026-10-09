@@ -116,6 +116,15 @@ export default function ArticleReviewPanel({
   );
 
   const [edit, setEdit] = useState<EditState>(buildEditState(article));
+  // The content as the editor serialises it on load (or as last saved).
+  // Unsaved-change detection compares against this, because the editor
+  // rewrites stored HTML (attribute order, empty paragraphs, figures) the
+  // moment it opens, which made every article look edited.
+  const [contentBaseline, setContentBaseline] = useState(article.contentHtml || "");
+  function handleEditorNormalized(html: string) {
+    setContentBaseline(html);
+    setEdit((prev) => (prev.contentHtml === (article.contentHtml || "") ? { ...prev, contentHtml: html } : prev));
+  }
   const [editorialFlags, setEditorialFlags] = useState({
     featured: article.featured || false,
     trending: article.trending || false,
@@ -338,6 +347,7 @@ export default function ArticleReviewPanel({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to update article.");
+      setContentBaseline(edit.contentHtml);
       toast.success("Article updated successfully.");
       router.refresh();
     } catch (err) {
@@ -397,7 +407,7 @@ export default function ArticleReviewPanel({
     return (
       edit.title.trim() !== (article.title || "").trim() ||
       edit.excerpt.trim() !== (article.excerpt || "").trim() ||
-      edit.contentHtml.trim() !== (article.contentHtml || "").trim() ||
+      edit.contentHtml.trim() !== contentBaseline.trim() ||
       (edit.image || "") !== (article.image || "") ||
       (edit.imageAlt || "") !== (article.imageAlt || "") ||
       edit.cityId !== article.cityId ||
@@ -408,7 +418,7 @@ export default function ArticleReviewPanel({
       (edit.canonicalUrl || "") !== (article.canonicalUrl || "") ||
       edit.tags.trim() !== (article.tags || []).join(", ").trim()
     );
-  }, [edit, article]);
+  }, [edit, article, contentBaseline]);
 
   const canReview = !["published", "scheduled", "unpublished"].includes(article.status);
   const canPublish = ["approved", "unpublished", "scheduled", "pending", "under_review", "changes_requested", "rejected", "draft"].includes(article.status);
@@ -678,6 +688,7 @@ export default function ArticleReviewPanel({
               <TiptapArticleEditor
                 value={edit.contentHtml}
                 onChange={(html) => updateEdit("contentHtml", html)}
+                onNormalized={handleEditorNormalized}
                 placeholder="Write or edit the article content here..."
                 minHeight="28rem"
                 stickyOffset="4rem"

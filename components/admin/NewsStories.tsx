@@ -130,7 +130,7 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed.");
       const r = data.result;
-      toast.success(`${r.assigned} items grouped: ${r.newClusters} new stories, ${r.joinedExisting} joined existing.`);
+      toast.success(`${r.assigned} items grouped: ${r.newClusters} new stories, ${r.joinedExisting} joined existing${r.merged ? `, ${r.merged} duplicate ${r.merged === 1 ? "story" : "stories"} merged` : ""}.`);
       await load();
     } catch (e: any) {
       toast.error(e.message);

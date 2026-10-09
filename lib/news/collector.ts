@@ -3,7 +3,7 @@ import { sql } from "../db";
 import { parseFeed, type ParsedFeedItem } from "./rss";
 import { fetchNewsApi, fetchCurrents } from "./providers";
 import { getNewsSources, rowToSource, type NewsSource } from "./sources";
-import { runClustering } from "./cluster";
+import { mergeDuplicateClusters, runClustering } from "./cluster";
 import { runTrendScoring } from "./trend";
 import { isTravelSource, loadFilterConfig, scoreRelevance } from "./filter";
 
@@ -191,6 +191,7 @@ export async function runFetch(opts: { trigger: string; force?: boolean; sourceI
   let clustered = 0;
   try {
     clustered = (await runClustering()).assigned;
+    await mergeDuplicateClusters().catch((err) => console.error("[news] merging duplicate stories failed:", err));
     await runTrendScoring();
   } catch (err) {
     console.error("[news] clustering/scoring failed:", err);

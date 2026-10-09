@@ -20,11 +20,16 @@ const SYNONYM: Record<string, string> = {
   introduces: "introduce", introduced: "introduce", adds: "introduce", added: "introduce",
   bans: "ban", banned: "ban", banning: "ban",
   flights: "flight", airlines: "airline", airports: "airport", routes: "route", hotels: "hotel", cruises: "cruise",
+  // Charges: "visitor fee" and "tourist tax" name the same thing.
+  tax: "tax", taxes: "tax", fee: "tax", fees: "tax", levy: "tax", levies: "tax", charge: "tax", charges: "tax", surcharge: "tax", surcharges: "tax",
+  increase: "increase", increases: "increase", increased: "increase", rises: "increase", rise: "increase", raised: "increase", raises: "increase", hike: "increase", hikes: "increase", hiked: "increase", higher: "increase",
   international: "international", foreign: "international", overseas: "international",
 };
 
 function stem(w: string): string {
   if (SYNONYM[w]) return SYNONYM[w];
+  const ordinal = w.match(/^(\d+)(st|nd|rd|th)$/); // "15th" -> "15"
+  if (ordinal) return ordinal[1];
   if (w.length > 5 && w.endsWith("ing")) return w.slice(0, -3);
   if (w.length > 4 && w.endsWith("ed")) return w.slice(0, -2);
   if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
@@ -104,17 +109,36 @@ export function similarity(a: Set<string>, b: Set<string>): { jaccard: number; o
 export interface PreparedTitle {
   tokens: Set<string>;
   ents: Set<string>;
+  lead: string; // the headline's first word when it is a capitalised name ("Belgrade", "Lufthansa")
+}
+
+// Headlines usually open with their subject. A capitalised first word that
+// isn't a stop word is taken as a name, which covers places and brands that
+// aren't in the GEO list.
+export function leadName(title: string): string {
+  const first = title.replace(/\s[-–—|]\s[^-–—|]{2,40}$/, "").trim().split(/\s+/)[0] || "";
+  const w = first.replace(/[’']s$/, "").replace(/[^\p{L}\p{N}]/gu, "");
+  if (w.length < 3 || !/^\p{Lu}/u.test(w)) return "";
+  const lw = w.toLowerCase();
+  return STOP.has(lw) || SYNONYM[lw] ? "" : lw;
 }
 
 export function prepareTitle(title: string): PreparedTitle {
-  return { tokens: titleTokens(title), ents: entities(title) };
+  return { tokens: titleTokens(title), ents: entities(title), lead: leadName(title) };
 }
 
 export function sameStoryPrepared(x: PreparedTitle, y: PreparedTitle): boolean {
   if (entityConflict(x.ents, y.ents)) return false;
   const { jaccard, overlap, shared } = similarity(x.tokens, y.tokens);
   const min = Math.min(x.tokens.size, y.tokens.size);
-  return jaccard >= 0.5 || (shared >= 3 && overlap >= 0.67) || (shared >= 2 && overlap >= 0.66 && min <= 4);
+  if (jaccard >= 0.5 || (shared >= 3 && overlap >= 0.67) || (shared >= 2 && overlap >= 0.66 && min <= 4)) return true;
+  // Differently worded headlines about one event: both name the same place
+  // or brand and share at least four key words (e.g. "Belgrade increases
+  // visitor fee ... October 15" / "Belgrade introduces new tourist tax: From
+  // October 15th").
+  let sharedEntity = !!x.lead && x.lead === y.lead;
+  for (const e of x.ents) if (y.ents.has(e)) sharedEntity = true;
+  return sharedEntity && shared >= 4 && overlap >= 0.5;
 }
 
 export function sameStoryTitles(titleA: string, titleB: string): boolean {

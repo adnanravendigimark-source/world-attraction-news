@@ -161,9 +161,15 @@ export default function TiptapArticleEditor({
   stickyOffset,
   uploadUrl = "/api/dashboard/upload",
   allowLinks = false,
+  onNormalized,
 }: {
   value: string;
   onChange: (html: string) => void;
+  // Called once after the editor loads, with the HTML as the editor
+  // re-serialises it. Stored HTML rarely matches that byte for byte, so a
+  // caller that tracks unsaved changes compares against this, not the raw
+  // value it passed in.
+  onNormalized?: (html: string) => void;
   placeholder?: string;
   minHeight?: string;
   allowedHeadings?: (1 | 2 | 3)[];
@@ -276,6 +282,15 @@ export default function TiptapArticleEditor({
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const onNormalizedRef = useRef(onNormalized);
+  onNormalizedRef.current = onNormalized;
+  useEffect(() => {
+    if (!editor) return;
+    // Next tick, so plugins that tidy the document on load have run.
+    const t = setTimeout(() => onNormalizedRef.current?.(editor.getHTML()), 0);
+    return () => clearTimeout(t);
+  }, [editor]);
 
   const [, forceRerender] = useState(0);
   useEffect(() => {

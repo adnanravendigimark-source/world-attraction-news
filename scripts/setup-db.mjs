@@ -1369,6 +1369,10 @@ async function createNewsTables() {
   await sql`CREATE INDEX IF NOT EXISTS news_items_cluster_rel_idx ON news_items (cluster_id, relevance_score)`;
   // Which model and writer-prompt version wrote each AI news article.
   await sql`ALTER TABLE news_article_extra ADD COLUMN IF NOT EXISTS generation JSONB`;
+  // Publisher URL behind a Google News link (lib/news/googleNews.ts), cached.
+  await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS resolved_url TEXT`;
+  // A story merged into another one (same event found twice) points at it.
+  await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS merged_into UUID REFERENCES story_clusters(id) ON DELETE SET NULL`;
   // Where a news cover image came from and under what terms it may be used.
   // source_type: licensed | own | permission | ai | unverified
   await sql`

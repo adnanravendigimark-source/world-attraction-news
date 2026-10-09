@@ -20,7 +20,7 @@ export async function getNewsOverview(): Promise<NewsOverview> {
     const cfg = await loadTrendConfig();
     const [trend, draftCount, drafts, published, stories] = await Promise.all([
       sql`SELECT COUNT(*)::int AS n FROM story_clusters
-          WHERE status <> 'ignored' AND trend_score >= ${cfg.thresholds.review} AND last_seen_at > now() - interval '24 hours'`,
+          WHERE status NOT IN ('ignored', 'merged') AND trend_score >= ${cfg.thresholds.review} AND last_seen_at > now() - interval '24 hours'`,
       sql`SELECT COUNT(*)::int AS n FROM articles WHERE type = 'news' AND status = ANY(${OPEN_STATUSES}::text[])`,
       sql`SELECT id FROM articles WHERE type = 'news' AND status = ANY(${OPEN_STATUSES}::text[]) ORDER BY updated_at DESC LIMIT 60`,
       sql`SELECT COUNT(*)::int AS n FROM articles WHERE type = 'news' AND status = 'published' AND published_at > now() - interval '24 hours'`,

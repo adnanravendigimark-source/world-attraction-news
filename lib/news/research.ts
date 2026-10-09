@@ -8,6 +8,7 @@
 import { sql } from "../db";
 import { fetchPageText, isGoogleNewsRedirect, isPublicUrl } from "./extract";
 import { chatJson } from "./aiClient";
+import { publisherUrlForItem } from "./googleNews";
 
 export interface ResearchSource {
   n: number;
@@ -146,13 +147,23 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
   };
 
   try {
+    // resolved_url caches a Google News link's publisher URL; fall back to a
+    // query without it until scripts/setup-db.mjs has added the column.
     const items = (await sql`
-      SELECT i.title, i.description, i.url, s.reliability_score,
+      SELECT i.id, i.title, i.description, i.url, i.resolved_url, s.reliability_score,
              CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN i.author ELSE s.name END AS publisher
       FROM news_items i JOIN news_sources s ON s.id = i.source_id
       WHERE i.cluster_id = ${clusterId}
       ORDER BY s.reliability_score DESC, COALESCE(i.published_at, i.created_at) ASC
-    `) as any[];
+    `.catch(
+      () => sql`
+      SELECT i.id, i.title, i.description, i.url, NULL AS resolved_url, s.reliability_score,
+             CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN i.author ELSE s.name END AS publisher
+      FROM news_items i JOIN news_sources s ON s.id = i.source_id
+      WHERE i.cluster_id = ${clusterId}
+      ORDER BY s.reliability_score DESC, COALESCE(i.published_at, i.created_at) ASC
+    `
+    )) as any[];
     if (items.length === 0) return await fail("This story has no items.");
 
     // One source per publisher, best reliability first.
@@ -166,10 +177,14 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
       if (picked.length >= MAX_SOURCES) break;
     }
 
+    // Google News links are opened through the publisher's own URL (see
+    // googleNews.ts); everything else is fetched as is.
     const pages = await Promise.all(
       picked.map(async (it) => {
-        if (!it.url || isGoogleNewsRedirect(it.url) || !isPublicUrl(it.url)) return null;
-        return fetchPageText(it.url);
+        let url = String(it.url || "");
+        if (isGoogleNewsRedirect(url)) url = await publisherUrlForItem(it).catch(() => "");
+        if (!url || !isPublicUrl(url)) return null;
+        return fetchPageText(url);
       })
     );
 

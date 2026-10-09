@@ -128,20 +128,7 @@ export async function runClustering(): Promise<ClusterRunResult> {
   // ones inside the clustering window).
   const ids = [...touched].map((g) => g.id as string);
   if (ids.length) {
-    await sql`
-      UPDATE story_clusters c SET
-        item_count = a.n, source_count = a.p, last_seen_at = a.last_at, published_first_at = a.first_at
-      FROM (
-        SELECT i.cluster_id, COUNT(*)::int AS n,
-               COUNT(DISTINCT CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN lower(i.author) ELSE lower(s.name) END)::int AS p,
-               MAX(COALESCE(i.published_at, i.created_at)) AS last_at,
-               MIN(COALESCE(i.published_at, i.created_at)) AS first_at
-        FROM news_items i JOIN news_sources s ON s.id = i.source_id
-        WHERE i.cluster_id = ANY(${ids}::uuid[])
-        GROUP BY i.cluster_id
-      ) a
-      WHERE c.id = a.cluster_id
-    `;
+    await refreshClusterStats(ids);
     for (const g of touched) {
       const rep = pickRepresentative(g.members);
       await sql`UPDATE story_clusters SET canonical_title = ${rep.title}, category = ${rep.category} WHERE id = ${g.id}`;
@@ -149,6 +136,92 @@ export async function runClustering(): Promise<ClusterRunResult> {
   }
 
   return { considered: items.length, assigned: assignments.length, newClusters, joinedExisting };
+}
+
+async function refreshClusterStats(ids: string[]): Promise<void> {
+  await sql`
+    UPDATE story_clusters c SET
+      item_count = a.n, source_count = a.p, last_seen_at = a.last_at, published_first_at = a.first_at
+    FROM (
+      SELECT i.cluster_id, COUNT(*)::int AS n,
+             COUNT(DISTINCT CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN lower(i.author) ELSE lower(s.name) END)::int AS p,
+             MAX(COALESCE(i.published_at, i.created_at)) AS last_at,
+             MIN(COALESCE(i.published_at, i.created_at)) AS first_at
+      FROM news_items i JOIN news_sources s ON s.id = i.source_id
+      WHERE i.cluster_id = ANY(${ids}::uuid[])
+      GROUP BY i.cluster_id
+    ) a
+    WHERE c.id = a.cluster_id
+  `;
+}
+
+export interface MergeCandidate {
+  id: string;
+  titles: string[];
+  hasArticle: boolean;
+  itemCount: number;
+  firstSeen: number;
+}
+
+// Groups clusters that report the same event (any headline pair matches).
+// Within a group the target is the cluster that already has an article, else
+// the one with most items, else the oldest. A cluster with its own article
+// is never merged into another (its draft would lose its story).
+export function planMerges(clusters: MergeCandidate[]): { target: string; merge: string[] }[] {
+  const parent = clusters.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const prepared = clusters.map((c) => c.titles.slice(0, 8).map(prepareTitle));
+  for (let i = 0; i < clusters.length; i++) {
+    for (let j = i + 1; j < clusters.length; j++) {
+      if (find(i) === find(j)) continue;
+      if (prepared[i].some((a) => prepared[j].some((b) => sameStoryPrepared(a, b)))) parent[find(j)] = find(i);
+    }
+  }
+  const groups = new Map<number, number[]>();
+  clusters.forEach((_, i) => groups.set(find(i), [...(groups.get(find(i)) || []), i]));
+  const plans: { target: string; merge: string[] }[] = [];
+  for (const members of groups.values()) {
+    if (members.length < 2) continue;
+    const sorted = [...members].sort(
+      (a, b) => Number(clusters[b].hasArticle) - Number(clusters[a].hasArticle) || clusters[b].itemCount - clusters[a].itemCount || clusters[a].firstSeen - clusters[b].firstSeen
+    );
+    const target = clusters[sorted[0]];
+    const merge = sorted.slice(1).filter((i) => !clusters[i].hasArticle).map((i) => clusters[i].id);
+    if (merge.length) plans.push({ target: target.id, merge });
+  }
+  return plans;
+}
+
+// Merges clusters that turned out to be the same event (for example two
+// headlines that only matched once the matcher improved). Items move to the
+// target; the merged cluster is kept with status 'merged' and merged_into
+// pointing at the target, and its research moves along if the target has none.
+export async function mergeDuplicateClusters(): Promise<{ merged: number }> {
+  const rows = (await sql`
+    SELECT c.id, c.item_count, c.first_seen_at,
+           EXISTS (SELECT 1 FROM articles a WHERE a.news_cluster_id = c.id) AS has_article,
+           ARRAY(SELECT i.title FROM news_items i WHERE i.cluster_id = c.id ORDER BY i.created_at LIMIT 8) AS titles
+    FROM story_clusters c
+    WHERE c.status NOT IN ('ignored', 'merged') AND c.last_seen_at > now() - (${WINDOW_DAYS + 1}::int * interval '1 day')
+  `) as any[];
+  const plans = planMerges(
+    rows.map((r) => ({ id: r.id, titles: r.titles || [], hasArticle: !!r.has_article, itemCount: Number(r.item_count || 0), firstSeen: new Date(r.first_seen_at).getTime() }))
+  );
+  let merged = 0;
+  for (const p of plans) {
+    for (const id of p.merge) {
+      await sql`UPDATE news_items SET cluster_id = ${p.target} WHERE cluster_id = ${id}`;
+      await sql`
+        UPDATE story_research SET cluster_id = ${p.target}
+        WHERE cluster_id = ${id} AND NOT EXISTS (SELECT 1 FROM story_research r WHERE r.cluster_id = ${p.target})`;
+      await sql`UPDATE story_clusters SET status = 'merged', merged_into = ${p.target} WHERE id = ${id}`.catch(
+        () => sql`UPDATE story_clusters SET status = 'merged' WHERE id = ${id}` // merged_into not migrated yet
+      );
+      merged++;
+    }
+    await refreshClusterStats([p.target]);
+  }
+  return { merged };
 }
 
 // Best headline for the cluster: most reliable source, then earliest.

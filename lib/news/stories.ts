@@ -64,7 +64,7 @@ export async function listStories(
       AND (${like} = '' OR canonical_title ILIKE ${like})
       AND (${category} = '' OR category = ${category})
       AND source_count >= ${minSources}
-      AND ((${status} = '' AND status <> 'ignored') OR (${status} <> '' AND status = ${status}))
+      AND ((${status} = '' AND status NOT IN ('ignored', 'merged')) OR (${status} <> '' AND status = ${status}))
     ORDER BY trend_score DESC NULLS LAST, max_relevance DESC, source_count DESC, last_seen_at DESC
     LIMIT ${limit}
   `) as any[];
@@ -73,7 +73,7 @@ export async function listStories(
       SELECT COUNT(*)::int AS n FROM story_clusters c
       WHERE EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = c.id AND i.relevance_score >= ${minRel})
         AND (${like} = '' OR canonical_title ILIKE ${like}) AND (${category} = '' OR category = ${category}) AND source_count >= ${minSources}
-        AND ((${status} = '' AND status <> 'ignored') OR (${status} <> '' AND status = ${status}))
+        AND ((${status} = '' AND status NOT IN ('ignored', 'merged')) OR (${status} <> '' AND status = ${status}))
     `)[0]?.n ?? 0
   );
   const fr = (await sql`
