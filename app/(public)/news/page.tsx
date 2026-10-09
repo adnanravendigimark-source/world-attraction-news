@@ -10,7 +10,7 @@ const PAGE_SIZE = 20;
 
 export async function generateMetadata({ searchParams }: { searchParams: { page?: string } }): Promise<Metadata> {
   return buildMetadata({
-    title: `Travel News: Airlines, Attractions, Travel Rules & More | ${SITE_NAME}`,
+    title: "Travel News: Airlines, Attractions, Travel Rules & More",
     description: "Fact-checked travel news on airlines, airports, attractions and travel rules, written for people who plan trips.",
     path: "/news",
     noIndex: !!searchParams?.page && searchParams.page !== "1",

@@ -75,13 +75,35 @@ export function findMentions(html: string, candidates: Candidate[]): Candidate[]
   return candidates.filter((c) => c.name.length >= 3 && new RegExp(`(^|[^\\p{L}\\p{N}])${esc(c.name)}(?![\\p{L}\\p{N}])`, "iu").test(text));
 }
 
+const SLUG_STOP = new Set("a an the of to in on at for and or with by from is are as its it this that after over into amid says said".split(" "));
+
+// Short, readable news slug: filler words dropped, at most 8 words, no
+// trailing publisher name ("… - Reuters"). Falls back to the full title when
+// too little would be left. Slugs are only (re)generated before publishing:
+// enrichArticle() refuses published or scheduled articles, so a live URL
+// never changes.
+export function newsSlugBase(title: string): string {
+  const clean = title
+    .replace(/\s[-–—|]\s[^-–—|]{2,40}$/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+  const kept = words.filter((w) => !SLUG_STOP.has(w));
+  const pick = (kept.length >= 3 ? kept : words).slice(0, 8);
+  return pick.join("-").slice(0, 70).replace(/-+$/, "") || "news";
+}
+
 // Sets slug, canonical, tags, OG/secondary SEO and applies internal links.
 export async function enrichArticle(articleId: string): Promise<{ slug: string; links: number }> {
   const a = (await sql`SELECT title, content_html, slug, status, tags FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`)[0];
   if (!a) throw new Error("News article not found.");
   if (["published", "scheduled"].includes(a.status)) throw new Error("Unpublish the article before regenerating it.");
 
-  const slug = await generateUniqueSlug(String(a.title || "news"), articleId);
+  const slug = await generateUniqueSlug(newsSlugBase(String(a.title || "news")), articleId);
   const canonical = `${SITE_URL}/news/${slug}`;
 
   const candidates = await loadCandidates();

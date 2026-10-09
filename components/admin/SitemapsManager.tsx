@@ -27,6 +27,7 @@ const TYPE_BADGE_CLASS: Record<SitemapType, string> = {
   CITY: "bg-emerald-50 text-emerald-700",
   CATEGORY: "bg-amber-50 text-amber-700",
   ARTICLE: "bg-[#DC2626]/10 text-[#DC2626]",
+  NEWS: "bg-violet-50 text-violet-700",
 };
 
 export default function SitemapsManager({

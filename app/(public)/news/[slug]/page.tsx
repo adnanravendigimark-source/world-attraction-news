@@ -3,21 +3,27 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArticleSources, getPublishedNews, getPublishedNewsBySlug } from "@/lib/articles";
 import { breadcrumbJsonLd, jsonLdScript, newsArticleJsonLd, resolvePageMetadata } from "@/lib/seo";
-import { SITE_NAME } from "@/lib/site";
 import { getImageMeta } from "@/lib/news/images";
 import { getExtra } from "@/lib/news/seo";
+import { getPageIndexing } from "@/lib/indexing";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const article = await getPublishedNewsBySlug(params.slug);
   if (!article) return {};
+  // A noindex set in Admin -> Indexing is stored under the article key
+  // (article:<id>) or under the URL; either one applies.
+  const path = `/news/${article.slug}`;
+  const [byKey, byPath] = await Promise.all([getPageIndexing(`article:${article.id}`), getPageIndexing(path)]);
   const [meta, extra] = await Promise.all([
-    resolvePageMetadata(`/news/${article.slug}`, {
-      title: `${article.metaTitle || article.title} | ${SITE_NAME}`,
+    resolvePageMetadata(path, {
+      title: article.metaTitle || article.title, // the root layout appends the site name
       description: article.metaDescription || article.excerpt,
       image: article.image,
       canonicalOverride: article.canonicalUrl || undefined,
+      noIndex: byKey.noIndex || byPath.noIndex,
+      noFollow: byKey.noFollow || byPath.noFollow,
     }),
     getExtra(article.id),
   ]);
@@ -60,6 +66,8 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
               authorSlug: article.authorSlug,
               publishedAt: article.publishedAt,
               updatedAt: article.updatedAt,
+              section: article.categoryName,
+              keywords: article.tags,
             })
           ),
         }}

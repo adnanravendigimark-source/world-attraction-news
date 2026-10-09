@@ -3,7 +3,7 @@ import { SITE_URL } from "./site";
 import { getCountryHubs } from "./countryHubs";
 import { getCities } from "./cities";
 import { getCategories } from "./categories";
-import { getPublishedArticles } from "./articles";
+import { getPublishedArticles, getPublishedNews, newsPath } from "./articles";
 import { countryPath, cityPath, articlePath } from "./destinations";
 import { SITEMAP_TYPES, SITEMAP_TYPE_LABELS, type SitemapType, type SitemapUrlEntry } from "./sitemapTypes";
 
@@ -174,7 +174,7 @@ export async function deleteSitemap(id: string): Promise<void> {
 // for the same key convention (`city:<id>`, `category:<id>`, `article:<id>`,
 // or a bare static-page key like "homepage"). Doing this once and checking
 // membership in-memory avoids an N+1 query per city/category/article.
-async function getNoIndexKeySet(): Promise<Set<string>> {
+export async function getNoIndexKeySet(): Promise<Set<string>> {
   try {
     const rows = await sql`SELECT key FROM indexing_settings WHERE no_index = true`;
     return new Set(rows.map((r: any) => r.key as string));
@@ -191,6 +191,7 @@ async function getNoIndexKeySet(): Promise<Set<string>> {
 const STATIC_SITEMAP_PAGES: { path: string; indexingKey: string }[] = [
   { path: "/", indexingKey: "homepage" },
   { path: "/latest-news", indexingKey: "latest-news" },
+  { path: "/news", indexingKey: "news" },
   { path: "/destinations", indexingKey: "destinations" },
   { path: "/categories", indexingKey: "categories" },
   { path: "/about", indexingKey: "about" },
@@ -259,6 +260,32 @@ export async function getArticleSitemapUrls(): Promise<SitemapUrlEntry[]> {
   return entries;
 }
 
+// Every published news article (type = 'news'), at /news/<slug>. The guide
+// article sitemap above never includes news (getPublishedArticles() is
+// guide-only), and the Google News sitemap (/news-sitemap.xml) only lists
+// the last 2 days, so without this, older news was in no sitemap at all.
+// Same noindex rule as guides: an `article:<id>` override (or one keyed by
+// the URL) keeps a story out.
+export async function getNewsSitemapUrls(): Promise<SitemapUrlEntry[]> {
+  const noIndex = await getNoIndexKeySet();
+  const entries: SitemapUrlEntry[] = [];
+  const seen = new Set<string>();
+  const pageSize = 100;
+  for (let offset = 0; offset < 5000; offset += pageSize) {
+    const { articles } = await getPublishedNews({ limit: pageSize, offset });
+    for (const a of articles) {
+      const path = newsPath(a.slug);
+      if (!a.slug || noIndex.has(`article:${a.id}`) || noIndex.has(path)) continue;
+      const loc = `${SITE_URL}${path}`;
+      if (seen.has(loc)) continue;
+      seen.add(loc);
+      entries.push({ loc, lastModified: a.updatedAt || a.publishedAt || undefined });
+    }
+    if (articles.length < pageSize) break;
+  }
+  return entries;
+}
+
 // Single dispatch point mapping a sitemap config row to the one query
 // function allowed to populate it — used by the master index's URL-count
 // column and by the admin API's response after create/update. Every branch
@@ -277,6 +304,8 @@ export async function getUrlsForSitemap(config: SitemapConfig): Promise<SitemapU
       return getCategorySitemapUrls();
     case "ARTICLE":
       return getArticleSitemapUrls();
+    case "NEWS":
+      return getNewsSitemapUrls();
     default:
       return [];
   }

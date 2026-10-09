@@ -15,6 +15,8 @@ import {
   getEditorsPickArticles,
   getBreakingArticles,
   getTopScoredArticles,
+  getPublishedNews,
+  newsPath,
 } from "@/lib/articles";
 import { buildMetadata, resolvePageMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { articlePath, cityPath } from "@/lib/destinations";
@@ -43,7 +45,7 @@ export const revalidate = 60;
 
 const getHomePageData = unstable_cache(
   async () => {
-    const [cities, categories, articles, trending, featured, editorsPicks, breaking, topScored] = await Promise.all([
+    const [cities, categories, articles, trending, featured, editorsPicks, breaking, topScored, travelNews] = await Promise.all([
       getCitiesWithArticleCounts(),
       getCategories(),
       getPublishedArticles({ limit: 20 }),
@@ -52,8 +54,11 @@ const getHomePageData = unstable_cache(
       getEditorsPickArticles(4),
       getBreakingArticles(6),
       getTopScoredArticles(5),
+      getPublishedNews({ limit: 4 })
+        .then((r) => r.articles)
+        .catch(() => []),
     ]);
-    return { cities, categories, articles, trending, featured, editorsPicks, breaking, topScored };
+    return { cities, categories, articles, trending, featured, editorsPicks, breaking, topScored, travelNews };
   },
   ["homepage-data"],
   { revalidate: 60, tags: ["homepage"] }
@@ -109,7 +114,7 @@ const SOCIAL_LINKS = [
 ];
 
 export default async function HomePage() {
-  const { cities, categories, articles, trending, featured, editorsPicks, breaking, topScored } = await getHomePageData();
+  const { cities, categories, articles, trending, featured, editorsPicks, breaking, topScored, travelNews } = await getHomePageData();
 
   // Hero source, in order of editorial intent: admin-curated "Featured"
   // articles first (that's exactly what the flag is for), then algorithmic
@@ -180,6 +185,66 @@ export default async function HomePage() {
         <section className="w-full bg-white border-b border-slate-100">
           <HomeHeroCarousel slides={dynamicHeroSlides} tickerItems={tickerItems} />
         </section>
+
+        {/* =========================================
+            TRAVEL NEWS (fact-checked news stories, type = 'news').
+            Hidden until at least one story is published.
+        ========================================= */}
+        {travelNews.length > 0 && (
+          <section className="py-8 sm:py-12 lg:py-14 border-b border-slate-100">
+            <Container>
+              <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-4 sm:h-5 bg-[#DC2626] rounded-full inline-block" />
+                  <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-[#0B1527]">
+                    TRAVEL NEWS
+                  </h2>
+                </div>
+                <Link
+                  href="/news"
+                  className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors shrink-0"
+                >
+                  <span>ALL TRAVEL NEWS</span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                {travelNews.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={newsPath(a.slug)}
+                    className="group flex flex-col rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300"
+                  >
+                    {a.image && (
+                      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
+                        <Image
+                          src={a.image}
+                          alt={a.imageAlt || a.title}
+                          fill
+                          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      </div>
+                    )}
+                    <div className="p-3.5 sm:p-4 flex flex-col flex-1 justify-between">
+                      <div>
+                        <span className="text-[9.5px] sm:text-[10px] font-extrabold uppercase tracking-wider text-[#DC2626]">
+                          {a.categoryName?.toUpperCase() || "TRAVEL NEWS"}
+                        </span>
+                        <h3 className="mt-1 font-sans text-sm sm:text-base font-bold leading-snug text-[#0B1527] group-hover:text-[#DC2626] transition-colors line-clamp-3">
+                          {a.title}
+                        </h3>
+                      </div>
+                      <div className="mt-2.5 sm:mt-3 text-[10px] sm:text-[11px] text-slate-500 font-medium">
+                        {formatDate(a.publishedAt)}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </Container>
+          </section>
+        )}
 
         {/* =========================================
             2. LATEST NEWS SECTION (up to 4 real cards)

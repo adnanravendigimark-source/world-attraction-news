@@ -1081,7 +1081,7 @@ async function createSitemapsTable() {
     CREATE TABLE IF NOT EXISTS sitemaps (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('STATIC','COUNTRY','CITY','CATEGORY','ARTICLE')),
+      type TEXT NOT NULL CHECK (type IN ('STATIC','COUNTRY','CITY','CATEGORY','ARTICLE','NEWS')),
       path TEXT NOT NULL UNIQUE,
       enabled BOOLEAN NOT NULL DEFAULT true,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -1089,7 +1089,14 @@ async function createSitemapsTable() {
     )
   `;
 
-  // The 5 built-in sitemaps are required configuration, not sample content
+  console.log("sitemaps table ready.");
+}
+
+// Seeds the built-in sitemap rows. Runs after removeCustomSitemapType(), which
+// re-creates the type CHECK constraint, so a newly added type (NEWS) is
+// allowed before its row is inserted.
+async function seedDefaultSitemaps() {
+  // The built-in sitemaps are required configuration, not sample content
   // — without these rows /sitemap.xml has nothing to index and every child
   // route 404s (each child route looks up its own row by `type`, see
   // lib/sitemaps.ts's getEnabledSitemapByType()). Seeded unconditionally
@@ -1105,6 +1112,7 @@ async function createSitemapsTable() {
     { name: "Cities", type: "CITY", path: "/sitemap-city.xml" },
     { name: "Categories", type: "CATEGORY", path: "/sitemap-category.xml" },
     { name: "Articles", type: "ARTICLE", path: "/sitemap-article.xml" },
+    { name: "News Articles", type: "NEWS", path: "/sitemap-news-articles.xml" },
   ];
   for (const s of DEFAULT_SITEMAPS) {
     await sql`
@@ -1113,7 +1121,6 @@ async function createSitemapsTable() {
       ON CONFLICT (path) DO NOTHING
     `;
   }
-  console.log("sitemaps table ready.");
 }
 
 // Retired: CUSTOM sitemaps used to briefly support admin-typed manual URL
@@ -1160,7 +1167,7 @@ async function removeCustomSitemapType() {
   await sql`ALTER TABLE sitemaps DROP CONSTRAINT IF EXISTS sitemaps_type_check`;
   await sql`
     ALTER TABLE sitemaps
-    ADD CONSTRAINT sitemaps_type_check CHECK (type IN ('STATIC','COUNTRY','CITY','CATEGORY','ARTICLE'))
+    ADD CONSTRAINT sitemaps_type_check CHECK (type IN ('STATIC','COUNTRY','CITY','CATEGORY','ARTICLE','NEWS'))
   `;
 }
 
@@ -1437,6 +1444,7 @@ async function main() {
   await createSitemapsTable();
   await dropSitemapEntriesTable();
   await removeCustomSitemapType();
+  await seedDefaultSitemaps();
   await createPhase7EmailVerificationColumns();
   await createPhase8OwnerPasswordColumn();
   await createPhase9FooterConfigColumn();

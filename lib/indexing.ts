@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { getPublishedArticles } from "./articles";
+import { getPublishedArticles, getPublishedNews, newsPath } from "./articles";
 import { getCities } from "./cities";
 import { getCategories } from "./categories";
 import { getCountryHubs } from "./countryHubs";
@@ -19,6 +19,7 @@ export interface IndexingRow {
 const STATIC_CORE_PAGES: Array<{ key: string; label: string; url: string }> = [
   { key: "homepage", label: "Homepage", url: "/" },
   { key: "latest-news", label: "Latest News (listing)", url: "/latest-news" },
+  { key: "news", label: "Travel News (listing)", url: "/news" },
   { key: "destinations", label: "Destinations (index)", url: "/destinations" },
   { key: "categories", label: "Categories (index)", url: "/categories" },
   { key: "about", label: "About Us", url: "/about" },
@@ -36,12 +37,13 @@ const STATIC_LEGAL_PAGES: Array<{ key: string; label: string; url: string }> = [
 
 export async function getIndexingOverview(): Promise<IndexingRow[]> {
   try {
-    const [overridesRows, articles, cities, categories, countries] = await Promise.all([
+    const [overridesRows, articles, cities, categories, countries, news] = await Promise.all([
       sql`SELECT key, no_index, no_follow FROM indexing_settings`.catch(() => []),
       getPublishedArticles({ limit: 500 }).catch(() => []),
       getCities().catch(() => []),
       getCategories().catch(() => []),
       getCountryHubs().catch(() => []),
+      getPublishedNews({ limit: 100 }).then((r) => r.articles).catch(() => []),
     ]);
 
     const overrideMap = new Map<string, { noIndex: boolean; noFollow: boolean }>();
@@ -140,6 +142,21 @@ export async function getIndexingOverview(): Promise<IndexingRow[]> {
         key,
         type: "article",
         label: art.title,
+        url,
+        noIndex: ov?.noIndex ?? false,
+        noFollow: ov?.noFollow ?? false,
+      });
+    }
+
+    // 7. Published news articles (latest 100), listed with the articles.
+    for (const art of news) {
+      const url = newsPath(art.slug);
+      const key = `article:${art.id}`;
+      const ov = overrideMap.get(key) || overrideMap.get(url);
+      rows.push({
+        key,
+        type: "article",
+        label: `News: ${art.title}`,
         url,
         noIndex: ov?.noIndex ?? false,
         noFollow: ov?.noFollow ?? false,

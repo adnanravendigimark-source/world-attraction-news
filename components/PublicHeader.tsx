@@ -165,6 +165,20 @@ export default function PublicHeader({
             </Link>
 
             <Link
+              href="/news"
+              className={`relative py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
+                pathname === "/news" || pathname.startsWith("/news/")
+                  ? "text-[#DC2626]"
+                  : "text-slate-800 hover:text-[#DC2626]"
+              }`}
+            >
+              TRAVEL NEWS
+              {(pathname === "/news" || pathname.startsWith("/news/")) && (
+                <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#DC2626]" />
+              )}
+            </Link>
+
+            <Link
               href="/latest-news"
               className={`relative py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
                 pathname.startsWith("/latest-news")
@@ -359,6 +373,15 @@ export default function PublicHeader({
               }`}
             >
               HOME
+            </Link>
+            <Link
+              href="/news"
+              onClick={() => setOpen(false)}
+              className={`py-2 text-xs font-bold uppercase tracking-wider ${
+                pathname === "/news" || pathname.startsWith("/news/") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
+              }`}
+            >
+              TRAVEL NEWS
             </Link>
             <Link
               href="/latest-news"

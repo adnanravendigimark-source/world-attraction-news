@@ -162,6 +162,11 @@ export function organizationJsonLd() {
   };
 }
 
+// The system byline used for AI-assisted news (users.slug of the "World
+// Attraction News" author created by scripts/setup-db.mjs). It is the
+// newsroom, not a person, so structured data describes it as an Organization.
+export const NEWSROOM_AUTHOR_SLUG = "world-attraction-news";
+
 export function newsArticleJsonLd(article: {
   title: string;
   description: string;
@@ -172,22 +177,33 @@ export function newsArticleJsonLd(article: {
   publishedAt: string | null;
   updatedAt: string;
   cityName?: string;
+  section?: string | null;
+  keywords?: string[];
 }) {
+  const authorUrl = article.authorSlug ? `${SITE_URL}/author/${article.authorSlug}` : undefined;
+  const author =
+    article.authorSlug === NEWSROOM_AUTHOR_SLUG
+      ? { "@type": "Organization", name: article.authorName, url: authorUrl }
+      : { "@type": "Person", name: article.authorName, url: authorUrl };
   return {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
-    headline: article.title,
+    headline: article.title.slice(0, 110),
     description: article.description,
     image: article.image ? [article.image] : undefined,
     datePublished: article.publishedAt || article.updatedAt,
     dateModified: article.updatedAt,
-    author: {
-      "@type": "Person",
-      name: article.authorName,
-      url: article.authorSlug ? `${SITE_URL}/author/${article.authorSlug}` : undefined,
+    author,
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` },
     },
-    publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
-    mainEntityOfPage: `${SITE_URL}${article.path}`,
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}${article.path}` },
+    articleSection: article.section || undefined,
+    keywords: article.keywords && article.keywords.length ? article.keywords.join(", ") : undefined,
+    isAccessibleForFree: true,
     contentLocation: article.cityName ? { "@type": "Place", name: article.cityName } : undefined,
   };
 }

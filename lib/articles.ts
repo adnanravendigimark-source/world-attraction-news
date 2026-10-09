@@ -652,6 +652,8 @@ async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
 function slugifyText(text: string): string {
   return (
     text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // "Café" -> "cafe" instead of "caf"
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9\s-]/g, "")
