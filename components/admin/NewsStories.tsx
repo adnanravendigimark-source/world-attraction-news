@@ -5,6 +5,44 @@ import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
 import type { Story, StoryFunnel } from "@/lib/news/stories";
 import NewsResearchPanel from "@/components/admin/NewsResearchPanel";
+import Link from "next/link";
+import { generateNewsArticle } from "@/lib/news/clientPipeline";
+import { STAGE_GROUPS, type StepState, type StoryPipeline } from "@/lib/news/stage";
+
+const TONE: Record<StoryPipeline["tone"], string> = {
+  neutral: "bg-ink-100 text-ink-700",
+  progress: "bg-blue-100 text-blue-800",
+  attention: "bg-amber-100 text-amber-900",
+  good: "bg-emerald-600 text-white",
+  done: "bg-ink-900 text-white",
+};
+
+const STEP_STYLE: Record<StepState, { cls: string; mark: string; word: string }> = {
+  todo: { cls: "border-ink-200 text-ink-400", mark: "○", word: "not yet" },
+  running: { cls: "border-blue-300 bg-blue-50 text-blue-700", mark: "…", word: "in progress" },
+  done: { cls: "border-emerald-300 bg-emerald-50 text-emerald-800", mark: "✓", word: "done" },
+  warn: { cls: "border-amber-300 bg-amber-50 text-amber-800", mark: "!", word: "needs attention" },
+  failed: { cls: "border-red-300 bg-red-50 text-red-700", mark: "✗", word: "failed" },
+};
+
+function StepChips({ steps }: { steps: StoryPipeline["steps"] }) {
+  const list: [string, StepState][] = [
+    ["Research", steps.research],
+    ["Draft", steps.draft],
+    ["Fact check", steps.factCheck],
+    ["Image", steps.image],
+    ["Published", steps.published],
+  ];
+  return (
+    <span className="inline-flex flex-wrap gap-1">
+      {list.map(([label, st]) => (
+        <span key={label} title={`${label}: ${STEP_STYLE[st].word}`} className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${STEP_STYLE[st].cls}`}>
+          {STEP_STYLE[st].mark} {label}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function band(n: number): { label: string; cls: string } {
   if (n >= 90) return { label: "Extremely relevant", cls: "bg-emerald-600 text-white" };
@@ -37,6 +75,22 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
   const [funnel, setFunnel] = useState<StoryFunnel | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [cfg, setCfg] = useState<any>(null);
+  const [stageFilter, setStageFilter] = useState("");
+  const [generating, setGenerating] = useState<{ id: string; text: string } | null>(null);
+
+  // Research -> write -> fact check -> image -> quality, then open the editor.
+  async function generate(id: string) {
+    setGenerating({ id, text: "Starting…" });
+    try {
+      const r = await generateNewsArticle(id, (text) => setGenerating({ id, text }));
+      toast.success(`Draft created (${r.wordCount} words, fact check ${r.verdict.replace("_", " ")}, quality ${r.quality.score}/100).`);
+      window.location.href = r.adminUrl;
+    } catch (e: any) {
+      toast.error(e.message || "Generation failed.");
+      setGenerating(null);
+      load();
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -133,7 +187,9 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
     setStories((cur) => (status === "ignored" ? cur.filter((s) => s.id !== id) : cur.map((s) => (s.id === id ? { ...s, status } : s))));
   }
 
-  const shown = stories.filter((s) => (s.trendScore ?? 0) >= minScore);
+  const shown = stories.filter(
+    (s) => (s.trendScore ?? 0) >= minScore && (!stageFilter || STAGE_GROUPS[stageFilter]?.includes(s.pipeline.stage))
+  );
   const shownCount = shown.length;
   const input = "rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-ink-400 focus:outline-none";
 
@@ -172,6 +228,14 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
           <option value={0}>Any score</option>
           <option value={55}>Review tier (55+)</option>
           <option value={65}>High priority (65+)</option>
+        </select>
+        <select className={input} value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} title="Where the story is in the pipeline">
+          <option value="">Any stage</option>
+          <option value="todo">Not started</option>
+          <option value="progress">In progress</option>
+          <option value="attention">Needs attention</option>
+          <option value="ready">Ready for review</option>
+          <option value="done">Published or scheduled</option>
         </select>
         <button onClick={openSettings} className="rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm hover:bg-ink-50">Scoring settings</button>
         {canEdit && (
@@ -264,13 +328,30 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
                         <span>first reported {ago(s.publishedFirstAt || s.firstSeenAt)}</span>
                         <span>updated {ago(s.lastSeenAt)}</span>
                         {s.status === "shortlisted" && <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-800">shortlisted</span>}
-                        {s.researchStatus === "done" && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-sky-800">researched</span>}
-                        {s.researchStatus === "failed" && <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">research failed</span>}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${TONE[s.pipeline.tone]}`}>{s.pipeline.label}</span>
+                        <StepChips steps={s.pipeline.steps} />
+                        {generating?.id === s.id && <span className="text-xs font-medium text-blue-700">{generating.text}</span>}
                       </div>
                       {s.relevanceReason && <p className="mt-1 text-xs text-ink-500">Why: {s.relevanceReason}</p>}
                     </div>
                     {canEdit && (
                       <div className="flex shrink-0 flex-col gap-1">
+                        {s.pipeline.articleId ? (
+                          <Link href={`/admin/articles/${s.pipeline.articleId}`} className="rounded bg-ink-900 px-2.5 py-1 text-center text-xs font-medium text-white hover:bg-ink-800">
+                            Open draft
+                          </Link>
+                        ) : (
+                          <button
+                            onClick={() => generate(s.id)}
+                            disabled={!!generating || s.pipeline.stage === "researching" || s.pipeline.stage === "writing"}
+                            className="rounded bg-[#DC2626] px-2.5 py-1 text-xs font-medium text-white hover:bg-[#B91C1C] disabled:opacity-50"
+                            title="Research, write, fact-check and illustrate this story (about 2 minutes)"
+                          >
+                            {generating?.id === s.id ? "Generating…" : "Generate article"}
+                          </button>
+                        )}
                         <button onClick={() => setStatus(s.id, s.status === "shortlisted" ? "new" : "shortlisted")} className="rounded border border-ink-200 px-2.5 py-1 text-xs hover:bg-ink-50">
                           {s.status === "shortlisted" ? "Unshortlist" : "Shortlist"}
                         </button>

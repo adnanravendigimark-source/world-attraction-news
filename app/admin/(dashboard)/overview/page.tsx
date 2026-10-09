@@ -4,6 +4,54 @@ import { getAllArticles, getDraftArticleCount } from "@/lib/articles";
 import { getUsers } from "@/lib/users";
 import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
+import { getSession } from "@/lib/session";
+import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
+import { getNewsOverview, type NewsOverview } from "@/lib/news/overview";
+
+const STAGE_TONE: Record<string, string> = {
+  neutral: "bg-slate-100 text-slate-700",
+  progress: "bg-blue-100 text-blue-800",
+  attention: "bg-amber-100 text-amber-900",
+  good: "bg-emerald-600 text-white",
+  done: "bg-slate-900 text-white",
+};
+
+// "Today's news" block: where the trending-news pipeline stands right now.
+function TodaysNews({ news }: { news: NewsOverview }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">Today&apos;s news</h2>
+        <Link href="/admin/news" className="text-xs font-bold text-[#DC2626] hover:underline">Open Trending News →</Link>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Trending stories" value={news.trending} href="/admin/news" sub="Review tier or higher, last 24 h" />
+        <StatCard label="AI drafts" value={news.drafts} href="/admin/articles?status=pending" sub="Not yet published" />
+        <StatCard label="Ready to publish" value={news.ready} href="/admin/articles?status=pending" urgent={news.ready > 0} sub="All publish checks pass" />
+        <StatCard label="Published (24 h)" value={news.publishedToday} href="/news" sub="Live on /news" />
+      </div>
+      {news.top.length > 0 && (
+        <ul className="mt-4 divide-y divide-slate-100">
+          {news.top.map((s) => (
+            <li key={s.id} className="flex items-center gap-3 py-2 text-sm">
+              <span className="w-8 shrink-0 text-center font-bold text-slate-900">{s.trendScore ?? "–"}</span>
+              <span className="min-w-0 flex-1 truncate text-slate-800">{s.title}</span>
+              <span className="hidden shrink-0 text-xs text-slate-500 sm:inline">
+                {s.category || "Other"} · {s.sourceCount} {s.sourceCount === 1 ? "source" : "sources"}
+              </span>
+              <span className={`shrink-0 rounded px-2 py-0.5 text-[11px] font-semibold ${STAGE_TONE[s.pipeline.tone]}`}>{s.pipeline.label}</span>
+              {s.pipeline.articleId && (
+                <Link href={`/admin/articles/${s.pipeline.articleId}`} className="shrink-0 text-xs font-bold text-slate-700 hover:underline">
+                  Edit
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -62,12 +110,15 @@ export default async function AdminOverviewPage() {
   // publishDueScheduledArticles()'s UPDATE a second time in the same
   // request (getAllArticles() already ran it once) and avoids fetching
   // every draft's content_html just to read an array's .length.
-  const [nonDraftArticles, draftCount, users, cities, categories] = await Promise.all([
+  const session = await getSession();
+  const canSeeNews = hasPermission(await getEffectivePermissions(session), "news", "read");
+  const [nonDraftArticles, draftCount, users, cities, categories, news] = await Promise.all([
     getAllArticles(),
     getDraftArticleCount(),
     getUsers(),
     getCities(),
     getCategories(),
+    canSeeNews ? getNewsOverview() : Promise.resolve(null),
   ]);
 
   const contributors = users.filter((u) => u.role === "contributor");
@@ -128,6 +179,8 @@ export default async function AdminOverviewPage() {
           </Link>
         </div>
       </div>
+
+      {news && <TodaysNews news={news} />}
 
       {/* Primary Metric Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

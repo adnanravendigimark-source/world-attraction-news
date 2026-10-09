@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 import type { ResearchRecord } from "@/lib/news/research";
+import { generateNewsArticle } from "@/lib/news/clientPipeline";
 
 const CONF: Record<string, string> = {
   confirmed: "bg-emerald-100 text-emerald-800",
@@ -46,32 +47,16 @@ export default function NewsResearchPanel({ clusterId, canEdit, initialStatus, o
   const [stage, setStage] = useState("");
   const [quality, setQuality] = useState<{ score: number; checks: { key: string; label: string; ok: boolean; earned: number; note: string }[] } | null>(null);
 
-  async function step(body: Record<string, unknown>): Promise<any> {
-    const res = await fetch("/api/admin/news/pipeline", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Step failed.");
-    return data;
-  }
-
-  // Research (if needed) -> article + SEO + links -> image -> quality -> editor.
+  // Research (if needed) -> article + SEO + links -> fact check -> image -> quality -> editor.
   async function makeDraft() {
     setDrafting(true);
     setQuality(null);
     try {
-      setStage("Reading sources and extracting facts…");
-      await step({ step: "research", clusterId });
-      setStage("Writing the article, SEO and internal links…");
-      const w = await step({ step: "write", clusterId });
-      setStage("Checking every claim against the research…");
-      await step({ step: "check", articleId: w.articleId });
-      setStage("Finding a relevant image…");
-      await step({ step: "images", articleId: w.articleId });
-      setStage("Running quality checks…");
-      const q = await step({ step: "quality", articleId: w.articleId });
-      setQuality(q.quality);
-      setStage(`Draft saved. Quality ${q.quality.score}/100. Opening the editor…`);
-      toast.success(`Draft created (${w.wordCount} words, quality ${q.quality.score}/100).`);
-      setTimeout(() => { window.location.href = w.adminUrl; }, 2500);
+      const r = await generateNewsArticle(clusterId, setStage);
+      setQuality(r.quality);
+      setStage(`Draft saved. Quality ${r.quality.score}/100. Opening the editor…`);
+      toast.success(`Draft created (${r.wordCount} words, quality ${r.quality.score}/100).`);
+      setTimeout(() => { window.location.href = r.adminUrl; }, 2500);
     } catch (e: any) {
       toast.error(e.message);
       setStage(`Stopped: ${e.message}`);

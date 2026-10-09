@@ -1,5 +1,7 @@
 import { sql } from "../db";
 import { loadFilterConfig } from "./filter";
+import { contentHash } from "./contentHash";
+import { storyPipeline, type StoryPipeline } from "./stage";
 
 export interface StoryItem {
   id: string;
@@ -29,6 +31,7 @@ export interface Story {
   relevanceReason: string; // why the best item scored as it did
   relevance: number; // best travel-relevance score (0–100) among the story's items
   researchStatus: string; // '' | running | done | failed
+  pipeline: StoryPipeline; // where the story stands: research, draft, check, image, published
   items: StoryItem[];
 }
 
@@ -97,6 +100,49 @@ export async function listStories(
   `.catch(() => [])) as any[];
   const researchBy = new Map(rs.map((r) => [r.cluster_id, r.status as string]));
 
+  // Pipeline state: the story's news article (with its fact check and image
+  // rights) and its latest unfinished or failed job. Each query degrades to
+  // "nothing yet" if a table or column isn't migrated.
+  const arts = (await sql`
+    SELECT DISTINCT ON (a.news_cluster_id) a.news_cluster_id, a.id, a.status, a.word_count, a.image, a.content_html, a.excerpt,
+           c.verdict, c.overridden, c.content_hash, m.source_type, m.credit
+    FROM articles a
+    LEFT JOIN news_article_checks c ON c.article_id = a.id
+    LEFT JOIN article_image_meta m ON m.article_id = a.id
+    WHERE a.type = 'news' AND a.news_cluster_id = ANY(${ids}::uuid[])
+    ORDER BY a.news_cluster_id, a.updated_at DESC
+  `.catch(() => [])) as any[];
+  const artBy = new Map(arts.map((r) => [r.news_cluster_id, r]));
+  const jobs = (await sql`
+    SELECT DISTINCT ON (cluster_id) cluster_id, kind, status, error FROM news_jobs
+    WHERE cluster_id = ANY(${ids}::uuid[]) AND status IN ('queued', 'running', 'failed')
+    ORDER BY cluster_id, id DESC
+  `.catch(() => [])) as any[];
+  const jobBy = new Map(jobs.map((r) => [r.cluster_id, r]));
+
+  const pipelineFor = (clusterId: string): StoryPipeline => {
+    const a = artBy.get(clusterId);
+    const j = jobBy.get(clusterId);
+    const html = String(a?.content_html || "");
+    return storyPipeline({
+      researchStatus: researchBy.get(clusterId) || "",
+      job: j ? { kind: j.kind, status: j.status, error: j.error || "" } : null,
+      article: a
+        ? {
+            id: a.id,
+            status: a.status,
+            wordCount: Number(a.word_count || 0),
+            hasTodo: /TODO/.test(html) || /TODO/.test(String(a.excerpt || "")),
+            hasImage: !!a.image,
+            imageRightsOk: !!a.source_type && a.source_type !== "unverified" && (a.source_type === "ai" || !!String(a.credit || "").trim()),
+          }
+        : null,
+      check: a?.verdict
+        ? { verdict: a.verdict, overridden: !!a.overridden, stale: !!a.content_hash && a.content_hash !== contentHash(html) }
+        : null,
+    });
+  };
+
   const byCluster = new Map<string, StoryItem[]>();
   for (const r of items) {
     const list = byCluster.get(r.cluster_id) || [];
@@ -130,6 +176,7 @@ export async function listStories(
       relevance: Number(c.max_relevance ?? 0),
       relevanceReason: String(c.rel_reason || ""),
       researchStatus: researchBy.get(c.id) || "",
+      pipeline: pipelineFor(c.id),
       items: byCluster.get(c.id) || [],
     })),
   };
