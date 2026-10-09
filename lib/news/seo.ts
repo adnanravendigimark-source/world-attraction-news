@@ -5,7 +5,7 @@
 import { sql } from "../db";
 import { generateUniqueSlug, computeContentStats } from "../articles";
 import { SITE_URL } from "../site";
-import { applyLink } from "./guidelinks";
+import { applyLink } from "./links";
 
 export interface ExtraSeo {
   secondaryKeywords: string[];

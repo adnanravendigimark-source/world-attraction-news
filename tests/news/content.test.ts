@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyLink, suggestLinks } from "@/lib/news/guidelinks";
+import { applyLink } from "@/lib/news/links";
 import { insertFigures, stripOurFigures, figureHtml } from "@/lib/news/media";
 import { normalizeFacts } from "@/lib/news/research";
 
@@ -16,14 +16,6 @@ describe("internal links", () => {
 
   it("does not match inside longer words", () => {
     expect(applyLink("<p>Romeo visited.</p>", "Rome", "/r")).toBe("<p>Romeo visited.</p>");
-  });
-
-  it("suggests attractions before cities", () => {
-    const s = suggestLinks("<p>The Eiffel Tower in Paris.</p>", [
-      { type: "city", name: "Paris", place: "France", path: "/paris" },
-      { type: "attraction", name: "Eiffel Tower", place: "Paris", path: "/eiffel" },
-    ]);
-    expect(s.map((x) => x.name)).toEqual(["Eiffel Tower", "Paris"]);
   });
 });
 
