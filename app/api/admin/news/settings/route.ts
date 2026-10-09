@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
+import { calibrationReport } from "@/lib/news/decisions";
 import { DEFAULT_TREND_CONFIG, loadTrendConfig, runTrendScoring, saveTrendConfig, validateTrendPatch } from "@/lib/news/trend";
 
 export const dynamic = "force-dynamic";
@@ -13,13 +14,14 @@ export async function GET() {
   const denied = await requireApiPermission(session, "news", "read");
   if (denied) return denied;
   try {
-    return NextResponse.json({ trend: await loadTrendConfig(true), defaults: DEFAULT_TREND_CONFIG });
+    const [trend, calibration] = await Promise.all([loadTrendConfig(true), calibrationReport(14)]);
+    return NextResponse.json({ trend, defaults: DEFAULT_TREND_CONFIG, calibration });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
 
-// Body: { weights?, thresholds?, categoryWeights?, reset?: true }
+// Body: { weights?, thresholds?, categoryWeights?, freshnessBands?, staleScore?, sourceCurve?, reset?: true }
 export async function PUT(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
@@ -32,7 +34,14 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
   const patch = body?.reset
-    ? { weights: DEFAULT_TREND_CONFIG.weights, thresholds: DEFAULT_TREND_CONFIG.thresholds, categoryWeights: DEFAULT_TREND_CONFIG.categoryWeights }
+    ? {
+        weights: DEFAULT_TREND_CONFIG.weights,
+        thresholds: DEFAULT_TREND_CONFIG.thresholds,
+        categoryWeights: DEFAULT_TREND_CONFIG.categoryWeights,
+        freshnessBands: DEFAULT_TREND_CONFIG.freshnessBands,
+        staleScore: DEFAULT_TREND_CONFIG.staleScore,
+        sourceCurve: DEFAULT_TREND_CONFIG.sourceCurve,
+      }
     : body;
   const invalid = validateTrendPatch(patch);
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });

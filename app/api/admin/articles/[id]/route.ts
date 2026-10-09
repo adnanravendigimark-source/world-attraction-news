@@ -33,6 +33,7 @@ import { dbErrorMessage } from "@/lib/db";
 import { cityPath, articlePath } from "@/lib/destinations";
 import { notifySubscribersOfNewArticle } from "@/lib/newsletter";
 import { requireApiPermission } from "@/lib/permissions";
+import { recordDecisionForArticle } from "@/lib/news/decisions";
 
 export const dynamic = "force-dynamic";
 
@@ -273,6 +274,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       });
 
       await logActivity(session, "article_published", { type: "article", id: article.id, label: article.title });
+      await recordDecisionForArticle(article.id, "published", session.email);
       const url = article.type === "news" ? `/news/${article.slug}` : articlePath(before.countrySlug, before.citySlug, article.slug);
       if (author) {
         await notifyArticlePublished(

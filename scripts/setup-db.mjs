@@ -1381,6 +1381,24 @@ async function createNewsTables() {
   // Phase 5 — stories an editor split apart are never merged back
   // automatically; each lists the others it must stay apart from.
   await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS kept_apart UUID[] NOT NULL DEFAULT '{}'`;
+  // Phase 6 — editor decisions, to compare the trend score with what editors
+  // actually pick. score/rank are the story's trend score and its place among
+  // recent stories at the moment of the decision.
+  await sql`
+    CREATE TABLE IF NOT EXISTS news_story_decisions (
+      id BIGSERIAL PRIMARY KEY,
+      cluster_id UUID NOT NULL REFERENCES story_clusters(id) ON DELETE CASCADE,
+      decision TEXT NOT NULL,
+      score INTEGER,
+      rank INTEGER,
+      decided_by TEXT NOT NULL DEFAULT '',
+      decided_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS news_story_decisions_at_idx ON news_story_decisions (decided_at DESC)`;
+  // The travel score before an official source's bonus, so a brand's own
+  // post doesn't count as high travel impact in the trend score.
+  await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS relevance_base INTEGER`;
   // Where a news cover image came from and under what terms it may be used.
   // source_type: licensed | own | permission | ai | unverified
   await sql`

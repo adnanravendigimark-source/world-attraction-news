@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/ConfirmProvider";
 import type { Story, StoryFunnel } from "@/lib/news/stories";
 import NewsResearchPanel from "@/components/admin/NewsResearchPanel";
 import Link from "next/link";
+import type { Calibration } from "@/lib/news/decisions";
 import { generateNewsArticle } from "@/lib/news/clientPipeline";
 import { STAGE_GROUPS, type StepState, type StoryPipeline } from "@/lib/news/stage";
 
@@ -75,6 +76,7 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
   const [funnel, setFunnel] = useState<StoryFunnel | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [cfg, setCfg] = useState<any>(null);
+  const [calibration, setCalibration] = useState<Calibration | null>(null);
   const [stageFilter, setStageFilter] = useState("");
   const [generating, setGenerating] = useState<{ id: string; text: string } | null>(null);
 
@@ -139,20 +141,32 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
     }
   }
 
+  const loadSettings = useCallback(async () => {
+    const res = await fetch("/api/admin/news/settings");
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setCfg(data.trend);
+      setCalibration(data.calibration || null);
+    } else toast.error(data.error || "Could not load settings.");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Thresholds drive the score filter, so load them with the page.
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
   async function openSettings() {
     setShowSettings((v) => !v);
-    if (!cfg) {
-      const res = await fetch("/api/admin/news/settings");
-      const data = await res.json();
-      if (res.ok) setCfg(data.trend);
-      else toast.error(data.error || "Could not load settings.");
-    }
+    if (!showSettings) await loadSettings();
   }
 
   async function saveSettings(reset = false) {
     setBusy(true);
     try {
-      const body = reset ? { reset: true } : { weights: cfg.weights, thresholds: cfg.thresholds };
+      const body = reset
+        ? { reset: true }
+        : { weights: cfg.weights, thresholds: cfg.thresholds, freshnessBands: cfg.freshnessBands, staleScore: cfg.staleScore, sourceCurve: cfg.sourceCurve };
       const res = await fetch("/api/admin/news/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save.");
@@ -262,8 +276,8 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
         </select>
         <select className={input} value={minScore} onChange={(e) => setMinScore(Number(e.target.value))}>
           <option value={0}>Any score</option>
-          <option value={55}>Review tier (55+)</option>
-          <option value={65}>High priority (65+)</option>
+          <option value={cfg?.thresholds?.review ?? 50}>Review tier ({cfg?.thresholds?.review ?? 50}+)</option>
+          <option value={cfg?.thresholds?.high ?? 60}>High priority ({cfg?.thresholds?.high ?? 60}+)</option>
         </select>
         <select className={input} value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} title="Where the story is in the pipeline">
           <option value="">Any stage</option>
@@ -315,6 +329,83 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
               <input type="number" min={0} max={100} disabled={!canEdit} className={`${input} mt-1 w-full`} value={cfg.thresholds.review} onChange={(e) => setCfg({ ...cfg, thresholds: { ...cfg.thresholds, review: Number(e.target.value) } })} />
             </label>
           </div>
+          <div className="mt-5 grid gap-5 md:grid-cols-2">
+            <div>
+              <div className="text-sm font-medium text-ink-900">Freshness</div>
+              <p className="text-xs text-ink-500">Score by the age of the story&apos;s newest item.</p>
+              <table className="mt-2 text-sm">
+                <tbody>
+                  {(cfg.freshnessBands as [number, number][]).map(([h, v], i) => (
+                    <tr key={i}>
+                      <td className="pr-2 text-ink-600">Up to</td>
+                      <td className="pr-2">
+                        <input type="number" min={1} disabled={!canEdit} className={`${input} w-20`} value={h}
+                          onChange={(e) => setCfg({ ...cfg, freshnessBands: cfg.freshnessBands.map((b: [number, number], j: number) => (j === i ? [Number(e.target.value), b[1]] : b)) })} />
+                      </td>
+                      <td className="pr-2 text-ink-600">hours →</td>
+                      <td>
+                        <input type="number" min={0} max={100} disabled={!canEdit} className={`${input} w-20`} value={v}
+                          onChange={(e) => setCfg({ ...cfg, freshnessBands: cfg.freshnessBands.map((b: [number, number], j: number) => (j === i ? [b[0], Number(e.target.value)] : b)) })} />
+                      </td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td className="pr-2 text-ink-600" colSpan={3}>Older →</td>
+                    <td>
+                      <input type="number" min={0} max={100} disabled={!canEdit} className={`${input} w-20`} value={cfg.staleScore}
+                        onChange={(e) => setCfg({ ...cfg, staleScore: Number(e.target.value) })} />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-ink-900">Source count</div>
+              <p className="text-xs text-ink-500">Score by how many different publishers report the story.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(cfg.sourceCurve as number[]).map((v, i) => (
+                  <label key={i} className="text-xs text-ink-600">
+                    <span className="block">{i === 4 ? "5+" : i + 1}</span>
+                    <input type="number" min={0} max={100} disabled={!canEdit} className={`${input} w-16`} value={v}
+                      onChange={(e) => setCfg({ ...cfg, sourceCurve: cfg.sourceCurve.map((x: number, j: number) => (j === i ? Number(e.target.value) : x)) })} />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          {calibration && (
+            <div className="mt-5 rounded-lg border border-ink-200 bg-ink-50 p-4 text-sm">
+              <div className="font-medium text-ink-900">Calibration: your picks against the score (last {calibration.days} days)</div>
+              <p className="mt-1 text-ink-700">
+                {calibration.picks} {calibration.picks === 1 ? "story" : "stories"} picked (shortlisted, generated or published), {calibration.ignored} ignored
+                {calibration.autoDrafted ? `, ${calibration.autoDrafted} drafted by automation` : ""}.
+                {calibration.topShare !== null && (
+                  <>
+                    {" "}
+                    <b className={calibration.topShare >= 0.7 ? "text-green-700" : "text-amber-700"}>
+                      {calibration.picksInTop} of {calibration.picks} ({Math.round(calibration.topShare * 100)}%)
+                    </b>{" "}
+                    were in the score&apos;s top 15 when you picked them (target: 70%).
+                  </>
+                )}
+              </p>
+              {calibration.pickScore && (
+                <p className="mt-1 text-xs text-ink-600">
+                  Your picks scored {calibration.pickScore.p20}+ (four in five) with a median of {calibration.pickScore.median}
+                  {calibration.ignoredMedian !== null ? `; ignored stories had a median of ${calibration.ignoredMedian}` : ""}.
+                </p>
+              )}
+              <p className="mt-1 text-xs text-ink-500">{calibration.note}</p>
+              {calibration.suggested && canEdit && (
+                <button
+                  onClick={() => setCfg({ ...cfg, thresholds: { high: calibration.suggested!.high, review: calibration.suggested!.review } })}
+                  className="mt-2 rounded border border-ink-300 bg-white px-3 py-1 text-xs hover:bg-ink-50"
+                >
+                  Use suggested thresholds: high {calibration.suggested.high}, review {calibration.suggested.review} (then save)
+                </button>
+              )}
+            </div>
+          )}
           {canEdit && (
             <div className="mt-4 flex gap-2">
               <button onClick={() => saveSettings(false)} disabled={busy} className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800 disabled:opacity-60">Save &amp; re-score</button>

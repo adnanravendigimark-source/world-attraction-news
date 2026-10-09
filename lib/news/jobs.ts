@@ -7,6 +7,7 @@ import { sql } from "../db";
 import { loadFilterConfig } from "./filter";
 import { runResearch } from "./research";
 import { createDraftFromStory } from "./drafts";
+import { recordDecision } from "./decisions";
 import { ensureImages } from "./imagegen";
 import { enrichArticle } from "./seo";
 import { writeArticle } from "./writer";
@@ -185,6 +186,7 @@ async function execute(job: any, cfg: AutomationConfig): Promise<{ result: any; 
   }
   if (job.kind === "draft") {
     const { article, created } = await createDraftFromStory(clusterId);
+    if (created) await recordDecision(clusterId, "auto_drafted", "automation");
     await enqueueJob("write", clusterId, article.id);
     return { result: { created }, articleId: article.id };
   }

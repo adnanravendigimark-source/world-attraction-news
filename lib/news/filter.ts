@@ -141,6 +141,7 @@ export const OFFICIAL_BONUS = 25;
 
 export interface RelevanceResult {
   score: number;
+  base: number; // score before an official source's bonus (used for travel impact in trend scoring)
   category: string;
   status: Exclude<FilterStatus, "pending">;
   reason: string;
@@ -208,10 +209,12 @@ export function scoreRelevance(
   // official travel-advice feed is travel news. Off-topic vocabulary (results
   // webcasts, board news) still rules an item out.
   let officialLift = false;
+  let base = score;
   if (input.sourceIsOfficial && penalty === 0) {
     if (input.sourceCategory === "Travel Rules") {
       officialLift = score < config.relevantMin;
       score = Math.max(score, config.relevantMin);
+      base = score; // an advisory is travel news on its own merits
     } else if (total > 0) {
       officialLift = true;
       score = Math.min(100, score + OFFICIAL_BONUS);
@@ -228,7 +231,7 @@ export function scoreRelevance(
     .filter(Boolean)
     .join(" · ");
 
-  return { score, category: topCat, status, reason };
+  return { score, base, category: topCat, status, reason };
 }
 
 // Re-score stored items (e.g. after editing the term lists). `onlyPending`
@@ -269,6 +272,11 @@ export async function refilterItems(opts: { onlyPending?: boolean; limit?: numbe
       ) AS t(id, score, cat, status, reason)
       WHERE i.id = t.id
     `;
+    await sql`
+      UPDATE news_items i SET relevance_base = t.base
+      FROM unnest(${batch.map((r: any) => r.id)}::uuid[], ${res.map((r) => r.base)}::int[]) AS t(id, base)
+      WHERE i.id = t.id
+    `.catch(() => {}); // column arrives with scripts/setup-db.mjs
     done += batch.length;
   }
   return done;

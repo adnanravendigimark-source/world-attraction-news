@@ -119,6 +119,11 @@ async function storeItems(source: NewsSource, items: ParsedFeedItem[]): Promise<
     ON CONFLICT (source_id, external_id) DO NOTHING
     RETURNING id
   `;
+  await sql`
+    UPDATE news_items i SET relevance_base = t.base
+    FROM unnest(${fresh.map((i) => i.externalId)}::text[], ${rel.map((r) => r.base)}::int[]) AS t(eid, base)
+    WHERE i.source_id = ${source.id}::uuid AND i.external_id = t.eid AND i.relevance_base IS NULL
+  `.catch(() => {}); // column arrives with scripts/setup-db.mjs
   return rows.length;
 }
 

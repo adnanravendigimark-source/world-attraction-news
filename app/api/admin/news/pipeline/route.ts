@@ -5,6 +5,7 @@ import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { checkDailyCap, getLatestResearch, runResearch } from "@/lib/news/research";
 import { createDraftFromStory } from "@/lib/news/drafts";
+import { recordDecision } from "@/lib/news/decisions";
 import { MIN_FACTS, writeArticle } from "@/lib/news/writer";
 import { checkAndRevise } from "@/lib/news/factcheck";
 import { storyBusy } from "@/lib/news/jobs";
@@ -50,7 +51,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Automation is writing this story right now. Open it from Articles in a few minutes." }, { status: 409 });
       }
       const { article, created } = await createDraftFromStory(clusterId);
-      if (created) await logActivity(session, "news_draft_created", { type: "article", id: article.id, label: article.title });
+      if (created) {
+        await logActivity(session, "news_draft_created", { type: "article", id: article.id, label: article.title });
+        await recordDecision(clusterId, "drafted", session.email);
+      }
       const w = await writeArticle(article.id);
       const e = await enrichArticle(article.id);
       return NextResponse.json({ ok: true, articleId: article.id, adminUrl: `/admin/articles/${article.id}`, wordCount: w.wordCount, links: e.links });

@@ -19,7 +19,9 @@ export interface TrendConfig {
 }
 
 export const DEFAULT_TREND_CONFIG: TrendConfig = {
-  weights: { freshness: 30, sources: 20, impact: 20, audience: 15, reliability: 10, uniqueness: 5 },
+  // Phase 6: story size (publishers) weighs as much as freshness, so a story
+  // eight outlets are covering outranks a brand's own post from an hour ago.
+  weights: { freshness: 25, sources: 25, impact: 20, audience: 10, reliability: 15, uniqueness: 5 },
   freshnessBands: [
     [2, 100],
     [6, 85],
@@ -39,9 +41,10 @@ export const DEFAULT_TREND_CONFIG: TrendConfig = {
     Tourism: 60,
   },
   defaultCategoryWeight: 40,
-  // Calibrated to real scores: travel relevance scales every story's total, so a
-  // strong, fresh, multi-source travel story lands in the mid-to-high 60s.
-  thresholds: { high: 65, review: 55 },
+  // Calibrated on a week of real scores (October 2026, 116 stories): 60+ is
+  // roughly the top 7%, 50+ the top 18%. The Calibration panel suggests new
+  // values from editors' own picks once there are enough of them.
+  thresholds: { high: 60, review: 50 },
   windowDays: 7,
 };
 
@@ -85,6 +88,9 @@ export async function saveTrendConfig(patch: Partial<TrendConfig>): Promise<Tren
   const current = await loadTrendConfig(true);
   const next: TrendConfig = {
     ...current,
+    ...(patch.freshnessBands ? { freshnessBands: patch.freshnessBands.map(([h, v]) => [Number(h), Number(v)] as [number, number]) } : {}),
+    ...(patch.staleScore !== undefined ? { staleScore: Number(patch.staleScore) } : {}),
+    ...(patch.sourceCurve ? { sourceCurve: patch.sourceCurve.map(Number) } : {}),
     weights: { ...current.weights, ...(patch.weights || {}) },
     thresholds: { ...current.thresholds, ...(patch.thresholds || {}) },
     categoryWeights: { ...current.categoryWeights, ...(patch.categoryWeights || {}) },
@@ -113,6 +119,30 @@ export function validateTrendPatch(p: any): string | null {
     const r = Number(p.thresholds.review ?? DEFAULT_TREND_CONFIG.thresholds.review);
     if (![h, r].every((n) => Number.isFinite(n) && n >= 0 && n <= 100)) return "Thresholds must be between 0 and 100.";
     if (r > h) return "The review threshold can't be higher than the high-priority threshold.";
+  }
+  if (p.freshnessBands !== undefined) {
+    const b = p.freshnessBands;
+    if (!Array.isArray(b) || b.length < 1 || b.length > 8) return "Freshness needs 1 to 8 bands.";
+    let prevAge = 0;
+    let prevScore = 101;
+    for (const band of b) {
+      const [h, v] = Array.isArray(band) ? band.map(Number) : [NaN, NaN];
+      if (!Number.isFinite(h) || h <= prevAge || h > 24 * 30) return "Freshness band ages must increase (hours, up to 720).";
+      if (!Number.isFinite(v) || v < 0 || v > 100 || v > prevScore) return "Freshness band scores must be 0–100 and must not rise for older stories.";
+      prevAge = h;
+      prevScore = v;
+    }
+    const stale = Number(p.staleScore ?? 0);
+    if (!Number.isFinite(stale) || stale < 0 || stale > prevScore) return "The score for older stories must be 0 or more and not above the last band.";
+  }
+  if (p.sourceCurve !== undefined) {
+    const c = p.sourceCurve;
+    if (!Array.isArray(c) || c.length !== 5) return "The source curve needs 5 values (1, 2, 3, 4, 5+ publishers).";
+    let prev = -1;
+    for (const v of c.map(Number)) {
+      if (!Number.isFinite(v) || v < 0 || v > 100 || v < prev) return "Source curve values must be 0–100 and must not fall as publishers increase.";
+      prev = v;
+    }
   }
   return null;
 }
@@ -197,7 +227,7 @@ export async function runTrendScoring(): Promise<{ scored: number }> {
 
   const stats = (await sql`
     SELECT i.cluster_id,
-           MAX(COALESCE(i.relevance_score, 0))::int AS max_rel,
+           MAX(COALESCE(i.relevance_base, i.relevance_score, 0))::int AS max_rel,
            MAX(s.reliability_score)::int AS max_rely,
            AVG(s.reliability_score)::float AS avg_rely,
            BOOL_OR(s.is_official AND s.type NOT IN ('google_news_rss', 'newsapi', 'currents')) AS official,
@@ -206,7 +236,7 @@ export async function runTrendScoring(): Promise<{ scored: number }> {
     WHERE i.cluster_id = ANY(${ids}::uuid[])
     GROUP BY i.cluster_id
   `.catch(
-    // Before scripts/setup-db.mjs adds news_sources.is_official.
+    // Before scripts/setup-db.mjs adds is_official / relevance_base.
     () => sql`
     SELECT i.cluster_id,
            MAX(COALESCE(i.relevance_score, 0))::int AS max_rel,

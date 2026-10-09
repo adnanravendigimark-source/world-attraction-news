@@ -4,6 +4,7 @@ import { dbErrorMessage } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { createDraftFromStory } from "@/lib/news/drafts";
+import { recordDecision } from "@/lib/news/decisions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,10 @@ export async function POST(req: Request) {
   if (!clusterId) return NextResponse.json({ error: "clusterId is required." }, { status: 400 });
   try {
     const { article, created } = await createDraftFromStory(clusterId);
-    if (created) await logActivity(session, "news_draft_created", { type: "article", id: article.id, label: article.title });
+    if (created) {
+      await logActivity(session, "news_draft_created", { type: "article", id: article.id, label: article.title });
+      await recordDecision(clusterId, "drafted", session!.email);
+    }
     return NextResponse.json({ ok: true, created, articleId: article.id, adminUrl: `/admin/articles/${article.id}` });
   } catch (err: any) {
     console.error("[api/admin/news/drafts] error:", err);

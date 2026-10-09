@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { listStories } from "@/lib/news/stories";
 import { mergeDuplicateClusters, mergeStories, moveItem, resetClustering, runClustering } from "@/lib/news/cluster";
 import { runTrendScoring } from "@/lib/news/trend";
+import { recordDecision } from "@/lib/news/decisions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid request." }, { status: 400 });
       }
       await sql`UPDATE story_clusters SET status = ${body.status} WHERE id = ${String(body.id)}`;
+      if (body.status !== "new") await recordDecision(String(body.id), body.status, session.email);
       return NextResponse.json({ ok: true });
     }
     // Editor merge: { action: "merge", targetId, ids: [...] }
