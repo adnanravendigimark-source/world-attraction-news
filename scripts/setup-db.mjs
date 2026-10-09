@@ -1416,6 +1416,22 @@ async function createNewsTables() {
   // Phase 9 — cover size and the uncropped original (covers are 1200×675).
   // cover_url says which image the size describes.
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS cover_url TEXT NOT NULL DEFAULT ''`;
+  // Phase 10 — links from a news article to this site's own pages, one row
+  // per link: in the text or in the Related box; removed rows keep a page out.
+  await sql`
+    CREATE TABLE IF NOT EXISTS article_internal_links (
+      id BIGSERIAL PRIMARY KEY,
+      article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+      target_url TEXT NOT NULL,
+      target_type TEXT NOT NULL,
+      entity_name TEXT NOT NULL DEFAULT '',
+      placement TEXT NOT NULL DEFAULT 'in_text',
+      status TEXT NOT NULL DEFAULT 'applied',
+      created_by TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS article_internal_links_article_idx ON article_internal_links (article_id)`;
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS width INTEGER`;
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS height INTEGER`;
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS original_url TEXT NOT NULL DEFAULT ''`;

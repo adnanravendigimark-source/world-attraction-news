@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getArticleSources, getPublishedNews, getPublishedNewsBySlug } from "@/lib/articles";
 import { breadcrumbJsonLd, jsonLdScript, newsArticleJsonLd, resolvePageMetadata } from "@/lib/seo";
 import { getImageMeta, isNewsCoverSize } from "@/lib/news/images";
+import { getLinks, relatedBoxItems } from "@/lib/news/internalLinks";
 import { getExtra } from "@/lib/news/seo";
 import { getPageIndexing } from "@/lib/indexing";
 
@@ -42,11 +43,15 @@ function fmt(iso: string | null) {
 export default async function NewsArticlePage({ params }: { params: { slug: string } }) {
   const article = await getPublishedNewsBySlug(params.slug);
   if (!article) notFound();
-  const [sources, imageMeta, latest] = await Promise.all([
+  const [sources, imageMeta, latest, links] = await Promise.all([
     getArticleSources(article.id),
     getImageMeta(article.id),
     getPublishedNews({ limit: 4, offset: 0 }).catch(() => ({ articles: [], total: 0 })),
+    getLinks(article.id),
   ]);
+  // Related box: this site's pages the story links to or mentions. Hidden
+  // when there are none.
+  const related = relatedBoxItems(links);
   const more = latest.articles.filter((a) => a.id !== article.id).slice(0, 3);
   const path = `/news/${article.slug}`;
   const showUpdated = article.updatedAt && article.publishedAt && fmt(article.updatedAt) !== fmt(article.publishedAt);
@@ -130,6 +135,21 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
       )}
 
       <div className="rich-content article-body news-body mt-9" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
+
+      {related.length > 0 && (
+        <section className="mt-12 border-t border-slate-200 pt-6" aria-labelledby="related-heading">
+          <h2 id="related-heading" className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Related on World Attraction News</h2>
+          <ul className="mt-3 flex flex-wrap gap-2 text-sm">
+            {related.map((r) => (
+              <li key={r.url}>
+                <Link href={r.url} className="inline-block rounded-full border border-slate-200 px-3 py-1 text-slate-800 hover:border-slate-400">
+                  {r.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {sources.length > 0 && (
         <section className="mt-12 rounded-xl bg-slate-50 p-5">

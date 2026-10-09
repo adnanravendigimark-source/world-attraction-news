@@ -12,6 +12,7 @@ import NewsImagePanel from "@/components/admin/NewsImagePanel";
 import NewsWriterPanel from "@/components/admin/NewsWriterPanel";
 import NewsReadyBar from "@/components/admin/NewsReadyBar";
 import NewsSourcesPanel from "@/components/admin/NewsSourcesPanel";
+import NewsLinksPanel from "@/components/admin/NewsLinksPanel";
 import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
@@ -626,6 +627,7 @@ export default function ArticleReviewPanel({
 
             {article.type === "news" && <NewsWriterPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
             {article.type === "news" && <NewsSourcesPanel articleId={article.id} />}
+            {article.type === "news" && <NewsLinksPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
 
             {/* Featured Image */}
             <div className="space-y-2">

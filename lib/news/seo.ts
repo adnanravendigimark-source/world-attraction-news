@@ -3,9 +3,9 @@
 // site's own destination pages. Facts are never touched; links only wrap text
 // that is already in the article.
 import { sql } from "../db";
-import { generateUniqueSlug, computeContentStats } from "../articles";
+import { generateUniqueSlug } from "../articles";
 import { SITE_URL } from "../site";
-import { applyLink } from "./links";
+import { refreshLinks } from "./internalLinks";
 
 export interface ExtraSeo {
   secondaryKeywords: string[];
@@ -46,35 +46,6 @@ export async function saveExtra(articleId: string, patch: Partial<Omit<ExtraSeo,
   }
 }
 
-function plainText(html: string): string {
-  return html.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, " ").replace(/<figure[\s\S]*?<\/figure>/gi, " ").replace(/<[^>]+>/g, " ");
-}
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-interface Candidate {
-  name: string;
-  url: string;
-}
-
-async function loadCandidates(): Promise<Candidate[]> {
-  const out: Candidate[] = [];
-  try {
-    const countries = (await sql`SELECT name, slug FROM countries`) as any[];
-    for (const c of countries) out.push({ name: c.name, url: `/destinations/${c.slug}` });
-    const cities = (await sql`SELECT name, slug, country_slug FROM cities`) as any[];
-    for (const c of cities) if (c.country_slug) out.push({ name: c.name, url: `/destinations/${c.country_slug}/${c.slug}` });
-  } catch {
-    /* tables may not exist yet */
-  }
-  return out;
-}
-
-// Names (countries, cities) mentioned in the article that have a page on this site.
-export function findMentions(html: string, candidates: Candidate[]): Candidate[] {
-  const text = plainText(html);
-  return candidates.filter((c) => c.name.length >= 3 && new RegExp(`(^|[^\\p{L}\\p{N}])${esc(c.name)}(?![\\p{L}\\p{N}])`, "iu").test(text));
-}
-
 const SLUG_STOP = new Set("a an the of to in on at for and or with by from is are as its it this that after over into amid says said".split(" "));
 
 // Short, readable news slug: filler words dropped, at most 8 words, no
@@ -106,22 +77,10 @@ export async function enrichArticle(articleId: string): Promise<{ slug: string; 
   const slug = await generateUniqueSlug(newsSlugBase(String(a.title || "news")), articleId);
   const canonical = `${SITE_URL}/news/${slug}`;
 
-  const candidates = await loadCandidates();
-  const mentions = findMentions(String(a.content_html || ""), candidates).slice(0, 4);
-  let html = String(a.content_html || "");
-  const applied: { name: string; url: string }[] = [];
-  for (const m of mentions) {
-    const next = applyLink(html, m.name, m.url);
-    if (next !== html) {
-      html = next;
-      applied.push({ name: m.name, url: m.url });
-    }
-  }
-  const stats = computeContentStats(html);
-  await sql`
-    UPDATE articles SET slug = ${slug}, canonical_url = ${canonical}, content_html = ${html},
-      word_count = ${stats.wordCount}, reading_time_minutes = ${stats.readingTimeMinutes}, updated_at = now()
-    WHERE id = ${articleId}`;
-  await saveExtra(articleId, { internalLinks: { applied, candidates: mentions.length } });
-  return { slug, links: applied.length };
+  await sql`UPDATE articles SET slug = ${slug}, canonical_url = ${canonical}, updated_at = now() WHERE id = ${articleId}`;
+  // Links to this site's own pages: up to 3 in the text, the rest in the
+  // Related box (lib/news/internalLinks.ts).
+  const links = await refreshLinks(articleId);
+  await saveExtra(articleId, { internalLinks: { applied: links.inText.map((l) => ({ name: l.name, url: l.url })), candidates: links.mentions } });
+  return { slug, links: links.inText.length };
 }

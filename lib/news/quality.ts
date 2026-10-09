@@ -9,6 +9,7 @@ import { getLatestResearch } from "./research";
 import { getFactCheck } from "./factcheck";
 import { getImageMeta, isNewsCoverSize } from "./images";
 import { getExtra } from "./seo";
+import { getLinks } from "./internalLinks";
 import { prepareTitle, sameStoryPrepared } from "./similarity";
 import { OVERLAP_WORDS, sourceOverlap, type OverlapMatch } from "./overlap";
 
@@ -131,8 +132,16 @@ export async function computeQuality(articleId: string): Promise<QualityReport> 
   add("provenance", "Image rights recorded", 5, provOk ? 1 : 0, !a.image ? "No image" : meta.sourceType === "unverified" ? "Rights not recorded" : meta.sourceType === "ai" ? "AI-generated, labelled" : `${meta.sourceType}: ${meta.credit || "no credit"}`);
 
   // Internal links (5)
-  const applied = extra.internalLinks.applied.length;
-  add("links", "Internal links added", 5, applied > 0 || extra.internalLinks.candidates === 0 ? 1 : 0, applied > 0 ? `${applied} link(s): ${extra.internalLinks.applied.map((l) => l.name).join(", ")}` : "No destination on this site is mentioned");
+  // Stored links (Phase 10); older drafts only have the summary in extra.
+  const stored = (await getLinks(articleId)).filter((l) => l.status === "applied");
+  const linked = stored.length ? stored.map((l) => l.entityName) : extra.internalLinks.applied.map((l) => l.name);
+  add(
+    "links",
+    "Internal links added",
+    5,
+    linked.length > 0 || extra.internalLinks.candidates === 0 ? 1 : 0,
+    linked.length > 0 ? `${linked.length} link(s): ${linked.slice(0, 4).join(", ")}${linked.length > 4 ? "…" : ""}` : "No destination on this site is mentioned"
+  );
 
   // Travel relevance (5) + freshness (5), from the story's items
   const story = a.news_cluster_id
