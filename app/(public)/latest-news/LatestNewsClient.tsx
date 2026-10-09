@@ -106,7 +106,7 @@ export default function LatestNewsClient({
               Home
             </Link>
             <span>&gt;</span>
-            <span className="text-slate-800">Latest News</span>
+            <span className="text-slate-800">Blog</span>
           </nav>
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -114,14 +114,14 @@ export default function LatestNewsClient({
               <div className="flex items-center gap-2 mb-2">
                 <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
                 <span className="text-[11px] font-black uppercase tracking-widest text-[#DC2626]">
-                  CONTINUOUS WIRE
+                  TRAVEL BLOG
                 </span>
               </div>
               <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#0B1527]">
-                Latest News
+                Blog
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                Stay updated with real-time attraction news, openings, ticket updates, and travel stories from around the world.
+                Attraction guides, openings, ticket tips and travel stories from our writers around the world.
               </p>
             </div>
 

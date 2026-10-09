@@ -107,7 +107,7 @@ export default function ArticleDetailClient({
           </Link>
           <span>&gt;</span>
           <Link href="/latest-news" className="hover:text-slate-900 transition-colors">
-            Latest News
+            Blog
           </Link>
           <span>&gt;</span>
           <Link href={cityPath(article.countrySlug, article.citySlug)} className="hover:text-slate-900 transition-colors">

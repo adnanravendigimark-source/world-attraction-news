@@ -18,7 +18,7 @@ export interface IndexingRow {
 
 const STATIC_CORE_PAGES: Array<{ key: string; label: string; url: string }> = [
   { key: "homepage", label: "Homepage", url: "/" },
-  { key: "latest-news", label: "Latest News (listing)", url: "/latest-news" },
+  { key: "latest-news", label: "Blog (listing)", url: "/latest-news" },
   { key: "news", label: "Travel News (listing)", url: "/news" },
   { key: "destinations", label: "Destinations (index)", url: "/destinations" },
   { key: "categories", label: "Categories (index)", url: "/categories" },

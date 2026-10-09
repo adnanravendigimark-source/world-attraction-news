@@ -419,7 +419,7 @@ export function newsletterSubscribedEmailTemplate(): RenderedEmail {
     previewText: `Welcome to ${SITE_NAME}! You are now subscribed to our dispatches.`,
     heading,
     bodyHtml,
-    ctaLabel: "Explore Latest News",
+    ctaLabel: "Read the Blog",
     ctaUrl: absoluteUrl("/latest-news"),
   });
   return { subject: `Welcome to ${SITE_NAME} — You're Subscribed!`, html, text: htmlToText(html) };

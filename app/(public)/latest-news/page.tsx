@@ -4,7 +4,6 @@ import { getPublishedArticlesPage, getTrendingArticles, type ArticleSort } from 
 import { getCitiesWithArticleCounts } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
 import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
-import { SITE_NAME } from "@/lib/site";
 
 // Stays force-dynamic: real server-side filtering, search, sort, and
 // pagination all come from searchParams, so every combination is a
@@ -38,8 +37,8 @@ export async function generateMetadata({
       (searchParams?.sort && searchParams.sort !== "latest")
   );
   return buildMetadata({
-    title: `Latest News — Real-Time Attraction News & Openings | ${SITE_NAME}`,
-    description: "Stay updated with real-time attraction news, openings, ticket updates, and travel stories from around the world.",
+    title: "Blog — Attraction Guides, Openings & Travel Stories", // the root layout appends the site name
+    description: "Attraction guides, openings, ticket tips and travel stories from our writers around the world.",
     path: "/latest-news",
     noIndex: isFiltered,
   });
@@ -47,7 +46,7 @@ export async function generateMetadata({
 
 const breadcrumbs = [
   { name: "Home", path: "/" },
-  { name: "Latest News", path: "/latest-news" },
+  { name: "Blog", path: "/latest-news" },
 ];
 
 export default async function LatestNewsPage({

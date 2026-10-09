@@ -247,7 +247,7 @@ export default async function HomePage() {
         )}
 
         {/* =========================================
-            2. LATEST NEWS SECTION (up to 4 real cards)
+            2. BLOG SECTION (up to 4 real cards; guide articles at /latest-news)
         ========================================= */}
         <section className="py-8 sm:py-12 lg:py-14 border-b border-slate-100">
           <Container>
@@ -255,20 +255,20 @@ export default async function HomePage() {
               <div className="flex items-center gap-2">
                 <span className="w-1 h-4 sm:h-5 bg-[#DC2626] rounded-full inline-block" />
                 <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-[#0B1527]">
-                  LATEST NEWS
+                  BLOG
                 </h2>
               </div>
               <Link
                 href="/latest-news"
                 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#DC2626] flex items-center gap-1 transition-colors shrink-0"
               >
-                <span>VIEW ALL NEWS</span>
+                <span>VIEW ALL POSTS</span>
                 <span aria-hidden="true">→</span>
               </Link>
             </div>
 
             {latestNews.length === 0 ? (
-              <EmptyState title="No news published yet" description="Check back soon for the latest attraction updates." />
+              <EmptyState title="No posts published yet" description="Check back soon for new attraction guides and travel stories." />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {latestNews.map((a) => {

@@ -3,7 +3,7 @@ import Container from "@/components/Container";
 import SearchForm from "@/components/SearchForm";
 
 const QUICK_LINKS = [
-  { href: "/latest-news", label: "Latest News" },
+  { href: "/latest-news", label: "Blog" },
   { href: "/destinations", label: "Browse Destinations" },
   { href: "/categories", label: "Browse Categories" },
 ];

@@ -98,7 +98,7 @@ export default async function SearchPage({ searchParams }: { searchParams: { q?:
               <EmptyState
                 title="Try a different search"
                 description="Check your spelling, use a broader term, or browse by city or category instead."
-                actionLabel="Browse latest news"
+                actionLabel="Browse the blog"
                 actionHref="/latest-news"
               />
             </div>

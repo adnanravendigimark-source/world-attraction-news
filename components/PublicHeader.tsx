@@ -186,7 +186,7 @@ export default function PublicHeader({
                   : "text-slate-800 hover:text-[#DC2626]"
               }`}
             >
-              LATEST NEWS
+              BLOG
               {pathname.startsWith("/latest-news") && (
                 <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#DC2626]" />
               )}
@@ -390,7 +390,7 @@ export default function PublicHeader({
                 pathname.startsWith("/latest-news") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
               }`}
             >
-              LATEST NEWS
+              BLOG
             </Link>
             <Link
               href="/destinations"
