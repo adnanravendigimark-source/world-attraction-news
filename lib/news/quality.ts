@@ -48,6 +48,31 @@ export function freshnessFraction(ageHours: number): number {
   return 0;
 }
 
+// Where the focus keyword appears. A keyword counts as present when every
+// word in it does (in any order), so "Bali tourist tax" matches "tax on Bali tourists".
+export function newsKeywordPlacement(a: { focus_keyword?: string; title?: string; meta_title?: string; meta_description?: string; slug?: string; content_html?: string }): {
+  keyword: string;
+  found: string[];
+  missing: string[];
+} {
+  const keyword = String(a.focus_keyword || "").trim().toLowerCase();
+  const words = keyword.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 1).map((w) => w.replace(/s$/, ""));
+  const has = (t: string) => {
+    const tokens = new Set(String(t || "").toLowerCase().split(/[^\p{L}\p{N}]+/u).map((w) => w.replace(/s$/, "")));
+    return words.length > 0 && words.every((w) => tokens.has(w));
+  };
+  const firstPara = (String(a.content_html || "").match(/<p[^>]*>([\s\S]*?)<\/p>/i)?.[1] || "").replace(/<[^>]+>/g, " ");
+  const places: [string, string][] = [
+    ["headline", a.title || ""],
+    ["SEO title", a.meta_title || ""],
+    ["meta description", a.meta_description || ""],
+    ["URL", (a.slug || "").replace(/-/g, " ")],
+    ["opening", firstPara],
+  ];
+  const found = places.filter(([, t]) => has(t)).map(([k]) => k);
+  return { keyword, found, missing: places.map(([k]) => k).filter((k) => !found.includes(k)) };
+}
+
 export async function computeQuality(articleId: string): Promise<QualityReport> {
   const a = (await sql`
     SELECT id, title, slug, excerpt, content_html, meta_title, meta_description, focus_keyword, canonical_url, tags, image, image_alt,
@@ -108,6 +133,8 @@ export async function computeQuality(articleId: string): Promise<QualityReport> 
     ["excerpt", !!a.excerpt],
     ["SEO title", !!a.meta_title],
     ["meta description", !!a.meta_description],
+    ["meta description 120-160 characters", String(a.meta_description || "").length >= 120 && String(a.meta_description || "").length <= 160],
+    ["SEO title up to 60 characters", !!a.meta_title && String(a.meta_title).length <= 60],
     ["focus keyword", !!a.focus_keyword],
     ["slug", !!a.slug],
     ["canonical", !!a.canonical_url],
@@ -116,7 +143,17 @@ export async function computeQuality(articleId: string): Promise<QualityReport> 
     ["Open Graph", !!extra.ogTitle && !!extra.ogDescription],
   ];
   const missing = seoParts.filter(([, v]) => !v).map(([k]) => k);
-  add("seo", "SEO complete", 10, (seoParts.length - missing.length) / seoParts.length, missing.length ? `Missing: ${missing.join(", ")}` : "All SEO fields set");
+  add("seo", "SEO fields set", 5, (seoParts.length - missing.length) / seoParts.length, missing.length ? `Missing: ${missing.join(", ")}` : "All SEO fields set");
+
+  // Keyword placement (5): the focus keyword where search engines and readers look.
+  const kw = newsKeywordPlacement(a);
+  add(
+    "keywords",
+    "Keyword placement",
+    5,
+    kw.keyword ? kw.found.length / 5 : 0,
+    !kw.keyword ? "No focus keyword" : kw.missing.length ? `"${kw.keyword}" missing from: ${kw.missing.join(", ")}` : `"${kw.keyword}" in headline, SEO title, meta description, URL and opening`
+  );
 
   // Image (10): a 1200×675 cover with alt text. Provenance (5).
   const meta = await getImageMeta(articleId);
@@ -193,6 +230,14 @@ export async function computeQuality(articleId: string): Promise<QualityReport> 
   // Sources (5). News stories have no category.
   const srcCount = (await getArticleSources(articleId)).length;
   add("metadata", "Sources linked", 5, srcCount > 0 ? 1 : 0, `${srcCount} source(s) linked`);
+
+  // Official link for travelers (note only, no points): only possible when
+  // research found an official source.
+  const official = (research?.sources || []).filter((s) => s.official && /^https:/i.test(s.url));
+  if (official.length) {
+    const linked = official.some((s) => html.includes(s.url.replace(/&/g, "&amp;")) || html.includes(s.url));
+    add("official", "Official link for travelers", 0, linked ? 1 : 0.5, linked ? "Links the official source" : `Consider linking ${official[0].publisher} so travelers can check details`);
+  }
 
   // Older dates (warning only, no points): read as background, not news.
   const old = staleYears(`${a.title || ""} ${a.excerpt || ""} ${html}`);

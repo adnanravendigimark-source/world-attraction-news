@@ -12,7 +12,7 @@
 import { sql } from "../db";
 import { computeContentStats } from "../articles";
 import { sanitizeArticleHtml } from "../sanitizeHtml";
-import { getLatestResearch, isKnown, type ResearchFacts, type ResearchRecord } from "./research";
+import { getLatestResearch, isKnown, STATUS_LABEL, type ResearchFacts, type ResearchRecord } from "./research";
 import { stripOurFigures } from "./media";
 import { chatJson } from "./aiClient";
 import { recordAiRevision } from "./aiRevision";
@@ -57,7 +57,9 @@ export const writerModel = () => process.env.OPENAI_WRITER_MODEL?.trim() || "gpt
 // Facts are numbered (F1, F2…) so the checker can say which fact supports
 // each sentence.
 export function factsBlock(f: ResearchFacts, r: Pick<ResearchRecord, "sources">): string {
-  const src = r.sources.map((s) => `[${s.n}] ${s.publisher}${s.official ? " (official)" : ""}${s.usedText ? "" : " (headline only)"}`).join("\n");
+  const src = r.sources
+    .map((s) => `[${s.n}] ${s.publisher}${s.official ? " (official)" : ""}${s.usedText ? "" : " (headline only)"}${s.publishedAt ? `, published ${s.publishedAt.slice(0, 10)}` : ""}`)
+    .join("\n");
   let k = 0;
   const id = () => `F${++k}`;
   const lines = [
@@ -66,13 +68,38 @@ export function factsBlock(f: ResearchFacts, r: Pick<ResearchRecord, "sources">)
     `${id()} Where: ${f.where}`,
     `${id()} Who is affected: ${f.who_is_affected}`,
     `${id()} What changed: ${f.what_changed}`,
+    f.status && f.status !== "unclear" ? `${id()} Status: ${STATUS_LABEL[f.status]}` : "",
+    isKnown(f.effective_from) ? `${id()} Takes effect: ${f.effective_from}` : "",
+    isKnown(f.previous_situation) ? `${id()} Before this change: ${f.previous_situation}` : "",
     ...f.important_facts.map((x) => `${id()} Fact (${x.confidence}, sources ${x.sources.join(",")}): ${x.claim}`),
     ...f.confirmed_numbers.map((x) => `${id()} Number: ${x.value} — ${x.context} (sources ${x.sources.join(",")})`),
     ...f.uncertain_claims.map((x) => `${id()} Uncertain: ${x}`),
     ...f.conflicts.map((x) => `${id()} Conflict: ${x}`),
     isKnown(f.traveler_impact) ? `${id()} Traveler impact (editor inference, hedge it): ${f.traveler_impact}` : "",
   ].filter(Boolean);
-  return `SOURCES\n${src}\n\nFACTS\n${lines.join("\n")}`;
+  const links = officialLinks(r);
+  const linkBlock = links.length ? `\n\nOFFICIAL LINKS (the only links you may add)\n${links.map((l) => `${l.name}: ${l.url}`).join("\n")}` : "";
+  return `SOURCES\n${src}\n\nFACTS\n${lines.join("\n")}${linkBlock}`;
+}
+
+// Official pages among the story's sources (a government notice, airline,
+// airport or tourism board). These are the only links the writer may add.
+export function officialLinks(r: Pick<ResearchRecord, "sources">): { name: string; url: string }[] {
+  const out: { name: string; url: string }[] = [];
+  for (const s of r.sources) {
+    if (!s.official || !/^https:\/\//i.test(s.url) || /news\.google\.com/i.test(s.url)) continue;
+    if (!out.some((o) => o.url === s.url)) out.push({ name: s.publisher, url: s.url });
+  }
+  return out.slice(0, 3);
+}
+
+// Removes any link the model added that is not one of the allowed official
+// pages (keeps the link text). Internal links are added later, by code.
+export function keepAllowedLinks(html: string, allowed: string[]): string {
+  const ok = new Set(allowed.map((u) => u.replace(/\/+$/, "")));
+  return html.replace(/<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (m, href, text) =>
+    ok.has(String(href).replace(/&amp;/g, "&").replace(/\/+$/, "")) ? `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>` : text
+  );
 }
 
 // ------------------------------------------------------------- rule checks
@@ -180,6 +207,28 @@ export function ruleIssues(html: string, facts: string): FactIssue[] {
     issues.push({ text: w, problem: "This name isn't in the researched facts. Check it is correct and supported.", severity: "low", origin: "rule" });
   }
   return issues;
+}
+
+// The headline, standfirst and meta description must agree with the facts
+// too. Rule checks only (no model call): numbers and names they mention.
+export const HEADLINE_ISSUE = /^(headline|standfirst|SEO title|meta description): /;
+export function headlineIssues(a: { title?: string; excerpt?: string; meta_title?: string; meta_description?: string }, facts: string): FactIssue[] {
+  const parts: [string, string][] = [
+    ["headline", a.title || ""],
+    ["standfirst", a.excerpt || ""],
+    ["SEO title", a.meta_title || ""],
+    ["meta description", a.meta_description || ""],
+  ];
+  const out: FactIssue[] = [];
+  for (const [where, text] of parts) {
+    if (!text.trim()) continue;
+    const html = `<p>${text}</p>`;
+    for (const n of unsupportedNumbers(html, facts))
+      out.push({ text: `${where}: ${text}`, problem: `The ${where} has "${n}", which is not in the researched facts. Edit the ${where}.`, severity: "high", origin: "rule" });
+    for (const w of unsupportedNames(html, facts))
+      out.push({ text: `${where}: ${text}`, problem: `The ${where} names "${w}", which is not in the researched facts. Check it.`, severity: "low", origin: "rule" });
+  }
+  return out;
 }
 
 export function verdictFor(issues: FactIssue[]): Verdict {
@@ -292,7 +341,7 @@ async function loadBlogForCheck(articleId: string, a: any) {
 }
 
 async function loadForCheck(articleId: string): Promise<{ article: any; research: any; facts: string; blog?: boolean }> {
-  const rows = await sql`SELECT content_html, news_cluster_id, status, type, origin, faq FROM articles WHERE id = ${articleId} LIMIT 1`;
+  const rows = await sql`SELECT content_html, news_cluster_id, status, type, origin, faq, title, excerpt, meta_title, meta_description FROM articles WHERE id = ${articleId} LIMIT 1`;
   if (rows[0] && rows[0].type !== "news" && rows[0].origin === "ai_blog") return loadBlogForCheck(articleId, rows[0]);
   const a = rows[0]?.type === "news" ? rows[0] : null;
   if (!a?.news_cluster_id) throw new Error("This article isn't linked to a researched story.");
@@ -306,7 +355,7 @@ export async function factCheckArticle(articleId: string): Promise<FactCheck> {
   const { article, facts } = await loadForCheck(articleId);
   const raw = String(article.content_html || "");
   const html = stripOurFigures(String(article.check_html ?? raw)); // photo captions aren't claims
-  const rules = ruleIssues(html, facts);
+  const rules = [...ruleIssues(html, facts), ...(article.type === "news" ? headlineIssues(article, facts) : [])];
   const m = await modelCheck(html, facts, { articleId, clusterId: article.news_cluster_id ? String(article.news_cluster_id) : null });
   const issues = [...rules, ...m.issues];
   await saveCheck(articleId, verdictFor(issues), issues, m.claims, m.model, contentHash(raw));
@@ -339,7 +388,9 @@ async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revise
   const none = { revised: false, check, blog: !!blog, result: { check, revised: false, wordCount: null } };
   if (["published", "scheduled"].includes(article.status)) return none;
   const current = stripOurFigures(String(article.content_html || ""));
-  const high = check.issues.filter((i) => i.severity === "high");
+  // Body sentences only: headline and meta problems are for the editor.
+  const high = check.issues.filter((i) => i.severity === "high" && !HEADLINE_ISSUE.test(i.text));
+  if (high.length === 0) return none;
   const { json } = await chatJson({
     kind: "revise",
     log: { articleId, promptVersion: REVISE_PROMPT_VERSION },

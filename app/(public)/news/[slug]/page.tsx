@@ -166,6 +166,10 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
           </ul>
         </section>
       )}
+      <p className="mt-4 text-xs text-slate-500">
+        Written from the reports above and checked against them before publishing. Rules and schedules can change: check the official source before you travel.{" "}
+        <Link href="/editorial-policy" className="underline underline-offset-2 hover:text-slate-800">How we report</Link>
+      </p>
 
       {more.length > 0 && (
         <section className="mt-14">

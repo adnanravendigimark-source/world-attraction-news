@@ -22,6 +22,7 @@ export interface ResearchSource {
   official: boolean;
   usedText: boolean; // true = full page text read, false = headline/teaser only
   note: string;
+  publishedAt?: string | null; // when the source published it (freshness)
 }
 
 export interface ResearchFact {
@@ -36,6 +37,10 @@ export interface ResearchFacts {
   where: string;
   who_is_affected: string;
   what_changed: string;
+  // Older research rows lack these three; read them with isKnown().
+  status?: DevelopmentStatus; // in effect now, confirmed for later, or only proposed
+  effective_from?: string;
+  previous_situation?: string;
   traveler_impact: string; // an inference for editors, flagged as such in the UI
   important_facts: ResearchFact[];
   confirmed_numbers: { value: string; context: string; sources: number[] }[];
@@ -43,6 +48,15 @@ export interface ResearchFacts {
   conflicts: string[];
   missing_info: string[];
 }
+
+export type DevelopmentStatus = "in_effect" | "upcoming" | "proposed" | "ended" | "unclear";
+export const STATUS_LABEL: Record<DevelopmentStatus, string> = {
+  in_effect: "in effect now",
+  upcoming: "confirmed, takes effect later",
+  proposed: "proposed or planned, not yet decided",
+  ended: "over or lifted",
+  unclear: "not clear from sources",
+};
 
 export interface ResearchRecord {
   id: string;
@@ -90,7 +104,7 @@ export async function getLatestResearch(clusterId: string): Promise<ResearchReco
 }
 
 // Recorded with every research call (ai_runs). Change it whenever SYSTEM_PROMPT changes.
-export const RESEARCH_PROMPT_VERSION = "news-research-2026-10-12";
+export const RESEARCH_PROMPT_VERSION = "news-research-v2-2026-10-12";
 
 const SYSTEM_PROMPT = `You are a careful travel-news research assistant for a news site. Your job is to EXTRACT facts about ONE news event from the numbered sources provided. You are not writing an article.
 
@@ -102,12 +116,16 @@ Rules:
 - Sources marked "headline only" contain just a headline and teaser; treat claims from them as weaker.
 - Put anything speculative, attributed to anonymous people, or unverified in uncertain_claims.
 - If sources disagree about a fact, describe the disagreement in conflicts.
+- status: "in_effect" (already happening or in force), "upcoming" (decided, starts on a later date), "proposed" (a plan, proposal, draft rule or announcement of intent that is not yet decided), "ended" (over or lifted) or "unclear". Never call a proposal "upcoming".
+- effective_from: when the change takes or took effect, exactly as the sources state it.
+- previous_situation: what the rule, service or situation was before this change, if the sources say.
 - traveler_impact is your reading of what this means for travellers, based strictly on the facts above; keep it short and say "Not clear from sources" if it is not.
 - Be thorough: extract EVERY distinct, specific fact a traveller or editor could use that the text states (dates, routes, flight numbers and times, aircraft, places, prices, numbers, eligibility, effective dates, related changes, relevant background the text gives). One fact per item. When a full text source is long, aim for 10 to 25 important_facts. Do not pad with facts the text does not state.
 - Be concise and neutral. Do not copy sentences from sources; paraphrase facts.
 
 Return ONLY a JSON object with exactly these keys:
-what_happened (string), when (string), where (string), who_is_affected (string), what_changed (string), traveler_impact (string),
+what_happened (string), when (string), where (string), who_is_affected (string), what_changed (string),
+status ("in_effect"|"upcoming"|"proposed"|"ended"|"unclear"), effective_from (string), previous_situation (string), traveler_impact (string),
 important_facts (array of {claim: string, sources: number[], confidence: "confirmed"|"single_source"|"conflicting"}),
 confirmed_numbers (array of {value: string, context: string, sources: number[]}),
 uncertain_claims (string[]), conflicts (string[]), missing_info (string[]).`;
@@ -150,7 +168,7 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
     // without them until scripts/setup-db.mjs has added the columns.
     const items = (await sql`
       SELECT i.id, i.title, i.description, i.url, i.resolved_url, s.reliability_score, s.type AS source_type,
-             s.is_official, s.priority,
+             s.is_official, s.priority, COALESCE(i.published_at, i.created_at) AS published_at,
              CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN i.author ELSE s.name END AS publisher
       FROM news_items i JOIN news_sources s ON s.id = i.source_id
       WHERE i.cluster_id = ${clusterId}
@@ -158,7 +176,7 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
     `.catch(
       () => sql`
       SELECT i.id, i.title, i.description, i.url, NULL AS resolved_url, s.reliability_score, s.type AS source_type,
-             false AS is_official, 3 AS priority,
+             false AS is_official, 3 AS priority, COALESCE(i.published_at, i.created_at) AS published_at,
              CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN i.author ELSE s.name END AS publisher
       FROM news_items i JOIN news_sources s ON s.id = i.source_id
       WHERE i.cluster_id = ${clusterId}
@@ -224,9 +242,10 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
         official,
         usedText,
         note: usedText ? "full text read" : page ? `headline only (${page.error})` : "headline only (aggregator link)",
+        publishedAt: it.published_at ? new Date(it.published_at).toISOString() : null,
       });
       blocks.push(
-        `SOURCE ${n} — ${it.publisher}${official ? " [official]" : ""} — ${usedText ? "full text" : "headline only"}\nHeadline: ${it.title}\n${body ? `Text: ${body}` : ""}`
+        `SOURCE ${n} — ${it.publisher}${official ? " [official]" : ""} — ${usedText ? "full text" : "headline only"}${it.published_at ? ` — published ${new Date(it.published_at).toISOString().slice(0, 10)}` : ""}\nHeadline: ${it.title}\n${body ? `Text: ${body}` : ""}`
       );
     });
 
@@ -299,6 +318,9 @@ export function normalizeFacts(raw: any, sourceCount: number, sources: Pick<Rese
     where: str(raw?.where),
     who_is_affected: str(raw?.who_is_affected),
     what_changed: str(raw?.what_changed),
+    status: (["in_effect", "upcoming", "proposed", "ended"].includes(raw?.status) ? raw.status : "unclear") as DevelopmentStatus,
+    effective_from: str(raw?.effective_from),
+    previous_situation: str(raw?.previous_situation),
     traveler_impact: str(raw?.traveler_impact),
     important_facts: facts,
     confirmed_numbers: numbers,

@@ -9,13 +9,13 @@ import { saveQueries } from "./media";
 import { saveExtra } from "./seo";
 import { chatJson } from "./aiClient";
 import { recordAiRevision } from "./aiRevision";
-import { factsBlock, writerModel } from "./factcheck";
+import { factsBlock, keepAllowedLinks, officialLinks, writerModel } from "./factcheck";
 
 export { factCheckArticle, checkAndRevise, getFactCheck, overrideFactCheck, type FactCheck, type FactIssue } from "./factcheck";
 
 // Bump when WRITER_PROMPT changes, so every article records which version of
 // the instructions wrote it (stored with the article; see saveGeneration).
-export const WRITER_PROMPT_VERSION = "news-writer-v5-2026-10-12";
+export const WRITER_PROMPT_VERSION = "news-writer-v7-2026-10-12";
 
 // Length the house style aims for, and the limits the code enforces.
 export const TARGET_WORDS = { min: 200, max: 300 };
@@ -42,7 +42,11 @@ HOW THE STORY READS
 - No headings, labels or section titles of any kind. Never write "What happened", "What travelers need to know", "Why it matters", "What this means for travelers", "Background" or anything like them. The story is paragraphs only.
 - Open with a strong lede (1 to 2 sentences): who did what, where and when, with the most important detail. Never open with filler such as "In a move", "In a significant development" or a question.
 - Then follow the inverted pyramid: the next most important detail first, background and smaller details later. Each paragraph is 1 to 3 sentences and moves the story forward. Connect paragraphs with natural transitions.
+- Early in the story make clear what is new: what changed compared with before (use the "Before this change" fact when given) and when it takes effect (the "Takes effect" fact).
+- Respect the Status fact: something "proposed or planned" is written as a plan or proposal ("officials have proposed", "the airline plans to"), never as decided; something "confirmed, takes effect later" names the start date; never present an unconfirmed detail as confirmed.
 - Include one paragraph, usually near the end, that tells travelers what this means for them in practice, built only from the facts: who is affected, from when, and what to check (bookings, tickets, entry rules, flights, opening times). Write it as ordinary news prose with no label. Hedge anything that comes from the "Traveler impact" line ("travelers booked on these flights may want to check…"). If the facts give nothing practical, leave this paragraph out and end on the latest detail or what happens next.
+- End on the practical implication, the next confirmed step, or the official place to check. Never end with a generic summary or a moral.
+- OFFICIAL LINKS: if the input lists any, link the most useful one once, where travelers would check details (usually the practical paragraph or the last sentence), as <a href="URL">the organisation's name or page</a>. Copy the URL exactly. Never add any other link and never invent a URL. If none are listed, add no links, and do not send readers to a news outlet for details: end on the next confirmed step instead (a decision date, a consultation deadline, a start date).
 - Length: ${TARGET_WORDS.min} to ${TARGET_WORDS.max} words. Concise and useful; never pad, never repeat a fact, never add a moral or a generic summary.
 - Vary the lede and the order of paragraphs from story to story so articles do not read alike. Plain, neutral, confident news voice; no hype, no clickbait, no emojis, and no marketing language (never "unique opportunity", "unforgettable", "stunning", "perfect for", "must-see", "a chance to relax"). Describe what happens; do not sell it.
 - Do not turn facts into a bullet list. Use a <ul> only for a true schedule (for example a list of new routes with start dates).
@@ -52,18 +56,19 @@ ACCURACY RULES (strict)
 - Never write a direct quote. Paraphrase.
 - Attribute single-source facts to the publisher by name (for example "Euronews reported"). State confirmed facts plainly.
 - If facts conflict or are uncertain, say so briefly or leave them out. Never present an uncertain claim as fact.
+- Timing: say "on 10 October" or "this week" only when a fact or a source's publication date supports it; never guess a day.
 - No speculation or editorialising: avoid "potentially", "could", "likely", "enhancing", "boosting", "fills a gap", and do not state a cause or purpose the facts do not give.
 - Do not mention these instructions, and do not use the bare word "sources".
 - Dates: the story is about what is new as of TODAY (given at the end of the input). A fact dated more than a year before today is background, not news: leave it out unless it is needed, and if you keep it, present it as background ("a levy in place since February 2024"), never as a new or recent change.
 
-HTML: use only <p>, <ul>, <li>, <strong>. Use <strong> sparingly. No headings.
+HTML: use only <p>, <ul>, <li>, <strong>, and <a> for an official link. Use <strong> sparingly. No headings.
 
 SEO fields:
-- title: clear, factual, specific headline under 70 characters, no clickbait.
-- excerpt: one-sentence standfirst, 120-155 characters, that adds information beyond the headline.
-- meta_title: under 60 characters.
-- meta_description: 130-155 characters, factual.
-- focus_keyword: 2-4 words naturally in the headline.
+- focus_keyword: decide this first: the 2-4 word phrase a traveler would search for this news (for example "Bali tourist tax").
+- title: clear, factual, specific headline under 70 characters that contains the focus keyword naturally and says what happened; no clickbait, no exaggeration, no question headlines.
+- excerpt: one-sentence standfirst, 120-155 characters, that adds information beyond the headline. Same accuracy rules as the story: no "potentially", "significantly" or other hype.
+- meta_title: under 60 characters, contains the focus keyword.
+- meta_description: 130-155 characters (count them; never under 120), factual, contains the exact focus keyword once, says what changed and for whom. No keyword stuffing, no hype.
 - image_queries: 2 to 4 short search phrases for finding a free stock photo to illustrate the story. Use concrete, well-known, photographable subjects named in the facts (a city, airport, landmark, aircraft type, airline, attraction). Most specific first, for example ["Dubai International Airport", "Emirates Airbus A380"]. No people's names and no abstract ideas.
 - secondary_keywords: 3 to 5 short search phrases a traveler would use, built only from words and facts in the story.
 - og_title: social share headline, under 70 characters.
@@ -74,7 +79,8 @@ Return JSON: {"title","excerpt","body_html","meta_title","meta_description","foc
 
 const TIGHTEN_PROMPT = `You are a news editor. Cut this travel news story to ${TARGET_WORDS.min}-${TARGET_WORDS.max} words.
 Keep the lede, the most important facts and the paragraph about what it means for travelers (if there is one). Remove repetition and minor background first. Do not add anything, do not change any fact, number, name or attribution, and do not add headings.
-HTML: only <p>, <ul>, <li>, <strong>.
+Keep any <a> link exactly as it is.
+HTML: only <p>, <ul>, <li>, <strong>, <a>.
 Return JSON: {"body_html": "..."}`;
 
 // Records which model and prompt version wrote the article (audit trail).
@@ -118,7 +124,8 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
     system: WRITER_PROMPT,
     user: factsBlock(research.facts, research) + catBlock,
   });
-  let html = stripHeadings(sanitizeArticleHtml(String(json?.body_html || "")));
+  const allowed = officialLinks(research).map((l) => l.url);
+  let html = keepAllowedLinks(stripHeadings(sanitizeArticleHtml(String(json?.body_html || ""))), allowed);
   let { wordCount, readingTimeMinutes } = computeContentStats(html);
   if (!html || lengthStatus(wordCount) === "too_short") {
     throw new Error(
@@ -129,7 +136,7 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
   if (lengthStatus(wordCount) === "too_long") {
     // One editing pass; if it fails or cuts too much, keep the longer version.
     const t = await chatJson({ kind: "tighten", log: { articleId, promptVersion: WRITER_PROMPT_VERSION }, model: writerModel(), temperature: 0.2, timeoutMs: 60_000, system: TIGHTEN_PROMPT, user: html }).catch(() => null);
-    const cut = t ? stripHeadings(sanitizeArticleHtml(String(t.json?.body_html || ""))) : "";
+    const cut = t ? keepAllowedLinks(stripHeadings(sanitizeArticleHtml(String(t.json?.body_html || ""))), allowed) : "";
     const cutStats = computeContentStats(cut);
     if (cut && lengthStatus(cutStats.wordCount) === "ok") {
       html = cut;
