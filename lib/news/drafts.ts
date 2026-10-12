@@ -64,25 +64,17 @@ export async function createDraftFromStory(clusterId: string): Promise<{ article
       FROM news_items i JOIN news_sources s ON s.id = i.source_id
       WHERE i.cluster_id = ${clusterId} ORDER BY s.reliability_score DESC LIMIT 12
     `) as any[];
-    const seen = new Set<string>();
-    for (const it of items) {
-      const k = String(it.publisher).toLowerCase();
-      if (seen.has(k) || !it.url) continue;
-      seen.add(k);
-      sources.push({ title: it.title, url: it.url, publisher: it.publisher });
-      if (sources.length >= 6) break;
-    }
+    sources = items.filter((it) => it.url).map((it) => ({ title: it.title, url: it.url, publisher: it.publisher }));
   }
 
-  const cat = String(clusters[0].category || "");
-  const catRows = cat ? await sql`SELECT id FROM categories WHERE lower(name) = lower(${cat}) LIMIT 1` : [];
 
   const article = await createNewsDraft({
     title,
     contentHtml: html,
     excerpt: happened.slice(0, 200),
     clusterId,
-    categoryId: catRows[0]?.id ?? null,
+    // News stories have no category; categories are for blog posts.
+    categoryId: null,
     sources,
   });
   return { article, created: true };

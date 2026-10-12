@@ -580,6 +580,7 @@ export default function ArticleReviewPanel({
                 </div>
               </div>
 
+              {article.type !== "news" && (
               <div>
                 <label className="block text-xs font-bold text-slate-900 mb-1">
                   Category <span className="text-[#DC2626]">*</span>
@@ -605,6 +606,7 @@ export default function ArticleReviewPanel({
                   </span>
                 </div>
               </div>
+              )}
             </div>
 
             {/* Short Excerpt / Lead Summary */}

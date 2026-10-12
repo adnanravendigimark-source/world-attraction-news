@@ -15,7 +15,7 @@ export { factCheckArticle, checkAndRevise, getFactCheck, overrideFactCheck, type
 
 // Bump when WRITER_PROMPT changes, so every article records which version of
 // the instructions wrote it (stored with the article; see saveGeneration).
-export const WRITER_PROMPT_VERSION = "news-writer-v4-2026-10-09";
+export const WRITER_PROMPT_VERSION = "news-writer-v5-2026-10-12";
 
 // Length the house style aims for, and the limits the code enforces.
 export const TARGET_WORDS = { min: 200, max: 300 };
@@ -54,6 +54,7 @@ ACCURACY RULES (strict)
 - If facts conflict or are uncertain, say so briefly or leave them out. Never present an uncertain claim as fact.
 - No speculation or editorialising: avoid "potentially", "could", "likely", "enhancing", "boosting", "fills a gap", and do not state a cause or purpose the facts do not give.
 - Do not mention these instructions, and do not use the bare word "sources".
+- Dates: the story is about what is new as of TODAY (given at the end of the input). A fact dated more than a year before today is background, not news: leave it out unless it is needed, and if you keep it, present it as background ("a levy in place since February 2024"), never as a new or recent change.
 
 HTML: use only <p>, <ul>, <li>, <strong>. Use <strong> sparingly. No headings.
 
@@ -68,9 +69,8 @@ SEO fields:
 - og_title: social share headline, under 70 characters.
 - og_description: social share description, under 160 characters.
 - tags: 3 to 6 lowercase topic tags (for example "airlines", "tourist tax", "new routes").
-- category: exactly one name from the AVAILABLE CATEGORIES list at the end of the input, or "" if none fits.
 
-Return JSON: {"title","excerpt","body_html","meta_title","meta_description","focus_keyword","image_queries","secondary_keywords","og_title","og_description","tags","category"}`;
+Return JSON: {"title","excerpt","body_html","meta_title","meta_description","focus_keyword","image_queries","secondary_keywords","og_title","og_description","tags"}`;
 
 const TIGHTEN_PROMPT = `You are a news editor. Cut this travel news story to ${TARGET_WORDS.min}-${TARGET_WORDS.max} words.
 Keep the lede, the most important facts and the paragraph about what it means for travelers (if there is one). Remove repetition and minor background first. Do not add anything, do not change any fact, number, name or attribution, and do not add headings.
@@ -108,8 +108,7 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
     );
   }
 
-  const cats = (await sql`SELECT id, name FROM categories ORDER BY sort_order, name`.catch(() => [])) as any[];
-  const catBlock = `\n\nAVAILABLE CATEGORIES: ${cats.map((c) => c.name).join(", ") || "(none)"}`;
+  const catBlock = `\n\nTODAY: ${new Date().toISOString().slice(0, 10)}`;
   const { json, model } = await chatJson({
     kind: "write",
     log: { articleId, clusterId: String(a.news_cluster_id), promptVersion: WRITER_PROMPT_VERSION },
@@ -157,8 +156,6 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
     Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, max)).slice(0, n) : [];
   const tags = strList(json.tags, 6, 40).map((t) => t.toLowerCase());
   if (tags.length) await sql`UPDATE articles SET tags = ${tags} WHERE id = ${articleId}`;
-  const picked = cats.find((c) => String(c.name).toLowerCase() === String(json.category || "").trim().toLowerCase());
-  if (picked) await sql`UPDATE articles SET category_id = ${picked.id} WHERE id = ${articleId}`;
   await saveExtra(articleId, {
     secondaryKeywords: strList(json.secondary_keywords, 5, 60),
     ogTitle: clean(json.og_title, 90),

@@ -5,6 +5,7 @@ import type { ModerationSignals } from "./moderation";
 import { sanitizeArticleHtml, stripLinkTags } from "./sanitizeHtml";
 import { slugifyCountry } from "./countries";
 import { contentHash } from "./news/contentHash";
+import { dedupeSources } from "./news/sourceNames";
 
 // Full editorial workflow (Final Phase spec):
 //   draft -> pending (submitted) -> under_review -> changes_requested -> pending (resubmitted)
@@ -1257,7 +1258,7 @@ export interface NewsSourceLink {
 export async function getArticleSources(articleId: string): Promise<NewsSourceLink[]> {
   try {
     const rows = await sql`SELECT n, title, url, publisher, is_official FROM article_sources WHERE article_id = ${articleId} ORDER BY n ASC`;
-    return rows.map((r: any) => ({ n: r.n, title: r.title, url: r.url, publisher: r.publisher, isOfficial: !!r.is_official }));
+    return dedupeSources(rows.map((r: any) => ({ n: r.n, title: r.title, url: r.url, publisher: r.publisher, isOfficial: !!r.is_official })));
   } catch {
     return [];
   }
@@ -1279,12 +1280,12 @@ export async function createNewsDraft(input: {
   const rows = await sql`
     INSERT INTO articles (slug, title, excerpt, content_html, type, city_id, category_id, author_id, status,
       news_cluster_id, word_count, reading_time_minutes, updated_at)
-    VALUES (${slug}, ${input.title}, ${input.excerpt || ""}, ${safe}, 'news', NULL, ${input.categoryId ?? null}, ${authorId}, 'pending',
+    VALUES (${slug}, ${input.title}, ${input.excerpt || ""}, ${safe}, 'news', NULL, NULL, ${authorId}, 'pending',
       ${input.clusterId ?? null}, ${wordCount}, ${readingTimeMinutes}, now())
     RETURNING *
   `;
   const article = rowToArticle(rows[0]);
-  const sources = input.sources || [];
+  const sources = dedupeSources(input.sources || []).slice(0, 6);
   for (let i = 0; i < sources.length; i++) {
     const s = sources[i];
     await sql`

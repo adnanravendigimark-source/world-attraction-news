@@ -10,6 +10,7 @@ import { fetchPageText, isGoogleNewsRedirect, isPublicUrl } from "./extract";
 import { chatJson } from "./aiClient";
 import { isOfficialSource, officialSites } from "./official";
 import { AGGREGATOR_TYPES } from "./sources";
+import { canonicalArticleUrl, cleanPublisher, sourceKey } from "./sourceNames";
 import { publisherUrlForItem } from "./googleNews";
 
 export interface ResearchSource {
@@ -170,13 +171,17 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
     );
     if (items.length === 0) return await fail("This story has no items.");
 
-    // One source per publisher, best reliability first.
+    // One source per publisher (by site, so "www.x.com" and "https://x.com/"
+    // match) and one per article address, best reliability first.
     const seen = new Set<string>();
+    const seenUrl = new Set<string>();
     const picked: any[] = [];
     for (const it of items) {
-      const k = String(it.publisher).toLowerCase();
-      if (seen.has(k)) continue;
+      const k = sourceKey({ publisher: it.publisher, url: it.resolved_url || it.url });
+      const u = canonicalArticleUrl(String(it.resolved_url || it.url || ""));
+      if (seen.has(k) || (u && seenUrl.has(u))) continue;
       seen.add(k);
+      if (u) seenUrl.add(u);
       picked.push(it);
       if (picked.length >= MAX_SOURCES) break;
     }
@@ -211,7 +216,7 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
         n,
         title: String(it.title).slice(0, 200),
         url: page?.finalUrl || it.url || "",
-        publisher: String(it.publisher),
+        publisher: cleanPublisher(String(it.publisher), page?.finalUrl || it.resolved_url || it.url || ""),
         reliability: Number(it.reliability_score ?? 50),
         official,
         usedText,

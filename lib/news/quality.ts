@@ -12,6 +12,8 @@ import { getExtra } from "./seo";
 import { getLinks } from "./internalLinks";
 import { prepareTitle, sameStoryPrepared } from "./similarity";
 import { OVERLAP_WORDS, sourceOverlap, type OverlapMatch } from "./overlap";
+import { staleYears } from "./sourceNames";
+import { getArticleSources } from "../articles";
 
 export interface QualityCheck {
   key: string;
@@ -188,9 +190,13 @@ export async function computeQuality(articleId: string): Promise<QualityReport> 
     overlap.length ? `${overlap.length} passage(s) of ${OVERLAP_WORDS}+ words match a source word for word` : `No ${OVERLAP_WORDS}-word run matches a source headline or teaser`
   );
 
-  // Category and sources (5)
-  const srcCount = Number((await sql`SELECT COUNT(*)::int AS n FROM article_sources WHERE article_id = ${articleId}`)[0]?.n ?? 0);
-  add("metadata", "Category and sources set", 5, (a.category_id ? 0.5 : 0) + (srcCount > 0 ? 0.5 : 0), `${a.category_id ? "category set" : "no category"}, ${srcCount} source(s) linked`);
+  // Sources (5). News stories have no category.
+  const srcCount = (await getArticleSources(articleId)).length;
+  add("metadata", "Sources linked", 5, srcCount > 0 ? 1 : 0, `${srcCount} source(s) linked`);
+
+  // Older dates (warning only, no points): read as background, not news.
+  const old = staleYears(`${a.title || ""} ${a.excerpt || ""} ${html}`);
+  add("dates", "Dates are current", 0, old.length ? 0.5 : 1, old.length ? `Mentions ${old.join(", ")}: make sure it reads as background, not as new` : "No old dates presented in the story");
 
   const total = checks.reduce((n, c) => n + c.earned, 0);
   return { score: Math.round(total), checks, overlap };

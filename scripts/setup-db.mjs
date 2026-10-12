@@ -1530,6 +1530,8 @@ async function main() {
   await addPerformanceIndexes();
   await backfillUserSlugs();
   await createNewsTables();
+  // News stories have no category (categories are for blog posts).
+  await sql`UPDATE articles SET category_id = NULL WHERE type = 'news' AND category_id IS NOT NULL`;
 
   if (SHOULD_SEED) {
     await seedCities();
