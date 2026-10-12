@@ -8,6 +8,7 @@ import { getLatestResearch } from "./research";
 import { saveQueries } from "./media";
 import { saveExtra } from "./seo";
 import { chatJson } from "./aiClient";
+import { recordAiRevision } from "./aiRevision";
 import { factsBlock, writerModel } from "./factcheck";
 
 export { factCheckArticle, checkAndRevise, getFactCheck, overrideFactCheck, type FactCheck, type FactIssue } from "./factcheck";
@@ -111,6 +112,7 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
   const catBlock = `\n\nAVAILABLE CATEGORIES: ${cats.map((c) => c.name).join(", ") || "(none)"}`;
   const { json, model } = await chatJson({
     kind: "write",
+    log: { articleId, clusterId: String(a.news_cluster_id), promptVersion: WRITER_PROMPT_VERSION },
     model: writerModel(),
     temperature: 0.3,
     timeoutMs: 90_000,
@@ -127,7 +129,7 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
   let tightened = false;
   if (lengthStatus(wordCount) === "too_long") {
     // One editing pass; if it fails or cuts too much, keep the longer version.
-    const t = await chatJson({ kind: "tighten", model: writerModel(), temperature: 0.2, timeoutMs: 60_000, system: TIGHTEN_PROMPT, user: html }).catch(() => null);
+    const t = await chatJson({ kind: "tighten", log: { articleId, promptVersion: WRITER_PROMPT_VERSION }, model: writerModel(), temperature: 0.2, timeoutMs: 60_000, system: TIGHTEN_PROMPT, user: html }).catch(() => null);
     const cut = t ? stripHeadings(sanitizeArticleHtml(String(t.json?.body_html || ""))) : "";
     const cutStats = computeContentStats(cut);
     if (cut && lengthStatus(cutStats.wordCount) === "ok") {
@@ -163,5 +165,6 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
     ogDescription: clean(json.og_description, 200),
   }).catch(() => {});
   await saveGeneration(articleId, { model, promptVersion: WRITER_PROMPT_VERSION, wordCount, tightened, writtenAt: new Date().toISOString() });
+  await recordAiRevision(articleId, `AI wrote the article (${model}, ${WRITER_PROMPT_VERSION}, ${wordCount} words${tightened ? ", tightened" : ""})`);
   return { wordCount };
 }

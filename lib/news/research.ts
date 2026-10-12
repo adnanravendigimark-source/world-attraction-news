@@ -88,6 +88,9 @@ export async function getLatestResearch(clusterId: string): Promise<ResearchReco
   return rows[0] ? mapRecord(rows[0]) : null;
 }
 
+// Recorded with every research call (ai_runs). Change it whenever SYSTEM_PROMPT changes.
+export const RESEARCH_PROMPT_VERSION = "news-research-2026-10-12";
+
 const SYSTEM_PROMPT = `You are a careful travel-news research assistant for a news site. Your job is to EXTRACT facts about ONE news event from the numbered sources provided. You are not writing an article.
 
 Rules:
@@ -223,6 +226,7 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
     try {
       ai = await chatJson({
         kind: "research",
+        log: { clusterId, promptVersion: RESEARCH_PROMPT_VERSION },
         model,
         temperature: 0.1,
         timeoutMs: 90_000,

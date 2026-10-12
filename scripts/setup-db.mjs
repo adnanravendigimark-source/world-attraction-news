@@ -1432,6 +1432,28 @@ async function createNewsTables() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS article_internal_links_article_idx ON article_internal_links (article_id)`;
+  // Phase 12 — one row per AI model call: what ran, for which story or
+  // article, model, prompt version, tokens, estimated cost, time, outcome.
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_runs (
+      id BIGSERIAL PRIMARY KEY,
+      kind TEXT NOT NULL,
+      model TEXT NOT NULL DEFAULT '',
+      prompt_version TEXT NOT NULL DEFAULT '',
+      article_id UUID REFERENCES articles(id) ON DELETE SET NULL,
+      cluster_id UUID REFERENCES story_clusters(id) ON DELETE SET NULL,
+      tokens_in INTEGER,
+      tokens_out INTEGER,
+      cost_usd NUMERIC(12, 6),
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      outcome TEXT NOT NULL DEFAULT 'ok',
+      error TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS ai_runs_article_idx ON ai_runs (article_id, created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_runs_cluster_idx ON ai_runs (cluster_id, created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_runs_created_idx ON ai_runs (created_at DESC)`;
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS width INTEGER`;
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS height INTEGER`;
   await sql`ALTER TABLE article_image_meta ADD COLUMN IF NOT EXISTS original_url TEXT NOT NULL DEFAULT ''`;

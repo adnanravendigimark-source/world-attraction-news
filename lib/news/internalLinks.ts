@@ -8,6 +8,7 @@
 import { sql } from "../db";
 import { articlePath, cityPath, countryPath } from "../destinations";
 import { computeContentStats } from "../articles";
+import { recordAiRevision } from "./aiRevision";
 import { applyLink, hasLink, MAX_IN_TEXT, planLinks, removeLink, type LinkCandidate } from "./links";
 
 export type LinkPlacement = "in_text" | "related_box";
@@ -147,7 +148,10 @@ export async function refreshLinks(articleId: string, by = "system"): Promise<{ 
   const articles = (await relatedArticles(articleId, mentioned)).filter((x) => !removed.has(x.url));
   const related = [...plan.related, ...articles].slice(0, MAX_RELATED);
 
-  await writeHtml(articleId, plan.html);
+  if (plan.html !== a.content_html) {
+    await writeHtml(articleId, plan.html);
+    await recordAiRevision(articleId, `Links to this site planned: ${plan.inText.map((l) => l.name).join(", ") || "none in the text"}`);
+  }
   try {
     await sql`DELETE FROM article_internal_links WHERE article_id = ${articleId} AND status <> 'removed'`;
     const rows = [

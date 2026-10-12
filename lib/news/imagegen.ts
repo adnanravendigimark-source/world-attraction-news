@@ -4,6 +4,8 @@ import { getLatestResearch } from "./research";
 import { saveCoverSize, saveImageMeta, type ImageMeta } from "./images";
 import { altForPhoto, captionHtml, creditLine, figureHtml, findPhoto, getQueries, insertFigures, stripOurFigures, storePhoto, type FoundPhoto } from "./media";
 import { computeContentStats } from "../articles";
+import { recordAiRun } from "./aiRuns";
+import { recordAiRevision } from "./aiRevision";
 
 const IMAGE_MODEL = () => process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
 const DAILY_CAP = () => Number(process.env.NEWS_IMAGE_DAILY_CAP || 20);
@@ -43,7 +45,20 @@ async function checkCap(): Promise<void> {
   if (Number(rows[0]?.n ?? 0) >= DAILY_CAP()) throw new Error(`Daily AI image limit reached (${DAILY_CAP()}). Try again tomorrow or upload an image.`);
 }
 
-async function callOpenAI(model: string, prompt: string): Promise<Buffer> {
+// Every image call is logged in ai_runs (Phase 12), success or failure.
+async function callOpenAI(model: string, prompt: string, articleId?: string): Promise<Buffer> {
+  const started = Date.now();
+  try {
+    const png = await requestImage(model, prompt);
+    await recordAiRun({ kind: "image", model, articleId, images: 1, durationMs: Date.now() - started, outcome: "ok" });
+    return png;
+  } catch (err: any) {
+    await recordAiRun({ kind: "image", model, articleId, durationMs: Date.now() - started, outcome: "error", error: String(err?.message || err) });
+    throw err;
+  }
+}
+
+async function requestImage(model: string, prompt: string): Promise<Buffer> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is not set.");
   const body: Record<string, unknown> =
@@ -83,12 +98,12 @@ export async function generateCoverImage(articleId: string, extra = ""): Promise
 
   let png: Buffer;
   try {
-    png = await callOpenAI(IMAGE_MODEL(), prompt);
+    png = await callOpenAI(IMAGE_MODEL(), prompt, articleId);
   } catch (err: any) {
     // gpt-image-1 needs a verified org; fall back to dall-e-3 when it's unavailable.
     const msg = String(err?.message || "");
     if (IMAGE_MODEL() !== "dall-e-3" && (err?.status === 403 || err?.status === 404 || /verif|must be verified|does not exist|access/i.test(msg))) {
-      png = await callOpenAI("dall-e-3", prompt);
+      png = await callOpenAI("dall-e-3", prompt, articleId);
     } else {
       throw err;
     }
@@ -190,6 +205,7 @@ export async function ensureImages(
   if (html !== a.content_html) {
     const stats = computeContentStats(html);
     await sql`UPDATE articles SET content_html = ${html}, word_count = ${stats.wordCount}, reading_time_minutes = ${stats.readingTimeMinutes}, updated_at = now() WHERE id = ${articleId}`;
+    await recordAiRevision(articleId, inlinePhotos.length ? `Photos placed in the article (${inlinePhotos.length})` : "Photos removed from the article");
   }
   await sql`UPDATE article_image_meta SET inline = ${JSON.stringify(inlinePhotos.map((s) => ({ url: s.url, credit: creditLine(s.photo), license: s.photo.license, source: s.photo.pageUrl })))}::jsonb WHERE article_id = ${articleId}`;
   return { cover, inline: inlinePhotos.length };

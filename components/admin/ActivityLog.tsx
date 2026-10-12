@@ -64,8 +64,24 @@ function formatDateTime(iso: string) {
   });
 }
 
-export default function ActivityLog({ entries }: { entries: ActivityEntry[] }) {
+// True for entries about the news pipeline: a news article, or any news_*
+// action or target (stories, sources, filter, scoring, links).
+export function isNewsEntry(e: Pick<ActivityEntry, "action" | "targetType" | "targetId">, newsArticleIds: Set<string>): boolean {
+  return e.action.startsWith("news_") || e.targetType.startsWith("news_") || (e.targetType === "article" && newsArticleIds.has(e.targetId));
+}
+
+export default function ActivityLog({
+  entries,
+  newsArticleIds = [],
+  initialNewsOnly = false,
+}: {
+  entries: ActivityEntry[];
+  newsArticleIds?: string[];
+  initialNewsOnly?: boolean;
+}) {
   const [query, setQuery] = useState("");
+  const [newsOnly, setNewsOnly] = useState(initialNewsOnly);
+  const newsIds = useMemo(() => new Set(newsArticleIds), [newsArticleIds]);
   const [targetType, setTargetType] = useState("all");
   const [adminEmail, setAdminEmail] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -75,6 +91,7 @@ export default function ActivityLog({ entries }: { entries: ActivityEntry[] }) {
 
   const filtered = useMemo(() => {
     return entries.filter((e) => {
+      if (newsOnly && !isNewsEntry(e, newsIds)) return false;
       if (targetType !== "all" && e.targetType !== targetType) return false;
       if (adminEmail !== "all" && e.adminEmail !== adminEmail) return false;
       if (dateFrom && new Date(e.createdAt) < new Date(dateFrom)) return false;
@@ -85,7 +102,7 @@ export default function ActivityLog({ entries }: { entries: ActivityEntry[] }) {
       }
       return true;
     });
-  }, [entries, targetType, adminEmail, dateFrom, query]);
+  }, [entries, targetType, adminEmail, dateFrom, query, newsOnly, newsIds]);
 
   return (
     <div>
@@ -96,6 +113,10 @@ export default function ActivityLog({ entries }: { entries: ActivityEntry[] }) {
           placeholder="Search action, target, or admin..."
           className="w-full max-w-xs rounded-md border border-ink-300 px-3 py-1.5 text-xs focus:border-signal focus:outline-none"
         />
+        <label className="flex items-center gap-1.5 rounded-md border border-ink-300 bg-white px-2.5 py-1.5 text-xs">
+          <input type="checkbox" checked={newsOnly} onChange={(e) => setNewsOnly(e.target.checked)} />
+          News only
+        </label>
         <select
           value={targetType}
           onChange={(e) => setTargetType(e.target.value)}

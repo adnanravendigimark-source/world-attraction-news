@@ -144,6 +144,9 @@ export default function NewsFeed({ initialStats, initialRuns, sources, categorie
           <Link href="/admin/news/filter" className="rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50">
             Filter
           </Link>
+          <Link href="/admin/activity?scope=news" className="rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50">
+            Publish log
+          </Link>
           {canEdit && (
             <button onClick={refilter} disabled={refiltering} className="rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50 disabled:opacity-60">
               {refiltering ? "Scoring…" : "Re-run filter"}

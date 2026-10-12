@@ -1,3 +1,5 @@
+import { recordAiRun } from "./aiRuns";
+
 // One wrapper for every OpenAI chat call in the news pipeline (research,
 // writing, fact checking). Keeps timeouts, retries and model-specific
 // parameters in one place, so a model change in .env can't break a step.
@@ -8,8 +10,10 @@ export interface ChatJsonInput {
   model: string;
   temperature?: number;
   timeoutMs?: number;
-  // Short label for error messages ("research", "write", "check", "revise").
+  // Short label for error messages and the ai_runs log ("research", "write", "check", "revise").
   kind?: string;
+  // What the call is for, recorded in ai_runs (Phase 12).
+  log?: { articleId?: string | null; clusterId?: string | null; promptVersion?: string };
 }
 
 export interface ChatJsonResult {
@@ -55,6 +59,37 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // and server errors; never retries on a timeout (the caller's job retry
 // handles that, with back-off).
 export async function chatJson(input: ChatJsonInput, fetchImpl: typeof fetch = fetch): Promise<ChatJsonResult> {
+  const started = Date.now();
+  try {
+    const result = await callChat(input, fetchImpl);
+    await recordAiRun({
+      kind: input.kind || "chat",
+      model: input.model,
+      promptVersion: input.log?.promptVersion,
+      articleId: input.log?.articleId,
+      clusterId: input.log?.clusterId,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      durationMs: result.durationMs,
+      outcome: "ok",
+    });
+    return result;
+  } catch (err: any) {
+    await recordAiRun({
+      kind: input.kind || "chat",
+      model: input.model,
+      promptVersion: input.log?.promptVersion,
+      articleId: input.log?.articleId,
+      clusterId: input.log?.clusterId,
+      durationMs: Date.now() - started,
+      outcome: "error",
+      error: String(err?.message || err),
+    });
+    throw err;
+  }
+}
+
+async function callChat(input: ChatJsonInput, fetchImpl: typeof fetch): Promise<ChatJsonResult> {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new AiError("OPENAI_API_KEY is not set.");
   const started = Date.now();

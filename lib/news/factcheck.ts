@@ -15,6 +15,12 @@ import { sanitizeArticleHtml } from "../sanitizeHtml";
 import { getLatestResearch, isKnown, type ResearchFacts, type ResearchRecord } from "./research";
 import { stripOurFigures } from "./media";
 import { chatJson } from "./aiClient";
+import { recordAiRevision } from "./aiRevision";
+
+// Recorded with every check and revision call (ai_runs). Change them whenever
+// CHECK_PROMPT or REVISE_PROMPT changes.
+export const CHECK_PROMPT_VERSION = "news-check-2026-10-12";
+export const REVISE_PROMPT_VERSION = "news-revise-2026-10-12";
 import { contentHash } from "./contentHash";
 
 export type Verdict = "passed" | "needs_review" | "failed";
@@ -194,9 +200,14 @@ Rules: a cause or purpose ("because", "due to", "to boost") is supported only if
 Skip sentences that state no fact.
 Return JSON: {"claims":[{"text":"exact sentence","supported":true,"facts":["F1"]},{"text":"...","supported":false,"facts":[],"problem":"...","severity":"high"}]}`;
 
-export async function modelCheck(html: string, facts: string): Promise<{ claims: CheckedClaim[]; issues: FactIssue[]; model: string }> {
+export async function modelCheck(
+  html: string,
+  facts: string,
+  log?: { articleId?: string; clusterId?: string | null }
+): Promise<{ claims: CheckedClaim[]; issues: FactIssue[]; model: string }> {
   const { json, model } = await chatJson({
     kind: "check",
+    log: { ...log, promptVersion: CHECK_PROMPT_VERSION },
     model: checkModel(),
     temperature: 0,
     timeoutMs: 75_000,
@@ -283,7 +294,7 @@ export async function factCheckArticle(articleId: string): Promise<FactCheck> {
   const raw = String(article.content_html || "");
   const html = stripOurFigures(raw); // photo captions aren't claims
   const rules = ruleIssues(html, facts);
-  const m = await modelCheck(html, facts);
+  const m = await modelCheck(html, facts, { articleId, clusterId: article.news_cluster_id ? String(article.news_cluster_id) : null });
   const issues = [...rules, ...m.issues];
   await saveCheck(articleId, verdictFor(issues), issues, m.claims, m.model, contentHash(raw));
   return (await getFactCheck(articleId)) as FactCheck;
@@ -306,6 +317,7 @@ export async function checkAndRevise(articleId: string): Promise<{ check: FactCh
   const high = check.issues.filter((i) => i.severity === "high");
   const { json } = await chatJson({
     kind: "revise",
+    log: { articleId, promptVersion: REVISE_PROMPT_VERSION },
     model: writerModel(),
     temperature: 0.1,
     timeoutMs: 75_000,
@@ -316,6 +328,7 @@ export async function checkAndRevise(articleId: string): Promise<{ check: FactCh
   const stats = computeContentStats(revised);
   if (!revised || stats.wordCount < 90) return { check, revised: false, wordCount: null };
   await sql`UPDATE articles SET content_html = ${revised}, word_count = ${stats.wordCount}, reading_time_minutes = ${stats.readingTimeMinutes}, updated_at = now() WHERE id = ${articleId}`;
+  await recordAiRevision(articleId, `AI revised ${high.length} sentence(s) the fact check flagged (${writerModel()}, ${REVISE_PROMPT_VERSION})`);
   check = await factCheckArticle(articleId);
   return { check, revised: true, wordCount: stats.wordCount };
 }
