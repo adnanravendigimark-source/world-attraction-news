@@ -22,3 +22,12 @@ describe("same intent, different words", () => {
     expect(findSimilar("Where to Eat in Rome", ["Rome Food Guide"])).toBe("Rome Food Guide");
   });
 });
+
+describe("different intents for one place are not duplicates", () => {
+  it("keeps core guides apart", () => {
+    const existing = ["Bali Travel Guide"];
+    for (const x of ["Things to Do in Bali", "Best Time to Visit Bali", "Food in Bali: What to Eat and Where", "Bali Itinerary: How to Spend 3 Days"])
+      expect(findSimilar(x, existing)).toBe("");
+    expect(findSimilar("When to Visit Bali", ["Best Time to Visit Bali"])).toBe("Best Time to Visit Bali");
+  });
+});

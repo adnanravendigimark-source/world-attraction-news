@@ -3,7 +3,6 @@ import { getSession } from "@/lib/session";
 import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { createTopic, listTopics, setTopicStatus } from "@/lib/blogs/topics";
-import { blogsWrittenToday, loadBlogSettings, planCoreGuides, refreshBlog, saveBlogSettings, setAuto } from "@/lib/blogs/automation";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +11,7 @@ export async function GET() {
   const denied = await requireApiPermission(session, "news", "read");
   if (denied) return denied;
   try {
-    const [topics, settings, today] = await Promise.all([listTopics(), loadBlogSettings(), blogsWrittenToday()]);
-    return NextResponse.json({ topics, settings, today });
+    return NextResponse.json({ topics: await listTopics() });
   } catch (err: any) {
     return NextResponse.json({ error: "Could not load topics. Run node scripts/setup-db.mjs if this is a new install." }, { status: 500 });
   }
@@ -28,20 +26,6 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   try {
-    // B7: core guides, background writing, refresh check, settings.
-    if (body?.action === "core") {
-      return NextResponse.json({ ok: true, ...(await planCoreGuides(String(body.destination || ""), !!body.auto, session.email)) });
-    }
-    if (body?.action === "auto") {
-      const ids = Array.isArray(body.ids) ? body.ids.map(String).slice(0, 50) : [];
-      return NextResponse.json({ ok: true, updated: await setAuto(ids, body.on !== false) });
-    }
-    if (body?.action === "refresh") {
-      return NextResponse.json({ ok: true, ...(await refreshBlog(String(body.id || ""))) });
-    }
-    if (body?.action === "settings") {
-      return NextResponse.json({ ok: true, settings: await saveBlogSettings(body.settings || {}) });
-    }
     if (body?.action === "status") {
       const ids = Array.isArray(body.ids) ? body.ids.map(String).slice(0, 100) : [];
       const status = body.status === "dismissed" ? "dismissed" : "queued";

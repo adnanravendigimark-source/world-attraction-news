@@ -1344,13 +1344,6 @@ async function createNewsTables() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS blog_research_topic_idx ON blog_research (topic_id, created_at DESC)`;
-  // Track B7: background writing, refresh checks and ideas from news.
-  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS auto BOOLEAN NOT NULL DEFAULT false`;
-  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS auto_step TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS auto_error TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS refresh_checked_at TIMESTAMPTZ`;
-  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS refresh_flags JSONB NOT NULL DEFAULT '[]'::jsonb`;
-  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS news_article_id UUID REFERENCES articles(id) ON DELETE SET NULL`;
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS news_cluster_id UUID REFERENCES story_clusters(id) ON DELETE SET NULL`;
   await sql`CREATE INDEX IF NOT EXISTS articles_type_status_idx ON articles (type, status, published_at DESC)`;
   await sql`

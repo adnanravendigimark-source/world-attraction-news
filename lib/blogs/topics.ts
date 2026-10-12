@@ -32,12 +32,7 @@ export interface BlogTopic {
   cityId: string | null;
   countryId: string | null;
   destination: string; // "Florence, Italy" or "Italy"
-  source: "manual" | "ai_suggested" | "from_news";
-  auto: boolean; // written in the background (B7)
-  autoStep: string;
-  autoError: string;
-  refreshFlags: { fact: string; status: "changed" | "not_confirmed"; now?: string }[];
-  refreshCheckedAt: string | null;
+  source: "manual" | "ai_suggested";
   status: string;
   similarTitle: string;
   articleId: string | null;
@@ -168,11 +163,6 @@ function rowToTopic(r: any): BlogTopic {
     similarTitle: r.similar_title || "",
     articleId: r.article_id ?? null,
     articleStatus: r.article_status ?? null,
-    auto: !!r.auto,
-    autoStep: r.auto_step || "",
-    autoError: r.auto_error || "",
-    refreshFlags: Array.isArray(r.refresh_flags) ? r.refresh_flags : [],
-    refreshCheckedAt: r.refresh_checked_at ? (r.refresh_checked_at instanceof Date ? r.refresh_checked_at.toISOString() : String(r.refresh_checked_at)) : null,
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
   };
 }
