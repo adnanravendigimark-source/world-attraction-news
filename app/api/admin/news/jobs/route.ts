@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { costLast24h } from "@/lib/news/ops";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
@@ -15,7 +16,8 @@ export async function GET() {
   try {
     const [config, jobs, stats] = await Promise.all([loadAutomation(), listJobs(), jobStats()]);
     const eligible = await countEligible(config).catch(() => 0);
-    return NextResponse.json({ config, jobs, stats, eligible });
+    const costToday = await costLast24h();
+    return NextResponse.json({ config, jobs, stats, eligible, costToday });
   } catch (err) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }

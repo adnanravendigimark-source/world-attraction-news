@@ -8,6 +8,7 @@ import { loadFilterConfig } from "./filter";
 import { runResearch } from "./research";
 import { createDraftFromStory } from "./drafts";
 import { recordDecision } from "./decisions";
+import { costLast24h, overCap, researchUsable } from "./ops";
 import { ensureImages } from "./imagegen";
 import { enrichArticle } from "./seo";
 import { writeArticle } from "./writer";
@@ -23,6 +24,8 @@ export interface AutomationConfig {
   draft: boolean; // create a draft after research
   image: boolean; // generate an AI cover after the draft
   inlinePhotos: boolean; // add photos inside long articles (350+ words)
+  dailyCostCapUsd: number; // stop starting stories once AI spend in 24 h reaches this (0 = no cap)
+  minFacts: number; // research must find this many facts (and read one source in full) to draft
   minQuality: number; // quality score an article needs before it can be published
 }
 
@@ -34,6 +37,8 @@ export const DEFAULT_AUTOMATION: AutomationConfig = {
   draft: true,
   image: true,
   inlinePhotos: true,
+  dailyCostCapUsd: 2,
+  minFacts: 4,
   minQuality: 75,
 };
 
@@ -71,6 +76,8 @@ export async function saveAutomation(patch: Partial<AutomationConfig>): Promise<
     draft: typeof patch.draft === "boolean" ? patch.draft : cur.draft,
     image: typeof patch.image === "boolean" ? patch.image : cur.image,
     inlinePhotos: typeof patch.inlinePhotos === "boolean" ? patch.inlinePhotos : cur.inlinePhotos,
+    dailyCostCapUsd: Number.isFinite(Number(patch.dailyCostCapUsd)) ? Math.min(100, Math.max(0, Math.round(Number(patch.dailyCostCapUsd) * 100) / 100)) : cur.dailyCostCapUsd,
+    minFacts: clampInt(patch.minFacts, 1, 20, cur.minFacts),
     minQuality: clampInt(patch.minQuality, 0, 100, cur.minQuality),
   };
   await sql`
@@ -96,6 +103,8 @@ export async function enqueueJob(kind: JobKind, clusterId: string, articleId?: s
 // Picks the best un-started stories, up to what's left of today's target.
 export async function enqueueEligible(cfg?: AutomationConfig): Promise<{ queued: number; remaining: number }> {
   const c = cfg ?? (await loadAutomation());
+  // Phase 13: no new stories once the day's AI spend reaches the cap.
+  if (overCap(await costLast24h(), c.dailyCostCapUsd)) return { queued: 0, remaining: 0 };
   const used = await sql`SELECT COUNT(*)::int AS n FROM news_jobs WHERE kind = 'research' AND status <> 'cancelled' AND created_at > now() - interval '24 hours'`;
   const remaining = Math.max(0, c.dailyTarget - Number(used[0]?.n ?? 0));
   if (remaining === 0) return { queued: 0, remaining: 0 };
@@ -184,6 +193,12 @@ async function execute(job: any, cfg: AutomationConfig): Promise<{ result: any; 
   if (job.kind === "research") {
     const rec = await runResearch(clusterId, "automation");
     if (rec.status !== "done") throw new Error(rec.error || "Research did not complete.");
+    // Phase 13: don't spend on writing a story the research can't support.
+    const usable = researchUsable(
+      { facts: (rec.facts?.important_facts.length ?? 0) + (rec.facts?.confirmed_numbers.length ?? 0), sourcesRead: rec.sources.filter((s) => s.usedText).length },
+      cfg.minFacts
+    );
+    if (!usable.ok) return { result: { facts: true, skipped: `Not drafted: ${usable.reason}` } };
     if (cfg.draft) await enqueueJob("draft", clusterId);
     return { result: { facts: true } };
   }
@@ -228,6 +243,8 @@ export async function runJobs(opts: { budgetMs?: number } = {}): Promise<{ proce
   const out = { processed: 0, done: 0, failed: 0, retried: 0 };
   while (true) {
     if (out.processed > 0 && budget - (Date.now() - started) < JOB_RESERVE_MS) break;
+    // Phase 13: over the daily AI cost cap, leave the queue for later.
+    if (overCap(await costLast24h(), cfg.dailyCostCapUsd)) break;
     const job = await claimNext();
     if (!job) break;
     out.processed++;

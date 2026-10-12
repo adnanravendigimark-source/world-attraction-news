@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import NewsHealthPanel from "@/components/admin/NewsHealthPanel";
 import Link from "next/link";
 import NewsStories from "@/components/admin/NewsStories";
 import { useToast } from "@/components/ToastProvider";
@@ -174,6 +175,7 @@ export default function NewsFeed({ initialStats, initialRuns, sources, categorie
         ))}
       </div>
       <p className="mt-2 text-xs text-ink-500">Last fetch: {ago(stats.lastRunAt)}. Automatic fetch runs every 30 minutes (each source has its own interval).</p>
+      <NewsHealthPanel />
 
       <div className="mt-6 flex gap-1 border-b border-ink-200">
         {(["stories", "items"] as const).map((t) => (

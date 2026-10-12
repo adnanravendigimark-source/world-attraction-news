@@ -12,6 +12,8 @@ interface Config {
   image: boolean;
   inlinePhotos: boolean;
   minQuality: number;
+  dailyCostCapUsd: number;
+  minFacts: number;
 }
 interface Job {
   id: number;
@@ -47,6 +49,7 @@ export default function NewsAutomation({ canEdit }: { canEdit: boolean }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [stats, setStats] = useState<Record<string, number>>({});
   const [eligible, setEligible] = useState<number | null>(null);
+  const [costToday, setCostToday] = useState<number | null>(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -58,6 +61,7 @@ export default function NewsAutomation({ canEdit }: { canEdit: boolean }) {
       setJobs(d.jobs);
       setStats(d.stats);
       setEligible(typeof d.eligible === "number" ? d.eligible : null);
+      setCostToday(typeof d.costToday === "number" ? d.costToday : null);
     } else setMsg(d.error || "Couldn't load.");
   }, []);
 
@@ -119,6 +123,12 @@ export default function NewsAutomation({ canEdit }: { canEdit: boolean }) {
           <label className="flex items-center gap-2 text-sm text-ink-700" title="A news article can only be published once its quality score reaches this number (0 turns the requirement off).">Min quality to publish
             <input type="number" min={0} max={100} className={field} value={config.minQuality} disabled={!canEdit} onChange={(e) => set({ minQuality: Number(e.target.value) })} />
           </label>
+          <label className="flex items-center gap-2 text-sm text-ink-700" title="AI spend in the last 24 hours at which automation stops starting stories and pauses the queue (0 = no cap). Costs are estimates from token counts.">Daily AI cost cap ($)
+            <input type="number" min={0} max={100} step={0.5} className={field} value={config.dailyCostCapUsd ?? 2} disabled={!canEdit} onChange={(e) => set({ dailyCostCapUsd: Number(e.target.value) })} />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink-700" title="Research must find at least this many facts, and read at least one source in full, before automation writes a draft.">Min facts to draft
+            <input type="number" min={1} max={20} className={field} value={config.minFacts ?? 4} disabled={!canEdit} onChange={(e) => set({ minFacts: Number(e.target.value) })} />
+          </label>
           <label className="flex items-center gap-2 text-sm text-ink-700">
             <input type="checkbox" checked={config.draft} disabled={!canEdit} onChange={(e) => set({ draft: e.target.checked })} /> Create draft
           </label>
@@ -132,6 +142,15 @@ export default function NewsAutomation({ canEdit }: { canEdit: boolean }) {
         <p className="mt-3 text-xs text-ink-600">
           Stories that qualify right now (travel-relevant, at or above the min score, seen within the max age, not yet started):{" "}
           <b className="text-ink-900">{eligible ?? "…"}</b>. Save settings to refresh this count.
+        </p>
+        <p className="mt-1 text-xs text-ink-600">
+          AI cost in the last 24 hours:{" "}
+          <b className={costToday !== null && config.dailyCostCapUsd > 0 && costToday >= config.dailyCostCapUsd ? "text-[#DC2626]" : "text-ink-900"}>
+            ${costToday === null ? "…" : costToday.toFixed(2)}
+          </b>
+          {config.dailyCostCapUsd > 0 ? ` of the $${Number(config.dailyCostCapUsd).toFixed(2)} cap` : " (no cap)"}
+          {costToday !== null && config.dailyCostCapUsd > 0 && costToday >= config.dailyCostCapUsd ? ": automation is paused until spend drops below the cap." : "."}{" "}
+          Automation stops at drafts ready for review; only an editor can publish. Admins get a daily email of drafts ready to publish.
         </p>
         {canEdit && (
           <div className="mt-4 flex flex-wrap items-center gap-2">

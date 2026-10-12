@@ -56,7 +56,11 @@ export async function publishDueScheduledArticles(): Promise<number> {
       }
     }
     return rows.length;
-  } catch {
+  } catch (err) {
+    // Recorded so the news health panel can show it (Phase 14).
+    console.error("[scheduling] scheduled publishing failed:", err);
+    await sql`INSERT INTO activity_log (admin_email, action, target_type, target_label)
+              VALUES ('system', 'scheduled_publish_failed', 'article', ${String((err as Error)?.message || err).slice(0, 200)})`.catch(() => {});
     return 0;
   }
 }

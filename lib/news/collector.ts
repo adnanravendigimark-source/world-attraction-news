@@ -6,7 +6,7 @@ import { getNewsSources, rowToSource, type NewsSource } from "./sources";
 import { mergeDuplicateClusters, runClustering } from "./cluster";
 import { runTrendScoring } from "./trend";
 import { isOfficialFeed, isTravelSource, loadFilterConfig, scoreRelevance } from "./filter";
-import { isPublicUrl } from "./extract";
+import { resolvesPublic } from "./extract";
 
 const USER_AGENT = "WorldAttractionNewsBot/1.0 (+news discovery; contact via site)";
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -138,7 +138,7 @@ export interface FeedPreview {
 // a feed before adding it.
 export async function previewFeed(rssUrl: string, category = "", isOfficial = false): Promise<FeedPreview> {
   const url = String(rssUrl || "").trim();
-  if (!/^https?:\/\//i.test(url) || !isPublicUrl(url)) throw new Error("Enter a public http(s) feed URL.");
+  if (!/^https?:\/\//i.test(url) || !(await resolvesPublic(url))) throw new Error("Enter a public http(s) feed URL.");
   const res = await fetchFeedXml({ rssUrl: url, etag: "", lastModified: "" } as NewsSource);
   if (res.notModified) throw new Error("The server answered 304 Not Modified to a fresh request.");
   const items = parseFeed(res.xml, url);

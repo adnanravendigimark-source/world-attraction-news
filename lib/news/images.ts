@@ -1,6 +1,6 @@
 import { sql } from "../db";
 import { NEWS_COVER, uploadNewsCover } from "../blob";
-import { isPublicUrl } from "./extract";
+import { isPublicUrl, resolvesPublic } from "./extract";
 
 import { IMAGE_SOURCE_TYPES, type ImageSourceType } from "./provenance";
 export { IMAGE_SOURCE_TYPES, PROVENANCE_LABELS, type ImageSourceType } from "./provenance";
@@ -67,7 +67,7 @@ export async function saveCoverSize(articleId: string, c: { url: string; width: 
 // Downloads an image we may use (our own storage or a story candidate already
 // checked by the caller) as a File for re-encoding.
 export async function downloadImage(url: string, label = "Image"): Promise<File> {
-  if (!isPublicUrl(url)) throw new Error(`${label} URL isn't allowed.`);
+  if (!(await resolvesPublic(url))) throw new Error(`${label} URL isn't allowed.`);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 15000);
   try {

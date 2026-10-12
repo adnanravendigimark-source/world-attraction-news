@@ -28,6 +28,35 @@ export function isPublicUrl(raw: string): boolean {
 
 // Google News RSS links are JS-driven redirects; the real article can't be
 // fetched without a browser, so research uses the feed's headline instead.
+// True for an IP address in a private, loopback, link-local or otherwise
+// internal range (IPv4, IPv6 and IPv4-mapped IPv6).
+export function isPrivateIp(ip: string): boolean {
+  const v = ip.toLowerCase().replace(/^\[|\]$/g, "");
+  const mapped = v.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return isPrivateIp(mapped[1]);
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(v)) {
+    const [a, b] = v.split(".").map(Number);
+    return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19)) || a >= 224;
+  }
+  return v === "::" || v === "::1" || /^f[cd]/.test(v) || /^fe[89ab]/.test(v);
+}
+
+// Phase 14: the hostname check above can be fooled by a public name that
+// resolves to an internal address (DNS rebinding). This resolves the name
+// and refuses the URL if any address is internal.
+export async function resolvesPublic(raw: string, lookup?: (h: string) => Promise<{ address: string }[]>): Promise<boolean> {
+  if (!isPublicUrl(raw)) return false;
+  const host = new URL(raw).hostname;
+  try {
+    const resolve = lookup ?? (async (h: string) => (await import("node:dns")).promises.lookup(h, { all: true }));
+    const addrs = await resolve(host);
+    return addrs.length > 0 && addrs.every((a) => !isPrivateIp(a.address));
+  } catch {
+    return false;
+  }
+}
+
 export function isGoogleNewsRedirect(raw: string): boolean {
   try {
     return new URL(raw).hostname === "news.google.com";
@@ -82,7 +111,7 @@ export async function fetchPageText(url: string): Promise<FetchedPage> {
   let current = url;
   try {
     for (let hop = 0; hop < 4; hop++) {
-      if (!isPublicUrl(current)) return { ok: false, finalUrl: current, title: "", text: "", error: "Blocked or invalid URL." };
+      if (!(await resolvesPublic(current))) return { ok: false, finalUrl: current, title: "", text: "", error: "Blocked or invalid URL." };
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 12_000);
       let res: Response;
