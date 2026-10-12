@@ -188,14 +188,21 @@ export default function NewsDesk({ lastFetchAt, canEdit }: { lastFetchAt: string
             {place ? `No fresh news for ${place} in the last 24 hours.` : "No fresh news yet. Click Fetch latest news."}
           </li>
         )}
-        {stories.map((s) => {
+        {stories.map((s, i) => {
           const st = stateOf(s);
+          const score = s.trendScore == null ? null : Math.round(s.trendScore);
+          const tier = s.trendBreakdown?.tier;
+          const scoreCls = tier === "high" ? "bg-emerald-600 text-white" : tier === "review" ? "bg-amber-100 text-amber-900" : "bg-ink-100 text-ink-600";
           const busy = generating?.id === s.id;
           const link = s.items[0]?.url;
           return (
             <li key={s.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-2">
+                  <span className="mt-0.5 w-8 shrink-0 text-sm font-semibold tabular-nums text-ink-400">#{i + 1}</span>
+                  {score != null && (
+                    <span title="Trend score (0-100)" className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-bold tabular-nums ${scoreCls}`}>{score}</span>
+                  )}
                   <span className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium ${st.cls}`}>{st.label}</span>
                   {link ? (
                     <a href={link} target="_blank" rel="noopener noreferrer nofollow" className="font-medium leading-snug text-ink-900 hover:underline">{s.title}</a>
@@ -203,10 +210,10 @@ export default function NewsDesk({ lastFetchAt, canEdit }: { lastFetchAt: string
                     <span className="font-medium leading-snug text-ink-900">{s.title}</span>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-ink-500">
+                <p className="mt-1 pl-10 text-xs text-ink-500">
                   {[s.category, `${s.sourceCount} ${s.sourceCount === 1 ? "source" : "sources"}`, ago(s.lastSeenAt)].filter(Boolean).join(" · ")}
                 </p>
-                {busy && <p className="mt-1 text-xs font-medium text-blue-700">{generating!.text}</p>}
+                {busy && <p className="mt-1 pl-10 text-xs font-medium text-blue-700">{generating!.text}</p>}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {st.action === "generate" && canEdit && (
