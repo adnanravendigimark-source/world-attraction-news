@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 import type { BlogTopic } from "@/lib/blogs/topics";
 import BlogResearchPanel from "@/components/admin/BlogResearchPanel";
+import { generateBlog } from "@/lib/blogs/clientGenerate";
 
 const TYPES = [
   ["travel_guide", "Travel guide", 1800],
@@ -36,6 +37,20 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
   const [suggestFor, setSuggestFor] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [openId, setOpenId] = useState("");
+  const [gen, setGen] = useState<{ id: string; text: string } | null>(null);
+
+  async function generate(id: string) {
+    setGen({ id, text: "Starting…" });
+    try {
+      const r = await generateBlog(id, (text) => setGen({ id, text }));
+      toast.success(`Draft ready (${r.wordCount} words).`);
+      window.location.href = r.adminUrl;
+    } catch (e: any) {
+      toast.error(e.message || "Generation failed.");
+      setGen(null);
+      load();
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -221,14 +236,25 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
                   {[typeLabel(t.topicType), t.destination, `${t.targetWords} words`, t.source === "ai_suggested" ? "AI idea" : "added by hand"].join(" · ")}
                 </p>
                 {t.similarTitle && <p className="mt-1 text-xs font-medium text-amber-800">Similar to an existing article: “{t.similarTitle}”</p>}
+                {gen?.id === t.id && <p className="mt-1 text-xs font-medium text-blue-700">{gen.text}</p>}
               </div>
-              {canEdit && t.status === "queued" && (
+              {t.articleId && (
+                <a href={`/admin/articles/${t.articleId}`} className="shrink-0 rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50">
+                  Open draft
+                </a>
+              )}
+              {canEdit && (t.status === "queued" || t.status === "generating") && (
                 <div className="flex shrink-0 items-center gap-2">
                   <button onClick={() => setOpenId(openId === t.id ? "" : t.id)} className="rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-800 hover:bg-ink-50">
                     {openId === t.id ? "Hide research" : "Research"}
                   </button>
-                  <button disabled title="Blog writing arrives in the next phases (B3–B4)" className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white opacity-40">
-                    Generate blog
+                  <button
+                    onClick={() => generate(t.id)}
+                    disabled={!!gen}
+                    title="Research (if needed), outline, write each section, then the intro, conclusion and FAQ (2-4 minutes)"
+                    className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-50"
+                  >
+                    {gen?.id === t.id ? "Generating…" : "Generate blog"}
                   </button>
                   <button onClick={() => setStatus([t.id], "dismissed")} disabled={!!busy} className="rounded-lg px-2 py-2 text-sm text-ink-400 hover:bg-ink-50 hover:text-ink-700">
                     Remove
