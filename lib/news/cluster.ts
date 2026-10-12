@@ -151,7 +151,31 @@ export async function runClustering(opts: { windowDays?: number } = {}): Promise
     }
   }
 
+  await retitleStories().catch(() => {});
   return { considered: items.length, assigned: assignments.length, newClusters, joinedExisting };
+}
+
+// Re-picks the headline of fresh stories still titled with a bare name or a
+// Google News publisher suffix.
+export async function retitleStories(): Promise<number> {
+  const rows = (await sql`
+    SELECT c.id AS cluster_id, c.canonical_title, i.title, i.published_at, i.created_at, s.reliability_score AS reliability,
+           CASE WHEN s.type = 'google_news_rss' AND i.author <> '' THEN lower(i.author) ELSE lower(s.name) END AS publisher
+    FROM story_clusters c JOIN news_items i ON i.cluster_id = c.id JOIN news_sources s ON s.id = i.source_id
+    WHERE c.status NOT IN ('ignored', 'merged') AND c.last_seen_at > now() - interval '48 hours'
+      AND (array_length(regexp_split_to_array(trim(c.canonical_title), '\\s+'), 1) < 5 OR c.canonical_title ~ ' [-–|] [^-–|]{2,80}$')
+  `) as any[];
+  const by = new Map<string, any[]>();
+  for (const r of rows) by.set(r.cluster_id, [...(by.get(r.cluster_id) || []), { ...r, reliability: Number(r.reliability ?? 50) }]);
+  let n = 0;
+  for (const [id, members] of by) {
+    const t = pickRepresentative(members).title;
+    if (t && t !== members[0].canonical_title) {
+      await sql`UPDATE story_clusters SET canonical_title = ${t} WHERE id = ${id}`;
+      n++;
+    }
+  }
+  return n;
 }
 
 export async function refreshClusterStats(ids: string[]): Promise<void> {
@@ -347,12 +371,27 @@ export async function moveItem(itemId: string, targetId: string | null): Promise
   return { clusterId: to!, emptied };
 }
 
-// Best headline for the cluster: most reliable source, then earliest.
-function pickRepresentative(members: Row[]): Row {
-  return [...members].sort((a, b) => b.reliability - a.reliability || time(a) - time(b))[0];
+// Best headline for the cluster: a real headline (5+ words; a government
+// advice page titled just "Saudi Arabia" says nothing about the story), then
+// the most reliable source, then the earliest. A trailing " - Publisher"
+// added by Google News is dropped.
+export function pickRepresentative<T extends { title: string; reliability: number; publisher?: string; published_at?: any; created_at?: any }>(members: T[]): T {
+  const words = (t: string) => t.trim().split(/\s+/).length;
+  const best = [...members].sort(
+    (a, b) => Number(words(b.title) >= 5) - Number(words(a.title) >= 5) || b.reliability - a.reliability || time(a) - time(b)
+  )[0];
+  return { ...best, title: stripPublisher(best.title, best.publisher) };
 }
 
-const time = (r: Row) => new Date(r.published_at || r.created_at).getTime();
+export function stripPublisher(title: string, publisher = ""): string {
+  const m = /^(.*\S)\s+[-–|]\s+([^-–|]{2,80})$/.exec(String(title || "").trim());
+  if (!m || !publisher) return title;
+  const p = publisher.toLowerCase().replace(/^www\./, "");
+  const tail = m[2].trim().toLowerCase().replace(/^www\./, "");
+  return tail === p || tail.startsWith(p) || p.startsWith(tail) ? m[1] : title;
+}
+
+const time = (r: { published_at?: any; created_at?: any }) => new Date(r.published_at || r.created_at).getTime();
 const earliest = (m: Row[]) => new Date(Math.min(...m.map(time))).toISOString();
 
 // Detach everything and rebuild from scratch (used after changing the matcher).
