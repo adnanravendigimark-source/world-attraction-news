@@ -38,3 +38,17 @@ describe("style clean-up", () => {
     expect(tidyStyle("<p>This guide covers the seasons.</p>")).toBe("<p>Below we cover the seasons.</p>");
   });
 });
+
+import { replaceSection } from "@/lib/blogs/writer";
+describe("rewriting one section", () => {
+  const html = '<p>Intro.</p><h2>A</h2><p>a1</p><figure class="news-figure"><img src="x"></figure><p>a2</p><h2>B</h2><p>b1</p><p>The end.</p>';
+  it("replaces only that section and keeps its photo", () => {
+    const out = replaceSection(html, 0, "<p>new a</p><p>more</p>");
+    expect(out).toContain('<h2>A</h2>\n<p>new a</p><figure class="news-figure"><img src="x"></figure><p>more</p>\n<h2>B</h2>');
+    expect(out).not.toContain("a2");
+  });
+  it("keeps the conclusion when the last section is rewritten", () => {
+    const out = replaceSection(html, 1, "<p>new b</p>", "<p>The end.</p>");
+    expect(out.endsWith("<p>new b</p>\n<p>The end.</p>")).toBe(true);
+  });
+});

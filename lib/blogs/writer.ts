@@ -53,7 +53,11 @@ async function requireInputs(topicId: string): Promise<{ topic: BlogTopic; resea
 }
 
 async function saveOutline(topicId: string, outline: BlogOutline, status = "generating") {
-  await sql`UPDATE blog_topics SET outline = ${JSON.stringify(outline)}::jsonb, status = ${status}, updated_at = now() WHERE id = ${topicId}`;
+  // A drafted topic stays drafted while one section is rewritten (B6).
+  await sql`
+    UPDATE blog_topics SET outline = ${JSON.stringify(outline)}::jsonb,
+      status = CASE WHEN status = 'drafted' AND article_id IS NOT NULL THEN status ELSE ${status} END, updated_at = now()
+    WHERE id = ${topicId}`;
 }
 
 // ------------------------------------------------------------------ outline
@@ -183,7 +187,9 @@ const SWAPS: [RegExp, string][] = [
   [/\bnestled\b/gi, "set"],
   [/\bboasts\b/gi, "has"],
   [/\ba plethora of\b/gi, "many"],
-  [/\bmust-see\b/gi, "well-known"],
+  [/\bmust-see\b/gi, "top"],
+  [/\ba rich tapestry of\b/gi, "a mix of"],
+  [/\btapestry\b/gi, "mix"],
   [/\bThis guide (covers|explores)\b/g, "Below we cover"],
 ];
 export function tidyStyle(html: string): string {
@@ -244,7 +250,7 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
 
   const existing = (await sql`SELECT article_id FROM blog_topics WHERE id = ${topicId}`)[0]?.article_id as string | null;
   let articleId = existing;
-  const title = outline.title || topic.title;
+  const title = tidyStyle(outline.title || topic.title);
   if (articleId) {
     await sql`
       UPDATE articles SET title = ${title}, excerpt = ${clean(json?.excerpt, 200)}, content_html = ${html}, faq = ${JSON.stringify(faq)}::jsonb,
@@ -280,4 +286,57 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
 // Starts over: clears the outline (the draft article, if any, is kept and updated).
 export async function resetOutline(topicId: string): Promise<void> {
   await sql`UPDATE blog_topics SET outline = NULL, status = 'queued', updated_at = now() WHERE id = ${topicId} AND status <> 'drafted'`;
+}
+
+// ------------------------------------------------------- regenerate (B6)
+
+// Replaces the text of one section in the saved article (between its <h2> and
+// the next one), keeping that section's photo, then re-checks the facts.
+export function replaceSection(html: string, index: number, newHtml: string, conclusion = ""): string {
+  const heads = [...html.matchAll(/<h2[^>]*>[\s\S]*?<\/h2>/gi)];
+  const h = heads[index];
+  if (!h) throw new Error("That section isn't in the article any more.");
+  const start = h.index! + h[0].length;
+  let end = heads[index + 1]?.index ?? html.length;
+  if (index === heads.length - 1 && conclusion) {
+    const at = html.lastIndexOf(conclusion.slice(0, 60));
+    if (at > start) end = at;
+  }
+  const old = html.slice(start, end);
+  const figure = (old.match(/<figure class="news-figure"[\s\S]*?<\/figure>/i) || [""])[0];
+  let body = newHtml;
+  if (figure) {
+    const close = body.indexOf("</p>");
+    body = close >= 0 ? body.slice(0, close + 4) + figure + body.slice(close + 4) : body + figure;
+  }
+  return html.slice(0, start) + "\n" + body + "\n" + html.slice(end);
+}
+
+export async function regenerateSection(articleId: string, index: number): Promise<{ words: number }> {
+  const t = (await sql`SELECT id FROM blog_topics WHERE article_id = ${articleId} LIMIT 1`)[0] as any;
+  if (!t) throw new Error("This article wasn't made from a blog topic.");
+  const a = (await sql`SELECT content_html, status FROM articles WHERE id = ${articleId} LIMIT 1`)[0] as any;
+  if (["published", "scheduled"].includes(a?.status)) throw new Error("Unpublish the guide before rewriting a section.");
+  await sectionStep(String(t.id), index);
+  const outline = ((await sql`SELECT outline FROM blog_topics WHERE id = ${t.id}`)[0] as any).outline as BlogOutline;
+  const html = tidyStyle(replaceSection(String(a.content_html || ""), index, outline.sections[index].html || "", outline.conclusion));
+  const stats = computeContentStats(html);
+  await sql`UPDATE articles SET content_html = ${html}, word_count = ${stats.wordCount}, reading_time_minutes = ${stats.readingTimeMinutes}, updated_at = now() WHERE id = ${articleId}`;
+  const { recordAiRevision } = await import("../news/aiRevision");
+  await recordAiRevision(articleId, `Section ${index + 1} rewritten: ${outline.sections[index].heading}`);
+  return { words: computeContentStats(outline.sections[index].html || "").wordCount };
+}
+
+export async function blogPanelData(articleId: string) {
+  const t = (await sql`SELECT id, title, outline FROM blog_topics WHERE article_id = ${articleId} LIMIT 1`.catch(() => []))[0] as any;
+  if (!t) return null;
+  const research = await getLatestBlogResearch(String(t.id));
+  return {
+    topicId: t.id as string,
+    topic: t.title as string,
+    sections: ((t.outline?.sections || []) as OutlineSection[]).map((s) => ({ heading: s.heading, words: s.words })),
+    facts: research?.facts.length ?? 0,
+    sources: research?.sources.filter((s) => s.ok).length ?? 0,
+    toCheck: research?.facts.filter((f) => f.volatile).length ?? 0,
+  };
 }

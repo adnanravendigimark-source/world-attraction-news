@@ -43,3 +43,10 @@ describe("research source choice", () => {
     expect(f[0].volatile).toBe(false);
   });
 });
+
+describe("list pages", () => {
+  it("skips Wikipedia list pages", () => {
+    expect(isOffTopicTitle("List of Historic Civil Engineering Landmarks")).toBe(true);
+    expect(isOffTopicTitle("Tourism in Italy")).toBe(false);
+  });
+});

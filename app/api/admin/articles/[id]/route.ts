@@ -383,6 +383,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         excerpt: body.excerpt !== undefined ? body.excerpt : undefined,
         contentHtml: body.contentHtml !== undefined ? body.contentHtml : undefined,
         cityId: body.cityId !== undefined ? body.cityId : undefined,
+        countryId: body.countryId !== undefined ? body.countryId || null : undefined,
+        faq: Array.isArray(body.faq) ? body.faq : undefined,
         categoryId: body.categoryId !== undefined ? body.categoryId : undefined,
         attractionId: body.attractionId !== undefined ? body.attractionId : undefined,
         image: body.image !== undefined ? body.image : undefined,

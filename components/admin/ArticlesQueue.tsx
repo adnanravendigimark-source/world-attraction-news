@@ -60,6 +60,7 @@ export default function ArticlesQueue({
   const [query, setQuery] = useState("");
   const [cityId, setCityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [kind, setKind] = useState(searchParams.get("kind") || "");
   const [author, setAuthor] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [page, setPage] = useState(1);
@@ -85,6 +86,9 @@ export default function ArticlesQueue({
     let list = filter === "all" ? initialArticles : initialArticles.filter((a) => a.status === filter);
     if (cityId) list = list.filter((a) => a.cityId === cityId);
     if (categoryId) list = list.filter((a) => a.categoryId === categoryId);
+    if (kind === "news") list = list.filter((a) => a.type === "news");
+    if (kind === "ai_blog") list = list.filter((a) => a.origin === "ai_blog");
+    if (kind === "contributor") list = list.filter((a) => a.type !== "news" && a.origin !== "ai_blog");
     if (author) list = list.filter((a) => a.authorEmail === author);
     if (dateFrom) {
       const from = new Date(dateFrom).getTime();
@@ -101,12 +105,12 @@ export default function ArticlesQueue({
       );
     }
     return list;
-  }, [initialArticles, filter, cityId, categoryId, author, dateFrom, query]);
+  }, [initialArticles, filter, cityId, categoryId, kind, author, dateFrom, query]);
 
   // Any filter/search/tab change invalidates whatever page we were on.
   useEffect(() => {
     setPage(1);
-  }, [filter, cityId, categoryId, author, dateFrom, query]);
+  }, [filter, cityId, categoryId, kind, author, dateFrom, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -168,6 +172,17 @@ export default function ArticlesQueue({
         </select>
 
         <select
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 focus:border-[#DC2626] focus:bg-white focus:outline-none"
+        >
+          <option value="">All types</option>
+          <option value="news">News</option>
+          <option value="ai_blog">AI blogs</option>
+          <option value="contributor">Contributor guides</option>
+        </select>
+
+        <select
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
           className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 focus:border-[#DC2626] focus:bg-white focus:outline-none"
@@ -201,13 +216,14 @@ export default function ArticlesQueue({
           className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 focus:border-[#DC2626] focus:bg-white focus:outline-none"
         />
 
-        {(query || cityId || categoryId || author || dateFrom) && (
+        {(query || cityId || categoryId || kind || author || dateFrom) && (
           <button
             type="button"
             onClick={() => {
               setQuery("");
               setCityId("");
               setCategoryId("");
+              setKind("");
               setAuthor("");
               setDateFrom("");
             }}

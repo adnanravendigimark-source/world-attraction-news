@@ -1152,6 +1152,8 @@ export async function adminUpdateArticle(
     excerpt?: string;
     contentHtml?: string;
     cityId?: string;
+    countryId?: string | null; // country-level guides (AI blogs)
+    faq?: FaqItem[];
     categoryId?: string | null;
     attractionId?: string | null;
     image?: string;
@@ -1190,8 +1192,18 @@ export async function adminUpdateArticle(
   const { wordCount, readingTimeMinutes } = computeContentStats(nextContent);
   // News articles have no destination: an empty cityId clears it. Guides keep
   // their existing city when the field is blank.
-  const nextCityId =
+  let nextCityId =
     updates.cityId === undefined ? c.city_id : updates.cityId.trim() ? updates.cityId : c.type === "news" ? null : c.city_id;
+  // AI blogs can belong to a whole country instead of a city (Track B6).
+  let nextCountryId = c.country_id ?? null;
+  if (c.origin === "ai_blog" && updates.countryId !== undefined) {
+    nextCountryId = updates.countryId || null;
+    if (nextCountryId && !(updates.cityId || "").trim()) nextCityId = null;
+  }
+  if (nextCityId) nextCountryId = c.origin === "ai_blog" ? null : nextCountryId;
+  const nextFaq = updates.faq !== undefined
+    ? updates.faq.map((f) => ({ q: String(f.q || "").trim().slice(0, 200), a: String(f.a || "").trim().slice(0, 800) })).filter((f) => f.q && f.a).slice(0, 12)
+    : null;
 
   const rows = await sql`
     UPDATE articles
@@ -1200,6 +1212,8 @@ export async function adminUpdateArticle(
         excerpt = ${updates.excerpt ?? c.excerpt},
         content_html = ${nextContent},
         city_id = ${nextCityId},
+        country_id = ${nextCountryId},
+        faq = COALESCE(${nextFaq ? JSON.stringify(nextFaq) : null}::jsonb, faq),
         category_id = ${updates.categoryId !== undefined ? updates.categoryId : c.category_id},
         attraction_id = ${updates.attractionId !== undefined ? updates.attractionId : c.attraction_id},
         image = ${updates.image ?? c.image},

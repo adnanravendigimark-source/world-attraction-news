@@ -17,3 +17,13 @@ describe("blog photos", () => {
     expect(insertAfterSection(html, 0, "<figure>F</figure>")).toBe("<p>i</p><h2>A</h2><p>a1</p><figure>F</figure><p>a2</p><h2>B</h2><p>b1</p>");
   });
 });
+
+import { sectionFigures, restoreFigures } from "@/lib/blogs/images";
+describe("keeping photos through a rewrite", () => {
+  it("puts each photo back in its section", () => {
+    const before = '<p>i</p><h2>A</h2><p>a</p><h2>B</h2><p>b1</p><figure class="news-figure"><img src="1"></figure><p>b2</p>';
+    const rewritten = "<p>i</p><h2>A</h2><p>a!</p><h2>B</h2><p>b1!</p><p>b2!</p>";
+    const out = restoreFigures(rewritten, sectionFigures(before));
+    expect(out).toBe('<p>i</p><h2>A</h2><p>a!</p><h2>B</h2><p>b1!</p><figure class="news-figure"><img src="1"></figure><p>b2!</p>');
+  });
+});

@@ -37,6 +37,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
   const [suggestFor, setSuggestFor] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [openId, setOpenId] = useState("");
+  const [tab, setTab] = useState<"queued" | "generating" | "drafted">("queued");
   const [gen, setGen] = useState<{ id: string; text: string } | null>(null);
 
   async function generate(id: string) {
@@ -122,7 +123,12 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
   }
 
   const suggested = topics.filter((t) => t.status === "suggested");
-  const planned = topics.filter((t) => t.status !== "suggested");
+  const byTab = {
+    queued: topics.filter((t) => t.status === "queued"),
+    generating: topics.filter((t) => t.status === "generating"),
+    drafted: topics.filter((t) => t.status === "drafted"),
+  };
+  const planned = byTab[tab];
   const toggle = (id: string) =>
     setPicked((s) => {
       const n = new Set(s);
@@ -219,17 +225,39 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
 
       <section className="rounded-xl border border-ink-200 bg-white">
         <div className="border-b border-ink-100 px-5 py-3">
-          <h2 className="font-semibold text-ink-900">Queue ({planned.length})</h2>
+          <div className="flex gap-1" role="tablist">
+            {([
+              ["queued", "Queue"],
+              ["generating", "In progress"],
+              ["drafted", "Drafts"],
+            ] as const).map(([k, label]) => (
+              <button
+                key={k}
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => setTab(k)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === k ? "bg-ink-900 text-white" : "text-ink-600 hover:bg-ink-50"}`}
+              >
+                {label} ({byTab[k].length})
+              </button>
+            ))}
+          </div>
         </div>
         <ul className="divide-y divide-ink-100">
           {loading && <li className="px-5 py-4 text-sm text-ink-500">Loading…</li>}
-          {!loading && planned.length === 0 && <li className="px-5 py-4 text-sm text-ink-500">No topics yet. Add one or get suggestions above.</li>}
+          {!loading && planned.length === 0 && (
+            <li className="px-5 py-4 text-sm text-ink-500">
+              {tab === "queued" ? "No topics queued. Add one or get suggestions above." : tab === "generating" ? "Nothing is being written right now." : "No drafts yet. Generate a blog from the queue."}
+            </li>
+          )}
           {planned.map((t) => (
             <li key={t.id} className="px-5 py-3">
              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-2">
-                  <span className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium capitalize ${STATUS[t.status] || "bg-ink-100 text-ink-600"}`}>{t.status}</span>
+                  <span className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium capitalize ${STATUS[t.status] || "bg-ink-100 text-ink-600"}`}>
+                    {t.status === "drafted" && t.articleStatus ? t.articleStatus.replace("_", " ") : t.status === "generating" ? "in progress" : t.status}
+                  </span>
                   <span className="font-medium text-ink-900">{t.title}</span>
                 </div>
                 <p className="mt-1 text-xs text-ink-500">
@@ -240,7 +268,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
               </div>
               {t.articleId && (
                 <a href={`/admin/articles/${t.articleId}`} className="shrink-0 rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50">
-                  Open draft
+                  {t.articleStatus === "published" ? "View" : "Open draft"}
                 </a>
               )}
               {canEdit && (t.status === "queued" || t.status === "generating") && (

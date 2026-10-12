@@ -13,6 +13,7 @@ import NewsWriterPanel from "@/components/admin/NewsWriterPanel";
 import NewsReadyBar from "@/components/admin/NewsReadyBar";
 import NewsSourcesPanel from "@/components/admin/NewsSourcesPanel";
 import NewsLinksPanel from "@/components/admin/NewsLinksPanel";
+import BlogPanel from "@/components/admin/BlogPanel";
 import NewsAuditPanel from "@/components/admin/NewsAuditPanel";
 import ArticlePreviewModal from "@/components/dashboard/ArticlePreviewModal";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -43,6 +44,7 @@ interface EditState {
   excerpt: string;
   contentHtml: string;
   cityId: string;
+  countryId: string;
   categoryId: string | null;
   image: string;
   imageAlt: string;
@@ -60,6 +62,7 @@ function buildEditState(article: ArticleWithRelations): EditState {
     excerpt: article.excerpt || "",
     contentHtml: article.contentHtml || "",
     cityId: article.cityId || "",
+    countryId: article.countryId || "",
     categoryId: article.categoryId,
     image: article.image || "",
     imageAlt: article.imageAlt || "",
@@ -90,11 +93,13 @@ const STATUS_CONFIG: Record<
 export default function ArticleReviewPanel({
   article,
   cities,
+  countries = [],
   categories,
   revisions,
 }: {
   article: ArticleWithRelations;
   cities: { id: string; name: string }[];
+  countries?: { id: string; name: string }[];
   categories: { id: string; name: string }[];
   revisions: ArticleRevision[];
 }) {
@@ -339,6 +344,7 @@ export default function ArticleReviewPanel({
           excerpt: edit.excerpt.trim(),
           contentHtml: edit.contentHtml,
           cityId: edit.cityId,
+          ...(article.origin === "ai_blog" ? { countryId: edit.countryId } : {}),
           categoryId: edit.categoryId,
           image: edit.image,
           imageAlt: edit.imageAlt,
@@ -415,6 +421,7 @@ export default function ArticleReviewPanel({
       (edit.image || "") !== (article.image || "") ||
       (edit.imageAlt || "") !== (article.imageAlt || "") ||
       (edit.cityId || "") !== (article.cityId || "") ||
+      (edit.countryId || "") !== (article.countryId || "") ||
       (edit.categoryId || "") !== (article.categoryId || "") ||
       (edit.metaTitle || "") !== (article.metaTitle || "") ||
       (edit.metaDescription || "") !== (article.metaDescription || "") ||
@@ -562,6 +569,29 @@ export default function ArticleReviewPanel({
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
                     📍
                   </span>
+                  {article.origin === "ai_blog" ? (
+                  <select
+                    value={edit.cityId ? `city:${edit.cityId}` : edit.countryId ? `country:${edit.countryId}` : ""}
+                    onChange={(e) => {
+                      const [kind, id] = e.target.value.split(":");
+                      updateEdit("cityId", kind === "city" ? id : "");
+                      updateEdit("countryId", kind === "country" ? id : "");
+                    }}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer shadow-2xs appearance-none"
+                  >
+                    <option value="">Select a city or a country</option>
+                    <optgroup label="Cities">
+                      {cities.map((c) => (
+                        <option key={c.id} value={`city:${c.id}`}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Whole country">
+                      {countries.map((c) => (
+                        <option key={c.id} value={`country:${c.id}`}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  ) : (
                   <select
                     value={edit.cityId}
                     onChange={(e) => updateEdit("cityId", e.target.value)}
@@ -574,6 +604,7 @@ export default function ArticleReviewPanel({
                       </option>
                     ))}
                   </select>
+                  )}
                   <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 text-[10px]">
                     ▼
                   </span>
@@ -583,7 +614,7 @@ export default function ArticleReviewPanel({
               {article.type !== "news" && (
               <div>
                 <label className="block text-xs font-bold text-slate-900 mb-1">
-                  Category <span className="text-[#DC2626]">*</span>
+                  Category {article.origin === "ai_blog" ? <span className="text-slate-400 font-normal">(optional)</span> : <span className="text-[#DC2626]">*</span>}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
@@ -630,6 +661,7 @@ export default function ArticleReviewPanel({
 
             {article.type === "news" && <NewsWriterPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
             {article.type === "news" && <NewsSourcesPanel articleId={article.id} />}
+            {article.origin === "ai_blog" && <BlogPanel articleId={article.id} faq={article.faq || []} hasUnsavedEdits={isContentDirty} />}
             {(article.type === "news" || article.origin === "ai_blog") && <NewsLinksPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
             {(article.type === "news" || article.origin === "ai_blog") && <NewsAuditPanel articleId={article.id} />}
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getArticleById } from "@/lib/articles";
 import { getCities } from "@/lib/cities";
+import { getAllCountries } from "@/lib/countries";
 import { getCategories } from "@/lib/categories";
 import { getRevisions } from "@/lib/revisions";
 import ArticleReviewPanel from "@/components/admin/ArticleReviewPanel";
@@ -28,16 +29,18 @@ export default async function AdminArticleDetailPage({ params }: { params: { id:
   // admin desk itself (older ones were saved with status 'draft').
   if (!article || (article.status === "draft" && article.type !== "news")) notFound();
 
-  const [cities, categories, revisions] = await Promise.all([
+  const [cities, categories, revisions, countries] = await Promise.all([
     getCities(),
     getCategories(),
     getRevisions(params.id),
+    getAllCountries(),
   ]);
 
   return (
     <ArticleReviewPanel
       article={article}
       cities={cities.map((c) => ({ id: c.id, name: c.name }))}
+      countries={countries.map((c) => ({ id: c.id, name: c.name }))}
       categories={categories.map((c) => ({ id: c.id, name: c.name }))}
       revisions={revisions}
     />

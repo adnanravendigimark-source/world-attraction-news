@@ -98,3 +98,26 @@ export async function ensureBlogImages(articleId: string, opts: { allowAi?: bool
   await sql`UPDATE article_image_meta SET inline = ${JSON.stringify(placed.reverse().map((s) => ({ url: s.url, credit: creditLine(s.photo), license: s.photo.license, source: s.photo.pageUrl })))}::jsonb WHERE article_id = ${articleId}`.catch(() => {});
   return { cover, inline: placed.length };
 }
+
+// Photos by section (index of the <h2> they follow), so text can be rewritten
+// and the photos put back where they were.
+export function sectionFigures(html: string): { index: number; figure: string }[] {
+  const out: { index: number; figure: string }[] = [];
+  let section = -1;
+  const re = /<h2[^>]*>[\s\S]*?<\/h2>|<figure class="news-figure"[\s\S]*?<\/figure>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (/^<h2/i.test(m[0])) section++;
+    else out.push({ index: section, figure: m[0] });
+  }
+  return out;
+}
+
+export function restoreFigures(html: string, figures: { index: number; figure: string }[]): string {
+  let out = html;
+  for (const f of [...figures].sort((a, b) => b.index - a.index)) {
+    if (out.includes(f.figure)) continue;
+    out = f.index >= 0 ? insertAfterSection(out, f.index, f.figure) : out.replace(/<\/p>/i, `</p>${f.figure}`);
+  }
+  return out;
+}

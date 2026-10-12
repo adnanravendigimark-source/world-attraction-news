@@ -327,9 +327,17 @@ Return JSON: {"body_html": "..."}`;
 export async function checkAndRevise(articleId: string): Promise<{ check: FactCheck; revised: boolean; wordCount: number | null }> {
   let check = await factCheckArticle(articleId);
   if (check.verdict !== "failed") return { check, revised: false, wordCount: null };
+  // Long guides get a second fixing round; news gets one.
+  const first = await reviseOnce(articleId, check);
+  if (!first.revised || first.check.verdict !== "failed" || !first.blog) return first.result;
+  return (await reviseOnce(articleId, first.check)).result;
+}
+
+async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revised: boolean; check: FactCheck; blog: boolean; result: { check: FactCheck; revised: boolean; wordCount: number | null } }> {
 
   const { article, facts, blog } = await loadForCheck(articleId);
-  if (["published", "scheduled"].includes(article.status)) return { check, revised: false, wordCount: null };
+  const none = { revised: false, check, blog: !!blog, result: { check, revised: false, wordCount: null } };
+  if (["published", "scheduled"].includes(article.status)) return none;
   const current = stripOurFigures(String(article.content_html || ""));
   const high = check.issues.filter((i) => i.severity === "high");
   const { json } = await chatJson({
@@ -341,11 +349,16 @@ export async function checkAndRevise(articleId: string): Promise<{ check: FactCh
     system: blog ? BLOG_REVISE_PROMPT : REVISE_PROMPT,
     user: `${facts}\n\nARTICLE HTML\n${current}\n\nPROBLEMS TO FIX\n${high.map((i) => `- "${i.text}": ${i.problem}`).join("\n")}`,
   });
-  const revised = sanitizeArticleHtml(String(json?.body_html || "")).trim();
+  let revised = sanitizeArticleHtml(String(json?.body_html || "")).trim();
+  // Guides keep their section photos through a fix.
+  if (blog && revised) {
+    const { sectionFigures, restoreFigures } = await import("../blogs/images");
+    revised = restoreFigures(revised, sectionFigures(String(article.content_html || "")));
+  }
   const stats = computeContentStats(revised);
-  if (!revised || stats.wordCount < 90) return { check, revised: false, wordCount: null };
+  if (!revised || stats.wordCount < 90) return none;
   await sql`UPDATE articles SET content_html = ${revised}, word_count = ${stats.wordCount}, reading_time_minutes = ${stats.readingTimeMinutes}, updated_at = now() WHERE id = ${articleId}`;
   await recordAiRevision(articleId, `AI revised ${high.length} sentence(s) the fact check flagged (${writerModel()}, ${REVISE_PROMPT_VERSION})`);
   check = await factCheckArticle(articleId);
-  return { check, revised: true, wordCount: stats.wordCount };
+  return { revised: true, check, blog: !!blog, result: { check, revised: true, wordCount: stats.wordCount } };
 }

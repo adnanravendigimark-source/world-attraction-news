@@ -36,6 +36,7 @@ export interface BlogTopic {
   status: string;
   similarTitle: string;
   articleId: string | null;
+  articleStatus: string | null; // the draft's status in Articles (pending, published…)
   createdAt: string;
 }
 
@@ -136,8 +137,9 @@ export async function resolveDestination(text: string): Promise<{ cityId: string
 // ----------------------------------------------------------------- reading
 
 const SELECT = `
-  SELECT t.*, ci.name AS city_name, ci.country AS city_country, co.name AS country_name
+  SELECT t.*, ci.name AS city_name, ci.country AS city_country, co.name AS country_name, ar.status AS article_status
   FROM blog_topics t
+  LEFT JOIN articles ar ON ar.id = t.article_id
   LEFT JOIN cities ci ON ci.id = t.city_id
   LEFT JOIN countries co ON co.id = t.country_id
 `;
@@ -156,6 +158,7 @@ function rowToTopic(r: any): BlogTopic {
     status: r.status,
     similarTitle: r.similar_title || "",
     articleId: r.article_id ?? null,
+    articleStatus: r.article_status ?? null,
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
   };
 }

@@ -110,8 +110,8 @@ export function topicQueries(type: string, dest: string, title: string): string[
     best_time: [`Climate of ${dest}`, `${dest} festivals`],
     history: [`History of ${dest}`],
     food: [`${dest} cuisine`, `cuisine of ${dest}`],
-    attractions: [`${dest} landmarks`, `Tourism in ${dest}`],
-    things_to_do: [`Tourism in ${dest}`, `${dest} landmarks`],
+    attractions: [`Tourism in ${dest}`, `Culture of ${dest}`],
+    things_to_do: [`Tourism in ${dest}`, `Culture of ${dest}`],
     itinerary: [`Tourism in ${dest}`, `Transport in ${dest}`],
     travel_guide: [`Tourism in ${dest}`, `Transport in ${dest}`],
     tickets: [title.replace(/\b(tickets?|how to book|guide|prices?)\b/gi, "").trim() || title],
@@ -122,7 +122,7 @@ export function topicQueries(type: string, dest: string, title: string): string[
 }
 
 // Pages that share the destination's name but are not about travel.
-const OFF_TOPIC = /\b(film|movie|F\.?C\.?|football|basketball|club|album|song|novel|band|TV series|season|video game|disambiguation|election|squad|players?)\b/i;
+const OFF_TOPIC = /^List of|\b(film|movie|F\.?C\.?|football|basketball|club|album|song|novel|band|TV series|season|video game|disambiguation|election|squad|players?)\b/i;
 export function isOffTopicTitle(title: string): boolean {
   return OFF_TOPIC.test(title);
 }
