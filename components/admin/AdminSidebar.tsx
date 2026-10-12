@@ -35,6 +35,7 @@ function buildSections(pendingArticles: number, pendingContributors: number): Ad
       items: [
         { href: "/admin/articles", label: "Articles", icon: "doc", badge: pendingArticles, pageKey: "articles" },
         { href: "/admin/news", label: "Trending News", icon: "news", pageKey: "news" },
+        { href: "/admin/blogs", label: "Travel Blogs", icon: "blog", pageKey: "news" },
         { href: "/admin/cities", label: "Destinations", icon: "pin", pageKey: "destinations" },
         { href: "/admin/categories", label: "Categories", icon: "tag", pageKey: "categories" },
       ],
@@ -71,6 +72,7 @@ function NavIcon({ name }: { name: string }) {
   const paths: Record<string, string> = {
     home: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
     doc: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    blog: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
     news: "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2M7 8h6M7 12h6M7 16h4",
     pin: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z",
     flag: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9",

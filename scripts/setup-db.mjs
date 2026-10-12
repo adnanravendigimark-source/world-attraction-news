@@ -1304,6 +1304,28 @@ async function createNewsTables() {
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS country_id UUID REFERENCES countries(id) ON DELETE SET NULL`;
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS faq JSONB NOT NULL DEFAULT '[]'::jsonb`;
   await sql`CREATE INDEX IF NOT EXISTS articles_country_status_idx ON articles (country_id, status)`;
+  // Track B2: the blog content plan.
+  await sql`
+    CREATE TABLE IF NOT EXISTS blog_topics (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      angle TEXT NOT NULL DEFAULT '',
+      topic_type TEXT NOT NULL DEFAULT 'travel_guide',
+      target_words INTEGER NOT NULL DEFAULT 1500,
+      city_id UUID REFERENCES cities(id) ON DELETE SET NULL,
+      country_id UUID REFERENCES countries(id) ON DELETE SET NULL,
+      category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+      source TEXT NOT NULL DEFAULT 'manual',
+      status TEXT NOT NULL DEFAULT 'queued',
+      similar_title TEXT NOT NULL DEFAULT '',
+      outline JSONB,
+      article_id UUID REFERENCES articles(id) ON DELETE SET NULL,
+      created_by TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS blog_topics_status_idx ON blog_topics (status, created_at DESC)`;
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS news_cluster_id UUID REFERENCES story_clusters(id) ON DELETE SET NULL`;
   await sql`CREATE INDEX IF NOT EXISTS articles_type_status_idx ON articles (type, status, published_at DESC)`;
   await sql`
