@@ -288,3 +288,18 @@ async function topicUrls(topicId: string): Promise<string[]> {
   const r = (await sql`SELECT source_urls FROM blog_topics WHERE id = ${topicId}`.catch(() => []))[0] as any;
   return Array.isArray(r?.source_urls) ? r.source_urls : [];
 }
+
+// The fact list a blog article is checked against (Track B5), numbered F1…
+export async function blogFactsText(articleId: string): Promise<string> {
+  const t = (await sql`
+    SELECT t.id, ci.name AS city, ci.country AS city_country, co.name AS country
+    FROM blog_topics t LEFT JOIN cities ci ON ci.id = t.city_id LEFT JOIN countries co ON co.id = t.country_id
+    WHERE t.article_id = ${articleId} LIMIT 1`.catch(() => []))[0] as any;
+  if (!t) return "";
+  // The destination's own names are given, not claims to check.
+  const where = [t.city, t.city_country, t.country].filter(Boolean).join(", ");
+  const r = await getLatestBlogResearch(String(t.id));
+  if (!r || r.status !== "done" || r.facts.length === 0) return "";
+  const src = r.sources.filter((s) => s.ok).map((s) => `[${s.n}] ${s.publisher}: ${s.title}`).join("\n");
+  return `DESTINATION: ${where}\n\nSOURCES\n${src}\n\nFACTS\n${r.facts.map((f, i) => `F${i + 1} ${f.claim} [${f.sources.join(", ")}]${f.volatile ? " (check before visiting)" : ""}`).join("\n")}`;
+}

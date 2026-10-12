@@ -86,7 +86,7 @@ export async function downloadImage(url: string, label = "Image"): Promise<File>
 // Re-crops the current cover to 1200×675, from the stored original when there
 // is one (covers made before cropping existed use the cover itself).
 export async function recropCover(articleId: string): Promise<{ url: string; meta: ImageMeta }> {
-  const a = (await sql`SELECT image FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`)[0];
+  const a = (await sql`SELECT image FROM articles WHERE id = ${articleId} LIMIT 1`)[0];
   if (!a?.image) throw new Error("This article has no cover image to crop.");
   const meta = await getImageMeta(articleId);
   // The stored original belongs to the current cover only if it was recorded for it.

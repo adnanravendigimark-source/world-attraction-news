@@ -994,14 +994,19 @@ export async function newsPublishProblems(
   id: string,
   opts: { quality?: { score: number; overlap: { phrase: string; source: string }[] } } = {}
 ): Promise<string[]> {
-  const rows = await sql`SELECT type, title, excerpt, content_html, word_count, news_cluster_id FROM articles WHERE id = ${id} LIMIT 1`;
+  const rows = await sql`SELECT type, origin, faq, title, excerpt, content_html, word_count, news_cluster_id FROM articles WHERE id = ${id} LIMIT 1`;
   const a = rows[0];
-  if (!a || a.type !== "news") return [];
+  // AI blogs (Track B5) pass the same gate, with long-form limits.
+  const blog = !!a && a.type !== "news" && a.origin === "ai_blog";
+  if (!a || (a.type !== "news" && !blog)) return [];
   const problems: string[] = [];
   const html = String(a.content_html || "");
   if (/TODO/.test(html) || /TODO/.test(String(a.excerpt || ""))) problems.push('Remove the "TODO" placeholders from the article.');
   if (!String(a.excerpt || "").trim()) problems.push("Add a short excerpt.");
-  if (Number(a.word_count || 0) < 150) problems.push("Article is too short (aim for 200–300 words).");
+  if (blog) {
+    if (Number(a.word_count || 0) < 500) problems.push("The guide is too short (at least 500 words).");
+    if (!Array.isArray(a.faq) || a.faq.length === 0) problems.push("Add the FAQ (regenerate the blog or add questions).");
+  } else if (Number(a.word_count || 0) < 150) problems.push("Article is too short (aim for 200–300 words).");
   const src = await sql`SELECT COUNT(*)::int AS n FROM article_sources WHERE article_id = ${id}`;
   if (Number(src[0]?.n ?? 0) < 1) problems.push("Add at least one source.");
   // Fact check: an AI-researched story needs a check of its current text.
@@ -1011,7 +1016,7 @@ export async function newsPublishProblems(
     const chk = await sql`SELECT * FROM news_article_checks WHERE article_id = ${id} LIMIT 1`;
     const c = chk[0];
     if (!c) {
-      if (a.news_cluster_id) problems.push("Run the fact check before publishing.");
+      if (a.news_cluster_id || blog) problems.push("Run the fact check before publishing.");
     } else if (c.content_hash && c.content_hash !== contentHash(html)) {
       problems.push("The article changed after the last fact check. Re-run the check.");
     } else if ((c.verdict === "fail" || c.verdict === "failed") && !c.overridden) {
@@ -1043,7 +1048,7 @@ export async function newsPublishProblems(
   // (Imported here, not at the top: lib/news modules import this file.)
   try {
     const [{ computeQuality }, { loadAutomation }] = await Promise.all([import("./news/quality"), import("./news/jobs")]);
-    const q = opts.quality ?? (await computeQuality(id));
+    const q = opts.quality ?? (blog ? await (await import("./blogs/quality")).computeBlogQuality(id) : await computeQuality(id));
     if (q.overlap.length) {
       problems.push(`Rewrite the passage copied from ${q.overlap[0].source}: "${q.overlap[0].phrase.slice(0, 90)}…"`);
     }
@@ -1292,7 +1297,7 @@ export interface NewsSourceLink {
 export async function getArticleSources(articleId: string): Promise<NewsSourceLink[]> {
   try {
     const rows = await sql`SELECT n, title, url, publisher, is_official FROM article_sources WHERE article_id = ${articleId} ORDER BY n ASC`;
-    return dedupeSources(rows.map((r: any) => ({ n: r.n, title: r.title, url: r.url, publisher: r.publisher, isOfficial: !!r.is_official })));
+    return dedupeSources(rows.map((r: any) => ({ n: r.n, title: r.title, url: r.url, publisher: r.publisher, isOfficial: !!r.is_official })), { sameSite: false });
   } catch {
     return [];
   }

@@ -279,9 +279,22 @@ export async function overrideFactCheck(articleId: string, reason: string, by: s
   await sql`UPDATE news_article_checks SET overridden = true, override_reason = ${`${why} (by ${by})`} WHERE article_id = ${articleId}`;
 }
 
-async function loadForCheck(articleId: string) {
-  const rows = await sql`SELECT content_html, news_cluster_id, status FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`;
-  const a = rows[0];
+// AI blogs (Track B5) are checked against their topic's blog research.
+async function loadBlogForCheck(articleId: string, a: any) {
+  const { blogFactsText } = await import("../blogs/research");
+  const facts = await blogFactsText(articleId);
+  if (!facts) throw new Error("Run research for this blog's topic first.");
+  // FAQ answers are claims too.
+  const faq = (Array.isArray(a.faq) ? a.faq : []).map((f: any) => `<p>${f.q} ${f.a}</p>`).join("");
+  // Headings name sections, they don't state facts.
+  const body = String(a.content_html || "").replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, " ");
+  return { article: { ...a, check_html: body + faq }, research: null, facts, blog: true };
+}
+
+async function loadForCheck(articleId: string): Promise<{ article: any; research: any; facts: string; blog?: boolean }> {
+  const rows = await sql`SELECT content_html, news_cluster_id, status, type, origin, faq FROM articles WHERE id = ${articleId} LIMIT 1`;
+  if (rows[0] && rows[0].type !== "news" && rows[0].origin === "ai_blog") return loadBlogForCheck(articleId, rows[0]);
+  const a = rows[0]?.type === "news" ? rows[0] : null;
   if (!a?.news_cluster_id) throw new Error("This article isn't linked to a researched story.");
   const research = await getLatestResearch(String(a.news_cluster_id));
   if (!research || research.status !== "done" || !research.facts) throw new Error("Run research for this story first.");
@@ -292,7 +305,7 @@ async function loadForCheck(articleId: string) {
 export async function factCheckArticle(articleId: string): Promise<FactCheck> {
   const { article, facts } = await loadForCheck(articleId);
   const raw = String(article.content_html || "");
-  const html = stripOurFigures(raw); // photo captions aren't claims
+  const html = stripOurFigures(String(article.check_html ?? raw)); // photo captions aren't claims
   const rules = ruleIssues(html, facts);
   const m = await modelCheck(html, facts, { articleId, clusterId: article.news_cluster_id ? String(article.news_cluster_id) : null });
   const issues = [...rules, ...m.issues];
@@ -304,6 +317,10 @@ const REVISE_PROMPT = `You are revising a news article after a fact check. Fix O
 Remove or rewrite each flagged sentence so every claim, name, place and number is stated in the facts. Remove speculation and cause or purpose statements the facts don't give. Keep the rest of the article word for word, the same paragraphs (<p>, <ul>, <li>, <strong>, <a>; no headings), and a plain neutral tone. Do not add new content.
 Return JSON: {"body_html": "..."}`;
 
+const BLOG_REVISE_PROMPT = `You are revising a travel guide after a fact check. Fix ONLY the listed problems, using only the FACTS provided.
+Remove or rewrite each flagged sentence so every claim, name, place and number is stated in the facts. Remove advice or tips the facts don't give. Keep everything else word for word, including every <h2> and <h3> heading, the paragraphs and lists (<p>, <h2>, <h3>, <ul>, <li>, <strong>, <a>). Do not add new content.
+Return JSON: {"body_html": "..."}`;
+
 // Checks, and if the check fails, makes one automatic revision of the
 // failing sentences and checks again. Used right after the AI writes an
 // article (pipeline step and job). Never touches a published article.
@@ -311,7 +328,7 @@ export async function checkAndRevise(articleId: string): Promise<{ check: FactCh
   let check = await factCheckArticle(articleId);
   if (check.verdict !== "failed") return { check, revised: false, wordCount: null };
 
-  const { article, facts } = await loadForCheck(articleId);
+  const { article, facts, blog } = await loadForCheck(articleId);
   if (["published", "scheduled"].includes(article.status)) return { check, revised: false, wordCount: null };
   const current = stripOurFigures(String(article.content_html || ""));
   const high = check.issues.filter((i) => i.severity === "high");
@@ -321,7 +338,7 @@ export async function checkAndRevise(articleId: string): Promise<{ check: FactCh
     model: writerModel(),
     temperature: 0.1,
     timeoutMs: 75_000,
-    system: REVISE_PROMPT,
+    system: blog ? BLOG_REVISE_PROMPT : REVISE_PROMPT,
     user: `${facts}\n\nARTICLE HTML\n${current}\n\nPROBLEMS TO FIX\n${high.map((i) => `- "${i.text}": ${i.problem}`).join("\n")}`,
   });
   const revised = sanitizeArticleHtml(String(json?.body_html || "")).trim();

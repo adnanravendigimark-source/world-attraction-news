@@ -20,9 +20,9 @@ const STYLE =
   "and do not depict a specific news incident.";
 
 export async function buildImagePrompt(articleId: string, extra = ""): Promise<string> {
-  const rows = await sql`SELECT title, excerpt, news_cluster_id FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`;
+  const rows = await sql`SELECT title, excerpt, news_cluster_id, type FROM articles WHERE id = ${articleId} LIMIT 1`;
   const a = rows[0];
-  if (!a) throw new Error("News article not found.");
+  if (!a) throw new Error("Article not found.");
   const queries = await getQueries(articleId);
   // Prefer a concrete named subject (a place, landmark or aircraft) over the headline.
   let subject = queries[0] ? queries[0] : String(a.title || "").trim();
@@ -37,7 +37,7 @@ export async function buildImagePrompt(articleId: string, extra = ""): Promise<s
     if (where) subject += `. Setting: ${where}`;
   }
   const direction = extra.trim() ? ` Additional direction: ${extra.trim().slice(0, 300)}.` : "";
-  return `Cover photograph for a travel news article. Subject: ${subject.slice(0, 400)}.${direction} ${STYLE}`;
+  return `Cover photograph for a travel ${a.type === "news" ? "news " : ""}article. Subject: ${subject.slice(0, 400)}.${direction} ${STYLE}`;
 }
 
 async function checkCap(): Promise<void> {
@@ -143,6 +143,9 @@ export async function ensureImages(
 ): Promise<{ cover: "licensed" | "ai" | "none"; inline: number }> {
   const allowAi = opts.allowAi !== false;
   // Photos inside the text are optional: per call, else the automation setting.
+  // AI blogs place photos per section (Track B5).
+  const kind = (await sql`SELECT type, origin FROM articles WHERE id = ${articleId} LIMIT 1`)[0];
+  if (kind && kind.type !== "news" && kind.origin === "ai_blog") return (await import("../blogs/images")).ensureBlogImages(articleId, opts);
   const wantInline = opts.inline ?? (await import("./jobs").then((m) => m.loadAutomation()).then((c) => c.inlinePhotos).catch(() => true));
   const rows = await sql`SELECT title, content_html FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`;
   const a = rows[0];

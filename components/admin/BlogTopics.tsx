@@ -43,7 +43,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
     setGen({ id, text: "Starting…" });
     try {
       const r = await generateBlog(id, (text) => setGen({ id, text }));
-      toast.success(`Draft ready (${r.wordCount} words).`);
+      toast.success(`Draft ready (${r.wordCount} words${r.quality != null ? `, quality ${r.quality}/100` : ""}).`);
       window.location.href = r.adminUrl;
     } catch (e: any) {
       toast.error(e.message || "Generation failed.");

@@ -28,3 +28,15 @@ describe("source names", () => {
     expect(staleYears("no years here", now)).toEqual([]);
   });
 });
+
+describe("guide sources", () => {
+  it("keeps several pages of one site when asked", () => {
+    const list = [
+      { publisher: "Wikipedia", url: "https://en.wikipedia.org/wiki/Barcelona" },
+      { publisher: "Wikipedia", url: "https://en.wikipedia.org/wiki/Climate_of_Barcelona" },
+      { publisher: "Wikipedia", url: "https://en.wikipedia.org/wiki/Barcelona/" },
+    ];
+    expect(dedupeSources(list, { sameSite: false })).toHaveLength(2);
+    expect(dedupeSources(list)).toHaveLength(1);
+  });
+});

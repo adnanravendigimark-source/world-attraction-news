@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { dbErrorMessage } from "@/lib/db";
+import { dbErrorMessage, sql } from "@/lib/db";
+import { computeBlogQuality } from "@/lib/blogs/quality";
 import { requireApiPermission } from "@/lib/permissions";
 import { getArticleSources, newsPublishProblems } from "@/lib/articles";
 import { computeQuality } from "@/lib/news/quality";
@@ -19,7 +20,8 @@ export async function GET(req: Request) {
   const articleId = new URL(req.url).searchParams.get("articleId") || "";
   if (!articleId) return NextResponse.json({ error: "articleId is required." }, { status: 400 });
   try {
-    const quality = await computeQuality(articleId);
+    const kind = (await sql`SELECT type, origin FROM articles WHERE id = ${articleId} LIMIT 1`)[0];
+    const quality = kind && kind.type !== "news" && kind.origin === "ai_blog" ? await computeBlogQuality(articleId) : await computeQuality(articleId);
     const [problems, check, sources, cfg] = await Promise.all([
       newsPublishProblems(articleId, { quality }),
       getFactCheck(articleId),

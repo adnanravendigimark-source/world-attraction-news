@@ -3,6 +3,10 @@ import { getSession } from "@/lib/session";
 import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { finishStep, outlineStep, sectionStep } from "@/lib/blogs/writer";
+import { checkAndRevise } from "@/lib/news/factcheck";
+import { ensureBlogImages } from "@/lib/blogs/images";
+import { refreshLinks } from "@/lib/news/internalLinks";
+import { computeBlogQuality } from "@/lib/blogs/quality";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -22,6 +26,18 @@ export async function POST(req: Request) {
       const r = await finishStep(topicId);
       if (session) await logActivity(session, "blog_drafted", { type: "article", id: r.articleId, label: `AI blog draft (${r.wordCount} words)` });
       return NextResponse.json(r);
+    }
+    // After the draft exists (B5): fact check (+ one automatic fix), photos, links, quality.
+    const articleId = String(body?.articleId || "");
+    if (body?.step === "check") {
+      const r = await checkAndRevise(articleId);
+      return NextResponse.json({ verdict: r.check.verdict, issues: r.check.issues.length, revised: r.revised });
+    }
+    if (body?.step === "images") return NextResponse.json(await ensureBlogImages(articleId));
+    if (body?.step === "links") {
+      const r = await refreshLinks(articleId, session?.email || "system");
+      const q = await computeBlogQuality(articleId);
+      return NextResponse.json({ links: r.inText.length, quality: q.score });
     }
     return NextResponse.json({ error: "Unknown step." }, { status: 400 });
   } catch (err: any) {

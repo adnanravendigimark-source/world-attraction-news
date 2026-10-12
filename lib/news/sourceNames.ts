@@ -43,14 +43,17 @@ export function sourceKey(s: { publisher?: string; url?: string }): string {
   return looksLikeAddress(name) || name.includes(".") ? siteOf(name.toLowerCase()) : name.toLowerCase();
 }
 
-export function dedupeSources<T extends { publisher: string; url: string }>(list: T[]): T[] {
+// sameSite: also keep only one source per website (news); off for guides,
+// which can cite several pages of one reference site.
+export function dedupeSources<T extends { publisher: string; url: string }>(list: T[], opts: { sameSite?: boolean } = {}): T[] {
+  const sameSite = opts.sameSite !== false;
   const seenUrl = new Set<string>();
   const seenSite = new Set<string>();
   const out: T[] = [];
   for (const s of list) {
     const u = canonicalArticleUrl(s.url);
     const k = sourceKey(s);
-    if ((u && seenUrl.has(u)) || (k && seenSite.has(k))) continue;
+    if ((u && seenUrl.has(u)) || (sameSite && k && seenSite.has(k))) continue;
     if (u) seenUrl.add(u);
     if (k) seenSite.add(k);
     out.push({ ...s, publisher: cleanPublisher(s.publisher, s.url) });

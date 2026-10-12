@@ -132,8 +132,8 @@ async function writeHtml(articleId: string, html: string): Promise<void> {
 // (Re)plans an article's links: clears earlier automatic links from the text,
 // plans them again (removed pages stay out) and stores the result.
 export async function refreshLinks(articleId: string, by = "system"): Promise<{ inText: LinkCandidate[]; related: LinkCandidate[]; mentions: number }> {
-  const a = (await sql`SELECT content_html FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`)[0];
-  if (!a) throw new Error("News article not found.");
+  const a = (await sql`SELECT content_html FROM articles WHERE id = ${articleId} LIMIT 1`)[0];
+  if (!a) throw new Error("Article not found.");
   const existing = await getLinks(articleId);
   const removed = new Set(existing.filter((l) => l.status === "removed").map((l) => l.targetUrl));
   const places = await loadPlaces();
@@ -182,8 +182,8 @@ export async function linkAction(
   const links = await getLinks(articleId);
   const link = links.find((l) => l.id === linkId);
   if (!link) throw new Error("Link not found.");
-  const a = (await sql`SELECT content_html, status FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`)[0];
-  if (!a) throw new Error("News article not found.");
+  const a = (await sql`SELECT content_html, status FROM articles WHERE id = ${articleId} LIMIT 1`)[0];
+  if (!a) throw new Error("Article not found.");
   if (["published", "scheduled"].includes(a.status) && (action === "to_text" || (action === "remove" && link.placement === "in_text"))) {
     throw new Error("Unpublish the article before changing links in its text.");
   }

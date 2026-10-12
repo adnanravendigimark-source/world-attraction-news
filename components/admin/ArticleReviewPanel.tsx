@@ -511,7 +511,7 @@ export default function ArticleReviewPanel({
       </div>
 
       {/* Main 2-Column Split */}
-      {article.type === "news" && <NewsReadyBar articleId={article.id} refreshKey={article.updatedAt} />}
+      {(article.type === "news" || article.origin === "ai_blog") && <NewsReadyBar articleId={article.id} refreshKey={article.updatedAt} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ================= LEFT MAIN CANVAS (lg:col-span-8) ================= */}
@@ -630,8 +630,8 @@ export default function ArticleReviewPanel({
 
             {article.type === "news" && <NewsWriterPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
             {article.type === "news" && <NewsSourcesPanel articleId={article.id} />}
-            {article.type === "news" && <NewsLinksPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
-            {article.type === "news" && <NewsAuditPanel articleId={article.id} />}
+            {(article.type === "news" || article.origin === "ai_blog") && <NewsLinksPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
+            {(article.type === "news" || article.origin === "ai_blog") && <NewsAuditPanel articleId={article.id} />}
 
             {/* Featured Image */}
             <div className="space-y-2">
@@ -679,7 +679,7 @@ export default function ArticleReviewPanel({
                 placeholder="Image alt text for accessibility and SEO..."
                 className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none"
               />
-              {article.type === "news" && (
+              {(article.type === "news" || article.origin === "ai_blog") && (
                 <NewsImagePanel articleId={article.id} onImported={(url, alt) => {
                     updateEdit("image", url);
                     if (alt && !edit.imageAlt) updateEdit("imageAlt", alt);
