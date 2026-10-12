@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 import type { BlogTopic } from "@/lib/blogs/topics";
+import BlogResearchPanel from "@/components/admin/BlogResearchPanel";
 
 const TYPES = [
   ["travel_guide", "Travel guide", 1800],
@@ -34,6 +35,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
   const [form, setForm] = useState({ title: "", destination: "", topicType: "travel_guide", angle: "", targetWords: 1800 });
   const [suggestFor, setSuggestFor] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [openId, setOpenId] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -208,7 +210,8 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
           {loading && <li className="px-5 py-4 text-sm text-ink-500">Loading…</li>}
           {!loading && planned.length === 0 && <li className="px-5 py-4 text-sm text-ink-500">No topics yet. Add one or get suggestions above.</li>}
           {planned.map((t) => (
-            <li key={t.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center">
+            <li key={t.id} className="px-5 py-3">
+             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-2">
                   <span className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium capitalize ${STATUS[t.status] || "bg-ink-100 text-ink-600"}`}>{t.status}</span>
@@ -221,6 +224,9 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
               </div>
               {canEdit && t.status === "queued" && (
                 <div className="flex shrink-0 items-center gap-2">
+                  <button onClick={() => setOpenId(openId === t.id ? "" : t.id)} className="rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-800 hover:bg-ink-50">
+                    {openId === t.id ? "Hide research" : "Research"}
+                  </button>
                   <button disabled title="Blog writing arrives in the next phases (B3–B4)" className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white opacity-40">
                     Generate blog
                   </button>
@@ -229,6 +235,8 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
                   </button>
                 </div>
               )}
+             </div>
+              {openId === t.id && <BlogResearchPanel topicId={t.id} canEdit={canEdit} />}
             </li>
           ))}
         </ul>

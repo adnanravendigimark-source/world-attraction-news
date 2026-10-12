@@ -1326,6 +1326,24 @@ async function createNewsTables() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS blog_topics_status_idx ON blog_topics (status, created_at DESC)`;
+  // Track B3: pages the editor adds for research, and the cited fact base.
+  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS source_urls TEXT[] NOT NULL DEFAULT '{}'`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS blog_research (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      topic_id UUID NOT NULL REFERENCES blog_topics(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'running',
+      model TEXT NOT NULL DEFAULT '',
+      facts JSONB NOT NULL DEFAULT '[]'::jsonb,
+      sources JSONB NOT NULL DEFAULT '[]'::jsonb,
+      error TEXT NOT NULL DEFAULT '',
+      tokens_in INTEGER,
+      tokens_out INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      finished_at TIMESTAMPTZ
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS blog_research_topic_idx ON blog_research (topic_id, created_at DESC)`;
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS news_cluster_id UUID REFERENCES story_clusters(id) ON DELETE SET NULL`;
   await sql`CREATE INDEX IF NOT EXISTS articles_type_status_idx ON articles (type, status, published_at DESC)`;
   await sql`
