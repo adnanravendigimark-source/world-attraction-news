@@ -1403,6 +1403,9 @@ async function createNewsTables() {
   await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS places TEXT[]`;
   await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS places TEXT[] NOT NULL DEFAULT '{}'`;
   await sql`CREATE INDEX IF NOT EXISTS story_clusters_places_idx ON story_clusters USING GIN (places)`;
+  // How many of a story's sources could be read in full (NULL = not checked).
+  await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS readable_sources INTEGER`;
+  await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS readable_checked_at TIMESTAMPTZ`;
   // Where a news cover image came from and under what terms it may be used.
   // source_type: licensed | own | permission | ai | unverified
   await sql`

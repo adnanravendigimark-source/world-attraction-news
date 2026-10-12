@@ -6,6 +6,8 @@
 import { sql } from "../db";
 import { createNewsDraft, getArticleById, type Article } from "../articles";
 import { getLatestResearch, isKnown } from "./research";
+import { loadGazetteer } from "./places";
+import { resolveOrCreateCity } from "../cities";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const todo = (hint: string) => `<p><em>TODO: ${esc(hint)}</em></p>`;
@@ -83,9 +85,25 @@ export async function createDraftFromStory(clusterId: string): Promise<{ article
     SELECT ci.id FROM cities ci, story_clusters c
     WHERE c.id = ${clusterId} AND lower(ci.name) = ANY(c.places)
   `.catch(() => [])) as any[];
-  if (dest.length === 1) {
-    await sql`UPDATE articles SET city_id = ${dest[0].id} WHERE id = ${article.id}`;
-    article.cityId = dest[0].id;
+  let cityId: string | null = dest.length === 1 ? dest[0].id : null;
+  if (dest.length === 0) cityId = await newDestinationFor(clusterId).catch(() => null);
+  if (cityId) {
+    await sql`UPDATE articles SET city_id = ${cityId} WHERE id = ${article.id}`;
+    article.cityId = cityId;
   }
   return { article, created: true };
+}
+
+// A story about exactly one known city that isn't a destination on the site
+// yet (for example Florence) creates that destination, with its country.
+async function newDestinationFor(clusterId: string): Promise<string | null> {
+  const row = (await sql`SELECT places FROM story_clusters WHERE id = ${clusterId} LIMIT 1`)[0];
+  const places: string[] = Array.isArray(row?.places) ? row.places : [];
+  const g = await loadGazetteer();
+  const cities = places.map((k) => g.find((e) => e.key === k)).filter((e): e is NonNullable<typeof e> => !!e && !!e.country);
+  if (cities.length !== 1) return null;
+  const country = g.find((e) => e.key === cities[0].country);
+  if (!country) return null;
+  const city = await resolveOrCreateCity(cities[0].name, country.name);
+  return city.id;
 }

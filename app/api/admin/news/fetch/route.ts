@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { runFetch } from "@/lib/news/collector";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 // Manual "Fetch now". Body: {} fetches every active source; { sourceId } tests one.
 export async function POST(req: Request) {

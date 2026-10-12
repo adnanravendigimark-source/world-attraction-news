@@ -27,6 +27,6 @@ describe("place tagging", () => {
   it("builds a fresh-only Google News search", () => {
     const u = decodeURIComponent(placeSearchUrl(["New Delhi", "Delhi"]));
     expect(u).toContain('("New Delhi" OR "Delhi")');
-    expect(u).toContain("when:7d");
+    expect(u).toContain("when:1d");
   });
 });

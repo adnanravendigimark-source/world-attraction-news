@@ -154,7 +154,7 @@ export async function runClustering(opts: { windowDays?: number } = {}): Promise
   return { considered: items.length, assigned: assignments.length, newClusters, joinedExisting };
 }
 
-async function refreshClusterStats(ids: string[]): Promise<void> {
+export async function refreshClusterStats(ids: string[]): Promise<void> {
   await sql`
     UPDATE story_clusters c SET
       item_count = a.n, source_count = a.p, last_seen_at = a.last_at, published_first_at = a.first_at

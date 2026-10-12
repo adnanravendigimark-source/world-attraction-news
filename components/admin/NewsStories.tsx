@@ -118,7 +118,7 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
   }, [q, place, category, minSources, showAll, toast, reloadTick]);
 
   // Shows stored stories for the place at once, then asks Google News for
-  // anything newer (last 7 days) and reloads.
+  // anything newer (last 24 hours) and reloads.
   async function findPlace(e?: React.FormEvent) {
     e?.preventDefault();
     const name = placeInput.trim();
@@ -276,7 +276,7 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
     <div>
       {funnel && (
         <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700">
-          <span><b className="text-ink-900">{funnel.itemsCollected}</b> items collected (last {funnel.windowDays} days)</span>
+          <span><b className="text-ink-900">{funnel.itemsCollected}</b> items collected (last {funnel.windowDays === 1 ? "24 hours" : `${funnel.windowDays} days`})</span>
           <span aria-hidden>→</span>
           <span><b className="text-ink-900">{funnel.itemsCollected - funnel.itemsTravel}</b> non-travel removed</span>
           <span aria-hidden>→</span>
@@ -304,11 +304,11 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
         </button>
         {place ? (
           <span className="flex items-center gap-2 text-sm text-ink-600">
-            Fresh news for <b className="text-ink-900">{place}</b> (last 7 days): {total} {total === 1 ? "story" : "stories"}
+            Fresh news for <b className="text-ink-900">{place}</b> (last 24 hours): {total} {total === 1 ? "story" : "stories"}
             <button type="button" onClick={() => { setPlace(""); setPlaceInput(""); }} className="text-xs underline hover:text-ink-900">Clear</button>
           </span>
         ) : (
-          <span className="text-xs text-ink-500">Shows only fresh stories from the last 7 days and fetches new ones from Google News.</span>
+          <span className="text-xs text-ink-500">Shows only stories from the last 24 hours whose sources can be read, and fetches new ones from Google News.</span>
         )}
       </form>
       <div className="flex flex-wrap items-center gap-2">

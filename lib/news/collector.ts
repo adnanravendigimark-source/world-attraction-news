@@ -12,7 +12,8 @@ import { refreshStoryPlaces, tagPlaces } from "./places";
 const USER_AGENT = "WorldAttractionNewsBot/1.0 (+news discovery; contact via site)";
 const MAX_BYTES = 3 * 1024 * 1024;
 const MAX_ITEMS_PER_SOURCE = 50;
-const MAX_AGE_DAYS = 14;
+// Only fresh news is kept: items published more than a day ago are skipped.
+const MAX_AGE_DAYS = 1;
 const CONCURRENCY = 4;
 
 export interface SourceResult {
@@ -244,6 +245,11 @@ export async function runFetch(opts: { trigger: string; force?: boolean; sourceI
   } catch (err) {
     console.error("[news] place tagging failed:", err);
   }
+  // Open the sources of the best new stories (no AI) so stories nobody can
+  // research are hidden, and look for more coverage when none can be read.
+  await import("./readability")
+    .then((m) => m.checkFreshStories({ limit: 6, budgetMs: Math.max(0, 85_000 - (Date.now() - started)) }))
+    .catch((err) => console.error("[news] readability check failed:", err));
   await pruneOldItems().catch((err) => console.error("[news] retention failed:", err));
 
   const summary: FetchRunSummary = {
@@ -275,13 +281,23 @@ export async function runFetch(opts: { trigger: string; force?: boolean; sourceI
 // Retention: items the filter rejected and no story uses are only kept for a
 // month (the feed and its run log stay readable for recent ones).
 export const RETENTION_DAYS = 30;
+// Only the last 24 hours of news is shown. Items older than two days are
+// removed unless their story has an article (draft or published); stories
+// left with no items and no article go too.
+export const FRESH_KEEP_HOURS = 48;
 export async function pruneOldItems(): Promise<number> {
   const rows = await sql`
-    DELETE FROM news_items
-    WHERE filter_status = 'irrelevant' AND cluster_id IS NULL
-      AND created_at < now() - (${RETENTION_DAYS}::int * interval '1 day')
-    RETURNING id
+    DELETE FROM news_items i
+    WHERE COALESCE(i.published_at, i.created_at) < now() - (${FRESH_KEEP_HOURS}::int * interval '1 hour')
+      AND NOT EXISTS (SELECT 1 FROM articles a WHERE a.news_cluster_id IS NOT NULL AND a.news_cluster_id = i.cluster_id)
+    RETURNING i.id
   `;
+  await sql`
+    DELETE FROM story_clusters c
+    WHERE NOT EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = c.id)
+      AND NOT EXISTS (SELECT 1 FROM articles a WHERE a.news_cluster_id = c.id)
+      AND NOT EXISTS (SELECT 1 FROM story_clusters m WHERE m.merged_into = c.id)
+  `.catch((err) => console.error("[news] removing empty stories failed:", err));
   return rows.length;
 }
 

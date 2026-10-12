@@ -123,8 +123,11 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new Error("OPENAI_API_KEY is not set.");
 
+  if (!(await sql`SELECT 1 FROM story_clusters WHERE id = ${clusterId} LIMIT 1`)[0]) throw new Error("Story not found.");
+  // At least one source must be readable in full; search for more coverage
+  // of the story first if none is (no AI involved).
+  await import("./readability").then((m) => m.ensureReadableSources(clusterId)).catch(() => null);
   const clusters = await sql`SELECT id, canonical_title FROM story_clusters WHERE id = ${clusterId} LIMIT 1`;
-  if (!clusters[0]) throw new Error("Story not found.");
 
   const model = researchModel();
   const created = await sql`
@@ -226,6 +229,14 @@ export async function runResearch(clusterId: string, requestedBy: string): Promi
         `SOURCE ${n} — ${it.publisher}${official ? " [official]" : ""} — ${usedText ? "full text" : "headline only"}\nHeadline: ${it.title}\n${body ? `Text: ${body}` : ""}`
       );
     });
+
+    // Headlines alone never give enough facts: stop before paying for a call.
+    if (!sources.some((s) => s.usedText)) {
+      return await fail(
+        "None of this story's sources could be read in full (blocked, paywalled or script-only pages), even after searching for more coverage. Pick another story or add a readable source.",
+        sources
+      );
+    }
 
     let ai;
     try {

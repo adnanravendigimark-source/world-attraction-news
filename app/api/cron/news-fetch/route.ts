@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { runFetch } from "@/lib/news/collector";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 // Vercel Cron (see vercel.json) hits this every 30 minutes. Each source has
 // its own check interval, so only sources that are due are fetched.

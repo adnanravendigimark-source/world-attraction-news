@@ -5,7 +5,7 @@ import { requireApiPermission } from "@/lib/permissions";
 import { searchPlaceNews } from "@/lib/news/placeSearch";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 // Body: { place: "Barcelona" }. Fetches fresh news for the place (last 7 days).
 export async function POST(req: Request) {
