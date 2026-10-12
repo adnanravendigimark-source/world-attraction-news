@@ -234,6 +234,29 @@ export const DEFAULT_NEWS_SOURCES: NewsSourceSeed[] = [
   },
 ];
 
+// More travel news feeds, each tested before adding (October 2026): fresh
+// (posted within the last day) and readable. Skipped: Travel Weekly,
+// TravelPulse, Cruise Critic and Hospitality Net (block feed readers), and
+// feeds that had not posted for 2-3 days.
+export const MORE_NEWS_SOURCES: NewsSourceSeed[] = [
+  { name: "The Guardian Travel", type: "rss", url: "https://www.theguardian.com/travel", rssUrl: "https://www.theguardian.com/travel/rss", apiProvider: "", query: "", category: "Destinations", country: "United Kingdom", isActive: true, reliabilityScore: 85, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "The Independent Travel", type: "rss", url: "https://www.independent.co.uk/travel", rssUrl: "https://www.independent.co.uk/travel/rss", apiProvider: "", query: "", category: "Destinations", country: "United Kingdom", isActive: true, reliabilityScore: 80, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Condé Nast Traveler", type: "rss", url: "https://www.cntraveler.com", rssUrl: "https://www.cntraveler.com/feed/rss", apiProvider: "", query: "", category: "Destinations", country: "", isActive: true, reliabilityScore: 80, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "TravelDailyNews", type: "rss", url: "https://www.traveldailynews.com", rssUrl: "https://www.traveldailynews.com/feed/", apiProvider: "", query: "", category: "Travel Industry", country: "", isActive: true, reliabilityScore: 65, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "One Mile at a Time", type: "rss", url: "https://onemileatatime.com", rssUrl: "https://onemileatatime.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "", isActive: true, reliabilityScore: 70, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "View from the Wing", type: "rss", url: "https://viewfromthewing.com", rssUrl: "https://viewfromthewing.com/feed/", apiProvider: "", query: "", category: "Aviation", country: "", isActive: true, reliabilityScore: 70, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "AeroRoutes", type: "rss", url: "https://www.aeroroutes.com", rssUrl: "https://www.aeroroutes.com/eng?format=rss", apiProvider: "", query: "", category: "Aviation", country: "", isActive: true, reliabilityScore: 80, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Aviation A2Z", type: "rss", url: "https://aviationa2z.com", rssUrl: "https://aviationa2z.com/index.php/feed/", apiProvider: "", query: "", category: "Aviation", country: "", isActive: true, reliabilityScore: 65, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Cruise Hive", type: "rss", url: "https://www.cruisehive.com", rssUrl: "https://www.cruisehive.com/feed", apiProvider: "", query: "", category: "Cruises", country: "", isActive: true, reliabilityScore: 70, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Loyalty Lobby", type: "rss", url: "https://loyaltylobby.com", rssUrl: "https://loyaltylobby.com/feed/", apiProvider: "", query: "", category: "Hotels", country: "", isActive: true, reliabilityScore: 65, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Travel Off Path", type: "rss", url: "https://www.traveloffpath.com", rssUrl: "https://www.traveloffpath.com/feed/", apiProvider: "", query: "", category: "Travel Rules", country: "", isActive: true, reliabilityScore: 65, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Theme Park Insider", type: "rss", url: "https://www.themeparkinsider.com", rssUrl: "https://www.themeparkinsider.com/news/rss.xml", apiProvider: "", query: "", category: "Attractions", country: "", isActive: true, reliabilityScore: 70, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Attractions Magazine", type: "rss", url: "https://attractionsmagazine.com", rssUrl: "https://attractionsmagazine.com/feed/", apiProvider: "", query: "", category: "Attractions", country: "", isActive: true, reliabilityScore: 65, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Google News: hotel & resort openings", type: "google_news_rss", url: "https://news.google.com", rssUrl: "https://news.google.com/rss/search?q=%28hotel+OR+resort%29+%28opens+OR+opening+OR+unveils+OR+launches%29+when%3A1d&hl=en-US&gl=US&ceid=US%3Aen", apiProvider: "", query: "", category: "Hotels", country: "", isActive: true, reliabilityScore: 60, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Google News: cruise news", type: "google_news_rss", url: "https://news.google.com", rssUrl: "https://news.google.com/rss/search?q=%28%22cruise+line%22+OR+%22cruise+ship%22%29+%28new+OR+launches+OR+cancels+OR+itinerary+OR+debut%29+when%3A1d&hl=en-US&gl=US&ceid=US%3Aen", apiProvider: "", query: "", category: "Cruises", country: "", isActive: true, reliabilityScore: 60, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+  { name: "Google News: tourism trends & fees", type: "google_news_rss", url: "https://news.google.com", rssUrl: "https://news.google.com/rss/search?q=%28tourism+OR+tourists+OR+overtourism%29+%28record+OR+ban+OR+fee+OR+%22tourist+tax%22+OR+limit%29+when%3A1d&hl=en-US&gl=US&ceid=US%3Aen", apiProvider: "", query: "", category: "Destinations", country: "", isActive: true, reliabilityScore: 60, fetchIntervalMinutes: 30, isOfficial: false, priority: DEFAULT_PRIORITY },
+];
+
 // Official sources: the body the news is about speaking for itself. Every
 // feed was fetched and parsed when this list was written (October 2026), and
 // reviewed by hand: English, news rather than site pages, updated recently.
@@ -362,7 +385,7 @@ export async function deleteNewsSource(id: string): Promise<void> {
 export async function loadDefaultNewsSources(): Promise<{ added: number; official: number }> {
   let added = 0;
   let official = 0;
-  for (const s of [...DEFAULT_NEWS_SOURCES, ...OFFICIAL_NEWS_SOURCES]) {
+  for (const s of [...DEFAULT_NEWS_SOURCES, ...MORE_NEWS_SOURCES, ...OFFICIAL_NEWS_SOURCES]) {
     const rows = await sql`
       INSERT INTO news_sources
         (name, type, url, rss_url, api_provider, query, category, country, is_active, reliability_score, fetch_interval_minutes, is_official, priority)
