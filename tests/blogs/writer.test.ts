@@ -15,8 +15,9 @@ describe("blog outline", () => {
     expect(o.sections.map((s) => s.heading)).toEqual(["Weather by Season", "Festivals", "Crowds and Prices"]);
     expect(o.sections[2].facts).toEqual([5, 6]);
     const total = o.sections.reduce((n, s) => n + s.words, 0);
-    expect(total).toBeGreaterThan(700);
-    expect(total).toBeLessThan(900);
+    // 9 facts carry about 600 words at most, whatever the topic's maximum.
+    expect(total).toBeGreaterThan(400);
+    expect(total).toBeLessThan(560);
   });
   it("refuses an outline with too little support", () => {
     expect(() => normalizeOutline({ sections: [{ heading: "A", facts: [0, 1] }] }, 2, 1000)).toThrow();
@@ -50,5 +51,34 @@ describe("rewriting one section", () => {
   it("keeps the conclusion when the last section is rewritten", () => {
     const out = replaceSection(html, 1, "<p>new b</p>", "<p>The end.</p>");
     expect(out.endsWith("<p>new b</p>\n<p>The end.</p>")).toBe(true);
+  });
+});
+
+import { keywordPlacement, readability } from "@/lib/blogs/quality";
+describe("on-page SEO checks", () => {
+  it("finds the keyword in title, opening, heading, meta and URL", () => {
+    const r = keywordPlacement({
+      keyword: "best time to visit Barcelona",
+      title: "Best Time to Visit Barcelona: Weather and Crowds",
+      html: "<p>The best time to visit Barcelona is May to June.</p><h2>Best Time to Visit Barcelona by Season</h2><p>x</p>",
+      metaDescription: "Find the best time to visit Barcelona by month.",
+      slug: "best-time-to-visit-barcelona",
+    });
+    expect(r.missing).toEqual([]);
+  });
+  it("flags keyword stuffing and long sentences", () => {
+    const k = "barcelona beaches";
+    const r = keywordPlacement({ keyword: k, title: "", html: `<p>${(k + " ").repeat(20)}</p>`, metaDescription: "", slug: "" });
+    expect(r.density).toBeGreaterThan(2.5);
+    expect(readability(`<p>${"word ".repeat(40)}end.</p>`).avgSentence).toBeGreaterThan(22);
+  });
+});
+
+describe("outline length follows the facts", () => {
+  it("never asks for more words than the facts can carry", () => {
+    const facts = 14;
+    const sections = [0, 1, 2].map((i) => ({ heading: `S${i}`, words: 300, facts: [i * 2, i * 2 + 1] }));
+    const o = normalizeOutline({ title: "t", recommended_words: 2000, sections }, facts, 1800);
+    expect(o.recommendedWords).toBe(630);
   });
 });

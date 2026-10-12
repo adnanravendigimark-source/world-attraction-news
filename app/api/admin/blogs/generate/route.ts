@@ -31,7 +31,8 @@ export async function POST(req: Request) {
     const articleId = String(body?.articleId || "");
     if (body?.step === "check") {
       const r = await checkAndRevise(articleId);
-      return NextResponse.json({ verdict: r.check.verdict, issues: r.check.issues.length, revised: r.revised });
+      const q = await computeBlogQuality(articleId);
+      return NextResponse.json({ verdict: r.check.verdict, issues: r.check.issues.length, revised: r.revised, quality: q.score });
     }
     if (body?.step === "images") return NextResponse.json(await ensureBlogImages(articleId));
     if (body?.step === "links") {

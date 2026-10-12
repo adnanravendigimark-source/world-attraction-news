@@ -11,8 +11,11 @@ import { chatJson } from "../news/aiClient";
 import { writerModel } from "../news/factcheck";
 import { getTopic, type BlogTopic } from "./topics";
 import { getLatestBlogResearch, type BlogFact, type BlogResearch } from "./research";
+import { cityPath, countryPath } from "../destinations";
+import { saveExtra } from "../news/seo";
+import { keywordPlacement } from "./quality";
 
-export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v2-2026-10-12";
+export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v3-seo-2026-10-12";
 
 export interface OutlineSection {
   heading: string;
@@ -23,6 +26,12 @@ export interface OutlineSection {
 }
 export interface BlogOutline {
   title: string;
+  // SEO plan, decided before writing (search intent, keywords, questions).
+  searchIntent?: string;
+  primaryKeyword?: string;
+  secondaryKeywords?: string[];
+  questions?: string[];
+  recommendedWords?: number;
   sections: OutlineSection[];
   intro?: string;
   conclusion?: string;
@@ -62,19 +71,26 @@ async function saveOutline(topicId: string, outline: BlogOutline, status = "gene
 
 // ------------------------------------------------------------------ outline
 
-const OUTLINE_PROMPT = `You plan a long-form travel article (a guide, not news) from numbered research facts.
-Make an outline:
+const OUTLINE_PROMPT = `You plan a long-form travel article (a guide, not news) from numbered research facts, written for people first and optimised for search.
+First work out the SEO plan:
+- search_intent: one sentence on what someone searching this topic wants to know or do.
+- primary_keyword: the 2-5 word phrase people would type (for example "best time to visit Barcelona").
+- secondary_keywords: 3 to 5 related phrases and variants.
+- reader_questions: 4 to 6 questions searchers commonly ask about this topic that the facts can answer.
+- recommended_words: the length that fully answers the intent without padding, given how much the facts cover (never more than the MAX LENGTH).
+Then make the outline:
 - 4 to 8 sections with clear H2 headings that a traveller would scan for. Headings are plain and specific ("Weather in Barcelona by Season", "Getting Around"), not clever.
 - For each section: intent (one sentence: what the reader learns), words (its share of the target length), and facts (the numbers of the facts it uses; every section needs at least 2; a fact may be used in only one section).
 - Leave out sections the facts can't support. Do not plan an introduction, conclusion or FAQ section; those are written separately.
-- title: the article's headline, specific and search-friendly, under 70 characters, no year, no clickbait.
-Return JSON: {"title","sections":[{"heading","intent","words","facts"}]}`;
+- Cover the searcher's main questions; put the most searched-for answer first. The FIRST H2 must contain the primary keyword (or a close variant with the same main words), naturally.
+- title: the H1 headline: contains the primary keyword near the start, specific, under 65 characters, no year, no clickbait.
+Return JSON: {"title","search_intent","primary_keyword","secondary_keywords","reader_questions","recommended_words","sections":[{"heading","intent","words","facts"}]}`;
 
 export function normalizeOutline(raw: any, factCount: number, targetWords: number): BlogOutline {
   const used = new Set<number>();
   const sections: OutlineSection[] = [];
   for (const s of Array.isArray(raw?.sections) ? raw.sections : []) {
-    const heading = String(s?.heading || "").replace(/^#+\s*/, "").trim().slice(0, 100);
+    const heading = tidyStyle(String(s?.heading || "").replace(/^#+\s*/, "").trim().slice(0, 100));
     if (!heading || /^(introduction|conclusion|faq|frequently asked)/i.test(heading)) continue;
     const facts = (Array.isArray(s?.facts) ? s.facts : [])
       .map(Number)
@@ -84,11 +100,24 @@ export function normalizeOutline(raw: any, factCount: number, targetWords: numbe
     sections.push({ heading, intent: String(s?.intent || "").slice(0, 300), words: Math.max(120, Math.round(Number(s?.words) || 0)), facts });
   }
   if (sections.length < 3) throw new Error("The outline didn't have enough well-supported sections. Add a source and run research again.");
-  // Spread the target over the sections (about 80%; intro and conclusion take the rest).
-  const body = Math.round(targetWords * 0.8);
+  // Length follows the intent and the facts, up to the topic's maximum:
+  // roughly 45 words per cited fact is what the facts can carry without padding.
+  const recommended = Math.round(Number(raw?.recommended_words) || targetWords);
+  const length = Math.max(600, Math.min(recommended, Math.round(targetWords * 1.2), factCount * 45));
+  const body = Math.round(length * 0.8);
   const sum = sections.reduce((n, s) => n + s.words, 0) || 1;
   for (const s of sections) s.words = Math.max(120, Math.round((s.words / sum) * body));
-  return { title: String(raw?.title || "").trim().slice(0, 120), sections: sections.slice(0, 8) };
+  const list = (v: any, n: number, max: number) =>
+    (Array.isArray(v) ? v : []).map((x: any) => String(x || "").trim().slice(0, max)).filter(Boolean).slice(0, n);
+  return {
+    title: tidyStyle(String(raw?.title || "").trim().slice(0, 120)),
+    searchIntent: String(raw?.search_intent || "").trim().slice(0, 300),
+    primaryKeyword: String(raw?.primary_keyword || "").trim().toLowerCase().slice(0, 80),
+    secondaryKeywords: list(raw?.secondary_keywords, 5, 80).map((k) => k.toLowerCase()),
+    questions: list(raw?.reader_questions, 6, 200),
+    recommendedWords: length,
+    sections: sections.slice(0, 8),
+  };
 }
 
 export async function outlineStep(topicId: string): Promise<BlogOutline> {
@@ -100,7 +129,7 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
     temperature: 0.3,
     timeoutMs: 60_000,
     system: OUTLINE_PROMPT,
-    user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nTYPE: ${topic.topicType}\nTARGET LENGTH: ${topic.targetWords} words${topic.angle ? `\nANGLE: ${topic.angle}` : ""}\n\nFACTS:\n${factLines(research.facts)}`,
+    user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nTYPE: ${topic.topicType}\nMAX LENGTH: ${topic.targetWords} words${topic.angle ? `\nANGLE: ${topic.angle}` : ""}\n\nFACTS:\n${factLines(research.facts)}`,
   });
   const outline = normalizeOutline(json, research.facts.length, topic.targetWords);
   if (!outline.title) outline.title = topic.title;
@@ -113,6 +142,8 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
 const SECTION_PROMPT = `You write ONE section of a travel guide, under a heading that is added separately.
 - Write at least the target number of words (it is a minimum; up to 20% more is fine) by using every fact given, explained with useful detail. Short paragraphs (2-4 sentences). Use <h3> sub-headings only if the section covers several distinct places or items. Use a <ul> only for a real list (places, dishes, tips).
 - Start straight in; do not repeat the heading or introduce the article.
+- Use the keywords only where they read naturally (at most once or twice in the section); never stuff them.
+- Readability: simple words, sentences under 22 words on average, one idea per paragraph. Use a <ul> when listing 3 or more places, dishes or tips.
 ${ACCURACY}
 HTML: only <p>, <h3>, <ul>, <li>, <strong>. No <h2>.
 Return JSON: {"html"}`;
@@ -137,7 +168,7 @@ export async function sectionStep(topicId: string, index: number): Promise<{ ind
     temperature: 0.4,
     timeoutMs: 75_000,
     system: SECTION_PROMPT,
-    user: `ARTICLE: ${outline.title} (${topic.destination})\nALL SECTIONS (you write the one marked ->):\n${others}\n\nSECTION: ${s.heading}\nWHAT THE READER LEARNS: ${s.intent}\nTARGET: about ${s.words} words\n\nFACTS:\n${factLines(research.facts, s.facts)}`,
+    user: `ARTICLE: ${outline.title} (${topic.destination})\nALL SECTIONS (you write the one marked ->):\n${others}\n\nSECTION: ${s.heading}\nWHAT THE READER LEARNS: ${s.intent}\nTARGET: about ${s.words} words${outline.primaryKeyword ? `\nKEYWORDS: ${[outline.primaryKeyword, ...(outline.secondaryKeywords || [])].join(", ")}` : ""}\n\nFACTS:\n${factLines(research.facts, s.facts)}`,
   });
   s.html = sanitizeArticleHtml(stripTopHeading(String(json?.html || ""), s.heading));
   // Too short: one more try that keeps the text and adds detail from the facts.
@@ -169,12 +200,13 @@ ${factLines(research.facts, s.facts)}`,
 
 const FINISH_PROMPT = `You finish a travel guide whose sections are already written.
 Write:
-- intro_html: 1 or 2 short paragraphs (<p>). Open with the direct answer to the topic (for example the best months and why), then what the guide covers. Never start with "This guide", "In this article" or a question. No heading.
-- conclusion_html: 1 short paragraph (<p>) restating the most useful advice from the facts in plain words. No heading. Never write "In conclusion", "takeaway" or "to sum up".
-- faq: 4 to 6 questions travellers actually ask about this topic, each answered in 1-3 sentences from the facts only.
+- intro_html: 1 or 2 short paragraphs (<p>). Open with the direct answer to the search intent (for example the best months and why), using the PRIMARY KEYWORD naturally in the first two sentences, then say what the guide covers. Never start with "This guide", "In this article" or a question. No heading.
+- conclusion_html: one sentence, then a <ul> of the 2-3 key takeaways from the facts, then one short call-to-action sentence that helps the reader act (plan the trip, choose dates, check the official site for current prices or hours). No new facts, no heading. Never write "In conclusion" or "to sum up".
+- faq: 4 to 6 questions, starting with the READER QUESTIONS the facts can answer, each answered in 1-3 sentences from the facts only.
 - excerpt: one sentence, 120-155 characters, saying what the guide covers.
-- meta_title: under 60 characters. meta_description: 130-155 characters.
-- focus_keyword: 2-4 words a traveller would search. tags: 3 to 6 lowercase tags.
+- meta_title: under 60 characters, starting with or containing the PRIMARY KEYWORD, compelling but accurate.
+- meta_description: 130-155 characters, containing the PRIMARY KEYWORD and the main benefit for the reader.
+- focus_keyword: the PRIMARY KEYWORD exactly. tags: 3 to 6 lowercase tags.
 ${ACCURACY}
 Return JSON: {"intro_html","conclusion_html","faq":[{"q","a"}],"excerpt","meta_title","meta_description","focus_keyword","tags"}`;
 
@@ -190,6 +222,7 @@ const SWAPS: [RegExp, string][] = [
   [/\bmust-see\b/gi, "top"],
   [/\ba rich tapestry of\b/gi, "a mix of"],
   [/\btapestry\b/gi, "mix"],
+  [/\bunforgettable\b/gi, "memorable"],
   [/\bThis guide (covers|explores)\b/g, "Below we cover"],
 ];
 export function tidyStyle(html: string): string {
@@ -210,6 +243,18 @@ function escapeHtml(s: string): string {
 }
 
 const clean = (v: unknown, max: number) => String(v || "").replace(/\s+/g, " ").trim().slice(0, max);
+
+// Call to action at the end: more guides for the destination on this site.
+async function destinationCta(topic: BlogTopic): Promise<string> {
+  const row = (topic.cityId
+    ? await sql`SELECT name, slug, country_slug FROM cities WHERE id = ${topic.cityId}`
+    : topic.countryId
+      ? await sql`SELECT name, slug, '' AS country_slug FROM countries WHERE id = ${topic.countryId}`
+      : [])[0] as any;
+  if (!row?.slug) return "";
+  const path = topic.cityId ? cityPath(row.country_slug, row.slug) : countryPath(row.slug);
+  return `\n<p class="guide-cta">Planning a trip? See all our <a href="${path}">${escapeHtml(String(row.name))} travel guides</a>.</p>`;
+}
 
 // A country-level guide lives at /[country]/[slug]; its slug must not be a city's.
 async function blogSlug(title: string, cityId: string | null): Promise<string> {
@@ -234,16 +279,31 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
     temperature: 0.3,
     timeoutMs: 75_000,
     system: FINISH_PROMPT,
-    user: `ARTICLE: ${outline.title} (${topic.destination})\n\nSECTIONS:\n${body}\n\nFACTS:\n${factLines(research.facts)}`,
+    user: `ARTICLE: ${outline.title} (${topic.destination})\nSEARCH INTENT: ${outline.searchIntent || topic.title}\nPRIMARY KEYWORD: ${outline.primaryKeyword || topic.title}\nSECONDARY KEYWORDS: ${(outline.secondaryKeywords || []).join(", ")}\nREADER QUESTIONS:\n${(outline.questions || []).map((q) => `- ${q}`).join("\n")}\n\nSECTIONS:\n${body}\n\nFACTS:\n${factLines(research.facts)}`,
   });
   outline.intro = sanitizeArticleHtml(String(json?.intro_html || "").replace(/<h\d[^>]*>[\s\S]*?<\/h\d>/gi, ""));
   outline.conclusion = sanitizeArticleHtml(String(json?.conclusion_html || "").replace(/<h\d[^>]*>[\s\S]*?<\/h\d>/gi, ""));
+  // On-page SEO: the primary keyword belongs in the opening. One small fix if it's missing.
+  if (outline.primaryKeyword && keywordPlacement({ keyword: outline.primaryKeyword, title: "", html: outline.intro, metaDescription: "", slug: "" }).missing.includes("opening")) {
+    const fix = await chatJson({
+      kind: "blog_intro",
+      log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
+      model: writerModel(),
+      temperature: 0.2,
+      timeoutMs: 45_000,
+      system: `Rewrite this introduction so the exact phrase "${outline.primaryKeyword}" appears naturally in its first two sentences (capitalise it as normal prose). Change as little as possible; add no new facts. Return JSON: {"html"}`,
+      user: outline.intro,
+    }).catch(() => null);
+    const fixed = fix ? sanitizeArticleHtml(String(fix.json?.html || "")) : "";
+    if (fixed && fixed.length > outline.intro.length * 0.6) outline.intro = fixed;
+  }
   const faq = (Array.isArray(json?.faq) ? json.faq : [])
     .map((f: any) => ({ q: clean(f?.q, 200), a: clean(f?.a, 600) }))
     .filter((f: any) => f.q && f.a)
     .slice(0, 6);
-  const html = tidyStyle(assembleHtml(outline));
+  const html = tidyStyle(assembleHtml(outline)) + (await destinationCta(topic));
   const { wordCount, readingTimeMinutes } = computeContentStats(html);
+  const focus = clean(outline.primaryKeyword || json?.focus_keyword, 60);
   const tags = (Array.isArray(json?.tags) ? json.tags : []).map((t: any) => clean(t, 40).toLowerCase()).filter(Boolean).slice(0, 6);
   const authorId = await getNewsAuthorId();
   if (!authorId) throw new Error('The "World Attraction News" author is missing. Run `node scripts/setup-db.mjs`.');
@@ -255,18 +315,19 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
     await sql`
       UPDATE articles SET title = ${title}, excerpt = ${clean(json?.excerpt, 200)}, content_html = ${html}, faq = ${JSON.stringify(faq)}::jsonb,
         meta_title = ${clean(json?.meta_title, 70)}, meta_description = ${clean(json?.meta_description, 170)},
-        focus_keyword = ${clean(json?.focus_keyword, 60)}, tags = ${tags}, word_count = ${wordCount},
+        focus_keyword = ${focus}, tags = ${tags}, word_count = ${wordCount},
         reading_time_minutes = ${readingTimeMinutes}, updated_at = now()
       WHERE id = ${articleId} AND status NOT IN ('published', 'scheduled')
     `;
   } else {
-    const slug = await blogSlug(title, topic.cityId);
+    // Short, keyword-based URL ("best-time-to-visit-barcelona"), not the full headline.
+    const slug = await blogSlug(outline.primaryKeyword || title, topic.cityId);
     const rows = await sql`
       INSERT INTO articles (slug, title, excerpt, content_html, type, origin, city_id, country_id, author_id, status, faq,
         meta_title, meta_description, focus_keyword, tags, word_count, reading_time_minutes, submitted_at, updated_at)
       VALUES (${slug}, ${title}, ${clean(json?.excerpt, 200)}, ${html}, 'guide', 'ai_blog', ${topic.cityId}, ${topic.countryId}, ${authorId},
         'pending', ${JSON.stringify(faq)}::jsonb, ${clean(json?.meta_title, 70)}, ${clean(json?.meta_description, 170)},
-        ${clean(json?.focus_keyword, 60)}, ${tags}, ${wordCount}, ${readingTimeMinutes}, now(), now())
+        ${focus}, ${tags}, ${wordCount}, ${readingTimeMinutes}, now(), now())
       RETURNING id
     `;
     articleId = rows[0].id as string;
@@ -280,6 +341,8 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
     }
   }
   await sql`UPDATE blog_topics SET outline = ${JSON.stringify(outline)}::jsonb, status = 'drafted', article_id = ${articleId}, updated_at = now() WHERE id = ${topicId}`;
+  // Secondary keywords and social titles, as for news SEO.
+  await saveExtra(articleId!, { secondaryKeywords: outline.secondaryKeywords || [], ogTitle: clean(json?.meta_title, 90), ogDescription: clean(json?.meta_description, 200) }).catch(() => {});
   return { articleId: articleId!, adminUrl: `/admin/articles/${articleId}`, wordCount };
 }
 

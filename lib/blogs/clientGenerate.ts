@@ -26,11 +26,13 @@ export async function generateBlog(topicId: string, onStage: (text: string) => v
   onStage("Writing the introduction, conclusion and FAQ…");
   const draft = await post("/api/admin/blogs/generate", { topicId, step: "finish" });
   const articleId = draft.articleId;
-  onStage("Checking every claim against the research…");
-  await post("/api/admin/blogs/generate", { topicId, articleId, step: "check" });
+  // Photos and links first, then the fact check of the final text (the
+  // check is tied to the exact text, so it must come last).
   onStage("Finding a cover and section photos…");
   await post("/api/admin/blogs/generate", { topicId, articleId, step: "images" }).catch(() => null);
-  onStage("Adding links and scoring quality…");
-  const q = await post("/api/admin/blogs/generate", { topicId, articleId, step: "links" }).catch(() => ({}));
+  onStage("Adding links…");
+  await post("/api/admin/blogs/generate", { topicId, articleId, step: "links" }).catch(() => ({}));
+  onStage("Checking every claim against the research…");
+  const q = await post("/api/admin/blogs/generate", { topicId, articleId, step: "check" }).catch(() => ({}));
   return { ...draft, quality: q.quality };
 }

@@ -166,7 +166,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
             <input className={input} placeholder="Angle (optional): who it's for, what it covers" value={form.angle} onChange={(e) => setForm({ ...form, angle: e.target.value })} />
             <div className="flex items-center justify-between gap-3">
               <label className="flex items-center gap-2 text-sm text-ink-600">
-                Length
+                Max length
                 <select className="rounded-lg border border-ink-200 px-2 py-1.5 text-sm" value={form.targetWords} onChange={(e) => setForm({ ...form, targetWords: Number(e.target.value) })}>
                   {[800, 1000, 1200, 1500, 1800, 2200].map((w) => (
                     <option key={w} value={w}>{w} words</option>
