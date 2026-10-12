@@ -200,28 +200,6 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
 
       <p className="pt-1 text-xs font-bold text-slate-900">Rights</p>
 
-      {candidates.length > 0 && (
-        <div>
-          <p className="mb-1 text-[11px] text-slate-500">Images from this story's sources (reference only; the publisher owns them):</p>
-          <div className="flex flex-wrap gap-2">
-            {candidates.map((c) => (
-              <button
-                key={c.url}
-                type="button"
-                disabled={!!busy}
-                onClick={() => importOne(c.url)}
-                title={`Use as cover (${c.publisher})`}
-                className="relative h-16 w-24 overflow-hidden rounded-lg border border-slate-200 bg-white disabled:opacity-50"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                {busy === c.url && <span className="absolute inset-0 flex items-center justify-center bg-white/70 text-[10px]">…</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="grid gap-2 sm:grid-cols-2">
         <select className={input} value={meta.sourceType} onChange={(e) => setMeta({ ...meta, sourceType: e.target.value })}>
           {TYPES.map((t) => (

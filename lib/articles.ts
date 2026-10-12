@@ -996,7 +996,13 @@ export async function newsPublishProblems(
     SELECT a.image, m.source_type, m.credit FROM articles a
     LEFT JOIN article_image_meta m ON m.article_id = a.id WHERE a.id = ${id} LIMIT 1`;
   if (!img[0]?.image) problems.push("Add a cover image.");
-  else if (!img[0].source_type || img[0].source_type === "unverified") problems.push("Record the cover image's rights (source type, credit, license).");
+  else if (!img[0].source_type || img[0].source_type === "unverified") {
+    const owner = String(img[0].credit || "").trim();
+    problems.push(
+      `The cover image${owner ? ` is ${owner}'s photo and` : ""} isn't cleared for use. Replace it with "Auto-find photos" or "Generate cover with AI", ` +
+        `or, if you have permission, set its rights to "Editorial: used with permission" and save.`
+    );
+  }
   else if (img[0].source_type !== "ai" && !String(img[0].credit || "").trim()) problems.push("Add an image credit.");
   if (img[0]?.image) {
     // Covers are 1200×675 (Phase 9). Older covers can be re-cropped in one click.
