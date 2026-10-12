@@ -156,6 +156,8 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
     Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, max)).slice(0, n) : [];
   const tags = strList(json.tags, 6, 40).map((t) => t.toLowerCase());
   if (tags.length) await sql`UPDATE articles SET tags = ${tags} WHERE id = ${articleId}`;
+  // Destination from the finished article (headline first).
+  await import("./destination").then((m) => m.assignDestination(articleId)).catch(() => null);
   await saveExtra(articleId, {
     secondaryKeywords: strList(json.secondary_keywords, 5, 60),
     ogTitle: clean(json.og_title, 90),
