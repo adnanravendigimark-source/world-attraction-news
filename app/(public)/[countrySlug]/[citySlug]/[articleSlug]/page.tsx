@@ -1,18 +1,9 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
-import ArticleDetailClient from "@/components/ArticleDetailClient";
-import {
-  getPublishedArticleBySlug,
-  getPublishedArticleByAnySlug,
-  getRelatedPublishedArticles,
-  getTrendingArticles,
-  incrementArticleView,
-} from "@/lib/articles";
-import { getClientIpFromHeaders } from "@/lib/rateLimit";
-import { buildMetadata, resolvePageMetadata, newsArticleJsonLd, jsonLdScript } from "@/lib/seo";
+import GuideArticle from "../../GuideArticle";
+import { getPublishedArticleBySlug, getPublishedArticleByAnySlug } from "@/lib/articles";
+import { resolvePageMetadata } from "@/lib/seo";
 import { articlePath } from "@/lib/destinations";
-import { SITE_NAME } from "@/lib/site";
 
 // Deliberately stays force-dynamic (not ISR like the other read-only public
 // pages) — this page has a real per-request write, incrementArticleView()
@@ -34,7 +25,7 @@ export async function generateMetadata({
   }
   if (!article) return {};
   return resolvePageMetadata(articlePath(article.countrySlug, article.citySlug, article.slug), {
-    title: `${article.metaTitle || article.title} | ${SITE_NAME}`,
+    title: article.metaTitle || article.title,
     description: article.metaDescription || article.excerpt,
     image: article.image,
     canonicalOverride: article.canonicalUrl || undefined,
@@ -56,40 +47,5 @@ export default async function ArticlePage({
     permanentRedirect(articlePath(article.countrySlug, article.citySlug, article.slug));
   }
 
-  const ip = getClientIpFromHeaders(headers());
-  const updatedViews = await incrementArticleView(article.id, ip);
-  article.viewCount = updatedViews;
-
-  const [related, trending] = await Promise.all([
-    article.cityId ? getRelatedPublishedArticles(article.cityId, article.id, 4) : Promise.resolve([]),
-    getTrendingArticles(5),
-  ]);
-
-  return (
-    <>
-      <ArticleDetailClient
-        article={article}
-        relatedStories={related}
-        trendingStories={trending}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdScript(
-            newsArticleJsonLd({
-              title: article.title,
-              description: article.excerpt,
-              image: article.image,
-              path: articlePath(article.countrySlug, article.citySlug, article.slug),
-              authorName: article.authorName,
-              authorSlug: article.authorSlug,
-              publishedAt: article.publishedAt,
-              updatedAt: article.updatedAt,
-              cityName: article.cityName,
-            })
-          ),
-        }}
-      />
-    </>
-  );
+  return <GuideArticle article={article} />;
 }

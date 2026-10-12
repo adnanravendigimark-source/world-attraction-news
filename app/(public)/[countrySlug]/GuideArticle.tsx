@@ -1,0 +1,49 @@
+// One guide article page, shared by city guides (/[country]/[city]/[slug])
+// and country-level guides (/[country]/[slug]). Counts the view, renders the
+// article and its FAQ, and adds Article (+ FAQPage) structured data.
+
+import { headers } from "next/headers";
+import ArticleDetailClient from "@/components/ArticleDetailClient";
+import { getRelatedPublishedArticles, getTrendingArticles, incrementArticleView, type ArticleWithRelations } from "@/lib/articles";
+import { getClientIpFromHeaders } from "@/lib/rateLimit";
+import { articleJsonLd, faqJsonLd, jsonLdScript } from "@/lib/seo";
+import { articlePath } from "@/lib/destinations";
+
+// countView is off on cached (ISR) routes, where reading request headers
+// is not allowed; the country-level route is one of those.
+export default async function GuideArticle({ article, countView = true }: { article: ArticleWithRelations; countView?: boolean }) {
+  if (countView) {
+    const ip = getClientIpFromHeaders(headers());
+    article.viewCount = await incrementArticleView(article.id, ip);
+  }
+  const [related, trending] = await Promise.all([
+    article.cityId ? getRelatedPublishedArticles(article.cityId, article.id, 4) : Promise.resolve([]),
+    getTrendingArticles(5),
+  ]);
+  const path = articlePath(article.countrySlug, article.citySlug, article.slug);
+  const faq = faqJsonLd(article.faq);
+  return (
+    <>
+      <ArticleDetailClient article={article} relatedStories={related} trendingStories={trending} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            articleJsonLd({
+              title: article.title,
+              description: article.excerpt,
+              image: article.image,
+              path,
+              authorName: article.authorName,
+              authorSlug: article.authorSlug,
+              publishedAt: article.publishedAt,
+              updatedAt: article.updatedAt,
+              cityName: article.cityName || article.countryName || undefined,
+            })
+          ),
+        }}
+      />
+      {faq && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faq) }} />}
+    </>
+  );
+}

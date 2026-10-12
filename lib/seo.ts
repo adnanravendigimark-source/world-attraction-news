@@ -213,6 +213,22 @@ export function newsArticleJsonLd(article: {
   };
 }
 
+// Travel guides (Track B1) are evergreen, so they use Article, not NewsArticle.
+export function articleJsonLd(article: Parameters<typeof newsArticleJsonLd>[0]) {
+  return { ...newsArticleJsonLd(article), "@type": "Article" };
+}
+
+// FAQPage for a guide's question-and-answer section. Null when there is none.
+export function faqJsonLd(faq: { q: string; a: string }[]) {
+  const items = (faq || []).filter((f) => f.q?.trim() && f.a?.trim());
+  if (items.length === 0) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((f) => ({ "@type": "Question", name: f.q.trim(), acceptedAnswer: { "@type": "Answer", text: f.a.trim() } })),
+  };
+}
+
 // Person schema for /author/[slug] pages.
 export function personJsonLd(author: { name: string; slug: string; bio: string; avatarUrl: string }) {
   return {

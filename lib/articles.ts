@@ -28,6 +28,12 @@ export type ArticleStatus =
   | "rejected"
   | "unpublished";
 
+export type ArticleOrigin = "contributor" | "ai_news" | "ai_blog";
+export interface FaqItem {
+  q: string;
+  a: string;
+}
+
 export interface Article {
   id: string;
   slug: string;
@@ -35,7 +41,10 @@ export interface Article {
   excerpt: string;
   contentHtml: string;
   type: "guide" | "news";
+  origin: ArticleOrigin;
   cityId: string | null;
+  countryId: string | null; // country-level guides (no city)
+  faq: FaqItem[];
   categoryId: string | null;
   attractionId: string | null;
   authorId: string;
@@ -71,6 +80,7 @@ export interface Article {
 // per article.
 export interface ArticleWithRelations extends Article {
   cityName: string;
+  countryName: string;
   citySlug: string;
   countrySlug: string;
   categoryName: string | null;
@@ -95,7 +105,10 @@ function rowToArticle(row: any): Article {
     excerpt: row.excerpt,
     contentHtml: row.content_html,
     type: row.type === "news" ? "news" : "guide",
+    origin: (row.origin as ArticleOrigin) || (row.type === "news" ? "ai_news" : "contributor"),
     cityId: row.city_id ?? null,
+    countryId: row.country_id ?? null,
+    faq: Array.isArray(row.faq) ? row.faq.filter((f: any) => f && f.q && f.a).map((f: any) => ({ q: String(f.q), a: String(f.a) })) : [],
     categoryId: row.category_id,
     attractionId: row.attraction_id ?? null,
     authorId: row.author_id,
@@ -132,7 +145,8 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
   // News articles have no city; guides always do. Only guides get the
   // "united-states" last-resort country fallback.
   const hasCity = !!row.city_slug;
-  const cCountrySlug = hasCity
+  // Country-level guides (Track B1) have a country and no city.
+  const cCountrySlug = !hasCity && row.country_slug ? row.country_slug : hasCity
     ? row.country_slug ||
       (row.city_country ? slugifyCountry(row.city_country) : "") ||
       (row.country ? slugifyCountry(row.country) : "") ||
@@ -142,6 +156,7 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
   return {
     ...rowToArticle(row),
     cityName: row.city_name ?? "",
+    countryName: row.city_country || row.country_name || "",
     citySlug: row.city_slug ?? "",
     countrySlug: cCountrySlug,
     categoryName: row.category_name,
@@ -178,11 +193,12 @@ export function computeContentStats(html: string): { wordCount: number; readingT
 // template shorthand.
 const JOIN_SELECT = `
   SELECT a.*, c.name AS city_name, c.slug AS city_slug, c.country AS city_country,
-         COALESCE(NULLIF(c.country_slug, ''), '') AS country_slug,
+         COALESCE(NULLIF(c.country_slug, ''), co.slug, '') AS country_slug, co.name AS country_name,
          cat.name AS category_name, cat.slug AS category_slug,
          u.display_name AS author_name, u.email AS author_email, u.slug AS author_slug
   FROM articles a
   LEFT JOIN cities c ON c.id = a.city_id
+  LEFT JOIN countries co ON co.id = a.country_id
   LEFT JOIN categories cat ON cat.id = a.category_id
   JOIN users u ON u.id = a.author_id
 `;
@@ -202,7 +218,7 @@ export async function getPublishedArticles(opts: {
     const params: any[] = [];
     if (opts.countrySlug) {
       params.push(opts.countrySlug);
-      conditions.push(`c.country_slug = $${params.length}`);
+      conditions.push(`(c.country_slug = $${params.length} OR (a.city_id IS NULL AND co.slug = $${params.length}))`);
     }
     if (opts.citySlug) {
       params.push(opts.citySlug);
@@ -230,6 +246,18 @@ export async function getPublishedArticleBySlug(
   const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND c.slug = $1 AND a.slug = $2 LIMIT 1`;
   const rows = await sql(query, [citySlug, articleSlug]);
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
+}
+
+// A country-level guide: /[countrySlug]/[articleSlug] (Track B1).
+export async function getPublishedCountryGuide(countrySlug: string, articleSlug: string): Promise<ArticleWithRelations | undefined> {
+  try {
+    await publishDueScheduledArticles();
+    const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.city_id IS NULL AND co.slug = $1 AND a.slug = $2 LIMIT 1`;
+    const rows = await sql(query, [countrySlug, articleSlug]);
+    return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
+  } catch {
+    return undefined; // columns arrive with scripts/setup-db.mjs
+  }
 }
 
 export async function getPublishedArticleByAnySlug(
@@ -1285,9 +1313,9 @@ export async function createNewsDraft(input: {
   const { wordCount, readingTimeMinutes } = computeContentStats(safe);
   const rows = await sql`
     INSERT INTO articles (slug, title, excerpt, content_html, type, city_id, category_id, author_id, status,
-      news_cluster_id, word_count, reading_time_minutes, updated_at)
+      news_cluster_id, word_count, reading_time_minutes, origin, updated_at)
     VALUES (${slug}, ${input.title}, ${input.excerpt || ""}, ${safe}, 'news', NULL, NULL, ${authorId}, 'pending',
-      ${input.clusterId ?? null}, ${wordCount}, ${readingTimeMinutes}, now())
+      ${input.clusterId ?? null}, ${wordCount}, ${readingTimeMinutes}, 'ai_news', now())
     RETURNING *
   `;
   const article = rowToArticle(rows[0]);

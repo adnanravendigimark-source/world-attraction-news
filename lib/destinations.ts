@@ -28,7 +28,8 @@ export function cityPath(countrySlug: string, citySlug: string): string {
 
 export function articlePath(countrySlug: string, citySlug: string, articleSlug: string): string {
   const cSlug = (countrySlug || "").trim() || MISSING_SLUG;
-  const c = (citySlug || "").trim() || "city";
   const a = (articleSlug || "").trim() || "article";
-  return `/${cSlug}/${c}/${a}`;
+  // Country-level guides (no city) live at /[country]/[article].
+  if (!(citySlug || "").trim()) return `/${cSlug}/${a}`;
+  return `/${cSlug}/${citySlug.trim()}/${a}`;
 }

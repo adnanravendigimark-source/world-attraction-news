@@ -3,10 +3,10 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import CityDetailClient from "./CityDetailClient";
 import { getCityBySlug } from "@/lib/cities";
-import { getPublishedArticles, getPublishedArticleByAnySlug } from "@/lib/articles";
+import { getPublishedArticles, getPublishedArticleByAnySlug, getPublishedCountryGuide } from "@/lib/articles";
+import GuideArticle from "../GuideArticle";
 import { resolvePageMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { cityPath, countryPath, articlePath } from "@/lib/destinations";
-import { SITE_NAME } from "@/lib/site";
 
 // Pure read, no searchParams — real ISR. Admin city edits and article
 // publish/unpublish for this city call revalidatePath(cityPath(countrySlug, citySlug)),
@@ -34,6 +34,18 @@ export async function generateMetadata({
   params: { countrySlug: string; citySlug: string };
 }): Promise<Metadata> {
   const city = await getCachedCityBySlug(params.citySlug);
+  if (!city) {
+    // A country-level guide at /[country]/[slug] (Track B1).
+    const guide = await getPublishedCountryGuide(params.countrySlug, params.citySlug);
+    if (guide) {
+      return resolvePageMetadata(articlePath(guide.countrySlug, "", guide.slug), {
+        title: guide.metaTitle || guide.title,
+        description: guide.metaDescription || guide.excerpt,
+        image: guide.image,
+        canonicalOverride: guide.canonicalUrl || undefined,
+      });
+    }
+  }
   if (!city || city.countrySlug !== params.countrySlug) return {};
   // resolvePageMetadata so an admin's noindex/nofollow override for this
   // city (Admin -> Indexing -> Destinations, key `city:<id>`) actually
@@ -42,7 +54,7 @@ export async function generateMetadata({
   // for consistency, since the Indexing admin UI already implied this
   // toggle worked for cities.
   return resolvePageMetadata(cityPath(city.countrySlug, city.slug), {
-    title: city.metaTitle || `${city.name} Attraction News & Travel Intelligence | ${SITE_NAME}`,
+    title: city.metaTitle || `${city.name} Attraction News & Travel Intelligence`,
     description: city.metaDescription || city.intro,
     image: city.heroImage,
   });
@@ -55,6 +67,9 @@ export default async function CityPage({
 }) {
   const city = await getCachedCityBySlug(params.citySlug);
   if (!city) {
+    // City slugs win; otherwise this may be a country-level guide.
+    const guide = await getPublishedCountryGuide(params.countrySlug, params.citySlug);
+    if (guide) return <GuideArticle article={guide} countView={false} />;
     const maybeArticle = await getPublishedArticleByAnySlug(params.citySlug);
     if (maybeArticle) {
       permanentRedirect(articlePath(maybeArticle.countrySlug, maybeArticle.citySlug, maybeArticle.slug));

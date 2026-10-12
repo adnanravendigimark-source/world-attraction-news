@@ -1297,6 +1297,13 @@ async function createNewsTables() {
   // existing rows) or 'news'. News has no destination, so city_id is optional.
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'guide'`;
   await sql`ALTER TABLE articles ALTER COLUMN city_id DROP NOT NULL`;
+  // Track B0: who made the article (contributor, ai_news, ai_blog).
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS origin TEXT NOT NULL DEFAULT 'contributor'`;
+  await sql`UPDATE articles SET origin = 'ai_news' WHERE type = 'news' AND origin = 'contributor'`;
+  // Track B1: country-level guides (no city) and FAQ pairs.
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS country_id UUID REFERENCES countries(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS faq JSONB NOT NULL DEFAULT '[]'::jsonb`;
+  await sql`CREATE INDEX IF NOT EXISTS articles_country_status_idx ON articles (country_id, status)`;
   await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS news_cluster_id UUID REFERENCES story_clusters(id) ON DELETE SET NULL`;
   await sql`CREATE INDEX IF NOT EXISTS articles_type_status_idx ON articles (type, status, published_at DESC)`;
   await sql`

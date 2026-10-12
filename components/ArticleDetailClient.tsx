@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Container from "@/components/Container";
 import type { ArticleWithRelations } from "@/lib/articles";
-import { cityPath, articlePath } from "@/lib/destinations";
+import { cityPath, countryPath, articlePath } from "@/lib/destinations";
 
 export default function ArticleDetailClient({
   article,
@@ -110,9 +110,15 @@ export default function ArticleDetailClient({
             Blog
           </Link>
           <span>&gt;</span>
-          <Link href={cityPath(article.countrySlug, article.citySlug)} className="hover:text-slate-900 transition-colors">
-            {article.cityName}
-          </Link>
+          {article.citySlug ? (
+            <Link href={cityPath(article.countrySlug, article.citySlug)} className="hover:text-slate-900 transition-colors">
+              {article.cityName}
+            </Link>
+          ) : (
+            <Link href={countryPath(article.countrySlug)} className="hover:text-slate-900 transition-colors">
+              {article.countryName || article.countrySlug}
+            </Link>
+          )}
           <span>&gt;</span>
           <span className="text-slate-800 line-clamp-1 max-w-[280px] sm:max-w-md">{article.title}</span>
         </nav>
@@ -125,7 +131,7 @@ export default function ArticleDetailClient({
           <div className="lg:col-span-8 flex flex-col">
             {/* Eyebrow */}
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider mb-2.5">
-              <span className="text-[#DC2626]">{article.cityName?.toUpperCase()}</span>
+              <span className="text-[#DC2626]">{(article.cityName || article.countryName || "")?.toUpperCase()}</span>
               {article.categoryName && (
                 <>
                   <span className="text-slate-300">|</span>
@@ -240,6 +246,20 @@ export default function ArticleDetailClient({
                 dangerouslySetInnerHTML={{ __html: article.contentHtml }}
               />
             </div>
+
+            {article.faq?.length > 0 && (
+              <section className="mt-10 border-t border-slate-200 pt-6" aria-labelledby="faq-heading">
+                <h2 id="faq-heading" className="text-xl font-bold text-slate-900">Frequently asked questions</h2>
+                <div className="mt-4 divide-y divide-slate-200">
+                  {article.faq.map((f, i) => (
+                    <details key={i} className="group py-3" open={i === 0}>
+                      <summary className="cursor-pointer list-none font-semibold text-slate-900">{f.q}</summary>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-700">{f.a}</p>
+                    </details>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Bottom Share Bar */}
             <div className="mt-12 pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
