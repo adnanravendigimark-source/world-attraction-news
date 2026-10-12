@@ -81,10 +81,11 @@ describe("article source list validation", () => {
 });
 
 describe("inline photos", () => {
-  it("keeps short news stories free of inline photos", async () => {
+  it("adds one photo to a normal news story, none to very short items", async () => {
     const { inlinePhotoLimit } = await import("@/lib/news/imagegen");
-    expect(inlinePhotoLimit(205)).toBe(0);
-    expect(inlinePhotoLimit(420)).toBe(1);
+    expect(inlinePhotoLimit(120)).toBe(0);
+    expect(inlinePhotoLimit(205)).toBe(1);
+    expect(inlinePhotoLimit(620)).toBe(2);
     expect(inlinePhotoLimit(900)).toBe(2);
   });
 });

@@ -77,5 +77,15 @@ export async function createDraftFromStory(clusterId: string): Promise<{ article
     categoryId: null,
     sources,
   });
+  // Destination: the one site destination the story is about, if there is
+  // exactly one (the editor can change it). Skipped until places are tagged.
+  const dest = (await sql`
+    SELECT ci.id FROM cities ci, story_clusters c
+    WHERE c.id = ${clusterId} AND lower(ci.name) = ANY(c.places)
+  `.catch(() => [])) as any[];
+  if (dest.length === 1) {
+    await sql`UPDATE articles SET city_id = ${dest[0].id} WHERE id = ${article.id}`;
+    article.cityId = dest[0].id;
+  }
   return { article, created: true };
 }

@@ -180,7 +180,7 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
         </button>
         <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
           <input type="checkbox" checked={inline} onChange={(e) => setInline(e.target.checked)} />
-          Also place photos inside the article (only for stories of 350+ words)
+          Also place photos inside the article (stories of 150+ words)
         </label>
         <p className="text-[11px] text-slate-500">Finds real, free-to-use photos (Wikimedia Commons, Unsplash if configured), credits them, and places them between paragraphs. Falls back to an AI image for the cover only if none is found.</p>
       </div>

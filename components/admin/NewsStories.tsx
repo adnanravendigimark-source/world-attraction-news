@@ -66,6 +66,11 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
   const [stories, setStories] = useState<Story[]>([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState("");
+  // Destination search: the place being shown, and what's typed in the box.
+  const [place, setPlace] = useState("");
+  const [placeInput, setPlaceInput] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
   const [category, setCategory] = useState("");
   const [minSources, setMinSources] = useState(1);
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -97,7 +102,7 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ q, category, minSources: String(minSources), limit: String(showAll || q ? 100 : 10) });
+      const params = new URLSearchParams({ q, place, category, minSources: String(minSources), limit: String(showAll || q || place ? 100 : 10) });
       const res = await fetch(`/api/admin/news/stories?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not load stories.");
@@ -109,7 +114,31 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
     } finally {
       setLoading(false);
     }
-  }, [q, category, minSources, showAll, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, place, category, minSources, showAll, toast, reloadTick]);
+
+  // Shows stored stories for the place at once, then asks Google News for
+  // anything newer (last 7 days) and reloads.
+  async function findPlace(e?: React.FormEvent) {
+    e?.preventDefault();
+    const name = placeInput.trim();
+    if (!name) return;
+    setPlace(name);
+    if (!canEdit) return;
+    setSearching(true);
+    try {
+      const res = await fetch("/api/admin/news/place-search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ place: name }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Search failed.");
+      if (data.error) toast.error(`Google News: ${data.error}`);
+      else toast.success(`${data.place}: ${data.found} fresh article(s) found, ${data.added} new.`);
+      setReloadTick((n) => n + 1); // reload with the new place filter
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSearching(false);
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(load, q ? 300 : 0);
@@ -255,12 +284,33 @@ export default function NewsStories({ categories, canEdit }: { categories: strin
           <span aria-hidden>→</span>
           <span><b className="text-ink-900">{funnel.storiesTravel}</b> travel stories</span>
           <span aria-hidden>→</span>
-          <span className="rounded bg-emerald-600 px-2 py-0.5 font-semibold text-white">{showAll || q ? `showing ${shownCount}` : "top 10 by score"}</span>
+          <span className="rounded bg-emerald-600 px-2 py-0.5 font-semibold text-white">{showAll || q || place ? `showing ${shownCount}` : "top 10 by score"}</span>
           <button onClick={() => setShowAll((v) => !v)} className="ml-auto text-xs font-medium text-ink-600 underline hover:text-ink-900">
             {showAll ? "Show top 10 only" : `Show all ${funnel.storiesTravel} travel stories`}
           </button>
         </div>
       )}
+      <form onSubmit={findPlace} className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 bg-white p-3">
+        <label htmlFor="place-search" className="text-sm font-semibold text-ink-900">Destination</label>
+        <input
+          id="place-search"
+          className={`${input} w-72`}
+          placeholder="City or country: Barcelona, Bali, New Delhi, Italy"
+          value={placeInput}
+          onChange={(e) => setPlaceInput(e.target.value)}
+        />
+        <button type="submit" disabled={searching || !placeInput.trim()} className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-60">
+          {searching ? "Searching…" : "Find news"}
+        </button>
+        {place ? (
+          <span className="flex items-center gap-2 text-sm text-ink-600">
+            Fresh news for <b className="text-ink-900">{place}</b> (last 7 days): {total} {total === 1 ? "story" : "stories"}
+            <button type="button" onClick={() => { setPlace(""); setPlaceInput(""); }} className="text-xs underline hover:text-ink-900">Clear</button>
+          </span>
+        ) : (
+          <span className="text-xs text-ink-500">Shows only fresh stories from the last 7 days and fetches new ones from Google News.</span>
+        )}
+      </form>
       <div className="flex flex-wrap items-center gap-2">
         <input className={`${input} w-64`} placeholder="Search stories…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className={input} value={category} onChange={(e) => setCategory(e.target.value)}>

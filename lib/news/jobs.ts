@@ -23,7 +23,7 @@ export interface AutomationConfig {
   maxAgeHours: number; // ignore stories not seen within this window
   draft: boolean; // create a draft after research
   image: boolean; // generate an AI cover after the draft
-  inlinePhotos: boolean; // add photos inside long articles (350+ words)
+  inlinePhotos: boolean; // add a photo between paragraphs (150+ words)
   dailyCostCapUsd: number; // stop starting stories once AI spend in 24 h reaches this (0 = no cap)
   minFacts: number; // research must find this many facts (and read one source in full) to draft
   minQuality: number; // quality score an article needs before it can be published

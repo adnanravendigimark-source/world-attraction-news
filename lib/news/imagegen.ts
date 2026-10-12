@@ -131,10 +131,10 @@ export async function generateCoverImage(articleId: string, extra = ""): Promise
 
 // Finds real, free-to-use photos for an article: one cover (AI fallback only
 // if none is found) plus up to two inline photos placed between paragraphs.
-// Inline photos per story length: none under 350 words (a 200-300 word news
-// story reads as one piece), one up to 600, two beyond.
+// Inline photos per story length: one photo between paragraphs for a normal
+// news story (150+ words), two from 500 words. Very short items get none.
 export function inlinePhotoLimit(words: number): number {
-  return words < 350 ? 0 : words < 600 ? 1 : 2;
+  return words < 150 ? 0 : words < 500 ? 1 : 2;
 }
 
 export async function ensureImages(

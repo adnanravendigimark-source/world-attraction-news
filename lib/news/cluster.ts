@@ -41,7 +41,10 @@ export interface ClusterRunResult {
   joinedExisting: number;
 }
 
-export async function runClustering(): Promise<ClusterRunResult> {
+// windowDays: how far back to group items; the destination search uses 7 so
+// a week of fresh news for a place is grouped, not just the last few days.
+export async function runClustering(opts: { windowDays?: number } = {}): Promise<ClusterRunResult> {
+  const windowDays = Math.min(Math.max(opts.windowDays ?? WINDOW_DAYS, 1), 14);
   const rows = (await sql`
     SELECT i.id, i.cluster_id, i.title, i.description, i.url, i.published_at, i.created_at, i.relevance_category,
            s.reliability_score AS reliability,
@@ -50,11 +53,11 @@ export async function runClustering(): Promise<ClusterRunResult> {
     WHERE i.filter_status = 'relevant'
       AND i.status <> 'dismissed'
       AND (
-        COALESCE(i.published_at, i.created_at) > now() - (${WINDOW_DAYS}::int * interval '1 day')
+        COALESCE(i.published_at, i.created_at) > now() - (${windowDays}::int * interval '1 day')
         OR i.cluster_id IN (
           SELECT c.id FROM story_clusters c
           WHERE c.status NOT IN ('ignored', 'merged')
-            AND c.last_seen_at > now() - (${WINDOW_DAYS}::int * interval '1 day')
+            AND c.last_seen_at > now() - (${windowDays}::int * interval '1 day')
             AND c.first_seen_at > now() - (${DEVELOPING_DAYS}::int * interval '1 day')
         )
       )

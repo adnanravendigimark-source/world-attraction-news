@@ -2,6 +2,7 @@ import { sql } from "../db";
 import { loadFilterConfig } from "./filter";
 import { contentHash } from "./contentHash";
 import { storyPipeline, type StoryPipeline } from "./stage";
+import { loadGazetteer, resolvePlace } from "./places";
 
 export interface StoryItem {
   id: string;
@@ -45,11 +46,16 @@ export interface StoryFunnel {
 }
 
 export async function listStories(
-  opts: { q?: string; category?: string; minSources?: number; status?: string; limit?: number } = {}
+  opts: { q?: string; place?: string; category?: string; minSources?: number; status?: string; limit?: number } = {}
 ): Promise<{ stories: Story[]; total: number; funnel: StoryFunnel }> {
   const q = (opts.q || "").trim();
   const like = q ? `%${q.replace(/[%_\\]/g, (c) => "\\" + c)}%` : "";
   const category = opts.category || "";
+  // Destination search: fresh stories (last 7 days) tagged with the place, or
+  // whose items mention it by name (places the tagger does not know).
+  const placeRaw = (opts.place || "").trim();
+  const placeKey = placeRaw ? resolvePlace(placeRaw, await loadGazetteer()).key : "";
+  const placeLike = placeRaw ? `%${placeRaw.replace(/[%_\\]/g, (c) => "\\" + c)}%` : "";
   const minSources = Math.max(1, opts.minSources ?? 1);
   const status = opts.status ?? "";
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
@@ -62,6 +68,8 @@ export async function listStories(
     FROM story_clusters c
     WHERE EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = c.id AND i.relevance_score >= ${minRel})
       AND (${like} = '' OR canonical_title ILIKE ${like})
+      AND (${placeKey} = '' OR (c.last_seen_at > now() - interval '7 days' AND (${placeKey} = ANY(c.places)
+           OR EXISTS (SELECT 1 FROM news_items pi WHERE pi.cluster_id = c.id AND (pi.title ILIKE ${placeLike} OR pi.description ILIKE ${placeLike})))))
       AND (${category} = '' OR category = ${category})
       AND source_count >= ${minSources}
       AND ((${status} = '' AND status NOT IN ('ignored', 'merged')) OR (${status} <> '' AND status = ${status}))
@@ -73,6 +81,8 @@ export async function listStories(
       SELECT COUNT(*)::int AS n FROM story_clusters c
       WHERE EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = c.id AND i.relevance_score >= ${minRel})
         AND (${like} = '' OR canonical_title ILIKE ${like}) AND (${category} = '' OR category = ${category}) AND source_count >= ${minSources}
+        AND (${placeKey} = '' OR (c.last_seen_at > now() - interval '7 days' AND (${placeKey} = ANY(c.places)
+             OR EXISTS (SELECT 1 FROM news_items pi WHERE pi.cluster_id = c.id AND (pi.title ILIKE ${placeLike} OR pi.description ILIKE ${placeLike})))))
         AND ((${status} = '' AND status NOT IN ('ignored', 'merged')) OR (${status} <> '' AND status = ${status}))
     `)[0]?.n ?? 0
   );

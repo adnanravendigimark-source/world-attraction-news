@@ -20,6 +20,7 @@ export async function GET(req: Request) {
     return NextResponse.json(
       await listStories({
         q: sp.get("q") || "",
+        place: sp.get("place") || "",
         category: sp.get("category") || "",
         minSources: Number(sp.get("minSources")) || 1,
         status: sp.get("status") || "",

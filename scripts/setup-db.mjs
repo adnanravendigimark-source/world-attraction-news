@@ -1399,6 +1399,10 @@ async function createNewsTables() {
   // The travel score before an official source's bonus, so a brand's own
   // post doesn't count as high travel impact in the trend score.
   await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS relevance_base INTEGER`;
+  // Destination search: places each item and story mentions (lowercase).
+  await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS places TEXT[]`;
+  await sql`ALTER TABLE story_clusters ADD COLUMN IF NOT EXISTS places TEXT[] NOT NULL DEFAULT '{}'`;
+  await sql`CREATE INDEX IF NOT EXISTS story_clusters_places_idx ON story_clusters USING GIN (places)`;
   // Where a news cover image came from and under what terms it may be used.
   // source_type: licensed | own | permission | ai | unverified
   await sql`

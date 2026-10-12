@@ -1,0 +1,85 @@
+// Places the news tagger recognises. Countries list their other names;
+// cities, islands and regions list their country. Destinations added on the
+// site (the cities table) are recognised as well, see places.ts.
+// Names that are also ordinary words ("Nice", "Split", "Reading") are left out.
+
+export const COUNTRIES: Record<string, string[]> = {
+  Afghanistan: [], Albania: [], Algeria: [], Andorra: [], Argentina: [], Armenia: [], Australia: [], Austria: [],
+  Azerbaijan: [], Bahamas: [], Bahrain: [], Bangladesh: [], Barbados: [], Belarus: [], Belgium: [], Belize: [],
+  Bhutan: [], Bolivia: [], "Bosnia and Herzegovina": ["Bosnia"], Botswana: [], Brazil: [], Brunei: [], Bulgaria: [],
+  Cambodia: [], Cameroon: [], Canada: [], "Cape Verde": ["Cabo Verde"], Chile: [], China: [], Colombia: [],
+  "Costa Rica": [], Croatia: [], Cuba: [], Cyprus: [], "Czech Republic": ["Czechia"], Denmark: [],
+  "Dominican Republic": [], Ecuador: [], Egypt: [], "El Salvador": [], Estonia: [], Ethiopia: [], Fiji: [],
+  Finland: [], France: [], Georgia: [], Germany: [], Ghana: [], Greece: [], Guatemala: [], Honduras: [],
+  "Hong Kong": [], Hungary: [], Iceland: [], India: [], Indonesia: [], Iran: [], Iraq: [], Ireland: [], Israel: [],
+  Italy: [], Jamaica: [], Japan: [], Jordan: [], Kazakhstan: [], Kenya: [], Kuwait: [], Kyrgyzstan: [], Laos: [],
+  Latvia: [], Lebanon: [], Libya: [], Liechtenstein: [], Lithuania: [], Luxembourg: [], Macau: ["Macao"],
+  Madagascar: [], Malaysia: [], Maldives: [], Malta: [], Mauritius: [], Mexico: [], Moldova: [], Monaco: [],
+  Mongolia: [], Montenegro: [], Morocco: [], Mozambique: [], Myanmar: ["Burma"], Namibia: [], Nepal: [],
+  Netherlands: ["Holland"], "New Zealand": [], Nicaragua: [], Nigeria: [], "North Macedonia": [], Norway: [],
+  Oman: [], Pakistan: [], Panama: [], Paraguay: [], Peru: [], Philippines: [], Poland: [], Portugal: [],
+  "Puerto Rico": [], Qatar: [], Romania: [], Russia: [], Rwanda: [], "Saudi Arabia": [], Senegal: [], Serbia: [],
+  Seychelles: [], Singapore: [], Slovakia: [], Slovenia: [], "South Africa": [], "South Korea": ["Korea"],
+  Spain: [], "Sri Lanka": [], Sweden: [], Switzerland: [], Taiwan: [], Tajikistan: [], Tanzania: [],
+  Thailand: [], Tunisia: [], Turkey: ["Türkiye", "Turkiye"], Uganda: [], Ukraine: [],
+  "United Arab Emirates": ["UAE"], "United Kingdom": ["UK", "Britain", "Great Britain", "England", "Scotland", "Wales"],
+  "United States": ["USA", "U.S.", "US"], Uruguay: [], Uzbekistan: [], Venezuela: [], Vietnam: ["Viet Nam"],
+  Zambia: [], Zimbabwe: [],
+};
+
+// [name, country, other names]
+export const CITIES: [string, string, string[]?][] = [
+  // Europe
+  ["Barcelona", "Spain"], ["Madrid", "Spain"], ["Seville", "Spain", ["Sevilla"]], ["Valencia", "Spain"], ["Malaga", "Spain", ["Málaga"]],
+  ["Granada", "Spain"], ["Ibiza", "Spain"], ["Mallorca", "Spain", ["Majorca", "Palma de Mallorca"]], ["Tenerife", "Spain"],
+  ["Gran Canaria", "Spain"], ["Canary Islands", "Spain"], ["Bilbao", "Spain"], ["San Sebastian", "Spain"],
+  ["Paris", "France"], ["Lyon", "France"], ["Marseille", "France"], ["Bordeaux", "France"], ["Provence", "France"], ["French Riviera", "France", ["Côte d'Azur"]],
+  ["Rome", "Italy"], ["Milan", "Italy"], ["Venice", "Italy"], ["Florence", "Italy"], ["Naples", "Italy"], ["Pompeii", "Italy"],
+  ["Amalfi Coast", "Italy", ["Amalfi"]], ["Sicily", "Italy"], ["Sardinia", "Italy"], ["Tuscany", "Italy"], ["Lake Como", "Italy"], ["Capri", "Italy"],
+  ["Vatican City", "Italy", ["Vatican"]], ["London", "United Kingdom"], ["Edinburgh", "United Kingdom"], ["Manchester", "United Kingdom"],
+  ["Liverpool", "United Kingdom"], ["Dublin", "Ireland"], ["Amsterdam", "Netherlands"], ["Rotterdam", "Netherlands"],
+  ["Brussels", "Belgium"], ["Bruges", "Belgium"], ["Berlin", "Germany"], ["Munich", "Germany"], ["Frankfurt", "Germany"], ["Hamburg", "Germany"],
+  ["Vienna", "Austria"], ["Salzburg", "Austria"], ["Zurich", "Switzerland"], ["Geneva", "Switzerland"], ["Lucerne", "Switzerland"], ["Zermatt", "Switzerland"],
+  ["Prague", "Czech Republic"], ["Budapest", "Hungary"], ["Krakow", "Poland", ["Kraków"]], ["Warsaw", "Poland"],
+  ["Lisbon", "Portugal"], ["Porto", "Portugal"], ["Madeira", "Portugal"], ["Algarve", "Portugal"], ["Sintra", "Portugal"],
+  ["Athens", "Greece"], ["Santorini", "Greece"], ["Mykonos", "Greece"], ["Crete", "Greece"], ["Rhodes", "Greece"], ["Corfu", "Greece"],
+  ["Istanbul", "Turkey"], ["Antalya", "Turkey"], ["Cappadocia", "Turkey"], ["Bodrum", "Turkey"],
+  ["Copenhagen", "Denmark"], ["Stockholm", "Sweden"], ["Oslo", "Norway"], ["Bergen", "Norway"], ["Helsinki", "Finland"], ["Lapland", "Finland"],
+  ["Reykjavik", "Iceland"], ["Dubrovnik", "Croatia"], ["Zagreb", "Croatia"], ["Ljubljana", "Slovenia"], ["Tallinn", "Estonia"], ["Riga", "Latvia"],
+  ["Vilnius", "Lithuania"], ["Bucharest", "Romania"], ["Sofia", "Bulgaria"], ["Belgrade", "Serbia"], ["Valletta", "Malta"],
+  ["Moscow", "Russia"], ["St Petersburg", "Russia", ["Saint Petersburg", "St. Petersburg"]], ["Kyiv", "Ukraine", ["Kiev"]], ["Tbilisi", "Georgia"],
+  // Asia
+  ["Bali", "Indonesia"], ["Jakarta", "Indonesia"], ["Lombok", "Indonesia"], ["Yogyakarta", "Indonesia"],
+  ["Bangkok", "Thailand"], ["Phuket", "Thailand"], ["Chiang Mai", "Thailand"], ["Pattaya", "Thailand"], ["Krabi", "Thailand"], ["Koh Samui", "Thailand"],
+  ["Hanoi", "Vietnam"], ["Ho Chi Minh City", "Vietnam", ["Saigon"]], ["Da Nang", "Vietnam"], ["Hoi An", "Vietnam"], ["Ha Long Bay", "Vietnam", ["Halong Bay"]], ["Phu Quoc", "Vietnam"],
+  ["Siem Reap", "Cambodia", ["Angkor Wat"]], ["Kuala Lumpur", "Malaysia"], ["Penang", "Malaysia"], ["Langkawi", "Malaysia"],
+  ["Manila", "Philippines"], ["Cebu", "Philippines"], ["Boracay", "Philippines"], ["Palawan", "Philippines"], ["Bohol", "Philippines"],
+  ["Tokyo", "Japan"], ["Kyoto", "Japan"], ["Osaka", "Japan"], ["Hokkaido", "Japan"], ["Okinawa", "Japan"], ["Hiroshima", "Japan"], ["Nara", "Japan"],
+  ["Seoul", "South Korea"], ["Busan", "South Korea"], ["Jeju", "South Korea"], ["Beijing", "China"], ["Shanghai", "China"],
+  ["Guangzhou", "China"], ["Shenzhen", "China"], ["Chengdu", "China"], ["Xi'an", "China"], ["Taipei", "Taiwan"],
+  ["New Delhi", "India", ["Delhi"]], ["Mumbai", "India", ["Bombay"]], ["Goa", "India"], ["Jaipur", "India"], ["Agra", "India", ["Taj Mahal"]],
+  ["Kerala", "India"], ["Bengaluru", "India", ["Bangalore"]], ["Chennai", "India"], ["Kolkata", "India"], ["Hyderabad", "India"],
+  ["Varanasi", "India"], ["Udaipur", "India"], ["Ladakh", "India"], ["Kashmir", "India"], ["Navi Mumbai", "India"],
+  ["Kathmandu", "Nepal"], ["Colombo", "Sri Lanka"],
+  ["Dubai", "United Arab Emirates"], ["Abu Dhabi", "United Arab Emirates"], ["Sharjah", "United Arab Emirates"], ["Ras Al Khaimah", "United Arab Emirates"],
+  ["Doha", "Qatar"], ["Riyadh", "Saudi Arabia"], ["Jeddah", "Saudi Arabia"], ["AlUla", "Saudi Arabia", ["Al Ula"]], ["Mecca", "Saudi Arabia", ["Makkah"]],
+  ["Muscat", "Oman"], ["Petra", "Jordan"], ["Amman", "Jordan"], ["Jerusalem", "Israel"], ["Tel Aviv", "Israel"],
+  // Africa
+  ["Cairo", "Egypt"], ["Luxor", "Egypt"], ["Sharm El Sheikh", "Egypt"], ["Hurghada", "Egypt"], ["Marrakech", "Morocco", ["Marrakesh"]],
+  ["Casablanca", "Morocco"], ["Fez", "Morocco"], ["Cape Town", "South Africa"], ["Johannesburg", "South Africa"],
+  ["Nairobi", "Kenya"], ["Zanzibar", "Tanzania"], ["Serengeti", "Tanzania"], ["Kilimanjaro", "Tanzania"], ["Victoria Falls", "Zimbabwe"],
+  // Americas
+  ["New York", "United States", ["New York City", "NYC", "Manhattan"]], ["Los Angeles", "United States"], ["San Francisco", "United States"],
+  ["Las Vegas", "United States"], ["Miami", "United States"], ["Orlando", "United States"], ["Chicago", "United States"],
+  ["Washington DC", "United States", ["Washington, D.C."]], ["Boston", "United States"], ["Seattle", "United States"], ["Hawaii", "United States", ["Honolulu", "Maui"]],
+  ["New Orleans", "United States"], ["Grand Canyon", "United States"], ["Yellowstone", "United States"], ["Alaska", "United States"],
+  ["Toronto", "Canada"], ["Vancouver", "Canada"], ["Montreal", "Canada"], ["Banff", "Canada"], ["Quebec City", "Canada"],
+  ["Cancun", "Mexico", ["Cancún"]], ["Mexico City", "Mexico"], ["Tulum", "Mexico"], ["Los Cabos", "Mexico", ["Cabo San Lucas"]],
+  ["Rio de Janeiro", "Brazil"], ["Sao Paulo", "Brazil", ["São Paulo"]], ["Buenos Aires", "Argentina"], ["Patagonia", "Argentina"],
+  ["Lima", "Peru"], ["Cusco", "Peru", ["Cuzco"]], ["Machu Picchu", "Peru"], ["Cartagena", "Colombia"], ["Bogota", "Colombia", ["Bogotá"]],
+  ["Santiago", "Chile"], ["Galapagos", "Ecuador", ["Galápagos"]], ["Havana", "Cuba"], ["Punta Cana", "Dominican Republic"],
+  // Oceania
+  ["Sydney", "Australia"], ["Melbourne", "Australia"], ["Brisbane", "Australia"], ["Perth", "Australia"], ["Gold Coast", "Australia"],
+  ["Cairns", "Australia"], ["Great Barrier Reef", "Australia"], ["Uluru", "Australia"], ["Tasmania", "Australia"],
+  ["Auckland", "New Zealand"], ["Queenstown", "New Zealand"], ["Wellington", "New Zealand"], ["Bora Bora", "French Polynesia", ["Tahiti"]],
+];

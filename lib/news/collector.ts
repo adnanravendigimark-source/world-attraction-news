@@ -7,6 +7,7 @@ import { mergeDuplicateClusters, runClustering } from "./cluster";
 import { runTrendScoring } from "./trend";
 import { isOfficialFeed, isTravelSource, loadFilterConfig, scoreRelevance } from "./filter";
 import { resolvesPublic } from "./extract";
+import { refreshStoryPlaces, tagPlaces } from "./places";
 
 const USER_AGENT = "WorldAttractionNewsBot/1.0 (+news discovery; contact via site)";
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -236,6 +237,12 @@ export async function runFetch(opts: { trigger: string; force?: boolean; sourceI
     await runTrendScoring();
   } catch (err) {
     console.error("[news] clustering/scoring failed:", err);
+  }
+  try {
+    await tagPlaces();
+    await refreshStoryPlaces();
+  } catch (err) {
+    console.error("[news] place tagging failed:", err);
   }
   await pruneOldItems().catch((err) => console.error("[news] retention failed:", err));
 
