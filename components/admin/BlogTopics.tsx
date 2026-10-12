@@ -37,7 +37,10 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
   const [suggestFor, setSuggestFor] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [openId, setOpenId] = useState("");
-  const [tab, setTab] = useState<"queued" | "generating" | "drafted">("queued");
+  const [tab, setTab] = useState<"queued" | "generating" | "drafted" | "refresh">("queued");
+  const [settings, setSettings] = useState<{ perDay: number; refreshMonths: number; newsIdeas: boolean } | null>(null);
+  const [today, setToday] = useState(0);
+  const [coreAuto, setCoreAuto] = useState(true);
   const [gen, setGen] = useState<{ id: string; text: string } | null>(null);
 
   async function generate(id: string) {
@@ -59,6 +62,8 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Could not load topics.");
       setTopics(d.topics);
+      if (d.settings) setSettings(d.settings);
+      setToday(Number(d.today) || 0);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -122,11 +127,38 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
     }
   }
 
+  async function planCore() {
+    setBusy("core");
+    try {
+      const d = await post("/api/admin/blogs/topics", { action: "core", destination: suggestFor, auto: coreAuto });
+      toast.success(`${d.added} core guide(s) added${coreAuto ? " and set to write in the background" : ""}${d.skipped.length ? `; skipped ${d.skipped.length} already covered` : ""}.`);
+      await load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function action(body: Record<string, unknown>, ok: string) {
+    setBusy(String(body.action));
+    try {
+      const d = await post("/api/admin/blogs/topics", body);
+      toast.success(typeof ok === "string" ? ok.replace("{flags}", String(d.flags ?? "")) : "Done.");
+      await load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
   const suggested = topics.filter((t) => t.status === "suggested");
   const byTab = {
     queued: topics.filter((t) => t.status === "queued"),
     generating: topics.filter((t) => t.status === "generating"),
     drafted: topics.filter((t) => t.status === "drafted"),
+    refresh: topics.filter((t) => t.refreshFlags.length > 0 && t.articleStatus === "published"),
   };
   const planned = byTab[tab];
   const toggle = (id: string) =>
@@ -188,6 +220,16 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
                 {busy === "suggest" ? "Thinking…" : "Suggest"}
               </button>
             </div>
+            <div className="flex flex-wrap items-center gap-3 border-t border-ink-100 pt-3">
+              <button type="button" onClick={planCore} disabled={busy === "core" || !suggestFor.trim()} className="rounded-lg border border-ink-200 px-3 py-1.5 text-sm font-medium text-ink-800 hover:bg-ink-50 disabled:opacity-50">
+                {busy === "core" ? "Planning…" : "Plan 5 core guides"}
+              </button>
+              <label className="flex items-center gap-2 text-xs text-ink-600">
+                <input type="checkbox" checked={coreAuto} onChange={(e) => setCoreAuto(e.target.checked)} />
+                write them in the background
+              </label>
+              <span className="text-xs text-ink-400">Travel guide, things to do, best time, food, itinerary. No AI cost to plan.</span>
+            </div>
           </form>
         </div>
       )}
@@ -223,13 +265,36 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
         </section>
       )}
 
+      {settings && canEdit && (
+        <section className="flex flex-wrap items-center gap-4 rounded-xl border border-ink-200 bg-white px-5 py-3 text-sm text-ink-700">
+          <span className="font-semibold text-ink-900">Background writing</span>
+          <span>{today} of {settings.perDay} written in the last 24 h</span>
+          <label className="flex items-center gap-2">
+            Blogs per day
+            <input type="number" min={0} max={20} className="w-16 rounded-lg border border-ink-200 px-2 py-1" defaultValue={settings.perDay}
+              onBlur={(e) => action({ action: "settings", settings: { perDay: Number(e.target.value) } }, "Saved.")} />
+          </label>
+          <label className="flex items-center gap-2">
+            Re-check published guides every
+            <input type="number" min={1} max={24} className="w-14 rounded-lg border border-ink-200 px-2 py-1" defaultValue={settings.refreshMonths}
+              onBlur={(e) => action({ action: "settings", settings: { refreshMonths: Number(e.target.value) } }, "Saved.")} />
+            months
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" defaultChecked={settings.newsIdeas} onChange={(e) => action({ action: "settings", settings: { newsIdeas: e.target.checked } }, "Saved.")} />
+            Blog ideas from published news
+          </label>
+        </section>
+      )}
+
       <section className="rounded-xl border border-ink-200 bg-white">
         <div className="border-b border-ink-100 px-5 py-3">
-          <div className="flex gap-1" role="tablist">
+          <div className="flex flex-wrap gap-1" role="tablist">
             {([
               ["queued", "Queue"],
               ["generating", "In progress"],
               ["drafted", "Drafts"],
+              ["refresh", "Needs refresh"],
             ] as const).map(([k, label]) => (
               <button
                 key={k}
@@ -247,7 +312,13 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
           {loading && <li className="px-5 py-4 text-sm text-ink-500">Loading…</li>}
           {!loading && planned.length === 0 && (
             <li className="px-5 py-4 text-sm text-ink-500">
-              {tab === "queued" ? "No topics queued. Add one or get suggestions above." : tab === "generating" ? "Nothing is being written right now." : "No drafts yet. Generate a blog from the queue."}
+              {tab === "queued"
+                ? "No topics queued. Add one or get suggestions above."
+                : tab === "generating"
+                  ? "Nothing is being written right now."
+                  : tab === "refresh"
+                    ? "No published guide has changed facts. Guides are re-checked automatically."
+                    : "No drafts yet. Generate a blog from the queue."}
             </li>
           )}
           {planned.map((t) => (
@@ -261,11 +332,27 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
                   <span className="font-medium text-ink-900">{t.title}</span>
                 </div>
                 <p className="mt-1 text-xs text-ink-500">
-                  {[typeLabel(t.topicType), t.destination, `${t.targetWords} words`, t.source === "ai_suggested" ? "AI idea" : "added by hand"].join(" · ")}
+                  {[typeLabel(t.topicType), t.destination, `${t.targetWords} words`, t.source === "ai_suggested" ? "AI idea" : t.source === "from_news" ? "idea from news" : "added by hand"].join(" · ")}
                 </p>
+                {t.auto && <p className="mt-1 text-xs font-medium text-blue-700">Writing in the background{t.autoStep && t.autoStep !== "research" ? ` (next: ${t.autoStep})` : ""}. Runs every 10 minutes.</p>}
+                {t.autoError && <p className="mt-1 text-xs font-medium text-red-700">Stopped: {t.autoError}</p>}
+                {tab === "refresh" && (
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {t.refreshFlags.map((f, i) => (
+                      <li key={i} className="text-amber-900">
+                        {f.status === "changed" ? "Changed: " : "No longer confirmed: "}“{f.fact}”{f.now ? ` → now: “${f.now}”` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {t.similarTitle && <p className="mt-1 text-xs font-medium text-amber-800">Similar to an existing article: “{t.similarTitle}”</p>}
                 {gen?.id === t.id && <p className="mt-1 text-xs font-medium text-blue-700">{gen.text}</p>}
               </div>
+              {canEdit && t.articleStatus === "published" && (
+                <button onClick={() => action({ action: "refresh", id: t.id }, "Re-checked: {flags} fact(s) flagged.")} disabled={!!busy} title="Re-read the sources and compare prices, hours and rules (one small AI call)" className="shrink-0 rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-800 hover:bg-ink-50 disabled:opacity-50">
+                  {busy === "refresh" ? "Checking…" : "Re-check facts"}
+                </button>
+              )}
               {t.articleId && (
                 <a href={`/admin/articles/${t.articleId}`} className="shrink-0 rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50">
                   {t.articleStatus === "published" ? "View" : "Open draft"}
@@ -283,6 +370,14 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
                     className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-50"
                   >
                     {gen?.id === t.id ? "Generating…" : "Generate blog"}
+                  </button>
+                  <button
+                    onClick={() => action({ action: "auto", ids: [t.id], on: !t.auto }, t.auto ? "Background writing stopped." : "Will be written in the background (within the daily limit).")}
+                    disabled={!!busy}
+                    title="Write this blog in the background, one step every 10 minutes"
+                    className="rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-800 hover:bg-ink-50 disabled:opacity-50"
+                  >
+                    {t.auto ? "Stop background" : "In background"}
                   </button>
                   <button onClick={() => setStatus([t.id], "dismissed")} disabled={!!busy} className="rounded-lg px-2 py-2 text-sm text-ink-400 hover:bg-ink-50 hover:text-ink-700">
                     Remove
