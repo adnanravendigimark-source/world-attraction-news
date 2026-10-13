@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronDenied } from "@/lib/cronAuth";
 import { runFetch } from "@/lib/news/collector";
 
 export const dynamic = "force-dynamic";
@@ -8,13 +9,8 @@ export const maxDuration = 120;
 // its own check interval, so only sources that are due are fetched.
 // Protected by CRON_SECRET exactly like /api/cron/publish-scheduled.
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
   try {
     const summary = await runFetch({ trigger: "cron" });
     return NextResponse.json({

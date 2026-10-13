@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronDenied } from "@/lib/cronAuth";
 import { enqueueEligible, loadAutomation, runJobs } from "@/lib/news/jobs";
 import { sendAlerts, sendDailySummary } from "@/lib/news/ops";
 
@@ -9,13 +10,8 @@ export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
 // switched on it queues the best un-started stories, then works the queue.
 // Drafts only reach Pending Review; nothing is published automatically.
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
   try {
     const cfg = await loadAutomation();
     const queued = cfg.enabled ? await enqueueEligible(cfg) : { queued: 0, remaining: 0 };

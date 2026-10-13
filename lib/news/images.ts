@@ -1,6 +1,6 @@
 import { sql } from "../db";
 import { NEWS_COVER, uploadNewsCover } from "../blob";
-import { isPublicUrl, resolvesPublic } from "./extract";
+import { fetchPublicImage, isPublicUrl } from "./extract";
 
 import { IMAGE_SOURCE_TYPES, type ImageSourceType } from "./provenance";
 export { IMAGE_SOURCE_TYPES, PROVENANCE_LABELS, type ImageSourceType } from "./provenance";
@@ -67,19 +67,12 @@ export async function saveCoverSize(articleId: string, c: { url: string; width: 
 // Downloads an image we may use (our own storage or a story candidate already
 // checked by the caller) as a File for re-encoding.
 export async function downloadImage(url: string, label = "Image"): Promise<File> {
-  if (!(await resolvesPublic(url))) throw new Error(`${label} URL isn't allowed.`);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, redirect: "follow", headers: { "User-Agent": "WorldAttractionNewsBot/1.0" } });
-    if (!res.ok) throw new Error(`${label} download failed (HTTP ${res.status}).`);
-    const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-    if (!["image/jpeg", "image/png", "image/webp"].includes(type)) throw new Error("Unsupported image type (need JPG, PNG or WebP).");
-    return new File([await res.arrayBuffer()], "cover", { type });
+    const { type, buf } = await fetchPublicImage(url, { headers: { "User-Agent": "WorldAttractionNewsBot/1.0" }, timeoutMs: 15_000 });
+    return new File([buf], "cover", { type });
   } catch (err: any) {
-    throw new Error(err?.name === "AbortError" ? `${label} download timed out.` : err?.message || `${label} download failed.`);
-  } finally {
-    clearTimeout(timer);
+    const msg = String(err?.message || "");
+    throw new Error(err?.name === "TimeoutError" || err?.name === "AbortError" ? `${label} download timed out.` : msg.replace(/^Image/, label) || `${label} download failed.`);
   }
 }
 

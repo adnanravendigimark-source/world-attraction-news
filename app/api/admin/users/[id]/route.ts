@@ -4,7 +4,7 @@ import { updateUser, deleteUser, findUserById } from "@/lib/users";
 import { logActivity } from "@/lib/activity";
 import { dbErrorMessage } from "@/lib/db";
 import { notifyAccountApproved, notifyAccountRejected } from "@/lib/notifications";
-import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
+import { canManageUser, getEffectivePermissions, hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const target = await findUserById(params.id).catch(() => undefined);
   if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
+  if (!canManageUser(effective, target.role, "update")) {
+    return NextResponse.json({ error: "Changing an admin account needs the Roles & Permissions permission." }, { status: 403 });
+  }
 
   if (body.status === "suspended" && params.id === session.userId) {
     return NextResponse.json({ error: "You cannot suspend your own account." }, { status: 400 });
@@ -120,6 +123,10 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   }
 
   const target = await findUserById(params.id).catch(() => undefined);
+  if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
+  if (!canManageUser(effective, target.role, "delete")) {
+    return NextResponse.json({ error: "Deleting an admin account needs the Roles & Permissions permission." }, { status: 403 });
+  }
 
   try {
     await deleteUser(params.id);

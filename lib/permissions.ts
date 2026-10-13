@@ -76,3 +76,14 @@ export async function requireApiPermission(
   }
   return null;
 }
+
+// Who may suspend, edit or delete a user account. Contributor accounts need
+// the Contributors permission (or Roles). Admin accounts need the Roles
+// permission: managing other admins is part of managing who can do what, so
+// an admin who may only manage contributors can't lock out or remove
+// another admin.
+export function canManageUser(effective: EffectivePermissions, targetRole: string, action: "update" | "delete"): boolean {
+  if (hasPermission(effective, "roles", action)) return true;
+  if (targetRole === "admin") return false;
+  return hasPermission(effective, "contributors", action);
+}

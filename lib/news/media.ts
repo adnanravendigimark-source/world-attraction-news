@@ -5,7 +5,7 @@
 // caption can be shown.
 import { sql } from "../db";
 import { uploadImage, uploadNewsCover } from "../blob";
-import { isPublicUrl } from "./extract";
+import { fetchPublicImage, isPublicUrl } from "./extract";
 
 export interface FoundPhoto {
   provider: "unsplash" | "wikimedia";
@@ -162,12 +162,9 @@ export async function storePhoto(
   photo: FoundPhoto,
   opts: { cover?: boolean } = {}
 ): Promise<{ url: string; width: number; height: number; originalUrl: string }> {
-  const res = await fetch(photo.imageUrl, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20_000) });
-  if (!res.ok) throw new Error(`Photo download failed (HTTP ${res.status}).`);
-  const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-  if (!["image/jpeg", "image/png", "image/webp"].includes(type)) throw new Error("Unsupported photo type.");
-  const buf = await res.arrayBuffer();
-  if (buf.byteLength > 12 * 1024 * 1024) throw new Error("Photo is too large.");
+  const { type, buf } = await fetchPublicImage(photo.imageUrl, { headers: { "User-Agent": UA }, timeoutMs: 20_000, maxBytes: 12 * 1024 * 1024 }).catch((err) => {
+    throw new Error(String(err?.message || "Photo download failed.").replace(/^Image/, "Photo"));
+  });
   const file = new File([buf], "photo", { type });
   const uploaded = opts.cover ? await uploadNewsCover(file) : { ...(await uploadImage(file, "news")), originalUrl: "" };
   // Unsplash asks for a download ping when a photo is used.

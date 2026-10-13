@@ -145,3 +145,51 @@ export async function fetchPageText(url: string): Promise<FetchedPage> {
     return { ok: false, finalUrl: current, title: "", text: "", error: err?.name === "AbortError" ? "Timed out." : String(err?.message || err).slice(0, 120) };
   }
 }
+
+// Downloads an image from a public address only. Every redirect hop is
+// re-checked (a public URL may redirect to an internal one) and the body is
+// capped while it streams, so a huge or endless response can't exhaust memory.
+export async function fetchPublicImage(
+  url: string,
+  opts: { headers?: Record<string, string>; timeoutMs?: number; maxBytes?: number; maxRedirects?: number; lookup?: Parameters<typeof resolvesPublic>[1] } = {}
+): Promise<{ type: string; buf: ArrayBuffer }> {
+  const maxBytes = opts.maxBytes ?? 15 * 1024 * 1024;
+  const signal = AbortSignal.timeout(opts.timeoutMs ?? 20_000);
+  let current = url;
+  for (let hop = 0; hop <= (opts.maxRedirects ?? 4); hop++) {
+    if (!(await resolvesPublic(current, opts.lookup))) throw new Error("Image URL isn't allowed.");
+    const res = await fetch(current, { headers: opts.headers, signal, redirect: "manual", cache: "no-store" });
+    if (res.status >= 300 && res.status < 400) {
+      const next = res.headers.get("location");
+      if (!next) throw new Error(`Image download failed (HTTP ${res.status}).`);
+      current = new URL(next, current).toString();
+      continue;
+    }
+    if (!res.ok) throw new Error(`Image download failed (HTTP ${res.status}).`);
+    const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!["image/jpeg", "image/png", "image/webp"].includes(type)) throw new Error("Unsupported image type (need JPG, PNG or WebP).");
+    if (Number(res.headers.get("content-length") || 0) > maxBytes) throw new Error("Image is too large.");
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("Image download failed (empty response).");
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel().catch(() => {});
+        throw new Error("Image is too large.");
+      }
+      chunks.push(value);
+    }
+    const out = new Uint8Array(size);
+    let at = 0;
+    for (const c of chunks) {
+      out.set(c, at);
+      at += c.byteLength;
+    }
+    return { type, buf: out.buffer };
+  }
+  throw new Error("Image download failed (too many redirects).");
+}

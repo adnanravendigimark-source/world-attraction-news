@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronDenied } from "@/lib/cronAuth";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { publishDueScheduledArticles } from "@/lib/scheduling";
 
@@ -17,13 +18,8 @@ export const dynamic = "force-dynamic";
 // Vercel Cron sends this automatically as a Bearer token; see
 // https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs.
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
   const publishedCount = await publishDueScheduledArticles();
   // Homepage and destination pages are ISR-cached (see their own
   // `revalidate` exports) — without this they'd still catch up on their own
