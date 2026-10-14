@@ -43,3 +43,22 @@ describe("ideas from one topic", () => {
     expect(siblingDuplicate("Arno Boat Tours for Couples: Romantic Evenings", batch, "arno boat tour")).toBe(batch[0]);
   });
 });
+
+import { sameDestination } from "@/lib/blogs/topics";
+describe("already covered only means the same destination", () => {
+  const florence = { cityId: "flo", countryId: null };
+  const bali = { city_id: "bali", country_id: null };
+  it("food in Bali does not cover food in Florence", () => {
+    expect(sameDestination(bali, florence)).toBe(false);
+    expect(findSimilar("Best Food Experiences in Florence: Where to Eat", [])).toBe("");
+  });
+  it("the same city matches", () => {
+    expect(sameDestination({ city_id: "flo", country_id: null }, florence)).toBe(true);
+  });
+  it("a country-level topic matches only country-level content for that country", () => {
+    const italy = { cityId: null, countryId: "it" };
+    expect(sameDestination({ city_id: null, country_id: "it" }, italy)).toBe(true);
+    expect(sameDestination({ city_id: "flo", country_id: "it" }, italy)).toBe(false);
+    expect(sameDestination({ city_id: null, country_id: "es" }, italy)).toBe(false);
+  });
+});

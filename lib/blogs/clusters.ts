@@ -23,6 +23,7 @@ import {
   NEEDS,
   SUGGEST_PROMPT_VERSION,
   findSimilar,
+  existingTitlesFor,
   getTopic,
   resolveDestination,
   resolveSuggestedPlace,
@@ -218,20 +219,16 @@ async function suggestedLinks(dest: { cityId: string | null; countryId: string |
   return links;
 }
 
-async function existingForCluster(): Promise<string[]> {
-  const rows = (await sql`
-    SELECT title FROM articles WHERE status NOT IN ('rejected')
-    UNION ALL SELECT title FROM blog_topics WHERE status IN ('queued', 'generating', 'drafted')`.catch(() => [])) as any[];
-  // Unaccepted AI ideas ('suggested') are not content yet, so they don't count.
-  return rows.map((r) => String(r.title));
-}
 
 // Plans a cluster around a typed topic and saves it as "suggested" ideas.
 export async function suggestCluster(topic: string, destination: string, createdBy = ""): Promise<BlogTopic[]> {
   const t = topic.replace(/\s+/g, " ").trim().slice(0, 120);
   // A typed destination is checked before paying for the model call.
   let dest = destination.trim() ? await resolveDestination(destination) : null;
-  const existing = await existingForCluster();
+  // Content for this destination only (articles incl. news, accepted topics);
+  // when the place isn't known yet, the model sees no list and the check
+  // below runs once the place is resolved.
+  const promptExisting = dest ? await existingTitlesFor(dest, { news: true, acceptedOnly: true }) : [];
   const { json } = await chatJson({
     kind: "suggest",
     log: { promptVersion: SUGGEST_PROMPT_VERSION },
@@ -239,9 +236,10 @@ export async function suggestCluster(topic: string, destination: string, created
     temperature: 0.6,
     timeoutMs: 60_000,
     system: CLUSTER_PROMPT,
-    user: `TOPIC: ${t}\nDESTINATION: ${dest ? dest.label : "(not given: work it out from the topic)"}\n\nEXISTING:\n${existing.slice(0, 100).map((x) => `- ${x}`).join("\n") || "(none)"}`,
+    user: `TOPIC: ${t}\nDESTINATION: ${dest ? dest.label : "(not given: work it out from the topic)"}\n\nEXISTING:\n${promptExisting.slice(0, 100).map((x) => `- ${x}`).join("\n") || "(none)"}`,
   });
   if (!dest) dest = await resolveSuggestedPlace(String(json?.destination || ""), t);
+  const existing = await existingTitlesFor(dest, { news: true, acceptedOnly: true });
   const ideas = normalizeCluster(json, t);
   if (ideas.length === 0) throw new Error("No topic ideas came back. Try again.");
 

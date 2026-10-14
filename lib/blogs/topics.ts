@@ -123,10 +123,28 @@ async function sameTypeTitle(type: string, dest: { cityId: string | null; countr
   return row ? String(row.title) : "";
 }
 
-export async function existingTitles(): Promise<string[]> {
-  const a = (await sql`SELECT title FROM articles WHERE type = 'guide' AND status NOT IN ('rejected')`.catch(() => [])) as any[];
-  const t = (await sql`SELECT title FROM blog_topics WHERE status <> 'dismissed'`.catch(() => [])) as any[];
-  return [...a, ...t].map((r) => String(r.title));
+type Place = { cityId: string | null; countryId: string | null };
+
+// "Already covered" only means the same place: food in Florence is not
+// covered by food in Bali. A city matches the same city; a country-level
+// topic matches other country-level content for that country.
+export function sameDestination(row: { city_id?: string | null; country_id?: string | null }, dest: Place): boolean {
+  if (dest.cityId) return row.city_id === dest.cityId;
+  if (dest.countryId) return !row.city_id && row.country_id === dest.countryId;
+  return false;
+}
+
+// Titles already on the site (or planned) for this destination.
+// news: also count news articles. acceptedOnly: leave out AI ideas nobody
+// has accepted yet ('suggested'), which aren't content.
+export async function existingTitlesFor(dest: Place, opts: { news?: boolean; acceptedOnly?: boolean } = {}): Promise<string[]> {
+  const a = (await sql`
+    SELECT title, city_id, country_id FROM articles
+    WHERE status <> 'rejected' AND (type <> 'news' OR ${!!opts.news})`.catch(() => [])) as any[];
+  const t = (await sql`
+    SELECT title, city_id, country_id FROM blog_topics
+    WHERE status <> 'dismissed' AND (status <> 'suggested' OR NOT ${!!opts.acceptedOnly})`.catch(() => [])) as any[];
+  return [...a, ...t].filter((r) => sameDestination(r, dest)).map((r) => String(r.title));
 }
 
 // -------------------------------------------------------------- destinations
@@ -209,7 +227,7 @@ export async function createTopic(input: {
   const type = TOPIC_TYPES.some((t) => t.value === input.topicType) ? String(input.topicType) : "travel_guide";
   const words = Math.min(Math.max(Math.round(Number(input.targetWords) || defaultWords(type)), 600), 3000);
   const dest = await resolveDestination(input.destination);
-  const similar = (await sameTypeTitle(type, dest)) || findSimilar(title, await existingTitles());
+  const similar = (await sameTypeTitle(type, dest)) || findSimilar(title, await existingTitlesFor(dest));
   const rows = await sql`
     INSERT INTO blog_topics (title, angle, topic_type, target_words, city_id, country_id, source, status, similar_title, created_by)
     VALUES (${title}, ${String(input.angle || "").trim().slice(0, 300)}, ${type}, ${words}, ${dest.cityId}, ${dest.countryId},
@@ -282,7 +300,7 @@ export async function suggestTopics(destination: string, createdBy = "", topic =
   if (topic.trim()) return (await import("./clusters")).suggestCluster(topic, destination, createdBy);
   if (!destination.trim()) throw new Error("Type a topic or a city or country first.");
   const dest = await resolveDestination(destination);
-  const existing = await existingTitles();
+  const existing = await existingTitlesFor(dest);
   const { json } = await chatJson({
     kind: "suggest",
     log: { promptVersion: SUGGEST_PROMPT_VERSION },
