@@ -79,7 +79,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
     try {
       const d = await post("/api/admin/blogs/suggest", { destination, topic: title });
       const where = d.topics[0]?.destination || destination;
-      toast.success(title.trim() ? `${d.topics.length} ideas about "${title.trim()}" (${where}).` : `${d.topics.length} ideas for ${where}.`);
+      toast.success(title.trim() ? `Topic cluster for "${title.trim()}" (${where}): ${d.topics.length} articles.` : `${d.topics.length} ideas for ${where}.`);
       if (!destination.trim() && d.topics[0]?.destination) setDestination(d.topics[0].destination.split(",")[0]);
       await load();
     } catch (err: any) {
@@ -116,7 +116,9 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
   }
 
   const ideas = topics.filter((t) => t.status === "suggested");
-  const list = topics.filter((t) => t.status === "queued" || t.status === "generating" || t.status === "drafted");
+  // Topics still to write. Once a topic has an article (draft or published)
+  // it is managed on the Articles page, so it leaves this list.
+  const list = topics.filter((t) => (t.status === "queued" || t.status === "generating") && !t.articleId);
 
   return (
     <div className="space-y-6">
@@ -163,37 +165,43 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
               </button>
             )}
           </div>
-          <ul className="divide-y divide-ink-100">
-            {ideas.map((t) => (
-              <li key={t.id} className="flex items-center gap-3 px-5 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-ink-900">{t.title}</p>
-                  <p className="text-xs text-ink-500">
-                    {t.destination}
-                    {t.similarTitle && <span className="font-medium text-amber-800"> · Already covered: “{t.similarTitle}”</span>}
+          {groupIdeas(ideas).map((g) => (
+            <div key={g.key} className="border-b border-ink-100 last:border-b-0">
+              {g.clustered && (
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-ink-50/60 px-5 py-2.5">
+                  <p className="text-sm text-ink-700">
+                    <span className="font-semibold text-ink-900">Topic cluster</span> · {g.items[0].destination} · 1 main guide, {g.items.length - 1} supporting
                   </p>
+                  {canEdit && (
+                    <button
+                      onClick={() => setStatus(recommended(g.items).map((t) => t.id), "queued")}
+                      disabled={!!busy || recommended(g.items).length === 0}
+                      title="Adds the ideas worth writing: not already covered, and with source material to research"
+                      className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-ink-700 disabled:opacity-40"
+                    >
+                      Add recommended ({recommended(g.items).length})
+                    </button>
+                  )}
                 </div>
-                {canEdit && (
-                  <>
-                    <button onClick={() => setStatus([t.id], "queued")} disabled={!!busy} className="shrink-0 rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50 disabled:opacity-40">
-                      Add
-                    </button>
-                    <button onClick={() => setStatus([t.id], "dismissed")} disabled={!!busy} aria-label={`Dismiss ${t.title}`} className="shrink-0 px-2 py-2 text-ink-400 hover:text-ink-800">
-                      ✕
-                    </button>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
+              )}
+              <ul className="divide-y divide-ink-100">
+                {g.items.map((t) => (
+                  <IdeaRow key={t.id} t={t} canEdit={canEdit} busy={!!busy} onAdd={() => setStatus([t.id], "queued")} onDismiss={() => setStatus([t.id], "dismissed")} />
+                ))}
+              </ul>
+            </div>
+          ))}
         </section>
       )}
 
       <section className="rounded-xl border border-ink-200 bg-white">
-        <h2 className="border-b border-ink-100 px-5 py-3 font-semibold text-ink-900">Topics</h2>
+        <div className="flex items-center justify-between border-b border-ink-100 px-5 py-3">
+          <h2 className="font-semibold text-ink-900">Topics to write</h2>
+          <a href="/admin/articles?kind=ai_blog" className="text-sm text-ink-500 hover:text-ink-800">Written blogs →</a>
+        </div>
         <ul className="divide-y divide-ink-100">
           {loading && <li className="px-5 py-4 text-sm text-ink-500">Loading…</li>}
-          {!loading && list.length === 0 && <li className="px-5 py-4 text-sm text-ink-500">No topics yet. Add one above.</li>}
+          {!loading && list.length === 0 && <li className="px-5 py-4 text-sm text-ink-500">No topics waiting to be written. Add one above; written articles are on the Articles page.</li>}
           {list.map((t) => {
             const written = t.status === "drafted" && t.articleId;
             const running = gen?.id === t.id;
@@ -203,6 +211,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
                   <p className="font-medium text-ink-900">{t.title}</p>
                   <p className="text-xs text-ink-500">
                     {t.destination}
+                    {t.plan && <span> · {NEED_LABEL[t.plan.need] || t.plan.need}</span>}
                     {written && <span> · {t.articleStatus === "published" ? "published" : "draft ready"}</span>}
                   </p>
                   {running && <p className="mt-1 text-xs font-medium text-blue-700">{gen.text}</p>}
@@ -236,5 +245,123 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
         </ul>
       </section>
     </div>
+  );
+}
+
+// ------------------------------------------------------------- AI ideas
+
+const NEED_LABEL: Record<string, string> = {
+  overview: "Main guide",
+  decision: "Decision",
+  booking: "Booking",
+  practical: "Practical planning",
+  itinerary: "Itinerary",
+  seasonality: "Seasonality",
+  accessibility: "Accessibility",
+  comparison: "Comparison",
+  experience: "Experience",
+  preparation: "Preparation",
+  prices: "Prices",
+  history: "History",
+};
+const PRIORITY: Record<string, string> = { high: "bg-emerald-100 text-emerald-800", medium: "bg-blue-50 text-blue-800", low: "bg-ink-100 text-ink-600" };
+const RANK: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+// The ideas worth writing: not already covered on the site, and free sources
+// have material to research them. The main guide is always included.
+function recommended(items: BlogTopic[]): BlogTopic[] {
+  return items.filter((t) => !t.similarTitle && (t.plan?.role === "pillar" || t.plan?.support === "found"));
+}
+
+// Ideas from one Suggest click about a topic form a cluster; city-only ideas
+// are listed as before.
+function groupIdeas(ideas: BlogTopic[]): { key: string; clustered: boolean; items: BlogTopic[] }[] {
+  const groups = new Map<string, BlogTopic[]>();
+  for (const t of ideas) {
+    const k = t.clusterId && t.plan ? t.clusterId : "other";
+    groups.set(k, [...(groups.get(k) || []), t]);
+  }
+  return [...groups.entries()].map(([key, items]) => ({
+    key,
+    clustered: key !== "other",
+    items:
+      key === "other"
+        ? items
+        : [...items].sort(
+            (a, b) =>
+              (a.plan!.role === "pillar" ? -1 : 0) - (b.plan!.role === "pillar" ? -1 : 0) ||
+              RANK[a.plan!.priority] - RANK[b.plan!.priority] ||
+              Number(!!a.similarTitle) - Number(!!b.similarTitle)
+          ),
+  }));
+}
+
+function IdeaRow({ t, canEdit, busy, onAdd, onDismiss }: { t: BlogTopic; canEdit: boolean; busy: boolean; onAdd: () => void; onDismiss: () => void }) {
+  const [open, setOpen] = useState(false);
+  const p = t.plan;
+  return (
+    <li className="px-5 py-3">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {p && (
+              <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${p.role === "pillar" ? "bg-[#0B1527] text-white" : "bg-ink-100 text-ink-700"}`}>
+                {NEED_LABEL[p.need] || p.need}
+              </span>
+            )}
+            <p className="font-medium text-ink-900">{t.title}</p>
+          </div>
+          {p ? (
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-500">
+              <span>
+                Keyword: <span className="font-medium text-ink-700">{p.primaryKeyword}</span>
+              </span>
+              <span>· {p.intent}</span>
+              <span className={`rounded px-1.5 py-0.5 font-medium capitalize ${PRIORITY[p.priority]}`}>{p.priority} priority</span>
+              <span>· ~{t.targetWords} words</span>
+              <span className={p.support === "found" ? "text-emerald-700" : "text-amber-800"}>· {p.support === "found" ? "Sources found" : "Sources thin"}</span>
+              <button type="button" onClick={() => setOpen(!open)} className="font-medium text-ink-700 underline underline-offset-2">
+                {open ? "Hide details" : "Details"}
+              </button>
+            </p>
+          ) : (
+            <p className="text-xs text-ink-500">{t.destination}</p>
+          )}
+          {t.similarTitle && <p className="mt-1 text-xs font-medium text-amber-800">Already covered: “{t.similarTitle}”</p>}
+          {p && open && (
+            <dl className="mt-2 grid gap-x-4 gap-y-1 rounded-lg bg-ink-50 p-3 text-xs text-ink-700 sm:grid-cols-[9rem_1fr]">
+              <dt className="font-semibold">Why write it</dt>
+              <dd>{p.reason || "—"}</dd>
+              {t.angle && (
+                <>
+                  <dt className="font-semibold">Covers</dt>
+                  <dd>{t.angle}</dd>
+                </>
+              )}
+              <dt className="font-semibold">Audience</dt>
+              <dd>{p.audience || "—"}</dd>
+              <dt className="font-semibold">Related keywords</dt>
+              <dd>{p.secondaryKeywords.join(", ") || "—"}</dd>
+              <dt className="font-semibold">Research</dt>
+              <dd>{p.supportNote || "Not checked"}</dd>
+              <dt className="font-semibold">Internal links</dt>
+              <dd>{p.links.length ? p.links.map((l) => l.name).join(", ") : "No published pages for this destination yet"}</dd>
+              <dt className="font-semibold">Demand / difficulty</dt>
+              <dd>Not available: no keyword data is connected, so none is estimated.</dd>
+            </dl>
+          )}
+        </div>
+        {canEdit && (
+          <div className="flex shrink-0 items-center">
+            <button onClick={onAdd} disabled={busy} className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50 disabled:opacity-40">
+              Add
+            </button>
+            <button onClick={onDismiss} disabled={busy} aria-label={`Dismiss ${t.title}`} className="px-2 py-2 text-ink-400 hover:text-ink-800">
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
+    </li>
   );
 }

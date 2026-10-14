@@ -85,7 +85,7 @@ export function pickPassages(text: string, topicWords: string[], budget = PER_SO
   return out.join("\n");
 }
 
-async function wikiExtract(host: string, title: string): Promise<{ title: string; url: string; text: string } | null> {
+export async function wikiExtract(host: string, title: string): Promise<{ title: string; url: string; text: string } | null> {
   const api = `https://${host}/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(title)}`;
   const res = await fetch(api, { headers: { "User-Agent": UA }, cache: "no-store", signal: AbortSignal.timeout(12_000) });
   if (!res.ok) return null;
@@ -95,7 +95,7 @@ async function wikiExtract(host: string, title: string): Promise<{ title: string
   return { title: page.title, url: `https://${host}/wiki/${encodeURIComponent(String(page.title).replace(/ /g, "_"))}`, text: String(page.extract) };
 }
 
-async function wikiSearch(host: string, q: string, limit = 3): Promise<string[]> {
+export async function wikiSearch(host: string, q: string, limit = 3): Promise<string[]> {
   const api = `https://${host}/w/api.php?action=query&list=search&format=json&formatversion=2&srlimit=${limit}&srsearch=${encodeURIComponent(q)}`;
   const res = await fetch(api, { headers: { "User-Agent": UA }, cache: "no-store", signal: AbortSignal.timeout(12_000) }).catch(() => null);
   if (!res?.ok) return [];

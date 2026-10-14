@@ -15,7 +15,7 @@ import { cityPath, countryPath } from "../destinations";
 import { saveExtra } from "../news/seo";
 import { keywordPlacement } from "./quality";
 
-export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v3-seo-2026-10-12";
+export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v4-cluster-2026-10-14";
 
 export interface OutlineSection {
   heading: string;
@@ -84,6 +84,9 @@ Then make the outline:
 - Leave out sections the facts can't support. Do not plan an introduction, conclusion or FAQ section; those are written separately.
 - Cover the searcher's main questions; put the most searched-for answer first. The FIRST H2 must contain the primary keyword (or a close variant with the same main words), naturally.
 - title: the H1 headline: contains the primary keyword near the start, specific, under 65 characters, no year, no clickbait.
+If a SERIES PLAN is given, this article is one of a set about the same topic:
+- Use PLANNED KEYWORD exactly as primary_keyword, and write for the stated INTENT and AUDIENCE.
+- Keep to this article's own purpose (its NEED). Subjects that OTHER ARTICLES IN THE SERIES cover get at most a sentence here, never their own section.
 Return JSON: {"title","search_intent","primary_keyword","secondary_keywords","reader_questions","recommended_words","sections":[{"heading","intent","words","facts"}]}`;
 
 export function normalizeOutline(raw: any, factCount: number, targetWords: number): BlogOutline {
@@ -120,8 +123,26 @@ export function normalizeOutline(raw: any, factCount: number, targetWords: numbe
   };
 }
 
+// Extra input for an article that belongs to a topic cluster.
+export function seriesBrief(topic: Pick<BlogTopic, "plan">, siblings: { title: string; need: string; role: string }[]): string {
+  const p = topic.plan;
+  if (!p) return "";
+  const lines = [
+    "SERIES PLAN",
+    `ROLE: ${p.role === "pillar" ? "main guide (covers the topic comprehensively)" : "supporting article"}`,
+    `NEED: ${p.need}`,
+    `PLANNED KEYWORD: ${p.primaryKeyword}`,
+    p.secondaryKeywords.length ? `RELATED KEYWORDS: ${p.secondaryKeywords.join("; ")}` : "",
+    `INTENT: ${p.intent}`,
+    p.audience ? `AUDIENCE: ${p.audience}` : "",
+    siblings.length ? `OTHER ARTICLES IN THE SERIES:\n${siblings.map((x) => `- ${x.title} (${x.role === "pillar" ? "main guide" : x.need})`).join("\n")}` : "",
+  ];
+  return `\n\n${lines.filter(Boolean).join("\n")}`;
+}
+
 export async function outlineStep(topicId: string): Promise<BlogOutline> {
   const { topic, research } = await requireInputs(topicId);
+  const siblings = topic.plan ? await import("./clusters").then((m) => m.clusterSiblings(topicId)).catch(() => []) : [];
   const { json } = await chatJson({
     kind: "blog_outline",
     log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
@@ -129,9 +150,11 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
     temperature: 0.3,
     timeoutMs: 60_000,
     system: OUTLINE_PROMPT,
-    user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nTYPE: ${topic.topicType}\nMAX LENGTH: ${topic.targetWords} words${topic.angle ? `\nANGLE: ${topic.angle}` : ""}\n\nFACTS:\n${factLines(research.facts)}`,
+    user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nTYPE: ${topic.topicType}\nMAX LENGTH: ${topic.targetWords} words${topic.angle ? `\nANGLE: ${topic.angle}` : ""}${seriesBrief(topic, siblings)}\n\nFACTS:\n${factLines(research.facts)}`,
   });
   const outline = normalizeOutline(json, research.facts.length, topic.targetWords);
+  // The cluster plan decides the keyword, so two articles never compete for one query.
+  if (topic.plan?.primaryKeyword) outline.primaryKeyword = topic.plan.primaryKeyword;
   if (!outline.title) outline.title = topic.title;
   await saveOutline(topicId, outline);
   return outline;

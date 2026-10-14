@@ -8,6 +8,7 @@ import { getArticleSources, getRelatedPublishedArticles, getTrendingArticles, in
 import { getClientIpFromHeaders } from "@/lib/rateLimit";
 import { articleJsonLd, faqJsonLd, jsonLdScript } from "@/lib/seo";
 import { articlePath } from "@/lib/destinations";
+import { publishedClusterArticles } from "@/lib/blogs/clusters";
 
 // countView is off on cached (ISR) routes, where reading request headers
 // is not allowed; the country-level route is one of those.
@@ -16,16 +17,17 @@ export default async function GuideArticle({ article, countView = true }: { arti
     const ip = getClientIpFromHeaders(headers());
     article.viewCount = await incrementArticleView(article.id, ip);
   }
-  const [related, trending, sources] = await Promise.all([
+  const [related, trending, sources, series] = await Promise.all([
     article.cityId ? getRelatedPublishedArticles(article.cityId, article.id, 4) : Promise.resolve([]),
     getTrendingArticles(5),
     getArticleSources(article.id),
+    publishedClusterArticles(article.id).catch(() => []),
   ]);
   const path = articlePath(article.countrySlug, article.citySlug, article.slug);
   const faq = faqJsonLd(article.faq);
   return (
     <>
-      <ArticleDetailClient article={article} relatedStories={related} trendingStories={trending} sources={sources} />
+      <ArticleDetailClient article={article} relatedStories={related} trendingStories={trending} sources={sources} series={series} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

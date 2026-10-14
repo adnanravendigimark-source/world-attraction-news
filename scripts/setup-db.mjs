@@ -1328,6 +1328,11 @@ async function createNewsTables() {
   await sql`CREATE INDEX IF NOT EXISTS blog_topics_status_idx ON blog_topics (status, created_at DESC)`;
   // Track B3: pages the editor adds for research, and the cited fact base.
   await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS source_urls TEXT[] NOT NULL DEFAULT '{}'`;
+  // Topic clusters: one main guide plus supporting articles, each with its
+  // own keyword and visitor need (see lib/blogs/topics.ts suggestTopics).
+  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS cluster_id UUID`;
+  await sql`ALTER TABLE blog_topics ADD COLUMN IF NOT EXISTS plan JSONB`;
+  await sql`CREATE INDEX IF NOT EXISTS blog_topics_cluster_idx ON blog_topics (cluster_id) WHERE cluster_id IS NOT NULL`;
   await sql`
     CREATE TABLE IF NOT EXISTS blog_research (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

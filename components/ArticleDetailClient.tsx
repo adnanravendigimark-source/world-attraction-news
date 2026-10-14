@@ -12,11 +12,14 @@ export default function ArticleDetailClient({
   relatedStories = [],
   trendingStories = [],
   sources = [],
+  series = [],
 }: {
   article: ArticleWithRelations;
   relatedStories?: ArticleWithRelations[];
   trendingStories?: ArticleWithRelations[];
   sources?: { n: number; title: string; url: string; publisher: string }[];
+  // Published articles from the same topic cluster, main guide first.
+  series?: { title: string; url: string; pillar: boolean }[];
 }) {
   const [copied, setCopied] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
@@ -248,6 +251,22 @@ export default function ArticleDetailClient({
                 dangerouslySetInnerHTML={{ __html: article.contentHtml }}
               />
             </div>
+
+            {series.length > 0 && (
+              <section className="mt-10 rounded-xl border border-slate-200 p-5" aria-labelledby="series-heading">
+                <h2 id="series-heading" className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">More on this topic</h2>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {series.map((s) => (
+                    <li key={s.url}>
+                      <Link href={s.url} className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 hover:decoration-slate-700">
+                        {s.title}
+                      </Link>
+                      {s.pillar && <span className="ml-2 text-xs text-slate-500">Main guide</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {sources.length > 0 && (
               <section className="mt-10 rounded-xl bg-slate-50 p-5" aria-labelledby="sources-heading">
