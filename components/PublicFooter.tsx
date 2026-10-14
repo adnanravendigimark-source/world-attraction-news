@@ -124,8 +124,11 @@ export default function PublicFooter({
         </div>
 
         {/* Bottom copyright line */}
-        <div className="pt-6 text-center text-xs text-slate-500">
+        <div className="flex flex-col items-center justify-between gap-2 pt-6 text-xs text-slate-500 sm:flex-row">
           <p>{copyright}</p>
+          <Link href="/login" className="hover:text-white transition-colors">
+            Contributor login
+          </Link>
         </div>
       </Container>
     </footer>

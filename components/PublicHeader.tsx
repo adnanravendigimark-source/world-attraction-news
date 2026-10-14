@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "./Logo";
@@ -8,436 +8,314 @@ import Container from "./Container";
 import SearchForm from "./SearchForm";
 import { cityPath } from "@/lib/destinations";
 
+type CityLink = { slug: string; name: string; countrySlug?: string };
+type CategoryLink = { slug: string; name: string };
+
+// Which top-level section a path belongs to, for the active link.
+export function activeSection(pathname: string): string {
+  if (pathname === "/news" || pathname.startsWith("/news/")) return "news";
+  if (pathname.startsWith("/latest-news")) return "guides";
+  if (pathname.startsWith("/destinations")) return "destinations";
+  if (pathname.startsWith("/categories")) return "topics";
+  if (pathname.startsWith("/about")) return "about";
+  return "";
+}
+
+const Chevron = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 fill-current ${className}`} aria-hidden="true">
+    <path d="M5.3 7.3a1 1 0 0 1 1.4 0L10 10.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4z" />
+  </svg>
+);
+
+const SearchIcon = ({ className = "h-[18px] w-[18px]" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <circle cx="11" cy="11" r="7" />
+    <path strokeLinecap="round" d="m21 21-4.3-4.3" />
+  </svg>
+);
+
+function NavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`relative inline-flex items-center gap-1 py-2 text-[15px] font-medium transition-colors ${
+        active ? "text-ink-950" : "text-ink-600 hover:text-ink-950"
+      }`}
+    >
+      {children}
+      {active && <span className="absolute -bottom-px left-0 h-0.5 w-full rounded-full bg-signal" aria-hidden="true" />}
+    </Link>
+  );
+}
+
+// A link with a panel that opens on hover or when a link inside gets
+// keyboard focus (focus-within), so it works without a mouse too.
+function NavMenu({
+  label,
+  href,
+  active,
+  allLabel,
+  emptyLabel,
+  items,
+  columns = 1,
+}: {
+  label: string;
+  href: string;
+  active: boolean;
+  allLabel: string;
+  emptyLabel: string;
+  items: { href: string; name: string }[];
+  columns?: 1 | 2;
+}) {
+  return (
+    <div className="group relative">
+      <NavLink href={href} active={active}>
+        {label}
+        <Chevron className="text-ink-400 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+      </NavLink>
+      <div className="invisible absolute left-1/2 top-full z-50 -translate-x-1/2 pt-3 opacity-0 transition duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        <div className={`${columns === 2 ? "w-[22rem]" : "w-56"} rounded-xl border border-ink-100 bg-white p-2 shadow-dropdown`}>
+          {items.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-ink-500">{emptyLabel}</p>
+          ) : (
+            <ul className={columns === 2 ? "grid grid-cols-2 gap-0.5" : "space-y-0.5"}>
+              {items.map((item) => (
+                <li key={item.href + item.name}>
+                  <Link
+                    href={item.href}
+                    className="block rounded-lg px-3 py-2 text-sm text-ink-700 transition-colors hover:bg-paper-muted hover:text-ink-950 focus-visible:bg-paper-muted"
+                  >
+                    {item.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-1 border-t border-ink-100 pt-1">
+            <Link
+              href={href}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold text-ink-900 hover:bg-paper-muted"
+            >
+              {allLabel}
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PublicHeader({
   cities = [],
   categories = [],
-  tickerArticle,
-  tickerArticles = [],
 }: {
-  cities?: { slug: string; name: string; countrySlug?: string }[];
-  categories?: { slug: string; name: string }[];
-  tickerArticle?: { title: string; href: string };
-  tickerArticles?: { title: string; href: string }[];
+  // Admin-curated lists from Admin -> Header (see app/(public)/layout.tsx),
+  // in the order and count an admin picked.
+  cities?: CityLink[];
+  categories?: CategoryLink[];
 }) {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const pathname = usePathname() || "/";
+  const section = activeSection(pathname);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [currentDateStr, setCurrentDateStr] = useState("Wednesday, May 14, 2025");
-  const [destDropdownOpen, setDestDropdownOpen] = useState(false);
-  const [catDropdownOpen, setCatDropdownOpen] = useState(false);
-  const [tickerIndex, setTickerIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  // `cities` and `categories` here are already the admin-curated "Top
-  // Destinations"/"Top Categories" lists from Admin -> Header (see
-  // app/(public)/layout.tsx), in the exact order and count an admin picked —
-  // never a hardcoded list of names, and never re-sliced/re-limited here.
-  const displayCities = cities;
-  const displayCategories = categories;
+  const cityItems = cities.map((c) => ({ name: c.name, href: c.countrySlug ? cityPath(c.countrySlug, c.slug) : "/destinations" }));
+  const topicItems = categories.map((c) => ({ name: c.name, href: `/categories/${c.slug}` }));
 
-  const validTickerArticles = (tickerArticles.length > 0 ? tickerArticles : tickerArticle ? [tickerArticle] : []).filter(
-    (item) => Boolean(item && item.title && item.href)
-  );
-
-  const tickerList =
-    validTickerArticles.length > 0
-      ? validTickerArticles
-      : [
-          {
-            title: "Explore the latest attractions, guides & theme park travel news",
-            href: "/latest-news",
-          },
-        ];
-
+  // Slimmer header with a shadow once the page is scrolled.
   useEffect(() => {
-    if (tickerList.length <= 1 || isPaused) return;
-    const interval = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % tickerList.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [tickerList.length, isPaused]);
-
-  const currentTicker = tickerList[tickerIndex % tickerList.length];
-
-  useEffect(() => {
-    try {
-      const now = new Date();
-      setCurrentDateStr(
-        now.toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })
-      );
-    } catch {
-      setCurrentDateStr("Wednesday, May 14, 2025");
-    }
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const isHome = pathname === "/";
+  // Close the menu and search after navigating.
+  useEffect(() => {
+    setMenuOpen(false);
+    setSearchOpen(false);
+  }, [pathname]);
+
+  // Escape closes; the page behind the mobile menu does not scroll.
+  useEffect(() => {
+    if (!menuOpen && !searchOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    if (menuOpen) document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [menuOpen, searchOpen]);
 
   return (
-    <header className="sticky top-0 z-50 bg-white shadow-sm">
-      {/* Top Dark Bar with Live Ticker */}
-      <div className="bg-[#0B1320] px-4 py-1.5 text-white border-b border-slate-800">
-        <Container className="flex items-center justify-between text-[11px]">
-          <div
-            className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0 mr-3"
-            onMouseEnter={() => setIsPaused(true)}
-            onMouseLeave={() => setIsPaused(false)}
-          >
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="inline-flex items-center gap-1 rounded bg-[#DC2626] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
-                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-                LIVE
-              </span>
-              <span className="font-bold uppercase tracking-wider text-slate-200 hidden xs:inline">
-                LIVE UPDATES
-              </span>
-            </div>
-            <span className="text-slate-600 hidden sm:inline" aria-hidden="true">|</span>
-            <Link
-              key={currentTicker.href}
-              href={currentTicker.href}
-              className="text-slate-300 hover:text-white truncate transition-colors font-medium hover:underline"
-            >
-              {currentTicker.title}
-            </Link>
-            {tickerList.length > 1 && (
-              <div className="hidden md:flex items-center gap-1 shrink-0 ml-1.5 text-slate-500">
-                <button
-                  type="button"
-                  onClick={() => setTickerIndex((prev) => (prev - 1 + tickerList.length) % tickerList.length)}
-                  className="px-1 hover:text-white transition-colors"
-                  aria-label="Previous live update"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTickerIndex((prev) => (prev + 1) % tickerList.length)}
-                  className="px-1 hover:text-white transition-colors"
-                  aria-label="Next live update"
-                >
-                  ›
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4 shrink-0 pl-2 text-slate-300">
-            <span className="hidden md:inline font-medium text-slate-400 text-[11px]">
-              {currentDateStr}
-            </span>
-            <Link
-              href="/login"
-              className="text-slate-300 hover:text-white transition-colors text-[11px] font-semibold"
-            >
-              Contributor Login
-            </Link>
-          </div>
-        </Container>
-      </div>
-
-      {/* Main Navigation Bar */}
-      <div className="border-b border-slate-200/80 bg-white">
-        <Container className="flex min-h-[76px] sm:min-h-[82px] items-center justify-between gap-4 py-3">
-          {/* Logo */}
-          <Link href="/" className="shrink-0 flex items-center group" onClick={() => setOpen(false)}>
-            <Logo variant="horizontal" showTagline={false} />
+    <>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-ink-950 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+      >
+        Skip to content
+      </a>
+      <header
+        className={`sticky top-0 z-50 border-b bg-white transition-shadow ${
+          scrolled || menuOpen ? "border-ink-100 shadow-subtle" : "border-transparent"
+        }`}
+      >
+        <Container
+          className={`flex items-center justify-between gap-6 transition-[height] duration-200 ${
+            scrolled ? "h-[60px]" : "h-[60px] lg:h-[72px]"
+          }`}
+        >
+          <Link href="/" className="flex shrink-0 items-center" aria-label="World Attraction News, home">
+            <Logo variant="compact" />
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex lg:items-center lg:gap-7">
-            <Link
-              href="/"
-              className={`relative py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
-                pathname === "/"
-                  ? "text-[#DC2626]"
-                  : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              HOME
-              {pathname === "/" && (
-                <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#DC2626]" />
-              )}
-            </Link>
-
-            <Link
-              href="/news"
-              className={`relative py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
-                pathname === "/news" || pathname.startsWith("/news/")
-                  ? "text-[#DC2626]"
-                  : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              TRAVEL NEWS
-              {(pathname === "/news" || pathname.startsWith("/news/")) && (
-                <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#DC2626]" />
-              )}
-            </Link>
-
-            <Link
-              href="/latest-news"
-              className={`relative py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
-                pathname.startsWith("/latest-news")
-                  ? "text-[#DC2626]"
-                  : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              BLOG
-              {pathname.startsWith("/latest-news") && (
-                <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#DC2626]" />
-              )}
-            </Link>
-
-            {/* Destinations Dropdown */}
-            <div
-              className="relative"
-              onMouseEnter={() => setDestDropdownOpen(true)}
-              onMouseLeave={() => setDestDropdownOpen(false)}
-            >
-              <Link
-                href="/destinations"
-                className={`flex items-center gap-1 py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
-                  pathname.startsWith("/destinations")
-                    ? "text-[#DC2626]"
-                    : "text-slate-800 hover:text-[#DC2626]"
-                }`}
-              >
-                <span>DESTINATIONS</span>
-                <svg className="h-3 w-3 fill-current text-slate-500" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </Link>
-              {destDropdownOpen && (
-                <div className="absolute left-0 top-full w-48 rounded-lg border border-slate-200 bg-white py-2 shadow-xl animate-fade-in-up z-50">
-                  {displayCities.length === 0 ? (
-                    <p className="px-4 py-2 text-xs text-slate-400">No destinations added yet.</p>
-                  ) : (
-                    displayCities.map((c) => (
-                      <Link
-                        key={c.slug}
-                        href={c.countrySlug ? cityPath(c.countrySlug, c.slug) : "/destinations"}
-                        className="block px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#DC2626]"
-                      >
-                        {c.name}
-                      </Link>
-                    ))
-                  )}
-                  <div className="border-t border-slate-100 mt-1 pt-1">
-                    <Link
-                      href="/destinations"
-                      className="block px-4 py-1.5 text-xs font-bold text-[#DC2626] hover:underline"
-                    >
-                      View All Destinations →
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Categories Dropdown */}
-            <div
-              className="relative"
-              onMouseEnter={() => setCatDropdownOpen(true)}
-              onMouseLeave={() => setCatDropdownOpen(false)}
-            >
-              <Link
-                href="/categories"
-                className={`flex items-center gap-1 py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
-                  pathname.startsWith("/categories")
-                    ? "text-[#DC2626]"
-                    : "text-slate-800 hover:text-[#DC2626]"
-                }`}
-              >
-                <span>CATEGORIES</span>
-                <svg className="h-3 w-3 fill-current text-slate-500" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </Link>
-              {catDropdownOpen && (
-                <div className="absolute left-0 top-full w-52 rounded-lg border border-slate-200 bg-white py-2 shadow-xl animate-fade-in-up z-50">
-                  {displayCategories.length === 0 ? (
-                    <p className="px-4 py-2 text-xs text-slate-400">No categories added yet.</p>
-                  ) : (
-                    displayCategories.map((c) => (
-                      <Link
-                        key={c.slug}
-                        href={`/categories/${c.slug}`}
-                        className="block px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#DC2626]"
-                      >
-                        {c.name}
-                      </Link>
-                    ))
-                  )}
-                  <div className="border-t border-slate-100 mt-1 pt-1">
-                    <Link
-                      href="/categories"
-                      className="block px-4 py-1.5 text-xs font-bold text-[#DC2626] hover:underline"
-                    >
-                      View All Categories →
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <Link
-              href="/about"
-              className={`relative py-2 text-[12px] font-extrabold uppercase tracking-wider transition-colors ${
-                pathname.startsWith("/about")
-                  ? "text-[#DC2626]"
-                  : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              ABOUT US
-              {pathname.startsWith("/about") && (
-                <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#DC2626]" />
-              )}
-            </Link>
+          <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
+            <NavLink href="/news" active={section === "news"}>News</NavLink>
+            <NavLink href="/latest-news" active={section === "guides"}>Guides</NavLink>
+            <NavMenu
+              label="Destinations"
+              href="/destinations"
+              active={section === "destinations"}
+              allLabel="All destinations"
+              emptyLabel="No destinations yet."
+              items={cityItems}
+              columns={cityItems.length > 5 ? 2 : 1}
+            />
+            <NavMenu
+              label="Topics"
+              href="/categories"
+              active={section === "topics"}
+              allLabel="All topics"
+              emptyLabel="No topics yet."
+              items={topicItems}
+            />
+            <NavLink href="/about" active={section === "about"}>About</NavLink>
           </nav>
 
-          {/* Right Action Bar */}
-          <div className="hidden shrink-0 items-center gap-3.5 lg:flex">
-            {searchOpen ? (
-              <div className="flex items-center gap-2">
-                <SearchForm autoFocus className="w-60" />
-                <button
-                  type="button"
-                  onClick={() => setSearchOpen(false)}
-                  className="text-xs font-bold text-slate-400 hover:text-slate-900 p-1"
-                  aria-label="Close search"
-                >
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                aria-label="Search"
-                onClick={() => setSearchOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-slate-400 hover:text-[#DC2626] transition-all"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <circle cx="11" cy="11" r="7" />
-                  <path strokeLinecap="round" d="m21 21-4.3-4.3" />
-                </svg>
-              </button>
-            )}
-
-            <Link
-              href="/write-for-us"
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-md bg-[#DC2626] px-5 py-2.5 text-[11px] font-extrabold uppercase tracking-wider text-white shadow hover:bg-[#B91C1C] transition-all"
-            >
-              WRITE FOR US
-            </Link>
-          </div>
-
-          {/* Mobile Hamburger */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              aria-label={open ? "Close menu" : "Open menu"}
-              aria-expanded={open}
-              onClick={() => setOpen((v) => !v)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+              onClick={() => {
+                setSearchOpen((v) => !v);
+                setMenuOpen(false);
+              }}
+              aria-label={searchOpen ? "Close search" : "Search"}
+              aria-expanded={searchOpen}
+              className={`flex h-10 items-center gap-2 rounded-full px-3 text-sm font-medium transition-colors ${
+                searchOpen ? "bg-ink-950 text-white" : "text-ink-700 hover:bg-paper-muted hover:text-ink-950"
+              }`}
             >
-              {open ? (
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
-                </svg>
-              )}
+              <SearchIcon />
+              <span className="hidden xl:inline">Search</span>
+            </button>
+            <Link
+              href="/write-for-us"
+              className="hidden rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-900 transition-colors hover:border-ink-900 lg:inline-flex"
+            >
+              Write for us
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen((v) => !v);
+                setSearchOpen(false);
+              }}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-ink-900 hover:bg-paper-muted lg:hidden"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                {menuOpen ? <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /> : <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />}
+              </svg>
             </button>
           </div>
         </Container>
-      </div>
 
-      {/* Mobile drawer */}
-      {open && (
-        <nav className="border-t border-slate-200 bg-white px-4 py-4 lg:hidden animate-fade-in-up">
-          <Container className="flex flex-col gap-3">
-            <div className="pb-3 border-b border-slate-100">
-              <SearchForm autoFocus />
-            </div>
-            <Link
-              href="/"
-              onClick={() => setOpen(false)}
-              className={`py-2 text-xs font-bold uppercase tracking-wider ${
-                pathname === "/" ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              HOME
-            </Link>
-            <Link
-              href="/news"
-              onClick={() => setOpen(false)}
-              className={`py-2 text-xs font-bold uppercase tracking-wider ${
-                pathname === "/news" || pathname.startsWith("/news/") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              TRAVEL NEWS
-            </Link>
-            <Link
-              href="/latest-news"
-              onClick={() => setOpen(false)}
-              className={`py-2 text-xs font-bold uppercase tracking-wider ${
-                pathname.startsWith("/latest-news") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              BLOG
-            </Link>
-            <Link
-              href="/destinations"
-              onClick={() => setOpen(false)}
-              className={`py-2 text-xs font-bold uppercase tracking-wider ${
-                pathname.startsWith("/destinations") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              DESTINATIONS
-            </Link>
-            <Link
-              href="/categories"
-              onClick={() => setOpen(false)}
-              className={`py-2 text-xs font-bold uppercase tracking-wider ${
-                pathname.startsWith("/categories") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              CATEGORIES
-            </Link>
-            <Link
-              href="/about"
-              onClick={() => setOpen(false)}
-              className={`py-2 text-xs font-bold uppercase tracking-wider ${
-                pathname.startsWith("/about") ? "text-[#DC2626]" : "text-slate-800 hover:text-[#DC2626]"
-              }`}
-            >
-              ABOUT US
-            </Link>
-            <div className="pt-3 border-t border-slate-200 flex flex-col gap-2">
-              <Link
-                href="/write-for-us"
-                onClick={() => setOpen(false)}
-                className="flex items-center justify-center rounded-md bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow"
-              >
-                WRITE FOR US
-              </Link>
-              <Link
-                href="/login"
-                onClick={() => setOpen(false)}
-                className="text-center py-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
-              >
-                Contributor Login
-              </Link>
-            </div>
-          </Container>
-        </nav>
-      )}
-    </header>
+        {searchOpen && (
+          <div className="border-t border-ink-100 bg-white animate-fade-in-up">
+            <Container className="py-4">
+              <SearchForm autoFocus className="mx-auto max-w-2xl" placeholder="Search news, guides and destinations…" />
+            </Container>
+          </div>
+        )}
+
+        {menuOpen && (
+          <nav
+            id="mobile-menu"
+            aria-label="Main"
+            className="fixed inset-x-0 bottom-0 top-[60px] z-40 overflow-y-auto border-t border-ink-100 bg-white lg:hidden animate-fade-in-up"
+          >
+            <Container className="flex min-h-full flex-col py-5">
+              <SearchForm placeholder="Search news, guides and destinations…" />
+              <ul className="mt-4 divide-y divide-ink-100">
+                {[
+                  { href: "/news", label: "News", key: "news" },
+                  { href: "/latest-news", label: "Guides", key: "guides" },
+                  { href: "/destinations", label: "Destinations", key: "destinations" },
+                  { href: "/categories", label: "Topics", key: "topics" },
+                  { href: "/about", label: "About", key: "about" },
+                ].map((item) => (
+                  <li key={item.key}>
+                    <Link
+                      href={item.href}
+                      aria-current={section === item.key ? "page" : undefined}
+                      className={`flex items-center justify-between py-3.5 font-serif text-[22px] ${
+                        section === item.key ? "text-ink-950" : "text-ink-800"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        {section === item.key && <span className="h-1.5 w-1.5 rounded-full bg-signal" aria-hidden="true" />}
+                        {item.label}
+                      </span>
+                      <span className="text-base text-ink-300" aria-hidden="true">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {cityItems.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-ink-500">Popular destinations</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {cityItems.map((c) => (
+                      <Link
+                        key={c.href + c.name}
+                        href={c.href}
+                        className="rounded-full border border-ink-200 px-3.5 py-1.5 text-sm text-ink-800 hover:border-ink-900"
+                      >
+                        {c.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-auto flex flex-col gap-2 pt-8">
+                <Link
+                  href="/write-for-us"
+                  className="rounded-full bg-ink-950 py-3 text-center text-sm font-semibold text-white"
+                >
+                  Write for us
+                </Link>
+                <Link href="/login" className="py-2 text-center text-sm text-ink-500 hover:text-ink-900">
+                  Contributor login
+                </Link>
+              </div>
+            </Container>
+          </nav>
+        )}
+      </header>
+    </>
   );
 }
