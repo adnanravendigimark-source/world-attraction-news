@@ -3,64 +3,44 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import Container from "@/components/Container";
-import HomeHeroCarousel from "@/components/HomeHeroCarousel";
+import HomeHeroCarousel, { type HeroSlide } from "@/components/HomeHeroCarousel";
 import NewsletterForm from "@/components/NewsletterForm";
-import EmptyState from "@/components/EmptyState";
+import CategoryIcon, { categoryTint } from "@/components/CategoryIcon";
 import { getCitiesWithArticleCounts } from "@/lib/cities";
-import { getCategories } from "@/lib/categories";
+import { getCategories, pickFeaturedCategories } from "@/lib/categories";
+import { getFeaturedCategorySlugs } from "@/lib/settings";
 import {
   getPublishedArticles,
-  getTrendingArticles,
-  getFeaturedArticles,
-  getEditorsPickArticles,
-  getBreakingArticles,
-  getTopScoredArticles,
   getPublishedNews,
-  newsPath,
+  getFeaturedStories,
+  getTrendingStories,
+  getPublishedArticleCountsByCategory,
 } from "@/lib/articles";
-import { buildMetadata, resolvePageMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
-import { articlePath, cityPath } from "@/lib/destinations";
+import { resolvePageMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
+import { pickHeroStories, pickDestinations, popularCategories, storyHref, storyDate, readTime, storyLabel } from "@/lib/home";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
 
-// Pure read (no per-request writes, no searchParams) — real ISR instead of
-// force-dynamic. 60s is a real cache window, not a fake one: repeat
-// homepage visits within that window are served from the cache (fast, no DB
-// round trip), and it's short enough that a newly published/featured
-// article shows up within a minute on its own. Admin actions that should
-// feel instant (publish, feature/unfeature, unpublish) additionally call
-// revalidateTag("homepage") so this page updates immediately rather than
-// waiting out the window — see the admin article/city/category routes.
-//
-// This `revalidate` export alone would do nothing: lib/db.ts's `sql()`
-// passes `fetchOptions: { cache: "no-store" }` to every single query
-// (deliberately — see that file's own comment about a real earlier bug),
-// and Next.js treats any no-store fetch during a render as a signal to
-// render that route dynamically on every request, silently overriding
-// route-level `revalidate`. Wrapping the actual data fetch below in
-// unstable_cache() is what makes this page cacheable despite that — it
-// caches the *function's return value* at the framework level, independent
-// of what the function does internally, which is the documented way to add
-// real caching on top of a non-fetch (or explicitly no-store) data source.
+// Cached for 60s; publishing or (un)featuring an article clears the
+// "homepage" tag so changes show at once (see the admin article routes).
 export const revalidate = 60;
 
 const getHomePageData = unstable_cache(
   async () => {
-    const [cities, categories, articles, trending, featured, editorsPicks, breaking, topScored, travelNews] = await Promise.all([
-      getCitiesWithArticleCounts(),
-      getCategories(),
-      getPublishedArticles({ limit: 20 }),
-      getTrendingArticles(6),
-      getFeaturedArticles(6),
-      getEditorsPickArticles(4),
-      getBreakingArticles(6),
-      getTopScoredArticles(5),
-      getPublishedNews({ limit: 4 })
+    const [cities, categories, featuredCategorySlugs, categoryCounts, guides, news, featured, trending] = await Promise.all([
+      getCitiesWithArticleCounts().catch(() => []),
+      getCategories().catch(() => []),
+      getFeaturedCategorySlugs().catch(() => [] as string[]),
+      getPublishedArticleCountsByCategory().catch(() => ({} as Record<string, number>)),
+      getPublishedArticles({ limit: 12 }).catch(() => []),
+      getPublishedNews({ limit: 12 })
         .then((r) => r.articles)
         .catch(() => []),
+      getFeaturedStories(4).catch(() => []),
+      getTrendingStories(5).catch(() => []),
     ]);
-    return { cities, categories, articles, trending, featured, editorsPicks, breaking, topScored, travelNews };
+    return { cities, categories, featuredCategorySlugs, categoryCounts, guides, news, featured, trending };
   },
-  ["homepage-data"],
+  ["homepage-data-v3"],
   { revalidate: 60, tags: ["homepage"] }
 );
 
@@ -71,105 +51,25 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-// No hardcoded fallback date — an empty string here means the caller omits
-// the date entirely rather than showing a fake one.
-function formatDate(iso: string | null) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return "";
-  }
-}
-
-function dateAndReadTime(date: string, readTime: string) {
-  return [date, readTime].filter(Boolean).join(" • ");
-}
-
-const SOCIAL_LINKS = [
-  {
-    name: "Facebook",
-    href: "https://facebook.com",
-    bg: "bg-[#1877F2]",
-    path: "M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z",
-  },
-  {
-    name: "X",
-    href: "https://x.com",
-    bg: "bg-black",
-    path: "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z",
-  },
-  {
-    name: "Instagram",
-    href: "https://instagram.com",
-    bg: "bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600",
-    path: "M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z",
-  },
-  {
-    name: "YouTube",
-    href: "https://youtube.com",
-    bg: "bg-[#FF0000]",
-    path: "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
-  },
-];
-
 export default async function HomePage() {
-  const { cities, categories, articles, trending, featured, editorsPicks, breaking, topScored, travelNews } = await getHomePageData();
+  const { cities, categories, featuredCategorySlugs, categoryCounts, guides, news, featured, trending } = await getHomePageData();
 
-  // Hero source, in order of editorial intent: admin-curated "Featured"
-  // articles first (that's exactly what the flag is for), then algorithmic
-  // Trending (real 30-day view/score activity), then just the most recent
-  // published articles. Whatever's actually available — never padded with
-  // invented stories.
-  const heroSourceArticles = (featured.length ? featured : trending.length ? trending : articles).slice(0, 5);
-  const dynamicHeroSlides = heroSourceArticles.map((a) => ({
+  const heroSlides: HeroSlide[] = pickHeroStories(featured, guides).map((a) => ({
     id: a.id,
-    eyebrow: a.cityName ? `${a.cityName.toUpperCase()} BUREAU` : "TOP STORY",
-    cityName: a.cityName ? a.cityName.toUpperCase() : "GLOBAL",
-    categoryName: a.categoryName ? a.categoryName.toUpperCase() : "ATTRACTION NEWS",
+    eyebrow: a.featured ? "FEATURED" : a.type === "news" ? "TRAVEL NEWS" : "TRAVEL GUIDE",
     title: a.title,
     excerpt: a.excerpt,
-    author: a.authorName || "Attraction News Team",
-    date: formatDate(a.publishedAt),
-    readTime: `${a.readingTimeMinutes || 4} min read`,
-    image: a.image || "/images/epic-universe.jpg",
-    imageAlt: a.imageAlt || a.title,
-    href: articlePath(a.countrySlug, a.citySlug, a.slug),
-  }));
-
-  // Ticker: real breaking-news flags first, falling back to trending.
-  const tickerSource = breaking.length ? breaking : trending;
-  const tickerItems = tickerSource.slice(0, 6).map((a) => ({
-    label: a.title,
-    href: articlePath(a.countrySlug, a.citySlug, a.slug),
-  }));
-
-  const latestNews = articles.slice(0, 4);
-
-  // Real per-city popularity ranking (published article count) — no
-  // hardcoded destination list. A city without its own hero image is
-  // skipped here rather than shown with a generic stand-in photo, since a
-  // substituted photo would misrepresent that specific destination.
-  const popularDestinations = cities.filter((c) => c.heroImage).slice(0, 6);
-
-  // Highest-scored published articles, real reader-favorites signal.
-  // Attractions are surfaced through the articles written about them since
-  // attractions themselves don't carry a score.
-  const topAttractions = topScored.map((a, i) => ({
-    rank: i + 1,
-    title: a.attractionName || a.title,
-    subtitle: a.attractionName ? a.cityName : a.categoryName || a.cityName,
-    location: a.cityName?.toUpperCase() || "",
+    date: storyDate(a.publishedAt),
+    readTime: readTime(a),
     image: a.image,
     imageAlt: a.imageAlt || a.title,
-    href: articlePath(a.countrySlug, a.citySlug, a.slug),
+    href: storyHref(a),
   }));
-
-  const heroUsedIds = new Set(heroSourceArticles.map((a) => a.id));
-  const editorPick = editorsPicks[0] || articles.find((a) => !heroUsedIds.has(a.id)) || articles[0];
-
-  const hasDestinations = popularDestinations.length > 0;
-  const hasTopAttractions = topAttractions.length > 0;
+  // Category pills: the admin's "Top categories" (Admin -> Header), else the first five.
+  const quickCategories = pickFeaturedCategories(categories, featuredCategorySlugs).slice(0, 5);
+  const latestNews = news.slice(0, 3);
+  const destinations = pickDestinations(cities, [...guides, ...news]);
+  const sidebarCategories = popularCategories(categories, categoryCounts, 6);
 
   return (
     <>
@@ -180,374 +80,358 @@ export default async function HomePage() {
 
       <div className="bg-white text-ink-900">
         {/* =========================================
-            1. HERO "TOP STORY" SECTION
+            1. HERO CAROUSEL SECTION
         ========================================= */}
-        <section className="w-full bg-white border-b border-ink-100">
-          <HomeHeroCarousel slides={dynamicHeroSlides} tickerItems={tickerItems} />
-        </section>
-
-        {/* =========================================
-            TRAVEL NEWS (fact-checked news stories, type = 'news').
-            Hidden until at least one story is published.
-        ========================================= */}
-        {travelNews.length > 0 && (
-          <section className="py-8 sm:py-12 lg:py-14 border-b border-ink-100">
-            <Container>
-              <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-ink-200">
-                <div className="flex items-center gap-2">
-                  <span className="w-1 h-4 sm:h-5 bg-signal rounded-full inline-block" />
-                  <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-ink-900">
-                    TRAVEL NEWS
-                  </h2>
-                </div>
-                <Link
-                  href="/news"
-                  className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink-700 hover:text-signal flex items-center gap-1 transition-colors shrink-0"
-                >
-                  <span>ALL TRAVEL NEWS</span>
-                  <span aria-hidden="true">→</span>
-                </Link>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                {travelNews.map((a) => (
-                  <Link
-                    key={a.id}
-                    href={newsPath(a.slug)}
-                    className="group flex flex-col rounded-xl overflow-hidden bg-white border border-ink-200/80 shadow-xs hover:shadow-md transition-all duration-300"
-                  >
-                    {a.image && (
-                      <div className="relative aspect-[16/10] w-full overflow-hidden bg-ink-100">
-                        <Image
-                          src={a.image}
-                          alt={a.imageAlt || a.title}
-                          fill
-                          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      </div>
-                    )}
-                    <div className="p-3.5 sm:p-4 flex flex-col flex-1 justify-between">
-                      <div>
-                        <span className="text-[9.5px] sm:text-[10px] font-extrabold uppercase tracking-wider text-signal">
-                          {a.categoryName?.toUpperCase() || "TRAVEL NEWS"}
-                        </span>
-                        <h3 className="mt-1 font-sans text-sm sm:text-base font-bold leading-snug text-ink-900 group-hover:text-signal transition-colors line-clamp-3">
-                          {a.title}
-                        </h3>
-                      </div>
-                      <div className="mt-2.5 sm:mt-3 text-[10px] sm:text-[11px] text-ink-500 font-medium">
-                        {formatDate(a.publishedAt)}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </Container>
+        {heroSlides.length > 0 ? (
+          <section className="w-full">
+            <HomeHeroCarousel slides={heroSlides} />
           </section>
+        ) : (
+          <h1 className="sr-only">
+            {SITE_NAME}: {SITE_TAGLINE}
+          </h1>
         )}
 
         {/* =========================================
-            2. BLOG SECTION (up to 4 real cards; guide articles at /latest-news)
+            2. CATEGORY QUICK NAV / ICON PILLS BAR
         ========================================= */}
-        <section className="py-8 sm:py-12 lg:py-14 border-b border-ink-100">
+        {quickCategories.length > 0 && (
+        <section className="w-full my-6">
           <Container>
-            <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-ink-200">
-              <div className="flex items-center gap-2">
-                <span className="w-1 h-4 sm:h-5 bg-signal rounded-full inline-block" />
-                <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-ink-900">
-                  BLOG
-                </h2>
-              </div>
-              <Link
-                href="/latest-news"
-                className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink-700 hover:text-signal flex items-center gap-1 transition-colors shrink-0"
-              >
-                <span>VIEW ALL POSTS</span>
-                <span aria-hidden="true">→</span>
-              </Link>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+              {quickCategories.map((cat) => (
+                <Link
+                  key={cat.slug}
+                  href={`/categories/${cat.slug}`}
+                  className="group flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3 sm:p-3.5 shadow-2xs hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${categoryTint(cat.slug)} transition-transform group-hover:scale-105`}>
+                    <CategoryIcon slug={cat.slug} />
+                  </div>
+                  <span className="text-xs sm:text-sm font-semibold text-ink-800 group-hover:text-signal transition-colors truncate">
+                    {cat.name}
+                  </span>
+                </Link>
+              ))}
             </div>
-
-            {latestNews.length === 0 ? (
-              <EmptyState title="No posts published yet" description="Check back soon for new attraction guides and travel stories." />
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                {latestNews.map((a) => {
-                  const date = formatDate(a.publishedAt);
-                  const readTime = `${a.readingTimeMinutes || 3} min read`;
-                  return (
-                    <Link
-                      key={a.id}
-                      href={articlePath(a.countrySlug, a.citySlug, a.slug)}
-                      className="group flex flex-col rounded-xl overflow-hidden bg-white border border-ink-200/80 shadow-xs hover:shadow-md transition-all duration-300"
-                    >
-                      <div className="relative aspect-[16/10] w-full overflow-hidden bg-ink-100">
-                        <Image
-                          src={a.image || "/images/epic-universe.jpg"}
-                          alt={a.imageAlt || a.title}
-                          fill
-                          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      </div>
-                      <div className="p-3.5 sm:p-4 flex flex-col flex-1 justify-between">
-                        <div>
-                          <span className="text-[9.5px] sm:text-[10px] font-extrabold uppercase tracking-wider text-signal">
-                            {a.categoryName?.toUpperCase() || a.cityName?.toUpperCase() || "NEWS"}
-                          </span>
-                          <h3 className="mt-1 font-sans text-sm sm:text-base font-bold leading-snug text-ink-900 group-hover:text-signal transition-colors line-clamp-2">
-                            {a.title}
-                          </h3>
-                        </div>
-                        <div className="mt-2.5 sm:mt-3 text-[10px] sm:text-[11px] text-ink-500 font-medium">
-                          {dateAndReadTime(date, readTime)}
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
           </Container>
         </section>
+        )}
 
         {/* =========================================
-            3. POPULAR DESTINATIONS & TOP ATTRACTIONS
+            3. MAIN CONTENT: 2-COLUMN LAYOUT
         ========================================= */}
-        {(hasDestinations || hasTopAttractions) && (
-          <section className="py-8 sm:py-12 lg:py-14 border-b border-ink-100 overflow-x-hidden">
-            <Container>
-              <div className="grid w-full min-w-0 gap-8 lg:gap-10 lg:grid-cols-12">
-                {hasDestinations && (
-                  <div className={`min-w-0 ${hasTopAttractions ? "lg:col-span-7" : "lg:col-span-12"}`}>
-                    <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-ink-200">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-4 sm:h-5 bg-signal rounded-full inline-block" />
-                        <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-ink-900">
-                          POPULAR DESTINATIONS
-                        </h2>
-                      </div>
-                      <Link
-                        href="/destinations"
-                        className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink-700 hover:text-signal flex items-center gap-1 transition-colors shrink-0"
-                      >
-                        <span>VIEW ALL</span>
-                        <span aria-hidden="true">→</span>
-                      </Link>
+        <section className="w-full py-4 sm:py-6 pb-16">
+          <Container>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+              {/* =========================================
+                  LEFT COLUMN (8 COLUMNS)
+              ========================================= */}
+              <div className="lg:col-span-8 space-y-10 sm:space-y-12">
+                {/* -----------------------------------------
+                    SECTION: LATEST TRAVEL NEWS
+                ----------------------------------------- */}
+                {latestNews.length > 0 && (
+                <div>
+                  {/* Heading */}
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <div className="flex items-center">
+                      <span className="h-5 w-1 bg-signal rounded-full inline-block mr-2.5" />
+                      <h2 className="font-serif text-2xl font-bold text-ink-900 tracking-tight">
+                        Latest Travel News
+                      </h2>
                     </div>
+                    <Link
+                      href="/news"
+                      className="text-xs text-gray-500 hover:text-signal font-medium flex items-center gap-1 transition-colors group"
+                    >
+                      <span>View all news</span>
+                      <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
+                    </Link>
+                  </div>
 
-                    <div className="grid w-full min-w-0 grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                      {popularDestinations.map((dest) => (
-                        <Link
-                          key={dest.slug}
-                          href={cityPath(dest.countrySlug, dest.slug)}
-                          className="group relative block min-w-0 w-full aspect-[4/3] rounded-xl overflow-hidden shadow-xs hover:shadow-md cursor-pointer bg-ink-900"
-                        >
-                          <Image
-                            src={dest.heroImage}
-                            alt={dest.heroImageAlt || dest.name}
-                            fill
-                            sizes="(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
-                            className="object-cover opacity-85 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-95"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                          <div className="absolute inset-0 flex items-center justify-center p-2 text-center">
-                            <span className="font-sans text-sm sm:text-base md:text-lg font-black tracking-wide text-white drop-shadow-md">
-                              {dest.name}
+                  {/* 3-Card Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
+                    {latestNews.map((item) => (
+                      <article key={item.id} className="group flex flex-col justify-between">
+                        <div>
+                          {/* Image */}
+                          <Link href={storyHref(item)} className="relative block aspect-[16/10] w-full overflow-hidden rounded-xl bg-gray-100 shadow-2xs">
+                            {item.image && (
+                            <Image
+                              src={item.image}
+                              alt={item.imageAlt || item.title}
+                              fill
+                              sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 100vw"
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                            )}
+                          </Link>
+
+                          {/* Category Tag */}
+                          <div className="mt-3.5">
+                            <span className="text-[10.5px] font-bold uppercase tracking-wider text-signal">
+                              {storyLabel(item)}
                             </span>
                           </div>
-                        </Link>
-                      ))}
-                    </div>
+
+                          {/* Title */}
+                          <h3 className="mt-1.5 font-serif text-[17px] font-bold leading-snug text-ink-900 group-hover:text-signal transition-colors line-clamp-3">
+                            <Link href={storyHref(item)}>{item.title}</Link>
+                          </h3>
+
+                          {/* Meta */}
+                          <p className="mt-2 text-xs text-gray-500 font-normal">
+                            {[storyDate(item.publishedAt), readTime(item)].filter(Boolean).join(" • ")}
+                          </p>
+
+                          {/* Excerpt */}
+                          <p className="mt-2.5 text-xs leading-relaxed text-gray-500 line-clamp-3">
+                            {item.excerpt}
+                          </p>
+                        </div>
+                      </article>
+                    ))}
                   </div>
+                </div>
                 )}
 
-                {hasTopAttractions && (
-                  <div className={`min-w-0 ${hasDestinations ? "lg:col-span-5" : "lg:col-span-12"}`}>
-                    <div className="flex items-center justify-between mb-5 sm:mb-6 pb-2 border-b border-ink-200">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-4 sm:h-5 bg-signal rounded-full inline-block" />
-                        <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-ink-900">
-                          TOP ATTRACTIONS
-                        </h2>
-                      </div>
-                      <Link
-                        href="/destinations"
-                        className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink-700 hover:text-signal flex items-center gap-1 transition-colors shrink-0"
-                      >
-                        <span>VIEW ALL</span>
-                        <span aria-hidden="true">→</span>
-                      </Link>
+                {/* -----------------------------------------
+                    SECTION: FEATURED DESTINATIONS
+                ----------------------------------------- */}
+                {destinations.length > 0 && (
+                <div>
+                  {/* Heading */}
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <div className="flex items-center">
+                      <span className="h-5 w-1 bg-signal rounded-full inline-block mr-2.5" />
+                      <h2 className="font-serif text-2xl font-bold text-ink-900 tracking-tight">
+                        Featured Destinations
+                      </h2>
                     </div>
+                    <Link
+                      href="/destinations"
+                      className="text-xs text-gray-500 hover:text-signal font-medium flex items-center gap-1 transition-colors group"
+                    >
+                      <span>View all destinations</span>
+                      <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
+                    </Link>
+                  </div>
 
-                    <div className="space-y-2.5 sm:space-y-3.5">
-                      {topAttractions.map((attr) => (
+                  {/* 4-Card Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5">
+                    {destinations.map((dest) => {
+                      return (
                         <Link
-                          key={attr.rank}
-                          href={attr.href}
-                          className="group flex items-center gap-3 sm:gap-3.5 p-2 rounded-xl hover:bg-ink-50 border border-transparent hover:border-ink-200 transition-all"
+                          key={dest.slug}
+                          href={dest.href}
+                          className="group flex flex-col"
                         >
-                          <div className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-ink-900 text-white text-[10px] sm:text-xs font-bold shadow-xs">
-                            {attr.rank}
-                          </div>
-
-                          <div className="relative h-12 w-16 sm:h-14 sm:w-20 shrink-0 overflow-hidden rounded-lg bg-ink-200">
+                          {/* Image */}
+                          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-gray-100 shadow-2xs">
                             <Image
-                              src={attr.image || "/images/epic-universe.jpg"}
-                              alt={attr.imageAlt}
+                              src={dest.image}
+                              alt={dest.imageAlt}
                               fill
-                              sizes="80px"
-                              className="object-cover group-hover:scale-105 transition-transform"
+                              sizes="(min-width: 1024px) 18vw, (min-width: 640px) 25vw, 50vw"
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
                             />
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-sans text-xs sm:text-sm font-bold text-ink-900 group-hover:text-signal transition-colors truncate">
-                              {attr.title}
-                            </h3>
-                            {attr.subtitle && (
-                              <p className="text-[10px] sm:text-[11px] text-ink-500 truncate mt-0.5">{attr.subtitle}</p>
-                            )}
-                            {attr.location && (
-                              <div className="mt-1">
-                                <span className="inline-block rounded-full bg-ink-100 border border-ink-200 px-2 py-0.5 text-[8.5px] sm:text-[9px] font-bold uppercase tracking-wider text-ink-600">
-                                  {attr.location}
-                                </span>
-                              </div>
-                            )}
+                          {/* Tag */}
+                          <div className="mt-2.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-signal">
+                              {dest.country}
+                            </span>
                           </div>
+
+                          {/* Name */}
+                          <h3 className="mt-0.5 font-sans text-base font-bold text-ink-900 group-hover:text-signal transition-colors">
+                            {dest.name}
+                          </h3>
+
+                          {/* Description */}
+                          <p className="mt-1 text-xs leading-snug text-gray-500 line-clamp-2">
+                            {dest.description}
+                          </p>
                         </Link>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
+                </div>
                 )}
-              </div>
-            </Container>
-          </section>
-        )}
 
-        {/* =========================================
-            4. EDITOR'S PICK & STAY IN THE LOOP
-        ========================================= */}
-        <section className="py-8 sm:py-12 lg:py-14 border-b border-ink-100 bg-white">
-          <Container>
-            <div className="grid gap-8 lg:gap-10 lg:grid-cols-12">
-              {editorPick && (
-                <div className="lg:col-span-8">
-                  <div className="flex items-center gap-2 mb-5 sm:mb-6 pb-2 border-b border-ink-200">
-                    <span className="w-1 h-4 sm:h-5 bg-signal rounded-full inline-block" />
-                    <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-ink-900">
-                      EDITOR&apos;S PICK
+                {/* -----------------------------------------
+                    SECTION: PLAN YOUR NEXT ADVENTURE BANNER
+                ----------------------------------------- */}
+                <div className="relative h-[260px] sm:h-[280px] w-full overflow-hidden rounded-2xl sm:rounded-3xl shadow-md group">
+                  {/* Background Image */}
+                  <Image
+                    src="/images/adventure-banner.jpg"
+                    alt="Plan your next adventure on the Mediterranean coast"
+                    fill
+                    sizes="(min-width: 1024px) 66vw, 100vw"
+                    className="object-cover object-center transition-transform duration-700 group-hover:scale-102"
+                  />
+
+                  {/* Left Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#0b1930]/90 via-[#0b1930]/65 to-transparent" />
+
+                  {/* Content */}
+                  <div className="relative z-10 flex h-full max-w-sm sm:max-w-md flex-col justify-center p-6 sm:p-10 text-white">
+                    <span className="text-xs font-bold uppercase tracking-wider text-white/90 mb-1.5">
+                      TRAVEL GUIDES
+                    </span>
+                    <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight text-white mb-2.5">
+                      Plan Your Next Adventure
                     </h2>
-                  </div>
-
-                  <div className="rounded-2xl border border-ink-200 bg-white p-4 sm:p-6 shadow-xs grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 items-center">
-                    <div className="md:col-span-6 relative aspect-[16/11] w-full overflow-hidden rounded-xl bg-ink-100">
-                      <Image
-                        src={editorPick.image || "/images/epic-universe.jpg"}
-                        alt={editorPick.imageAlt || editorPick.title}
-                        fill
-                        sizes="(min-width: 1024px) 35vw, 100vw"
-                        className="object-cover"
-                      />
-                    </div>
-
-                    <div className="md:col-span-6 flex flex-col justify-between">
-                      <div>
-                        <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-signal">
-                          {editorPick.categoryName?.toUpperCase() || "ATTRACTION NEWS"}
-                        </span>
-                        <h3 className="mt-1 font-sans text-lg sm:text-xl md:text-2xl font-black leading-tight text-ink-900">
-                          {editorPick.title}
-                        </h3>
-                        <p className="mt-2 sm:mt-3 text-xs sm:text-sm text-ink-600 leading-relaxed line-clamp-3">
-                          {editorPick.excerpt}
-                        </p>
-                        <p className="mt-2.5 sm:mt-3 text-[10px] sm:text-[11px] text-ink-500 font-medium">
-                          {dateAndReadTime(formatDate(editorPick.publishedAt), `${editorPick.readingTimeMinutes || 5} min read`)}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 sm:mt-5">
-                        <Link
-                          href={articlePath(editorPick.countrySlug, editorPick.citySlug, editorPick.slug)}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-ink-300 bg-white px-3.5 sm:px-4 py-2 text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-ink-900 hover:border-ink-900 hover:bg-ink-50 transition-all"
-                        >
-                          <span>READ MORE</span>
-                          <span aria-hidden="true">→</span>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Stay in the Loop & Follow Us */}
-              <div className={editorPick ? "lg:col-span-4" : "lg:col-span-6 lg:col-start-4"}>
-                <div className="rounded-2xl border border-ink-200 bg-ink-50 p-5 sm:p-7 shadow-xs">
-                  <h3 className="font-sans text-sm sm:text-base font-black uppercase tracking-tight text-ink-900">
-                    STAY IN THE LOOP
-                  </h3>
-                  <p className="mt-1.5 text-xs text-ink-600 leading-relaxed">
-                    Get the latest attraction news, opening dates, and updates straight to your inbox.
-                  </p>
-
-                  <div className="mt-4">
-                    <NewsletterForm source="homepage" variant="light" />
-                  </div>
-                  <p className="mt-2 text-[10px] text-ink-500 text-center">
-                    No spam. Unsubscribe anytime.
-                  </p>
-
-                  <div className="mt-6 sm:mt-7 pt-4 sm:pt-5 border-t border-ink-200">
-                    <h4 className="font-sans text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-ink-900 mb-3">
-                      FOLLOW US
-                    </h4>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {SOCIAL_LINKS.map((social) => (
-                        <a
-                          key={social.name}
-                          href={social.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`flex h-8 w-8 items-center justify-center rounded ${social.bg} text-white hover:opacity-90 shadow-2xs transition-opacity`}
-                          aria-label={social.name}
-                        >
-                          <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                            <path d={social.path} />
-                          </svg>
-                        </a>
-                      ))}
+                    <p className="text-xs sm:text-sm text-gray-200 leading-relaxed mb-5">
+                      Explore our detailed travel guides, insider tips and destination advice to make the most of your next trip.
+                    </p>
+                    <div>
+                      <Link
+                        href="/latest-news"
+                        className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-ink-950 shadow-sm transition hover:bg-gray-100"
+                      >
+                        <span>Explore Travel Guides</span>
+                        <span aria-hidden="true" className="font-bold">→</span>
+                      </Link>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* =========================================
+                  RIGHT COLUMN: SIDEBAR (4 COLUMNS)
+              ========================================= */}
+              <aside className="lg:col-span-4 space-y-6">
+                {/* -----------------------------------------
+                    WIDGET 1: TRENDING NOW
+                ----------------------------------------- */}
+                {trending.length > 0 && (
+                <div className="rounded-2xl border border-gray-100 bg-[#f8fafc]/60 p-5 shadow-2xs">
+                  {/* Title */}
+                  <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200/60">
+                    <span className="text-signal">
+                      <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M12.87 2.08a.75.75 0 00-.74.03C11.5 2.5 10 3.75 9 5.5c-1.3 2.27-1.4 4.54-.3 6.64.12.24.08.52-.1.72-.18.2-.46.26-.71.16-1.57-.65-2.7-1.92-3.3-3.41a.75.75 0 00-1.37.47c.22 3.1 1.63 6.2 3.8 8.1 2.3 2.01 5.2 2.92 8.08 2.32 3.52-.73 6.2-3.64 6.7-7.23.47-3.39-.95-6.66-3.7-8.91-1.42-1.16-3.04-1.96-4.73-2.31a.75.75 0 00-.81.02z" />
+                      </svg>
+                    </span>
+                    <h3 className="font-sans text-base font-bold text-ink-900 tracking-tight">
+                      Trending Now
+                    </h3>
+                  </div>
+
+                  {/* List of 5 items */}
+                  <div className="space-y-3.5">
+                    {trending.map((item, i) => (
+                      <Link
+                        key={item.id}
+                        href={storyHref(item)}
+                        className="group flex items-center gap-3 p-1 rounded-xl transition hover:bg-white hover:shadow-2xs"
+                      >
+                        {/* Number */}
+                        <span className="text-sm font-bold text-gray-700 w-3.5 shrink-0 text-center">
+                          {i + 1}
+                        </span>
+
+                        {/* Thumbnail */}
+                        <div className="relative h-13 w-13 shrink-0 overflow-hidden rounded-lg bg-gray-100 shadow-2xs">
+                          {item.image && (
+                          <Image
+                            src={item.image}
+                            alt={item.imageAlt || item.title}
+                            fill
+                            sizes="56px"
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                          )}
+                        </div>
+
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-sans text-xs font-bold text-ink-900 group-hover:text-signal transition-colors line-clamp-2 leading-snug">
+                            {item.title}
+                          </h4>
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            {[storyDate(item.publishedAt), readTime(item)].filter(Boolean).join(" • ")}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+                )}
+
+                {/* -----------------------------------------
+                    WIDGET 2: GET TRAVEL UPDATES IN YOUR INBOX
+                ----------------------------------------- */}
+                <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-[#f0f6fa] p-5 sm:p-6 shadow-2xs">
+                  {/* Airmail passport stamp watermark */}
+                  <div className="pointer-events-none absolute -right-3 -top-3 text-sky-900/10">
+                    <svg className="h-28 w-28" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="50" cy="50" r="45" strokeDasharray="3 3" />
+                      <circle cx="50" cy="50" r="38" />
+                      <path d="M50 20 L55 40 L75 45 L55 50 L50 70 L45 50 L25 45 L45 40 Z" fill="currentColor" fillOpacity="0.08" />
+                      <path d="M22 65 C32 55 68 55 78 65" strokeWidth="1" />
+                    </svg>
+                  </div>
+
+                  {/* Mail icon */}
+                  <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                    <svg className="h-4.5 w-4.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+
+                  {/* Title & Description */}
+                  <h3 className="font-sans text-base font-bold text-ink-900">
+                    Get Travel Updates in Your Inbox
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                    Be the first to know about the latest travel news, destinations and exclusive tips.
+                  </p>
+
+                  {/* Newsletter Form */}
+                  <div className="mt-4">
+                    <NewsletterForm source="homepage-sidebar" variant="light" />
+                  </div>
+                </div>
+
+                {/* -----------------------------------------
+                    WIDGET 3: POPULAR CATEGORIES
+                ----------------------------------------- */}
+                {sidebarCategories.length > 0 && (
+                <div className="rounded-2xl border border-gray-100 bg-[#f8fafc] p-5 shadow-2xs">
+                  <h3 className="font-sans text-base font-bold text-ink-900 mb-3 pb-2 border-b border-gray-200/60">
+                    Popular Categories
+                  </h3>
+
+                  <div className="space-y-1">
+                    {sidebarCategories.map((cat) => (
+                      <Link
+                        key={cat.slug}
+                        href={`/categories/${cat.slug}`}
+                        className="group flex items-center justify-between py-2.5 px-2.5 rounded-lg text-xs font-semibold text-gray-700 hover:text-signal hover:bg-white transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-gray-500 group-hover:text-signal transition-colors">
+                            <CategoryIcon slug={cat.slug} />
+                          </span>
+                          <span>{cat.name}</span>
+                        </div>
+                        <span aria-hidden="true" className="text-gray-400 group-hover:text-signal group-hover:translate-x-0.5 transition-all font-bold">
+                          →
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+                )}
+              </aside>
             </div>
           </Container>
         </section>
-
-        {/* =========================================
-            5. BROWSE BY TOPIC (real categories)
-        ========================================= */}
-        {categories.length > 0 && (
-          <section className="py-8 sm:py-12 lg:py-14 bg-white">
-            <Container>
-              <h2 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-ink-900 mb-3.5 sm:mb-4">
-                BROWSE BY TOPIC
-              </h2>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                {categories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/categories/${cat.slug}`}
-                    className="rounded-full border border-ink-200 bg-white hover:border-ink-900 hover:bg-ink-50 px-3.5 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-extrabold text-ink-900 shadow-2xs transition-all hover:shadow-xs"
-                  >
-                    {cat.name}
-                  </Link>
-                ))}
-              </div>
-            </Container>
-          </section>
-        )}
       </div>
     </>
   );

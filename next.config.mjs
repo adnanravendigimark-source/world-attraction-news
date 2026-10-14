@@ -34,6 +34,9 @@ const nextConfig = {
   async redirects() {
     return [
       { source: "/cities", destination: "/destinations", permanent: true },
+      // The "Sagrada Familia" category was folded into Attractions (Oct 2026,
+      // scripts/categories-2026-10.mjs).
+      { source: "/categories/sagrada-familia", destination: "/categories/attractions", permanent: true },
       { source: "/admin/attraction", destination: "/admin/cities", permanent: true },
       { source: "/admin/attarction", destination: "/admin/cities", permanent: true },
       { source: "/admin/attractions", destination: "/admin/cities", permanent: true },

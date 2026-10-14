@@ -11,12 +11,12 @@ import { cityPath } from "@/lib/destinations";
 type CityLink = { slug: string; name: string; countrySlug?: string };
 type CategoryLink = { slug: string; name: string };
 
-// Which top-level section a path belongs to, for the active link.
 export function activeSection(pathname: string): string {
+  if (pathname === "/") return "home";
   if (pathname === "/news" || pathname.startsWith("/news/")) return "news";
   if (pathname.startsWith("/latest-news")) return "guides";
   if (pathname.startsWith("/destinations")) return "destinations";
-  if (pathname.startsWith("/categories")) return "topics";
+  if (pathname.startsWith("/categories")) return "categories";
   if (pathname.startsWith("/about")) return "about";
   return "";
 }
@@ -27,7 +27,7 @@ const Chevron = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
-const SearchIcon = ({ className = "h-[18px] w-[18px]" }: { className?: string }) => (
+const SearchIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
     <circle cx="11" cy="11" r="7" />
     <path strokeLinecap="round" d="m21 21-4.3-4.3" />
@@ -39,18 +39,21 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`relative inline-flex items-center gap-1 py-2 text-[15px] font-medium transition-colors ${
-        active ? "text-ink-950" : "text-ink-600 hover:text-ink-950"
+      className={`relative inline-flex items-center gap-1 py-1 text-[15px] font-medium transition-colors ${
+        active ? "font-semibold text-ink-950" : "text-ink-600 hover:text-ink-950"
       }`}
     >
       {children}
-      {active && <span className="absolute -bottom-px left-0 h-0.5 w-full rounded-full bg-signal" aria-hidden="true" />}
+      {active && (
+        <span
+          className="absolute -bottom-2 left-0 h-[2.5px] w-full rounded-full bg-signal"
+          aria-hidden="true"
+        />
+      )}
     </Link>
   );
 }
 
-// A link with a panel that opens on hover or when a link inside gets
-// keyboard focus (focus-within), so it works without a mouse too.
 function NavMenu({
   label,
   href,
@@ -110,22 +113,46 @@ function NavMenu({
 export default function PublicHeader({
   cities = [],
   categories = [],
+  breakingHeadline = "",
+  breakingHref = "/news",
 }: {
-  // Admin-curated lists from Admin -> Header (see app/(public)/layout.tsx),
-  // in the order and count an admin picked.
   cities?: CityLink[];
   categories?: CategoryLink[];
+  breakingHeadline?: string;
+  breakingHref?: string;
 }) {
   const pathname = usePathname() || "/";
   const section = activeSection(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  // Filled in on the client so it is the reader's own date.
+  const [currentDateStr, setCurrentDateStr] = useState("");
 
-  const cityItems = cities.map((c) => ({ name: c.name, href: c.countrySlug ? cityPath(c.countrySlug, c.slug) : "/destinations" }));
-  const topicItems = categories.map((c) => ({ name: c.name, href: `/categories/${c.slug}` }));
+  const cityItems = cities.map((c) => ({
+    name: c.name,
+    href: c.countrySlug ? cityPath(c.countrySlug, c.slug) : "/destinations",
+  }));
+  const topicItems = categories.map((c) => ({
+    name: c.name,
+    href: `/categories/${c.slug}`,
+  }));
 
-  // Slimmer header with a shadow once the page is scrolled.
+  useEffect(() => {
+    try {
+      const now = new Date();
+      const formatted = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      if (formatted) setCurrentDateStr(formatted);
+    } catch {
+      // fallback
+    }
+  }, []);
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -133,13 +160,11 @@ export default function PublicHeader({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Close the menu and search after navigating.
   useEffect(() => {
     setMenuOpen(false);
     setSearchOpen(false);
   }, [pathname]);
 
-  // Escape closes; the page behind the mobile menu does not scroll.
   useEffect(() => {
     if (!menuOpen && !searchOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -165,23 +190,75 @@ export default function PublicHeader({
       >
         Skip to content
       </a>
+
+      {/* =========================================
+          TOP BAR (Breaking wire & Contributor Login)
+      ========================================= */}
+      <div className="bg-[#0b1328] text-white text-[11px] sm:text-xs border-b border-white/10">
+        <Container className="flex items-center justify-between h-9 sm:h-10">
+          {/* Left: LIVE pill + ticker headline */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-signal px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-white shrink-0">
+              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+              LIVE
+            </span>
+            <span className="text-white/30 hidden xs:inline shrink-0">|</span>
+            <Link
+              href={breakingHref}
+              className="group inline-flex items-center gap-1 truncate text-white/90 hover:text-white transition-colors"
+            >
+              <span className="truncate">{breakingHeadline || "Latest travel news"}</span>
+              <span className="text-white/50 group-hover:text-white shrink-0 font-bold ml-0.5">›</span>
+            </Link>
+          </div>
+
+          {/* Right: Date + Contributor Login */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-white/75 text-[11px] sm:text-xs">
+            {currentDateStr && (
+              <>
+                <span className="hidden md:inline font-normal">{currentDateStr}</span>
+                <span className="text-white/30 hidden md:inline">|</span>
+              </>
+            )}
+            <Link
+              href="/login"
+              className="text-white/80 hover:text-white transition-colors font-medium whitespace-nowrap"
+            >
+              Contributor Login
+            </Link>
+          </div>
+        </Container>
+      </div>
+
+      {/* =========================================
+          MAIN HEADER NAVIGATION
+      ========================================= */}
       <header
-        className={`sticky top-0 z-50 border-b bg-white transition-shadow ${
-          scrolled || menuOpen ? "border-ink-100 shadow-subtle" : "border-transparent"
+        className={`sticky top-0 z-50 bg-white transition-shadow ${
+          scrolled || menuOpen ? "border-b border-ink-100 shadow-subtle" : "border-b border-ink-100"
         }`}
       >
         <Container
           className={`flex items-center justify-between gap-6 transition-[height] duration-200 ${
-            scrolled ? "h-[60px]" : "h-[60px] lg:h-[72px]"
+            scrolled ? "h-[64px]" : "h-[68px] lg:h-[76px]"
           }`}
         >
+          {/* Logo */}
           <Link href="/" className="flex shrink-0 items-center" aria-label="World Attraction News, home">
             <Logo variant="compact" />
           </Link>
 
-          <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
-            <NavLink href="/news" active={section === "news"}>News</NavLink>
-            <NavLink href="/latest-news" active={section === "guides"}>Guides</NavLink>
+          {/* Desktop Nav Links */}
+          <nav aria-label="Main" className="hidden items-center gap-7 lg:flex xl:gap-8">
+            {/* <NavLink href="/" active={section === "home"}>
+              Home
+            </NavLink> */}
+            <NavLink href="/news" active={section === "news"}>
+              News
+            </NavLink>
+            <NavLink href="/latest-news" active={section === "guides"}>
+              Guides
+            </NavLink>
             <NavMenu
               label="Destinations"
               href="/destinations"
@@ -192,17 +269,20 @@ export default function PublicHeader({
               columns={cityItems.length > 5 ? 2 : 1}
             />
             <NavMenu
-              label="Topics"
+              label="Categories"
               href="/categories"
-              active={section === "topics"}
-              allLabel="All topics"
-              emptyLabel="No topics yet."
+              active={section === "categories"}
+              allLabel="All categories"
+              emptyLabel="No categories yet."
               items={topicItems}
             />
-            <NavLink href="/about" active={section === "about"}>About</NavLink>
+            <NavLink href="/about" active={section === "about"}>
+              About Us
+            </NavLink>
           </nav>
 
-          <div className="flex shrink-0 items-center gap-2">
+          {/* Right Actions: Search + Write for Us + Mobile toggle */}
+          <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={() => {
@@ -211,19 +291,20 @@ export default function PublicHeader({
               }}
               aria-label={searchOpen ? "Close search" : "Search"}
               aria-expanded={searchOpen}
-              className={`flex h-10 items-center gap-2 rounded-full px-3 text-sm font-medium transition-colors ${
-                searchOpen ? "bg-ink-950 text-white" : "text-ink-700 hover:bg-paper-muted hover:text-ink-950"
+              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-ink-200 text-ink-700 transition-colors ${
+                searchOpen ? "bg-ink-950 text-white border-ink-950" : "hover:border-ink-400 hover:text-ink-950 bg-white"
               }`}
             >
               <SearchIcon />
-              <span className="hidden xl:inline">Search</span>
             </button>
+
             <Link
               href="/write-for-us"
-              className="hidden rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-900 transition-colors hover:border-ink-900 lg:inline-flex"
+              className="hidden sm:inline-flex rounded-full bg-signal px-5 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-signal-dark active:scale-98"
             >
-              Write for us
+              Write for Us
             </Link>
+
             <button
               type="button"
               onClick={() => {
@@ -233,7 +314,7 @@ export default function PublicHeader({
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
               aria-controls="mobile-menu"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-ink-900 hover:bg-paper-muted lg:hidden"
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-ink-900 hover:bg-paper-muted lg:hidden"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 {menuOpen ? <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /> : <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />}
@@ -242,6 +323,7 @@ export default function PublicHeader({
           </div>
         </Container>
 
+        {/* Expandable Search Input */}
         {searchOpen && (
           <div className="border-t border-ink-100 bg-white animate-fade-in-up">
             <Container className="py-4">
@@ -250,28 +332,30 @@ export default function PublicHeader({
           </div>
         )}
 
+        {/* Mobile Slide-down Menu */}
         {menuOpen && (
           <nav
             id="mobile-menu"
             aria-label="Main"
-            className="fixed inset-x-0 bottom-0 top-[60px] z-40 overflow-y-auto border-t border-ink-100 bg-white lg:hidden animate-fade-in-up"
+            className="fixed inset-x-0 bottom-0 top-[100px] z-40 overflow-y-auto border-t border-ink-100 bg-white lg:hidden animate-fade-in-up"
           >
             <Container className="flex min-h-full flex-col py-5">
               <SearchForm placeholder="Search news, guides and destinations…" />
               <ul className="mt-4 divide-y divide-ink-100">
                 {[
-                  { href: "/news", label: "News", key: "news" },
-                  { href: "/latest-news", label: "Guides", key: "guides" },
+                  { href: "/", label: "Home", key: "home" },
+                  { href: "/news", label: "Travel News", key: "news" },
+                  { href: "/latest-news", label: "Travel Guides", key: "guides" },
                   { href: "/destinations", label: "Destinations", key: "destinations" },
-                  { href: "/categories", label: "Topics", key: "topics" },
-                  { href: "/about", label: "About", key: "about" },
+                  { href: "/categories", label: "Categories", key: "categories" },
+                  { href: "/about", label: "About Us", key: "about" },
                 ].map((item) => (
                   <li key={item.key}>
                     <Link
                       href={item.href}
                       aria-current={section === item.key ? "page" : undefined}
-                      className={`flex items-center justify-between py-3.5 font-serif text-[22px] ${
-                        section === item.key ? "text-ink-950" : "text-ink-800"
+                      className={`flex items-center justify-between py-3.5 font-serif text-[20px] ${
+                        section === item.key ? "text-signal font-bold" : "text-ink-800"
                       }`}
                     >
                       <span className="flex items-center gap-2.5">
@@ -304,12 +388,12 @@ export default function PublicHeader({
               <div className="mt-auto flex flex-col gap-2 pt-8">
                 <Link
                   href="/write-for-us"
-                  className="rounded-full bg-ink-950 py-3 text-center text-sm font-semibold text-white"
+                  className="rounded-full bg-signal py-3 text-center text-sm font-semibold text-white hover:bg-signal-dark"
                 >
-                  Write for us
+                  Write for Us
                 </Link>
                 <Link href="/login" className="py-2 text-center text-sm text-ink-500 hover:text-ink-900">
-                  Contributor login
+                  Contributor Login
                 </Link>
               </div>
             </Container>

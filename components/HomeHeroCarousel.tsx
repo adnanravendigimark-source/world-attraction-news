@@ -7,36 +7,21 @@ import Container from "@/components/Container";
 
 export interface HeroSlide {
   id: string;
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   excerpt: string;
-  author: string;
+  author?: string;
   date: string;
   readTime: string;
   image: string;
   imageAlt?: string;
   href: string;
-  cityName?: string;
-  categoryName?: string;
 }
 
-export interface TickerItem {
-  label: string;
-  href: string;
-}
-
-// Real data only — both `slides` and `tickerItems` come from the homepage's
-// own published-article queries (see app/(public)/page.tsx). When there
-// isn't enough real content yet (a brand-new site, or nothing published),
-// this renders an honest empty state instead of ever inventing stories.
-export default function HomeHeroCarousel({
-  slides,
-  tickerItems,
-}: {
-  slides?: HeroSlide[];
-  tickerItems?: TickerItem[];
-}) {
-  const stories = slides ? slides.slice(0, 5) : [];
+// Slides come from published articles (see app/(public)/page.tsx): what an
+// editor marked Featured, else the newest guides. With none, nothing renders.
+export default function HomeHeroCarousel({ slides = [] }: { slides?: HeroSlide[] }) {
+  const stories = slides;
   const [activeIdx, setActiveIdx] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -48,291 +33,120 @@ export default function HomeHeroCarousel({
     setActiveIdx((prev) => (prev - 1 + stories.length) % stories.length);
   }, [stories.length]);
 
-  // Continuous Auto-Switch Timer (every 5 seconds) — only runs when there's
-  // more than one real story to rotate through.
+  // Slower 12s auto-switch timer, pauses when hovered
   useEffect(() => {
     if (isHovered || stories.length <= 1) return;
-    const interval = setInterval(() => {
-      setActiveIdx((prev) => (prev + 1) % stories.length);
-    }, 5000);
+    const interval = setInterval(nextStory, 12000);
     return () => clearInterval(interval);
-  }, [isHovered, stories.length]);
+  }, [isHovered, nextStory, stories.length]);
 
-  const currentStory = stories[activeIdx] || stories[0];
-  const hasMultiple = stories.length > 1;
+  const current = stories[activeIdx] || stories[0];
+  if (!current) return null;
 
   return (
-    <section
-      className="border-b border-ink-200 bg-white pt-2.5 pb-4 sm:pt-3 sm:pb-5"
+    <div
+      className="relative w-full h-[calc(100vh-104px)] lg:h-[calc(100vh-116px)] min-h-[460px] max-h-[720px] overflow-hidden bg-ink-950 group select-none"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* =========================================
-          1. TOP LIVE WIRE TICKER (real breaking/trending headlines only)
-      ========================================= */}
-      {tickerItems && tickerItems.length > 0 && (
-        <Container className="mb-2.5 sm:mb-3">
-          <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-ink-50 border border-ink-200/80 px-2.5 py-1 overflow-hidden">
-            <div className="flex items-center gap-1.5 shrink-0 bg-white border border-ink-200 px-2 py-0.5 rounded shadow-2xs">
-              <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-signal">
-                LIVE WIRE
-              </span>
-            </div>
-            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar text-xs">
-              <span className="text-ink-400 font-bold shrink-0 hidden sm:inline">TRENDING:</span>
-              {tickerItems.map((topic, i) => (
-                <Link
-                  key={topic.href}
-                  href={topic.href}
-                  className="whitespace-nowrap font-bold text-ink-700 hover:text-signal transition-colors shrink-0 text-[11px] sm:text-xs"
-                >
-                  {topic.label} {i < tickerItems.length - 1 && <span className="text-ink-300 ml-3">•</span>}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </Container>
-      )}
+      {/* Full-width edge-to-edge background image */}
+      <div className="absolute inset-0">
+        <Image
+          key={current.id || current.image}
+          src={current.image}
+          alt={current.imageAlt || current.title}
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center transition-transform duration-700 group-hover:scale-101"
+        />
+      </div>
 
-      {/* =========================================
-          2. MAIN HERO & TOP-STORIES WIRE
-      ========================================= */}
-      <Container>
-        {stories.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-ink-200 bg-ink-50/60 px-6 py-14 text-center">
-            <h1 className="font-serif text-xl sm:text-2xl font-black text-ink-900">
-              No stories published yet
-            </h1>
-            <p className="mx-auto mt-2 max-w-md text-sm text-ink-500 leading-relaxed">
-              Check back soon for the latest theme park and attraction news from around the world.
-            </p>
+      {/* Dark Vignette: Left side heavily darkened for typography, right sunset side vivid & clear */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 via-55% to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent pointer-events-none" />
+
+      {/* Aligned Content Container */}
+      <Container className="relative z-10 flex h-full flex-col justify-center">
+        <div className="max-w-xl sm:max-w-2xl py-6 sm:py-8">
+          {/* FEATURED badge */}
+          <div className="mb-3.5 sm:mb-4">
+            <span className="inline-block rounded-full bg-signal px-3.5 py-1 text-[10.5px] sm:text-[11px] font-black uppercase tracking-wider text-white shadow-sm">
+              {current.eyebrow || "FEATURED"}
+            </span>
           </div>
-        ) : (
-          <div className="grid gap-4 lg:gap-5 lg:grid-cols-12 items-stretch">
-            {/* Left Column: Big Lead Story */}
-            <article
-              className={`flex flex-col justify-between group rounded-2xl border border-ink-200/90 bg-white overflow-hidden shadow-2xs hover:shadow-xs transition-all p-3.5 sm:p-4 relative ${hasMultiple ? "lg:col-span-7 xl:col-span-8" : "lg:col-span-12"
-                }`}
+
+          {/* Headline (3-line wrap in serif) */}
+          <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[44px] xl:text-[48px] font-bold leading-[1.14] text-white drop-shadow-sm max-w-lg sm:max-w-xl">
+            <Link href={current.href} className="hover:underline decoration-white/40">
+              {current.title}
+            </Link>
+          </h1>
+
+          {/* Excerpt */}
+          <p className="mt-3.5 sm:mt-4 text-xs sm:text-sm md:text-[15px] leading-relaxed text-gray-200/90 max-w-lg line-clamp-3">
+            {current.excerpt}
+          </p>
+
+          {/* Meta line: Calendar + Date + 4 min read */}
+          <div className="mt-4 sm:mt-5 flex items-center gap-2 text-xs sm:text-sm text-gray-300 font-normal">
+            <svg className="h-4 w-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span>{current.date}</span>
+            <span className="text-gray-400 mx-1">•</span>
+            <span>{current.readTime}</span>
+          </div>
+
+          {/* Read Full Story Button */}
+          <div className="mt-6 sm:mt-7">
+            <Link
+              href={current.href}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-ink-950 shadow-md transition-all hover:bg-gray-100 hover:scale-102 active:scale-98"
             >
-              <div>
-                {/* Lead Image Container with Floating < > Buttons */}
-                <div className="relative block w-full h-48 sm:h-64 md:h-72 lg:h-[280px] xl:h-[305px] rounded-xl overflow-hidden bg-ink-100 mb-3 group/img">
-                  <Link href={currentStory.href} className="block w-full h-full">
-                    <Image
-                      key={currentStory.id}
-                      src={currentStory.image}
-                      alt={currentStory.imageAlt || currentStory.title}
-                      fill
-                      priority
-                      sizes={hasMultiple ? "(min-width: 1024px) 55vw, 100vw" : "(min-width: 1024px) 80vw, 100vw"}
-                      className="object-cover group-hover/img:scale-102 transition-transform duration-500"
-                    />
-                  </Link>
+              <span>Read Full Story</span>
+              <span aria-hidden="true" className="font-bold">→</span>
+            </Link>
+          </div>
+        </div>
 
-                  {/* Bureau / Live Badge */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-signal text-white px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-widest shadow-md pointer-events-none">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-                    <span>{currentStory.eyebrow || "TOP STORY"}</span>
-                  </div>
+        {/* Carousel Controls (Bottom Right aligned with Container) */}
+        {stories.length > 1 && (
+          <div className="absolute bottom-5 sm:bottom-7 right-3.5 sm:right-6 lg:right-8 z-20 flex items-center gap-2.5">
+            {/* Left Button: White Circle */}
+            <button
+              type="button"
+              onClick={prevStory}
+              aria-label="Previous Story"
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white text-ink-950 shadow-md transition-all hover:bg-gray-100 active:scale-95 cursor-pointer"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
 
-                  {hasMultiple && (
-                    <>
-                      {/* Left Switch Button (<) */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          prevStory();
-                        }}
-                        aria-label="Previous News Story"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur-md hover:bg-signal hover:scale-105 transition-all shadow-md z-20 cursor-pointer"
-                      >
-                        <svg className="h-4 w-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
+            {/* Right Button: Dark Circle with White Arrow */}
+            <button
+              type="button"
+              onClick={nextStory}
+              aria-label="Next Story"
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/60 text-white border border-white/20 backdrop-blur-sm shadow-md transition-all hover:bg-black/80 active:scale-95 cursor-pointer"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
 
-                      {/* Right Switch Button (>) */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          nextStory();
-                        }}
-                        aria-label="Next News Story"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur-md hover:bg-signal hover:scale-105 transition-all shadow-md z-20 cursor-pointer"
-                      >
-                        <svg className="h-4 w-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-
-                      {/* Bottom Story Index Indicators */}
-                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full z-20">
-                        {stories.map((_, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setActiveIdx(i);
-                            }}
-                            aria-label={`Jump to story ${i + 1}`}
-                            className={`h-1.5 rounded-full transition-all cursor-pointer ${i === activeIdx ? "w-4 bg-signal" : "w-1.5 bg-white/60 hover:bg-white"
-                              }`}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Eyebrow */}
-                <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-signal mb-1">
-                  <span>{currentStory.cityName || "GLOBAL"} BUREAU</span>
-                  <span className="text-ink-300">•</span>
-                  <span className="text-ink-500">{currentStory.categoryName || "ATTRACTION NEWS"}</span>
-                </div>
-
-                {/* Title */}
-                <h1 className="font-serif text-xl sm:text-2xl lg:text-[25px] xl:text-[27px] font-black leading-snug sm:leading-tight text-ink-900 group-hover:text-signal transition-colors line-clamp-2">
-                  <Link href={currentStory.href}>{currentStory.title}</Link>
-                </h1>
-
-                {/* Excerpt */}
-                <p className="mt-1.5 text-xs sm:text-[13.5px] leading-relaxed text-ink-600 font-medium line-clamp-2">
-                  {currentStory.excerpt}
-                </p>
-              </div>
-
-              {/* Bottom Row */}
-              <div className="mt-3 pt-2.5 border-t border-ink-100 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2 text-xs text-ink-500 min-w-0">
-                  <div className="h-6 w-6 rounded-full bg-ink-900 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
-                    AN
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-ink-900 text-[11px] truncate">By {currentStory.author}</p>
-                    <p className="text-[10px] text-ink-500 truncate">
-                      {currentStory.date}
-                      {currentStory.date && currentStory.readTime && " • "}
-                      {currentStory.readTime}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
-                  <Link
-                    href={currentStory.href}
-                    className="inline-flex items-center gap-1 rounded-md bg-signal px-3 sm:px-3.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-white shadow-2xs hover:bg-signal-dark transition-colors"
-                  >
-                    <span>READ FULL STORY</span>
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                </div>
-              </div>
-            </article>
-
-            {/* Right Column: Top Stories Wire — only when there's more than one real story */}
-            {hasMultiple && (
-              <div className="lg:col-span-5 xl:col-span-4 flex flex-col justify-between rounded-2xl border border-ink-200/90 bg-white p-3.5 sm:p-4 shadow-2xs">
-                <div>
-                  <div className="flex items-center justify-between border-b border-ink-200 pb-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
-                      <h2 className="font-sans text-xs sm:text-[13px] font-black uppercase tracking-wider text-ink-900">
-                        TOP STORIES TODAY
-                      </h2>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono font-bold text-ink-400">
-                        {activeIdx + 1}/{stories.length}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={prevStory}
-                          aria-label="Previous Story"
-                          className="flex h-5 w-5 items-center justify-center rounded border border-ink-200 bg-white text-ink-600 hover:bg-ink-100 hover:text-ink-900 transition-colors cursor-pointer text-xs font-bold"
-                        >
-                          ‹
-                        </button>
-                        <button
-                          type="button"
-                          onClick={nextStory}
-                          aria-label="Next Story"
-                          className="flex h-5 w-5 items-center justify-center rounded border border-ink-200 bg-white text-ink-600 hover:bg-ink-100 hover:text-ink-900 transition-colors cursor-pointer text-xs font-bold"
-                        >
-                          ›
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col divide-y divide-ink-100">
-                    {stories.map((story, idx) => {
-                      const isActive = idx === activeIdx;
-                      return (
-                        <button
-                          key={story.id || idx}
-                          type="button"
-                          onClick={() => setActiveIdx(idx)}
-                          className={`text-left py-2 first:pt-1 last:pb-1 group transition-all rounded-lg px-2 -mx-1 cursor-pointer ${isActive ? "bg-rose-50/70 border-l-3 border-signal" : "hover:bg-ink-50"
-                            }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className="relative h-12 w-16 sm:h-[3.25rem] sm:w-[4.5rem] shrink-0 rounded-md overflow-hidden bg-ink-100">
-                              <Image
-                                src={story.image}
-                                alt={story.imageAlt || story.title}
-                                fill
-                                sizes="80px"
-                                className="object-cover group-hover:scale-105 transition-transform"
-                              />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-signal mb-0.5">
-                                <span>{story.cityName || story.eyebrow}</span>
-                                {isActive && (
-                                  <span className="ml-auto inline-block h-1.5 w-1.5 rounded-full bg-signal animate-pulse" />
-                                )}
-                              </div>
-                              <h3
-                                className={`font-sans text-[11px] sm:text-xs font-bold leading-snug line-clamp-2 transition-colors ${isActive ? "text-signal" : "text-ink-900 group-hover:text-signal"
-                                  }`}
-                              >
-                                {story.title}
-                              </h3>
-                              <p className="text-[9px] text-ink-400 font-medium">
-                                {story.date}
-                                {story.date && story.readTime && " • "}
-                                {story.readTime}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="mt-2 pt-2 border-t border-ink-100">
-                  <Link
-                    href="/latest-news"
-                    className="text-[11px] font-black uppercase tracking-wider text-signal hover:underline flex items-center justify-between group"
-                  >
-                    <span>VIEW FULL NEWS WIRE</span>
-                    <span className="group-hover:translate-x-0.5 transition-transform">→</span>
-                  </Link>
-                </div>
-              </div>
-            )}
+            {/* Counter */}
+            <span className="text-xs sm:text-sm font-medium tracking-wide text-white drop-shadow ml-1.5">
+              {activeIdx + 1} / {stories.length}
+            </span>
           </div>
         )}
       </Container>
-    </section>
+    </div>
   );
 }

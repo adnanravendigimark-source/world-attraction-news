@@ -8,8 +8,8 @@ describe("header active section", () => {
     expect(activeSection("/newsletter")).toBe("");
     expect(activeSection("/latest-news")).toBe("guides");
     expect(activeSection("/destinations")).toBe("destinations");
-    expect(activeSection("/categories/theme-parks")).toBe("topics");
+    expect(activeSection("/categories/theme-parks")).toBe("categories");
     expect(activeSection("/about")).toBe("about");
-    expect(activeSection("/")).toBe("");
+    expect(activeSection("/")).toBe("home");
   });
 });

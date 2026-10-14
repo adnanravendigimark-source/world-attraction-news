@@ -505,6 +505,42 @@ async function getFlaggedArticles(column: "featured" | "trending" | "editors_pic
   }
 }
 export const getFeaturedArticles = (limit = 6) => getFlaggedArticles("featured", limit);
+
+// Home page: news and guides together. Featured = what an editor flagged on
+// the review page; trending = most read in the last 30 days, falling back to
+// the newest when nothing has been read yet.
+export async function getFeaturedStories(limit = 4): Promise<ArticleWithRelations[]> {
+  try {
+    const rows = await sql(
+      `${JOIN_SELECT} WHERE a.status = 'published' AND a.featured = true ORDER BY a.published_at DESC LIMIT $1`,
+      [limit]
+    );
+    return rows.map(rowToArticleWithRelations);
+  } catch (err) {
+    console.error("[getFeaturedStories error]:", err);
+    return [];
+  }
+}
+
+export async function getTrendingStories(limit = 5): Promise<ArticleWithRelations[]> {
+  try {
+    const recent = await sql(
+      `${JOIN_SELECT} WHERE a.status = 'published' AND a.published_at >= now() - interval '30 days' AND a.view_count > 0
+       ORDER BY a.view_count DESC, a.published_at DESC LIMIT $1`,
+      [limit]
+    );
+    if (recent.length >= limit) return recent.map(rowToArticleWithRelations);
+    const ids = recent.map((r: any) => r.id);
+    const rest = await sql(
+      `${JOIN_SELECT} WHERE a.status = 'published' AND NOT (a.id = ANY($2::uuid[])) ORDER BY a.published_at DESC LIMIT $1`,
+      [limit - recent.length, ids]
+    );
+    return [...recent, ...rest].map(rowToArticleWithRelations);
+  } catch (err) {
+    console.error("[getTrendingStories error]:", err);
+    return [];
+  }
+}
 export const getEditorsPickArticles = (limit = 6) => getFlaggedArticles("editors_pick", limit);
 export const getBreakingArticles = (limit = 6) => getFlaggedArticles("breaking", limit);
 export const getPinnedTrendingArticles = (limit = 6) => getFlaggedArticles("trending", limit);
@@ -1370,6 +1406,21 @@ export async function getPublishedNewsBySlug(slug: string): Promise<ArticleWithR
   await publishDueScheduledArticles();
   const rows = await sql(`${JOIN_SELECT} WHERE a.type = 'news' AND a.status = 'published' AND a.slug = $1 LIMIT 1`, [slug]);
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
+}
+
+// The header's LIVE line on every public page: one small read-only query
+// (no scheduled-publish side effect, unlike getPublishedNews).
+export async function getLatestNewsHeadline(): Promise<{ title: string; slug: string } | undefined> {
+  try {
+    const rows = await sql`
+      SELECT title, slug FROM articles
+      WHERE type = 'news' AND status = 'published'
+      ORDER BY COALESCE(published_at, updated_at) DESC
+      LIMIT 1`;
+    return rows.length ? { title: rows[0].title, slug: rows[0].slug } : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function newsPath(slug: string): string {
