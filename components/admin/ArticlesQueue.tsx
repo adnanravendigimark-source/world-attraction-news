@@ -46,6 +46,22 @@ const TAB_LABELS: Record<string, string> = {
 // submissions accumulate. Windowed like the Admin Users table.
 const PAGE_SIZE = 20;
 
+// What kind of article it is. News and AI blogs are reviewed separately, so
+// the queue opens on one kind at a time (kept in the URL as ?kind=).
+const KINDS = [
+  ["", "All"],
+  ["news", "News"],
+  ["ai_blog", "Blogs"],
+  ["contributor", "Contributors"],
+] as const;
+type Kind = (typeof KINDS)[number][0];
+function kindOf(a: ArticleWithRelations): Exclude<Kind, ""> {
+  if (a.type === "news") return "news";
+  if (a.origin === "ai_blog") return "ai_blog";
+  return "contributor";
+}
+const KIND_BADGE: Record<string, string> = { news: "News", ai_blog: "Blog", contributor: "Contributor" };
+
 export default function ArticlesQueue({
   initialArticles,
   cities,
@@ -60,35 +76,49 @@ export default function ArticlesQueue({
   const [query, setQuery] = useState("");
   const [cityId, setCityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [kind, setKind] = useState(searchParams.get("kind") || "");
+  const initialKind = searchParams.get("kind") || "";
+  const [kind, setKindState] = useState<Kind>(KINDS.some(([k]) => k === initialKind) ? (initialKind as Kind) : "");
+  // Remember the choice in the address bar without reloading the page, so
+  // a refresh or a shared link opens the same list.
+  const setKind = (k: Kind) => {
+    setKindState(k);
+    if (k === "news") setCategoryId(""); // news has no categories; don't leave a hidden filter on
+    try {
+      const url = new URL(window.location.href);
+      if (k) url.searchParams.set("kind", k);
+      else url.searchParams.delete("kind");
+      window.history.replaceState(null, "", url.toString());
+    } catch {
+      /* address bar not updatable; the filter still works */
+    }
+  };
+  const ofKind = useMemo(() => (kind ? initialArticles.filter((a) => kindOf(a) === kind) : initialArticles), [initialArticles, kind]);
+  const kindCount = (k: Kind) => (k ? initialArticles.filter((a) => kindOf(a) === k).length : initialArticles.length);
   const [author, setAuthor] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [page, setPage] = useState(1);
 
   const authors = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const a of initialArticles) seen.set(a.authorEmail, a.authorName);
+    for (const a of ofKind) seen.set(a.authorEmail, a.authorName);
     return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [initialArticles]);
+  }, [ofKind]);
 
   const counts = {
-    pending: initialArticles.filter((a) => a.status === "pending").length,
-    under_review: initialArticles.filter((a) => a.status === "under_review").length,
-    changes_requested: initialArticles.filter((a) => a.status === "changes_requested").length,
-    approved: initialArticles.filter((a) => a.status === "approved").length,
-    scheduled: initialArticles.filter((a) => a.status === "scheduled").length,
-    published: initialArticles.filter((a) => a.status === "published").length,
-    unpublished: initialArticles.filter((a) => a.status === "unpublished").length,
-    rejected: initialArticles.filter((a) => a.status === "rejected").length,
+    pending: ofKind.filter((a) => a.status === "pending").length,
+    under_review: ofKind.filter((a) => a.status === "under_review").length,
+    changes_requested: ofKind.filter((a) => a.status === "changes_requested").length,
+    approved: ofKind.filter((a) => a.status === "approved").length,
+    scheduled: ofKind.filter((a) => a.status === "scheduled").length,
+    published: ofKind.filter((a) => a.status === "published").length,
+    unpublished: ofKind.filter((a) => a.status === "unpublished").length,
+    rejected: ofKind.filter((a) => a.status === "rejected").length,
   };
 
   const filtered = useMemo(() => {
-    let list = filter === "all" ? initialArticles : initialArticles.filter((a) => a.status === filter);
+    let list = filter === "all" ? ofKind : ofKind.filter((a) => a.status === filter);
     if (cityId) list = list.filter((a) => a.cityId === cityId);
     if (categoryId) list = list.filter((a) => a.categoryId === categoryId);
-    if (kind === "news") list = list.filter((a) => a.type === "news");
-    if (kind === "ai_blog") list = list.filter((a) => a.origin === "ai_blog");
-    if (kind === "contributor") list = list.filter((a) => a.type !== "news" && a.origin !== "ai_blog");
     if (author) list = list.filter((a) => a.authorEmail === author);
     if (dateFrom) {
       const from = new Date(dateFrom).getTime();
@@ -105,7 +135,7 @@ export default function ArticlesQueue({
       );
     }
     return list;
-  }, [initialArticles, filter, cityId, categoryId, kind, author, dateFrom, query]);
+  }, [ofKind, filter, cityId, categoryId, author, dateFrom, query]);
 
   // Any filter/search/tab change invalidates whatever page we were on.
   useEffect(() => {
@@ -118,11 +148,33 @@ export default function ArticlesQueue({
 
   return (
     <div className="space-y-4">
+      {/* News / Blogs / Contributors */}
+      <div role="tablist" aria-label="Article type" className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
+        {KINDS.map(([k, label]) => {
+          const active = kind === k;
+          return (
+            <button
+              key={k || "all"}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setKind(k)}
+              className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                active ? "bg-[#0B1527] text-white" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {label}
+              <span className={`ml-1.5 text-xs font-mono ${active ? "text-white/70" : "text-slate-400"}`}>{kindCount(k)}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Status Filter Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar border-b border-slate-200 pb-3">
         {TABS.map((f) => {
           const isActive = filter === f;
-          const count = f === "all" ? initialArticles.length : counts[f as keyof typeof counts] || 0;
+          const count = f === "all" ? ofKind.length : counts[f as keyof typeof counts] || 0;
 
           return (
             <button
@@ -171,17 +223,7 @@ export default function ArticlesQueue({
           ))}
         </select>
 
-        <select
-          value={kind}
-          onChange={(e) => setKind(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 focus:border-[#DC2626] focus:bg-white focus:outline-none"
-        >
-          <option value="">All types</option>
-          <option value="news">News</option>
-          <option value="ai_blog">AI blogs</option>
-          <option value="contributor">Contributor guides</option>
-        </select>
-
+        {kind !== "news" && (
         <select
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
@@ -194,6 +236,7 @@ export default function ArticlesQueue({
             </option>
           ))}
         </select>
+        )}
 
         <select
           value={author}
@@ -216,14 +259,13 @@ export default function ArticlesQueue({
           className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 focus:border-[#DC2626] focus:bg-white focus:outline-none"
         />
 
-        {(query || cityId || categoryId || kind || author || dateFrom) && (
+        {(query || cityId || categoryId || author || dateFrom) && (
           <button
             type="button"
             onClick={() => {
               setQuery("");
               setCityId("");
               setCategoryId("");
-              setKind("");
               setAuthor("");
               setDateFrom("");
             }}
@@ -250,7 +292,8 @@ export default function ArticlesQueue({
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1 text-[10px] font-bold uppercase tracking-wider text-[#DC2626]">
-                  <span>{a.cityName || "Global"} Bureau</span>
+                  {!kind && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] text-slate-600">{KIND_BADGE[kindOf(a)]}</span>}
+                  <span>{a.cityName || a.countryName || "Global"} Bureau</span>
                   {a.categoryName && (
                     <>
                       <span className="text-slate-300">•</span>
