@@ -120,28 +120,39 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
     <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-bold text-ink-900">Travel Blogs</h1>
-        <p className="mt-1 text-sm text-ink-600">Add a topic or get ideas from AI, then generate the article.</p>
+        <p className="mt-1 text-sm text-ink-600">Type a topic and its city or country to add it. Or type only a city or country to get topic ideas from AI.</p>
       </div>
 
       {canEdit && (
         <form onSubmit={addTopic} className="flex flex-col gap-2 rounded-xl border border-ink-200 bg-white p-4 md:flex-row">
           <input className={`${input} md:flex-[2]`} placeholder="Topic, e.g. Best time to visit Florence" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <input className={`${input} md:flex-1`} placeholder="City or country, e.g. Florence" value={destination} onChange={(e) => setDestination(e.target.value)} />
-          <button
-            disabled={!!busy || !title.trim() || !destination.trim()}
-            className="shrink-0 rounded-lg bg-ink-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-40"
-          >
-            {busy === "add" ? "Adding…" : "Add topic"}
-          </button>
-          <button
-            type="button"
-            onClick={suggest}
-            disabled={!!busy || !destination.trim()}
-            title="Type a city or country first"
-            className="shrink-0 rounded-lg bg-[#DC2626] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#B91C1C] disabled:opacity-40"
-          >
-            {busy === "suggest" ? "Thinking…" : "Suggest with AI"}
-          </button>
+          <input
+            className={`${input} md:flex-1`}
+            placeholder={title.trim() ? "City or country (required)" : "City or country, e.g. Florence"}
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+          />
+          {/* One action at a time: a typed topic is added as it is; with no
+              topic, AI suggests topics for the destination. */}
+          {title.trim() ? (
+            <button
+              disabled={!!busy || !destination.trim()}
+              title={destination.trim() ? "" : "Type a city or country first"}
+              className="shrink-0 rounded-lg bg-ink-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-40"
+            >
+              {busy === "add" ? "Adding…" : "Add topic"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={suggest}
+              disabled={!!busy || !destination.trim()}
+              title={destination.trim() ? "" : "Type a city or country first"}
+              className="shrink-0 rounded-lg bg-[#DC2626] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#B91C1C] disabled:opacity-40"
+            >
+              {busy === "suggest" ? "Thinking…" : "Suggest with AI"}
+            </button>
+          )}
         </form>
       )}
 
