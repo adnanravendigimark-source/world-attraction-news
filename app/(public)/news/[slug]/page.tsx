@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getArticleSources, getPublishedNews, getPublishedNewsBySlug } from "@/lib/articles";
+import { getArticleSources, getPublishedNews, getPublishedNewsBySlug, getTrendingArticles, type ArticleWithRelations } from "@/lib/articles";
+import Container from "@/components/Container";
+import ArticleSidebar, { type SidebarItem } from "@/components/ArticleSidebar";
+import { publicPath } from "@/lib/content/paths";
 import { breadcrumbJsonLd, jsonLdScript, newsArticleJsonLd, resolvePageMetadata } from "@/lib/seo";
 import { getImageMeta, isNewsCoverSize } from "@/lib/news/images";
 import { getLinks, relatedBoxItems } from "@/lib/news/internalLinks";
@@ -43,21 +46,24 @@ function fmt(iso: string | null) {
 export default async function NewsArticlePage({ params }: { params: { slug: string } }) {
   const article = await getPublishedNewsBySlug(params.slug);
   if (!article) notFound();
-  const [sources, imageMeta, latest, links] = await Promise.all([
+  const [sources, imageMeta, latest, links, trending] = await Promise.all([
     getArticleSources(article.id),
     getImageMeta(article.id),
-    getPublishedNews({ limit: 4, offset: 0 }).catch(() => ({ articles: [], total: 0 })),
+    getPublishedNews({ limit: 5, offset: 0 }).catch(() => ({ articles: [], total: 0 })),
     getLinks(article.id),
+    getTrendingArticles(5).catch(() => []),
   ]);
   // Related box: this site's pages the story links to or mentions. Hidden
   // when there are none.
   const related = relatedBoxItems(links);
-  const more = latest.articles.filter((a) => a.id !== article.id).slice(0, 3);
+  const more = latest.articles.filter((a) => a.id !== article.id).slice(0, 4);
+  const place = article.cityName || article.countryName || "";
   const path = `/news/${article.slug}`;
   const showUpdated = article.updatedAt && article.publishedAt && fmt(article.updatedAt) !== fmt(article.publishedAt);
 
   return (
-    <main className="mx-auto max-w-[44rem] px-5 pb-16 pt-8 sm:pt-12">
+    <main className="min-h-screen bg-white pb-20 text-[#0B1527]">
+      <Container className="pt-5 sm:pt-6">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -85,13 +91,35 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
         }}
       />
 
-      <nav className="text-xs font-semibold uppercase tracking-[0.14em] text-[#C22938]">
-        <Link href="/news" className="hover:underline">Travel News</Link>
-        {article.categoryName && <span className="text-slate-400"> / {article.categoryName}</span>}
+      {/* Same frame as blog guides: breadcrumbs, then article (8 cols) + sidebar (4 cols). */}
+      <nav className="mb-5 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-400">
+        <Link href="/" className="transition-colors hover:text-slate-900">Home</Link>
+        <span>&gt;</span>
+        <Link href="/news" className="transition-colors hover:text-slate-900">Travel News</Link>
+        {place && (
+          <>
+            <span>&gt;</span>
+            <span>{place}</span>
+          </>
+        )}
+        <span>&gt;</span>
+        <span className="line-clamp-1 max-w-[280px] text-slate-800 sm:max-w-md">{article.title}</span>
       </nav>
 
-      <h1 className="mt-4 font-serif text-[2.1rem] font-bold leading-[1.12] tracking-tight text-[#111318] sm:text-[2.7rem]">{article.title}</h1>
-      {article.excerpt && <p className="mt-4 font-serif text-xl leading-snug text-slate-600">{article.excerpt}</p>}
+      <div className="grid items-start gap-10 lg:grid-cols-12">
+      <article className="flex min-w-0 flex-col lg:col-span-8">
+      <div className="mb-2.5 flex items-center gap-2 text-xs font-black uppercase tracking-wider">
+        {place && (
+          <>
+            <span className="text-[#DC2626]">{place.toUpperCase()}</span>
+            <span className="text-slate-300">|</span>
+          </>
+        )}
+        <span className="text-slate-500">TRAVEL NEWS</span>
+      </div>
+
+      <h1 className="font-serif text-3xl font-black leading-[1.15] tracking-tight text-[#0B1527] sm:text-4xl lg:text-[42px]">{article.title}</h1>
+      {article.excerpt && <p className="mt-3 font-serif text-base italic leading-relaxed text-slate-600 sm:text-lg">{article.excerpt}</p>}
 
       <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 border-y border-slate-200 py-3 text-[13px] text-slate-500">
         <span className="font-semibold text-slate-800">
@@ -171,24 +199,25 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
         <Link href="/editorial-policy" className="underline underline-offset-2 hover:text-slate-800">How we report</Link>
       </p>
 
-      {more.length > 0 && (
-        <section className="mt-14">
-          <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">More travel news</h2>
-          <ul className="mt-4 grid gap-5 sm:grid-cols-3">
-            {more.map((a) => (
-              <li key={a.id}>
-                <Link href={`/news/${a.slug}`} className="group block">
-                  {a.image && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.image} alt="" loading="lazy" className="mb-2 aspect-[16/10] w-full rounded-lg object-cover" />
-                  )}
-                  <span className="font-serif text-base font-bold leading-snug group-hover:underline">{a.title}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      </article>
+
+      <div className="lg:col-span-4">
+        <ArticleSidebar related={more.map(toSidebarItem)} relatedTitle="More Travel News" trending={trending.filter((t) => t.id !== article.id).map(toSidebarItem)} />
+      </div>
+      </div>
+      </Container>
     </main>
   );
+}
+
+function toSidebarItem(a: ArticleWithRelations): SidebarItem {
+  return {
+    id: a.id,
+    title: a.title,
+    href: publicPath(a),
+    image: a.image,
+    eyebrow: a.cityName || a.countryName || (a.type === "news" ? "Travel News" : a.categoryName || ""),
+    date: a.publishedAt,
+    readingMinutes: a.readingTimeMinutes || 1,
+  };
 }
