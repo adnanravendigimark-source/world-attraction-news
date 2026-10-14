@@ -50,3 +50,22 @@ describe("list pages", () => {
     expect(isOffTopicTitle("Tourism in Italy")).toBe(false);
   });
 });
+
+import { factsAboutSubject, topicSubject } from "@/lib/blogs/research";
+describe("the topic's own subject", () => {
+  it("is found in the headline without the destination or filler", () => {
+    expect(topicSubject("Is Siam Park Worth Visiting? What to Expect", "Tenerife, Spain")).toBe("Siam Park");
+    expect(topicSubject("How to Fit Siam Park into Your Tenerife Itinerary", "Tenerife, Spain")).toBe("Siam Park");
+    expect(topicSubject("Best Time to Visit Bali: A Seasonal Guide", "Bali, Indonesia")).toBe("");
+  });
+  it("counts facts about the subject, not the destination", () => {
+    const facts = [
+      { claim: "Siam Park is a water park in Tenerife." },
+      { claim: "Siam Park opened in 2008." },
+      { claim: "Tenerife is the largest of the Canary Islands." },
+      { claim: "The Carnival of Santa Cruz is one of the largest in the world." },
+    ];
+    expect(factsAboutSubject(facts, "Siam Park")).toBe(2);
+    expect(factsAboutSubject(facts, "")).toBe(4); // a destination topic: every fact counts
+  });
+});

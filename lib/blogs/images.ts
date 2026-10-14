@@ -10,7 +10,7 @@ import { saveCoverSize, saveImageMeta } from "../news/images";
 import { generateCoverImage } from "../news/imagegen";
 import { recordAiRevision } from "../news/aiRevision";
 
-const GENERIC = /\b(best|time|times|visit|visiting|guide|guides|tips|travel|things|to|do|in|the|a|an|and|of|for|by|season|seasonal|seasons|practical|getting|around|overview|how|when|where|what|why|your|you|ultimate|complete|comprehensive|essential|must|see|explore|exploring|discover|everything|know|need|first|timers?|is|it|worth)\b/gi;
+const GENERIC = /\b(best|time|times|visit|visiting|guide|guides|tips|travel|things|to|do|in|the|a|an|and|of|for|by|season|seasonal|seasons|practical|getting|around|overview|how|when|where|what|why|your|you|ultimate|complete|comprehensive|essential|must|see|explore|exploring|discover|everything|know|need|first|timers?|is|it|worth|expect|expecting|should|can|much|long|into|fit|fitting|plan|planning|itinerary|trip|day|days|vs|versus|or|on|at|with|before|after|during|from|are|there|our)\b/gi;
 
 // "Weather in Barcelona by Season" -> "Weather"; "Sagrada Família Tickets" -> "Sagrada Família"
 export function sectionSubject(heading: string, destination: string): string {

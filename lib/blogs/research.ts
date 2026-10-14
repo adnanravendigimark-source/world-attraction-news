@@ -9,12 +9,14 @@ import { fetchPageText, isPublicUrl } from "../news/extract";
 import { chatJson } from "../news/aiClient";
 import { researchModel } from "../news/research";
 import { getTopic, type BlogTopic } from "./topics";
+import { sectionSubject } from "./images";
 
-export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-2026-10-12";
+export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-v2-2026-10-14";
 const UA = "WorldAttractionNewsBot/1.0 (https://www.worldattractionnews.com; research)";
 const PER_SOURCE = 6000;
 const TOTAL = 26000;
 export const MIN_FACTS = 12;
+export const MIN_SUBJECT_FACTS = 6; // facts about the topic's own subject (e.g. Siam Park)
 
 export const SUBTOPICS = ["places", "practical", "tickets", "seasons", "transport", "food", "history", "other"] as const;
 
@@ -131,6 +133,47 @@ function destinationName(t: BlogTopic): string {
   return t.destination.split(",")[0].trim();
 }
 
+const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+// What the article is about beyond its destination: "Is Siam Park Worth
+// Visiting? What to Expect" (Tenerife) -> "Siam Park". Empty for topics that
+// are about the destination itself ("Best Time to Visit Bali").
+export function topicSubject(title: string, destination: string): string {
+  // sectionSubject drops filler and the destination name (lib/blogs/images.ts).
+  return sectionSubject(String(title || "").split(":")[0], destination.split(",")[0].trim());
+}
+
+// Words of the subject that identify it ("siam", "park").
+export function subjectWords(subject: string): string[] {
+  return fold(subject).split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+}
+
+// How many facts are about the subject. Pure; exported for tests.
+export function factsAboutSubject(facts: Pick<BlogFact, "claim">[], subject: string): number {
+  const words = subjectWords(subject);
+  if (words.length === 0) return facts.length;
+  // Most of the subject's words: "Siam Park" needs "siam"; one-word subjects need that word.
+  const need = Math.max(1, Math.ceil(words.length / 2));
+  return facts.filter((f) => words.filter((w) => fold(f.claim).includes(w)).length >= need).length;
+}
+
+// The subject's official website, from Wikidata (P856), for a Wikipedia page.
+async function officialSite(wikiTitle: string): Promise<string> {
+  const props = await fetch(
+    `https://en.wikipedia.org/w/api.php?action=query&prop=pageprops&ppprop=wikibase_item&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(wikiTitle)}`,
+    { headers: { "User-Agent": UA }, cache: "no-store", signal: AbortSignal.timeout(12_000) }
+  ).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const qid = props?.query?.pages?.[0]?.pageprops?.wikibase_item;
+  if (!qid || !/^Q\d+$/.test(qid)) return "";
+  const claims = await fetch(`https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${qid}&property=P856&format=json`, {
+    headers: { "User-Agent": UA },
+    cache: "no-store",
+    signal: AbortSignal.timeout(12_000),
+  }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const url = String(claims?.claims?.P856?.[0]?.mainsnak?.datavalue?.value || "");
+  return /^https?:\/\//i.test(url) && isPublicUrl(url) ? url : "";
+}
+
 // Collects source text for the topic. Exported for tests with fetch mocked.
 export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []): Promise<{ sources: BlogSource[]; blocks: string[] }> {
   const dest = destinationName(topic);
@@ -149,10 +192,26 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
     }
   };
 
-  // Destination pages first: Wikivoyage (practical) and Wikipedia (background).
-  const wanted: [string, string, string][] = [["en.wikivoyage.org", dest, "Wikivoyage"], ["en.wikipedia.org", dest, "Wikipedia"]];
-  // Pages about the topic itself, e.g. "Uffizi" or "Tuscan cuisine".
+  // The topic's own subject first ("Siam Park"): its Wikipedia page and its
+  // official website. Without them a "Siam Park" article was researched from
+  // pages about Tenerife alone.
+  const wanted: [string, string, string][] = [];
   const seen = new Set([dest.toLowerCase()]);
+  const subject = topicSubject(topic.title, topic.destination);
+  let subjectPage = "";
+  if (subject) {
+    const sw = subjectWords(subject);
+    for (const t of await wikiSearch("en.wikipedia.org", `${subject} ${dest}`.slice(0, 200), 5)) {
+      if (isOffTopicTitle(t) || !sw.some((w) => fold(t).includes(w))) continue;
+      subjectPage = t;
+      seen.add(t.toLowerCase());
+      wanted.push(["en.wikipedia.org", t, "Wikipedia"]);
+      break;
+    }
+  }
+  // Then the destination: Wikivoyage (practical) and Wikipedia (background).
+  wanted.push(["en.wikivoyage.org", dest, "Wikivoyage"], ["en.wikipedia.org", dest, "Wikipedia"]);
+  // Pages about the topic itself, e.g. "Uffizi" or "Tuscan cuisine".
   for (const q of topicQueries(topic.topicType, dest, topic.title)) {
     if (wanted.length >= 5) break;
     for (const t of await wikiSearch("en.wikipedia.org", q.slice(0, 200), 3)) {
@@ -169,7 +228,10 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
     if (page) add(page.title, page.url, publisher, page.text);
     else sources.push({ n: sources.length + 1, title, url: `https://${host}/wiki/${encodeURIComponent(title)}`, publisher, ok: false, chars: 0, note: "not found" });
   }
-  for (const url of extraUrls.slice(0, 5)) {
+  // The subject's official site, unless the editor already added it.
+  const official = subjectPage ? await officialSite(subjectPage).catch(() => "") : "";
+  const extra = official && !extraUrls.some((u) => u.includes(new URL(official).hostname.replace(/^www\./, ""))) ? [official, ...extraUrls] : extraUrls;
+  for (const url of extra.slice(0, 5)) {
     if (total >= TOTAL) break;
     if (!isPublicUrl(url)) {
       sources.push({ n: sources.length + 1, title: url, url, publisher: "", ok: false, chars: 0, note: "not a public web address" });
@@ -275,6 +337,16 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
   const facts = normalizeBlogFacts(ai.json, sources.filter((s) => s.ok).map((s) => s.n));
   if (facts.length < MIN_FACTS) {
     return fail(`Research found only ${facts.length} cited facts (at least ${MIN_FACTS} are needed). Add a page about this topic and run research again.`, sources);
+  }
+  // Enough facts about the destination isn't enough: the article needs facts
+  // about its own subject, or the outline can't be built from them.
+  const subject = topicSubject(topic.title, topic.destination);
+  const about = factsAboutSubject(facts, subject);
+  if (subject && about < MIN_SUBJECT_FACTS) {
+    return fail(
+      `Free sources say little about ${subject}: only ${about} of ${facts.length} facts are about it. Add its official website or another page about it as a source and run research again.`,
+      sources
+    );
   }
   await sql`
     UPDATE blog_research SET status = 'done', facts = ${JSON.stringify(facts)}::jsonb, sources = ${JSON.stringify(sources)}::jsonb,

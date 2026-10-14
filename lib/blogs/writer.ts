@@ -91,18 +91,31 @@ Return JSON: {"title","search_intent","primary_keyword","secondary_keywords","re
 
 export function normalizeOutline(raw: any, factCount: number, targetWords: number): BlogOutline {
   const used = new Set<number>();
-  const sections: OutlineSection[] = [];
+  const planned: OutlineSection[] = [];
   for (const s of Array.isArray(raw?.sections) ? raw.sections : []) {
     const heading = tidyStyle(String(s?.heading || "").replace(/^#+\s*/, "").trim().slice(0, 100));
     if (!heading || /^(introduction|conclusion|faq|frequently asked)/i.test(heading)) continue;
     const facts = (Array.isArray(s?.facts) ? s.facts : [])
       .map(Number)
       .filter((n: number) => Number.isInteger(n) && n >= 0 && n < factCount && !used.has(n));
-    if (facts.length < 2) continue;
     facts.forEach((n: number) => used.add(n));
-    sections.push({ heading, intent: String(s?.intent || "").slice(0, 300), words: Math.max(120, Math.round(Number(s?.words) || 0)), facts });
+    planned.push({ heading, intent: String(s?.intent || "").slice(0, 300), words: Math.max(120, Math.round(Number(s?.words) || 0)), facts });
   }
-  if (sections.length < 3) throw new Error("The outline didn't have enough well-supported sections. Add a source and run research again.");
+  // The model sometimes cites too few facts for a section it planned well.
+  // Rather than drop it, give it facts nobody used yet; only a section that
+  // still has fewer than 2 is left out.
+  const unused = Array.from({ length: factCount }, (_, i) => i).filter((i) => !used.has(i));
+  for (const sec of planned) {
+    while (sec.facts.length < 2 && unused.length) sec.facts.push(unused.shift()!);
+  }
+  const sections = planned.filter((sec) => sec.facts.length >= 2);
+  if (sections.length < 3) {
+    throw new Error(
+      factCount < 12
+        ? "Research has too few facts for a full article. Add a page about this topic as a source and run research again."
+        : "The outline came back with too few sections. Click Generate again; if it repeats, add a page about the topic as a source."
+    );
+  }
   // Length follows the intent and the facts, up to the topic's maximum:
   // roughly 45 words per cited fact is what the facts can carry without padding.
   const recommended = Math.round(Number(raw?.recommended_words) || targetWords);

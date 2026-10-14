@@ -12,8 +12,10 @@ describe("blog outline", () => {
       { heading: "Thin", facts: [9] },
       { heading: "FAQ", facts: [7, 8] },
     ] }, 9, 1000);
-    expect(o.sections.map((s) => s.heading)).toEqual(["Weather by Season", "Festivals", "Crowds and Prices"]);
+    // "Thin" cited only an invalid fact; it now gets the unused facts 7 and 8 instead of being dropped.
+    expect(o.sections.map((s) => s.heading)).toEqual(["Weather by Season", "Festivals", "Crowds and Prices", "Thin"]);
     expect(o.sections[2].facts).toEqual([5, 6]);
+    expect(o.sections[3].facts).toEqual([7, 8]);
     const total = o.sections.reduce((n, s) => n + s.words, 0);
     // 9 facts carry about 600 words at most, whatever the topic's maximum.
     expect(total).toBeGreaterThan(400);
@@ -80,5 +82,25 @@ describe("outline length follows the facts", () => {
     const sections = [0, 1, 2].map((i) => ({ heading: `S${i}`, words: 300, facts: [i * 2, i * 2 + 1] }));
     const o = normalizeOutline({ title: "t", recommended_words: 2000, sections }, facts, 1800);
     expect(o.recommendedWords).toBe(630);
+  });
+});
+
+import { normalizeOutline as no2 } from "@/lib/blogs/writer";
+describe("outline repair", () => {
+  it("sections the model under-cited get unused facts instead of being dropped", () => {
+    const raw = { title: "T", sections: [
+      { heading: "What Siam Park Is", facts: [0, 1] },
+      { heading: "Rides and Waves", facts: [2] },
+      { heading: "Getting There", facts: [] },
+      { heading: "Tickets", facts: [3, 4] },
+    ] };
+    const o = no2(raw, 12, 1000);
+    expect(o.sections.map((s) => s.heading)).toEqual(["What Siam Park Is", "Rides and Waves", "Getting There", "Tickets"]);
+    expect(o.sections.every((s) => s.facts.length >= 2)).toBe(true);
+    const all = o.sections.flatMap((s) => s.facts);
+    expect(new Set(all).size).toBe(all.length); // still no fact used twice
+  });
+  it("too few facts gives a clear research message", () => {
+    expect(() => no2({ sections: [{ heading: "A", facts: [0, 1] }] }, 4, 1000)).toThrow(/too few facts/);
   });
 });
