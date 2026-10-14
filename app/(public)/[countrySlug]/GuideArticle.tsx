@@ -4,7 +4,7 @@
 
 import { headers } from "next/headers";
 import ArticleDetailClient from "@/components/ArticleDetailClient";
-import { getArticleSources, getRelatedPublishedArticles, getTrendingArticles, incrementArticleView, type ArticleWithRelations } from "@/lib/articles";
+import { getRelatedPublishedArticles, getTrendingArticles, incrementArticleView, type ArticleWithRelations } from "@/lib/articles";
 import { getClientIpFromHeaders } from "@/lib/rateLimit";
 import { articleJsonLd, faqJsonLd, jsonLdScript } from "@/lib/seo";
 import { articlePath } from "@/lib/destinations";
@@ -17,17 +17,17 @@ export default async function GuideArticle({ article, countView = true }: { arti
     const ip = getClientIpFromHeaders(headers());
     article.viewCount = await incrementArticleView(article.id, ip);
   }
-  const [related, trending, sources, series] = await Promise.all([
+  // Research sources are for editors (admin, fact check), not shown publicly.
+  const [related, trending, series] = await Promise.all([
     article.cityId ? getRelatedPublishedArticles(article.cityId, article.id, 4) : Promise.resolve([]),
     getTrendingArticles(5),
-    getArticleSources(article.id),
     publishedClusterArticles(article.id).catch(() => []),
   ]);
   const path = articlePath(article.countrySlug, article.citySlug, article.slug);
   const faq = faqJsonLd(article.faq);
   return (
     <>
-      <ArticleDetailClient article={article} relatedStories={related} trendingStories={trending} sources={sources} series={series} />
+      <ArticleDetailClient article={article} relatedStories={related} trendingStories={trending} series={series} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

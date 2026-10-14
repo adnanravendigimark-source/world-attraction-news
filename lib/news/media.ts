@@ -19,6 +19,8 @@ export interface FoundPhoto {
   description?: string; // what the photo shows, when the provider says
   query: string;
   width?: number;
+  height?: number;
+  rawUrl?: string; // Unsplash: base image URL that takes size/crop parameters
 }
 
 const UA = "WorldAttractionNewsBot/1.0 (https://worldattractionnews.com; editorial image search)";
@@ -89,13 +91,50 @@ async function jget(url: string, headers: Record<string, string> = {}): Promise<
   return res.json();
 }
 
+// Unsplash search results don't say where a photo was taken ("aerial view of
+// city buildings"), so the top few are looked up one by one: the photo's own
+// page gives its location ("Barcelona, Spain") and tags, which the relevance
+// check needs. Skipped when the hourly request allowance runs low.
+const UNSPLASH_DETAILS = 3;
+async function unsplashGet(url: string, key: string): Promise<{ json: any; remaining: number }> {
+  const res = await fetch(url, { headers: { "User-Agent": UA, Authorization: `Client-ID ${key}`, "Accept-Version": "v1" }, signal: AbortSignal.timeout(12_000), cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return { json: await res.json(), remaining: Number(res.headers.get("x-ratelimit-remaining") ?? 999) };
+}
+
+export function unsplashDescription(r: any): string {
+  const loc = r?.location || {};
+  return [
+    r?.description || "",
+    r?.alt_description || "",
+    loc.name || "",
+    loc.city || "",
+    loc.country || "",
+    ...(Array.isArray(r?.tags) ? r.tags.map((t: any) => t?.title).filter(Boolean) : []),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 async function searchUnsplash(query: string): Promise<FoundPhoto[]> {
   const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
   if (!key) return [];
-  const j = await jget(`https://api.unsplash.com/search/photos?per_page=6&orientation=landscape&content_filter=high&query=${encodeURIComponent(query)}`, {
-    Authorization: `Client-ID ${key}`,
-  });
-  return (j?.results || []).map((r: any) => ({
+  const { json: j, remaining } = await unsplashGet(
+    `https://api.unsplash.com/search/photos?per_page=6&orientation=landscape&content_filter=high&query=${encodeURIComponent(query)}`,
+    key
+  );
+  const results: any[] = j?.results || [];
+  // Location and tags for the top results, while the allowance lasts.
+  let left = remaining;
+  const detailed = await Promise.all(
+    results.map(async (r, i) => {
+      if (i >= UNSPLASH_DETAILS || left <= 10 || !r?.id) return r;
+      left--;
+      const d = await unsplashGet(`https://api.unsplash.com/photos/${encodeURIComponent(r.id)}`, key).catch(() => null);
+      return d?.json ? { ...r, ...d.json } : r;
+    })
+  );
+  return detailed.map((r: any) => ({
     provider: "unsplash" as const,
     imageUrl: r?.urls?.regular as string,
     pageUrl: `${r?.links?.html}?utm_source=world_attraction_news&utm_medium=referral`,
@@ -103,11 +142,13 @@ async function searchUnsplash(query: string): Promise<FoundPhoto[]> {
     license: "Unsplash License",
     licenseUrl: "https://unsplash.com/license",
     title: r?.alt_description || r?.description || query,
-    // Unsplash's own tags often carry the place ("florence", "italy").
-    description: [r?.description || r?.alt_description || "", ...(Array.isArray(r?.tags) ? r.tags.map((t: any) => t?.title).filter(Boolean) : [])].join(" "),
+    description: unsplashDescription(r),
     query,
     width: Number(r?.width) || undefined,
+    height: Number(r?.height) || undefined,
+    rawUrl: typeof r?.urls?.raw === "string" ? r.urls.raw : undefined,
     _download: r?.links?.download_location as string,
+    _profile: r?.user?.links?.html ? `${r.user.links.html}?utm_source=world_attraction_news&utm_medium=referral` : undefined,
   }));
 }
 
@@ -248,22 +289,37 @@ export async function findPhoto(queries: string[], exclude: Set<string> = new Se
   return null;
 }
 
+// Unsplash's API terms require hotlinking: the photo is shown from Unsplash's
+// own image URL, never downloaded and re-hosted. Their image server crops and
+// sizes it, so a cover is still exactly 1200×675. Pure; exported for tests.
+export function unsplashUrls(photo: Pick<FoundPhoto, "rawUrl" | "imageUrl" | "width" | "height">, cover: boolean): { url: string; width: number; height: number; originalUrl: string } {
+  const base = photo.rawUrl || photo.imageUrl;
+  const join = base.includes("?") ? "&" : "?";
+  if (cover) return { url: `${base}${join}w=1200&h=675&fit=crop&crop=entropy&q=80&auto=format`, width: 1200, height: 675, originalUrl: photo.imageUrl };
+  const w = 1600;
+  const h = photo.width && photo.height ? Math.round((photo.height / photo.width) * w) : 1067;
+  return { url: `${base}${join}w=${w}&fit=max&q=80&auto=format`, width: w, height: h, originalUrl: "" };
+}
+
 // Downloads the photo, re-encodes it and stores it in our own storage. A cover
 // is cropped to 1200×675 and its original kept; an inline photo keeps its shape.
+// Unsplash photos are hotlinked instead (see unsplashUrls).
 export async function storePhoto(
   photo: FoundPhoto,
   opts: { cover?: boolean } = {}
 ): Promise<{ url: string; width: number; height: number; originalUrl: string }> {
+  if (photo.provider === "unsplash") {
+    // Unsplash asks for a download ping whenever a photo is used.
+    const dl = (photo as any)._download as string | undefined;
+    const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
+    if (dl && key) fetch(dl, { headers: { Authorization: `Client-ID ${key}` } }).catch(() => {});
+    return unsplashUrls(photo, !!opts.cover);
+  }
   const { type, buf } = await fetchPublicImage(photo.imageUrl, { headers: { "User-Agent": UA }, timeoutMs: 20_000, maxBytes: 12 * 1024 * 1024 }).catch((err) => {
     throw new Error(String(err?.message || "Photo download failed.").replace(/^Image/, "Photo"));
   });
   const file = new File([buf], "photo", { type });
-  const uploaded = opts.cover ? await uploadNewsCover(file) : { ...(await uploadImage(file, "news")), originalUrl: "" };
-  // Unsplash asks for a download ping when a photo is used.
-  const dl = (photo as any)._download as string | undefined;
-  const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
-  if (dl && key) fetch(dl, { headers: { Authorization: `Client-ID ${key}` } }).catch(() => {});
-  return uploaded;
+  return opts.cover ? await uploadNewsCover(file) : { ...(await uploadImage(file, "news")), originalUrl: "" };
 }
 
 export function creditLine(p: FoundPhoto): string {
@@ -273,7 +329,13 @@ export function creditLine(p: FoundPhoto): string {
 
 export function captionHtml(p: FoundPhoto): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const site = p.provider === "unsplash" ? "Unsplash" : "Wikimedia Commons";
+  // Unsplash's attribution format: "Photo by <name> on Unsplash", both linked.
+  if (p.provider === "unsplash") {
+    const profile = (p as any)._profile as string | undefined;
+    const by = profile ? `<a href="${esc(profile)}" target="_blank">${esc(p.author)}</a>` : esc(p.author);
+    return `Photo by ${by} on <a href="https://unsplash.com/?utm_source=world_attraction_news&amp;utm_medium=referral" target="_blank">Unsplash</a>`;
+  }
+  const site = "Wikimedia Commons";
   return `Photo: ${esc(p.author)} / <a href="${esc(p.pageUrl)}" target="_blank">${site}</a> · ${esc(p.license)}`;
 }
 

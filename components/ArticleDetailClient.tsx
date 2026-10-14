@@ -13,13 +13,11 @@ export default function ArticleDetailClient({
   article,
   relatedStories = [],
   trendingStories = [],
-  sources = [],
   series = [],
 }: {
   article: ArticleWithRelations;
   relatedStories?: ArticleWithRelations[];
   trendingStories?: ArticleWithRelations[];
-  sources?: { n: number; title: string; url: string; publisher: string }[];
   // Published articles from the same topic cluster, main guide first.
   series?: { title: string; url: string; pillar: boolean }[];
 }) {
@@ -245,24 +243,6 @@ export default function ArticleDetailClient({
               </section>
             )}
 
-            {sources.length > 0 && (
-              <section className="mt-10 rounded-xl bg-slate-50 p-5" aria-labelledby="sources-heading">
-                <h2 id="sources-heading" className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Sources</h2>
-                <p className="mt-2 text-xs text-slate-500">
-                  Facts in this guide were checked against these sources. Last updated{" "}
-                  {new Date(article.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}. Prices, opening hours and entry rules can change: check the official site before you go.
-                </p>
-                <ul className="mt-3 space-y-1.5 text-sm">
-                  {sources.map((s) => (
-                    <li key={s.n}>
-                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-slate-800 underline decoration-slate-300 underline-offset-2 hover:decoration-slate-700">
-                        {s.publisher ? `${s.publisher}: ` : ""}{s.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
 
             {article.faq?.length > 0 && (
               <section className="mt-12 -mx-4 rounded-3xl bg-[#F8F8F7] px-4 py-10 sm:-mx-6 sm:px-8" aria-labelledby="faq-heading">
