@@ -7,7 +7,7 @@ vi.mock("@/lib/db", () => ({
   sql: (strings: TemplateStringsArray) => {
     const q = strings.join("?");
     if (/^\s*(UPDATE|INSERT)/.test(q)) writes.push(q.trim().split(/\s+/).slice(0, 3).join(" "));
-    if (/SELECT title, content_html FROM articles/.test(q)) return Promise.resolve([{ title: "Hollywood Burbank Airport opens new terminal", content_html: "<p>One.</p><p>Two.</p><p>Three.</p>" }]);
+    if (/SELECT a\.title, a\.content_html/.test(q)) return Promise.resolve([{ title: "Hollywood Burbank Airport opens new terminal", content_html: "<p>One.</p><p>Two.</p><p>Three.</p>", city: "Burbank", country: "United States" }]);
     if (/SELECT image FROM articles/.test(q)) return Promise.resolve([{ image: null }]);
     if (/SELECT value FROM news_settings/.test(q)) return Promise.resolve([]);
     return Promise.resolve([]);

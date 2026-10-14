@@ -3,7 +3,7 @@ import { getSession } from "@/lib/session";
 import { dbErrorMessage, sql } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
 import { getImageMeta, saveImageMeta, listCandidates, importCandidate, recropCover } from "@/lib/news/images";
-import { ensureImages, generateCoverImage } from "@/lib/news/imagegen";
+import { ensureImages, generateCoverImage, previewImages } from "@/lib/news/imagegen";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
@@ -63,6 +63,15 @@ export async function POST(req: Request) {
     } catch (err: any) {
       console.error("[news/images] auto failed:", err);
       return NextResponse.json({ error: err?.message || "Photo search failed." }, { status: 400 });
+    }
+  }
+  // { articleId, preview: true } → which photo would be chosen and the AI
+  // prompt, without changing anything (photo searches only, no AI call)
+  if (body?.articleId && body?.preview) {
+    try {
+      return NextResponse.json({ ok: true, ...(await previewImages(String(body.articleId))) });
+    } catch (err: any) {
+      return NextResponse.json({ error: err?.message || "Preview failed." }, { status: 400 });
     }
   }
   // { articleId, recrop: true } → crop the current cover to 1200×675

@@ -10,12 +10,21 @@ import { saveCoverSize, saveImageMeta } from "../news/images";
 import { generateCoverImage } from "../news/imagegen";
 import { recordAiRevision } from "../news/aiRevision";
 
-const GENERIC = /\b(best|time|times|visit|visiting|guide|tips|travel|things|to|do|in|the|a|an|and|of|for|by|season|seasons|practical|getting|around|overview|how|when|where|what|why)\b/gi;
+const GENERIC = /\b(best|time|times|visit|visiting|guide|guides|tips|travel|things|to|do|in|the|a|an|and|of|for|by|season|seasonal|seasons|practical|getting|around|overview|how|when|where|what|why|your|you|ultimate|complete|comprehensive|essential|must|see|explore|exploring|discover|everything|know|need|first|timers?|is|it|worth)\b/gi;
 
 // "Weather in Barcelona by Season" -> "Weather"; "Sagrada Família Tickets" -> "Sagrada Família"
 export function sectionSubject(heading: string, destination: string): string {
   const d = destination.split(",")[0].trim();
   return heading.replace(new RegExp(d, "gi"), " ").replace(GENERIC, " ").replace(/[^\p{L}\p{N}\s'-]/gu, " ").replace(/\s+/g, " ").trim();
+}
+
+// Cover searches for a guide: its specific subject first ("Florence Arno Boat
+// Tour"), then wide views of the place. A headline with no subject beyond the
+// place ("Best Time to Visit Barcelona") starts with the skyline, not with the
+// bare city name, which matches any photo taken there.
+export function blogCoverQueries(title: string, dest: string): string[] {
+  const subject = sectionSubject(String(title || "").split(":")[0], dest);
+  return [subject ? `${dest} ${subject}` : "", `${dest} skyline`, `${dest} city view`, dest].map((q) => q.trim()).filter(Boolean);
 }
 
 // Which sections get a photo: every second one, starting with the second.
@@ -48,13 +57,14 @@ export async function ensureBlogImages(articleId: string, opts: { allowAi?: bool
     WHERE a.id = ${articleId} LIMIT 1`)[0] as any;
   if (!a) throw new Error("Article not found.");
   const dest = String(a.city || a.country || "");
+  const country = String(a.city_country || a.country || "");
   const html0 = stripOurFigures(String(a.content_html || ""));
   const headings = [...html0.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)].map((m) => m[1].replace(/<[^>]+>/g, "").trim());
   const used = new Set<string>();
 
   // Cover: the destination itself reads best as a lead photo.
   let cover: "licensed" | "ai" | "none" = "none";
-  const coverPhoto = await findPhoto([`${dest} ${sectionSubject(a.title, dest)}`.trim(), `${dest} skyline`, dest].filter(Boolean), used).catch(() => null);
+  const coverPhoto = await findPhoto(blogCoverQueries(a.title, dest), used, { place: dest, country }).catch(() => null);
   if (coverPhoto) {
     try {
       const s = await storePhoto(coverPhoto, { cover: true });
@@ -78,7 +88,7 @@ export async function ensureBlogImages(articleId: string, opts: { allowAi?: bool
     // Work from the last section back so earlier positions don't shift.
     for (const idx of photoSections(headings.length).reverse()) {
       const subject = sectionSubject(headings[idx], dest);
-      const p = await findPhoto([subject ? `${subject} ${dest}` : dest, dest], used).catch(() => null);
+      const p = await findPhoto([subject ? `${subject} ${dest}` : dest, dest], used, { place: dest, country }).catch(() => null);
       if (!p) continue;
       try {
         const s = await storePhoto(p);

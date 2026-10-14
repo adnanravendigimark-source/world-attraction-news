@@ -27,3 +27,13 @@ describe("keeping photos through a rewrite", () => {
     expect(out).toBe('<p>i</p><h2>A</h2><p>a!</p><h2>B</h2><p>b1!</p><figure class="news-figure"><img src="1"></figure><p>b2!</p>');
   });
 });
+
+import { blogCoverQueries } from "@/lib/blogs/images";
+describe("guide cover searches", () => {
+  it("a guide with no subject beyond the place starts with the skyline", () => {
+    expect(blogCoverQueries("Best Time to Visit Barcelona: A Seasonal Guide", "Barcelona")).toEqual(["Barcelona skyline", "Barcelona city view", "Barcelona"]);
+  });
+  it("a guide with a subject searches for it first", () => {
+    expect(blogCoverQueries("Arno Boat Tour: Your Ultimate Guide in Florence", "Florence")[0]).toBe("Florence Arno Boat Tour");
+  });
+});
