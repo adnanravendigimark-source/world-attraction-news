@@ -45,34 +45,34 @@ export default async function CategoriesPage() {
   const { categories, counts, latestImages } = await getCategoriesPageData();
 
   return (
-    <div className="bg-white min-h-screen text-[#0B1527] pb-16">
+    <div className="bg-white min-h-screen text-ink-900 pb-16">
       {/* =========================================
           1. BREADCRUMBS & HERO HEADER
       ========================================= */}
-      <div className="border-b border-slate-100 bg-white pt-5 pb-8">
+      <div className="border-b border-ink-100 bg-white pt-5 pb-8">
         <Container>
           {/* Breadcrumbs */}
-          <nav className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-4">
-            <Link href="/" className="hover:text-slate-900 transition-colors">
+          <nav className="flex items-center gap-1.5 text-xs font-semibold text-ink-400 mb-4">
+            <Link href="/" className="hover:text-ink-900 transition-colors">
               Home
             </Link>
             <span>&gt;</span>
-            <span className="text-slate-800">Categories</span>
+            <span className="text-ink-800">Categories</span>
           </nav>
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             {/* Left Title & Tagline */}
             <div className="max-w-xl">
               <div className="flex items-center gap-2 mb-2">
-                <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
-                <span className="text-[11px] font-black uppercase tracking-widest text-[#DC2626]">
+                <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+                <span className="text-[11px] font-black uppercase tracking-widest text-signal">
                   EDITORIAL BEATS
                 </span>
               </div>
-              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#0B1527]">
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-ink-900">
                 Coverage Categories
               </h1>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+              <p className="mt-2 text-xs sm:text-sm text-ink-600 leading-relaxed font-medium">
                 Targeted reporting across themes, venue categories, and global attraction developments.
               </p>
             </div>
@@ -86,10 +86,10 @@ export default async function CategoriesPage() {
                 </svg>
               </div>
 
-              <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527]">
+              <h3 className="font-sans text-xs font-black uppercase tracking-wider text-ink-900">
                 Get Category Alerts
               </h3>
-              <p className="mt-1 text-[11px] text-slate-500 leading-normal">
+              <p className="mt-1 text-[11px] text-ink-500 leading-normal">
                 Stay updated on new attractions, ride tech, and venue openings worldwide.
               </p>
               <div className="mt-2.5">
@@ -121,9 +121,9 @@ export default async function CategoriesPage() {
                   <Link
                     key={cat.id}
                     href={`/categories/${cat.slug}`}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 hover:-translate-y-0.5"
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm hover:shadow-md hover:border-ink-300 transition-all duration-300 hover:-translate-y-0.5"
                   >
-                    <div className="relative h-44 sm:h-48 w-full overflow-hidden bg-slate-900">
+                    <div className="relative h-44 sm:h-48 w-full overflow-hidden bg-ink-900">
                       {image ? (
                         <Image
                           src={image}
@@ -133,11 +133,11 @@ export default async function CategoriesPage() {
                           className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center bg-[#0B1527]">
+                        <div className="flex h-full items-center justify-center bg-ink-900">
                           <span className="font-serif text-2xl font-black text-white/40">{cat.name}</span>
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0B1527] via-[#0B1527]/30 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-ink-900 via-ink-900/30 to-transparent" />
 
                       <span className="absolute right-3 top-3 rounded-full bg-black/60 backdrop-blur-md px-3 py-1 text-[10px] font-bold text-white border border-white/20">
                         {count} {count === 1 ? "story" : "stories"}
@@ -151,11 +151,11 @@ export default async function CategoriesPage() {
                     </div>
 
                     <div className="flex flex-1 flex-col p-5">
-                      <p className="line-clamp-2 text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal">
+                      <p className="line-clamp-2 text-xs sm:text-[13px] text-ink-600 leading-relaxed font-normal">
                         {cat.description || "Comprehensive travel and attraction reporting across this editorial category."}
                       </p>
 
-                      <div className="mt-auto pt-3 text-xs font-black uppercase tracking-wider text-[#DC2626] flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                      <div className="mt-auto pt-3 text-xs font-black uppercase tracking-wider text-signal flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                         <span>Explore {cat.name}</span>
                         <span>→</span>
                       </div>

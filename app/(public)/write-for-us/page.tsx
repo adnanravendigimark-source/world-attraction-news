@@ -68,34 +68,34 @@ const BENEFITS = [
 
 export default function WriteForUsPage() {
   return (
-    <div className="bg-white min-h-screen text-[#0B1527] pb-16">
+    <div className="bg-white min-h-screen text-ink-900 pb-16">
       {/* =========================================
           1. BREADCRUMBS & HERO HEADER
       ========================================= */}
-      <div className="border-b border-slate-100 bg-white pt-5 pb-8">
+      <div className="border-b border-ink-100 bg-white pt-5 pb-8">
         <Container>
           {/* Breadcrumbs */}
-          <nav className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-4">
-            <Link href="/" className="hover:text-slate-900 transition-colors">
+          <nav className="flex items-center gap-1.5 text-xs font-semibold text-ink-400 mb-4">
+            <Link href="/" className="hover:text-ink-900 transition-colors">
               Home
             </Link>
             <span>&gt;</span>
-            <span className="text-slate-800">Write for Us</span>
+            <span className="text-ink-800">Write for Us</span>
           </nav>
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             {/* Left Title & Tagline */}
             <div className="max-w-xl">
               <div className="flex items-center gap-2 mb-2">
-                <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
-                <span className="text-[11px] font-black uppercase tracking-widest text-[#DC2626]">
+                <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+                <span className="text-[11px] font-black uppercase tracking-widest text-signal">
                   CONTRIBUTOR PROGRAM
                 </span>
               </div>
-              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#0B1527]">
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-ink-900">
                 Write for {SITE_NAME}
               </h1>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+              <p className="mt-2 text-xs sm:text-sm text-ink-600 leading-relaxed font-medium">
                 We partner with knowledgeable local correspondents, hospitality researchers, and travel journalists worldwide to report on attractions and theme park news.
               </p>
             </div>
@@ -109,16 +109,16 @@ export default function WriteForUsPage() {
                 </svg>
               </div>
 
-              <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527]">
+              <h3 className="font-sans text-xs font-black uppercase tracking-wider text-ink-900">
                 Have a Breaking Scoop?
               </h3>
-              <p className="mt-1 text-[11px] text-slate-500 leading-normal">
+              <p className="mt-1 text-[11px] text-ink-500 leading-normal">
                 Direct tip-offs, ride testing leaks, or opening confirmations: email our fast desk.
               </p>
               <div className="mt-2.5">
                 <a
                   href={`mailto:${CONTACT_EMAIL}?subject=News Scoop`}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-[#DC2626] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-signal px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-signal-dark transition-colors shadow-sm"
                 >
                   <span>Submit News Scoop</span>
                   <span aria-hidden="true">→</span>
@@ -132,14 +132,14 @@ export default function WriteForUsPage() {
       {/* =========================================
           2. BENEFITS GRID
       ========================================= */}
-      <section className="py-10 border-b border-slate-100 bg-slate-50/50">
+      <section className="py-10 border-b border-ink-100 bg-ink-50/50">
         <Container>
           <div className="grid gap-6 md:grid-cols-3">
             {BENEFITS.map((b) => (
-              <div key={b.title} className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col gap-2">
+              <div key={b.title} className="p-6 rounded-2xl border border-ink-200 bg-white shadow-sm flex flex-col gap-2">
                 <span className="text-2xl mb-1">{b.icon}</span>
-                <h3 className="font-sans text-sm font-black text-[#0B1527]">{b.title}</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">{b.desc}</p>
+                <h3 className="font-sans text-sm font-black text-ink-900">{b.title}</h3>
+                <p className="text-xs text-ink-600 leading-relaxed">{b.desc}</p>
               </div>
             ))}
           </div>
@@ -152,10 +152,10 @@ export default function WriteForUsPage() {
       <section className="py-12">
         <Container>
           <div className="mb-8">
-            <span className="text-xs font-black uppercase tracking-widest text-[#DC2626] mb-1 block">
+            <span className="text-xs font-black uppercase tracking-widest text-signal mb-1 block">
               THE EDITORIAL PROCESS
             </span>
-            <h2 className="font-serif text-2xl sm:text-3xl font-black text-[#0B1527]">
+            <h2 className="font-serif text-2xl sm:text-3xl font-black text-ink-900">
               How Writing For Us Works
             </h2>
           </div>
@@ -164,11 +164,11 @@ export default function WriteForUsPage() {
             {STEPS.map((s) => (
               <div
                 key={s.title}
-                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
+                className="group rounded-2xl border border-ink-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-ink-300 transition-all"
               >
-                <span className="font-mono text-2xl font-black text-[#DC2626] mb-3 block">{s.num}</span>
-                <h3 className="font-sans text-base font-black text-[#0B1527] mb-2">{s.title}</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">{s.body}</p>
+                <span className="font-mono text-2xl font-black text-signal mb-3 block">{s.num}</span>
+                <h3 className="font-sans text-base font-black text-ink-900 mb-2">{s.title}</h3>
+                <p className="text-xs text-ink-600 leading-relaxed">{s.body}</p>
               </div>
             ))}
           </div>
@@ -183,23 +183,23 @@ export default function WriteForUsPage() {
           <div className="grid gap-8 lg:grid-cols-12 items-start">
             {/* Guidelines */}
             <div className="lg:col-span-8 flex flex-col gap-6">
-              <div className="p-6 sm:p-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <h3 className="font-serif text-xl font-black text-[#0B1527] mb-3">
+              <div className="p-6 sm:p-8 rounded-2xl border border-ink-200 bg-white shadow-sm">
+                <h3 className="font-serif text-xl font-black text-ink-900 mb-3">
                   What We Cover
                 </h3>
-                <ul className="space-y-2 text-xs sm:text-sm text-slate-600 leading-relaxed list-disc list-inside">
-                  <li><strong className="text-slate-900">New Attractions &amp; Openings:</strong> First look photos, soft opening dates, and construction milestones.</li>
-                  <li><strong className="text-slate-900">Ticket &amp; Pass Shifts:</strong> Pricing updates, annual pass restructuring, and queue reservation strategies.</li>
-                  <li><strong className="text-slate-900">Theme Park Expansions:</strong> New themed lands, dark rides, roller coasters, and immersive shows.</li>
-                  <li><strong className="text-slate-900">Museum &amp; Landmark Exhibits:</strong> Major restorations, special exhibitions, and visitor access policy changes.</li>
+                <ul className="space-y-2 text-xs sm:text-sm text-ink-600 leading-relaxed list-disc list-inside">
+                  <li><strong className="text-ink-900">New Attractions &amp; Openings:</strong> First look photos, soft opening dates, and construction milestones.</li>
+                  <li><strong className="text-ink-900">Ticket &amp; Pass Shifts:</strong> Pricing updates, annual pass restructuring, and queue reservation strategies.</li>
+                  <li><strong className="text-ink-900">Theme Park Expansions:</strong> New themed lands, dark rides, roller coasters, and immersive shows.</li>
+                  <li><strong className="text-ink-900">Museum &amp; Landmark Exhibits:</strong> Major restorations, special exhibitions, and visitor access policy changes.</li>
                 </ul>
               </div>
 
-              <div className="p-6 sm:p-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <h3 className="font-serif text-xl font-black text-[#0B1527] mb-3">
+              <div className="p-6 sm:p-8 rounded-2xl border border-ink-200 bg-white shadow-sm">
+                <h3 className="font-serif text-xl font-black text-ink-900 mb-3">
                   Originality Standards
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                <p className="text-xs sm:text-sm text-ink-600 leading-relaxed">
                   Every dispatch must represent original reporting written exclusively for {SITE_NAME}. We strictly prohibit spun content, unverified aggregator roundups, and AI filler text.
                 </p>
               </div>
@@ -207,23 +207,23 @@ export default function WriteForUsPage() {
 
             {/* Right: Apply CTA Card */}
             <div className="lg:col-span-4">
-              <div className="rounded-2xl border border-slate-200 bg-[#0B1527] text-white p-6 sm:p-8 shadow-md flex flex-col gap-4 text-center">
+              <div className="rounded-2xl border border-ink-200 bg-ink-900 text-white p-6 sm:p-8 shadow-md flex flex-col gap-4 text-center">
                 <span className="text-3xl">✍️</span>
                 <h3 className="font-serif text-xl sm:text-2xl font-black text-white">
                   Join the Newsroom
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-xs text-ink-300 leading-relaxed">
                   Start reporting on the attractions and destinations in your area. Create a contributor account to get started.
                 </p>
                 <Link
                   href="/signup"
-                  className="w-full mt-2 rounded-lg bg-[#DC2626] py-3 text-xs font-black uppercase tracking-wider text-white shadow hover:bg-[#B91C1C] transition-colors"
+                  className="w-full mt-2 rounded-lg bg-signal py-3 text-xs font-black uppercase tracking-wider text-white shadow hover:bg-signal-dark transition-colors"
                 >
                   Apply as Contributor →
                 </Link>
                 <Link
                   href="/login"
-                  className="text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                  className="text-xs font-semibold text-ink-400 hover:text-white transition-colors"
                 >
                   Already a contributor? Log In
                 </Link>

@@ -35,14 +35,14 @@ export default async function NewsIndexPage({ searchParams }: { searchParams: { 
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "News", path: "/news" }])) }}
       />
-      <header className="border-b border-slate-200 pb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#C22938]">{SITE_NAME}</p>
-        <h1 className="mt-2 font-serif text-4xl font-bold tracking-tight text-[#111318] sm:text-5xl">Travel News</h1>
-        <p className="mt-3 max-w-2xl text-lg text-slate-600">The latest on airlines, airports, attractions and travel rules, checked against the sources.</p>
+      <header className="border-b border-ink-200 pb-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal">{SITE_NAME}</p>
+        <h1 className="mt-2 font-serif text-4xl font-bold tracking-tight text-ink-900 sm:text-5xl">Travel News</h1>
+        <p className="mt-3 max-w-2xl text-lg text-ink-600">The latest on airlines, airports, attractions and travel rules, checked against the sources.</p>
       </header>
 
       {articles.length === 0 ? (
-        <p className="mt-10 text-slate-600">No news published yet. Check back soon.</p>
+        <p className="mt-10 text-ink-600">No news published yet. Check back soon.</p>
       ) : (
         <>
           {lead && (
@@ -52,15 +52,15 @@ export default async function NewsIndexPage({ searchParams }: { searchParams: { 
                 <img src={lead.image} alt={lead.imageAlt || lead.title} className="aspect-[16/10] w-full rounded-xl object-cover" />
               )}
               <div className={lead.image ? "" : "md:col-span-2"}>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{fmt(lead.publishedAt)}</p>
-                <h2 className="mt-2 font-serif text-3xl font-bold leading-tight text-[#111318] group-hover:underline sm:text-[2.1rem]">{lead.title}</h2>
-                {lead.excerpt && <p className="mt-3 text-lg leading-snug text-slate-600">{lead.excerpt}</p>}
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-500">{fmt(lead.publishedAt)}</p>
+                <h2 className="mt-2 font-serif text-3xl font-bold leading-tight text-ink-900 group-hover:underline sm:text-[2.1rem]">{lead.title}</h2>
+                {lead.excerpt && <p className="mt-3 text-lg leading-snug text-ink-600">{lead.excerpt}</p>}
               </div>
             </Link>
           )}
 
           {list.length > 0 && (
-            <ul className="mt-10 grid gap-x-6 gap-y-10 border-t border-slate-200 pt-10 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="mt-10 grid gap-x-6 gap-y-10 border-t border-ink-200 pt-10 sm:grid-cols-2 lg:grid-cols-3">
               {list.map((a) => (
                 <li key={a.id}>
                   <Link href={`/news/${a.slug}`} className="group block">
@@ -68,9 +68,9 @@ export default async function NewsIndexPage({ searchParams }: { searchParams: { 
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={a.image} alt={a.imageAlt || a.title} loading="lazy" className="mb-3 aspect-[16/10] w-full rounded-lg object-cover" />
                     )}
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{fmt(a.publishedAt)}</p>
-                    <h2 className="mt-1 font-serif text-xl font-bold leading-snug text-[#111318] group-hover:underline">{a.title}</h2>
-                    {a.excerpt && <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-slate-600">{a.excerpt}</p>}
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-500">{fmt(a.publishedAt)}</p>
+                    <h2 className="mt-1 font-serif text-xl font-bold leading-snug text-ink-900 group-hover:underline">{a.title}</h2>
+                    {a.excerpt && <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-ink-600">{a.excerpt}</p>}
                   </Link>
                 </li>
               ))}
@@ -82,7 +82,7 @@ export default async function NewsIndexPage({ searchParams }: { searchParams: { 
       {pages > 1 && (
         <nav className="mt-12 flex items-center justify-between text-sm">
           {page > 1 ? <Link href={`/news?page=${page - 1}`} className="underline">← Newer</Link> : <span />}
-          <span className="text-slate-500">Page {page} of {pages}</span>
+          <span className="text-ink-500">Page {page} of {pages}</span>
           {page < pages ? <Link href={`/news?page=${page + 1}`} className="underline">Older →</Link> : <span />}
         </nav>
       )}

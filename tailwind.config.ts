@@ -41,49 +41,29 @@ const config: Config = {
           900: "#111318",
           950: "#0A0B0E",
         },
+        // One brand red, the logo's. Use it as an accent (labels, the active
+        // menu item, breaking news), not for every button.
         signal: {
-          DEFAULT: "#C22938",
-          dark: "#9E1D2A",
-          light: "#FDF2F3",
-          border: "#FAC5CA",
+          DEFAULT: "#DC2626",
+          dark: "#B91C1C",
+          light: "#FEF2F2",
+          border: "#FECACA",
           amber: "#D97706",
           emerald: "#059669",
           blue: "#2563EB",
         },
       },
+      // Loaded with next/font in app/layout.tsx (self-hosted, no layout
+      // shift); these variables are set on <html> there.
       fontFamily: {
-        serif: [
-          '"Newsreader"',
-          '"Playfair Display"',
-          "Georgia",
-          "Cambria",
-          '"Times New Roman"',
-          "Times",
-          "serif",
-        ],
-        sans: [
-          '"Plus Jakarta Sans"',
-          '"Inter"',
-          "-apple-system",
-          "BlinkMacSystemFont",
-          '"Segoe UI"',
-          "Roboto",
-          '"Helvetica Neue"',
-          "Arial",
-          "sans-serif",
-        ],
-        mono: [
-          '"JetBrains Mono"',
-          "ui-monospace",
-          "SFMono-Regular",
-          "Menlo",
-          "Monaco",
-          "Consolas",
-          "monospace",
-        ],
+        serif: ["var(--font-serif)", "Georgia", "Cambria", '"Times New Roman"', "serif"],
+        sans: ["var(--font-sans)", "-apple-system", "BlinkMacSystemFont", '"Segoe UI"', "Roboto", "Arial", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       maxWidth: {
         prose: "46rem",
+        // Comfortable reading line, about 70 characters of body text.
+        measure: "42rem",
         content: "84rem",
       },
       boxShadow: {

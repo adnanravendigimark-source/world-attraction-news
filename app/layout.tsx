@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Newsreader, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/site";
 import { organizationJsonLd, jsonLdScript } from "@/lib/seo";
@@ -22,9 +23,26 @@ export const metadata: Metadata = {
   },
 };
 
+// Fonts are downloaded at build time and served from this site, so the page
+// does not wait on Google Fonts and text does not jump when they arrive
+// (next/font sizes the fallback font to match). Previously a CSS @import.
+const serif = Newsreader({
+  subsets: ["latin", "latin-ext"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
+  variable: "--font-serif",
+  display: "swap",
+  // Next has no size metrics for Newsreader, so it cannot size a fallback
+  // to match; Georgia is close.
+  adjustFontFallback: false,
+  fallback: ["Georgia", "Cambria", "Times New Roman", "serif"],
+});
+const sans = Plus_Jakarta_Sans({ subsets: ["latin", "latin-ext"], variable: "--font-sans", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
         <script

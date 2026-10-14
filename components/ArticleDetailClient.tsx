@@ -76,31 +76,31 @@ export default function ArticleDetailClient({
 
 
   return (
-    <div className="bg-white min-h-screen text-[#0B1527] pb-20">
+    <div className="bg-white min-h-screen text-ink-900 pb-20">
       <Container className="pt-5 sm:pt-6">
         {/* =========================================
             1. BREADCRUMBS
         ========================================= */}
-        <nav className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-400 mb-5">
-          <Link href="/" className="hover:text-slate-900 transition-colors">
+        <nav className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-ink-400 mb-5">
+          <Link href="/" className="hover:text-ink-900 transition-colors">
             Home
           </Link>
           <span>&gt;</span>
-          <Link href="/latest-news" className="hover:text-slate-900 transition-colors">
+          <Link href="/latest-news" className="hover:text-ink-900 transition-colors">
             Blog
           </Link>
           <span>&gt;</span>
           {article.citySlug ? (
-            <Link href={cityPath(article.countrySlug, article.citySlug)} className="hover:text-slate-900 transition-colors">
+            <Link href={cityPath(article.countrySlug, article.citySlug)} className="hover:text-ink-900 transition-colors">
               {article.cityName}
             </Link>
           ) : (
-            <Link href={countryPath(article.countrySlug)} className="hover:text-slate-900 transition-colors">
+            <Link href={countryPath(article.countrySlug)} className="hover:text-ink-900 transition-colors">
               {article.countryName || article.countrySlug}
             </Link>
           )}
           <span>&gt;</span>
-          <span className="text-slate-800 line-clamp-1 max-w-[280px] sm:max-w-md">{article.title}</span>
+          <span className="text-ink-800 line-clamp-1 max-w-[280px] sm:max-w-md">{article.title}</span>
         </nav>
 
         {/* =========================================
@@ -111,39 +111,39 @@ export default function ArticleDetailClient({
           <div className="lg:col-span-8 flex flex-col">
             {/* Eyebrow */}
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider mb-2.5">
-              <span className="text-[#DC2626]">{(article.cityName || article.countryName || "")?.toUpperCase()}</span>
+              <span className="text-signal">{(article.cityName || article.countryName || "")?.toUpperCase()}</span>
               {article.categoryName && (
                 <>
-                  <span className="text-slate-300">|</span>
-                  <span className="text-slate-500">{article.categoryName.toUpperCase()}</span>
+                  <span className="text-ink-300">|</span>
+                  <span className="text-ink-500">{article.categoryName.toUpperCase()}</span>
                 </>
               )}
             </div>
 
             {/* Headline */}
-            <h1 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-black tracking-tight text-[#0B1527] leading-[1.15]">
+            <h1 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-black tracking-tight text-ink-900 leading-[1.15]">
               {article.title}
             </h1>
 
             {/* Subtitle / Excerpt */}
             {article.excerpt && (
-              <p className="mt-3 text-sm sm:text-base text-slate-600 italic leading-relaxed font-serif">
+              <p className="mt-3 text-sm sm:text-base text-ink-600 italic leading-relaxed font-serif">
                 {article.excerpt}
               </p>
             )}
 
             {/* Author, Date & Share Row */}
-            <div className="mt-5 pb-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="mt-5 pb-5 border-b border-ink-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               {/* Author & Meta */}
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-white font-bold text-xs shadow-sm">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-white font-bold text-xs shadow-sm">
                   {article.authorName ? article.authorName.charAt(0).toUpperCase() : "A"}
                 </div>
-                <div className="text-xs text-slate-600">
-                  <p className="font-bold text-[#0B1527]">
+                <div className="text-xs text-ink-600">
+                  <p className="font-bold text-ink-900">
                     By {article.authorName}
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <p className="text-[11px] text-ink-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
                     <span>{formatDate(article.publishedAt)}</span>
                     <span>•</span>
                     <span>{article.readingTimeMinutes || 1} min read</span>
@@ -155,12 +155,12 @@ export default function ArticleDetailClient({
 
               {/* Share icons */}
               <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">SHARE</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-ink-400 mr-1">SHARE</span>
                 <button
                   type="button"
                   onClick={shareOnFacebook}
                   aria-label="Share on Facebook"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-blue-600 transition-all font-bold text-xs"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-ink-200 text-ink-600 hover:bg-ink-100 hover:text-blue-600 transition-all font-bold text-xs"
                 >
                   f
                 </button>
@@ -168,7 +168,7 @@ export default function ArticleDetailClient({
                   type="button"
                   onClick={shareOnTwitter}
                   aria-label="Share on X"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-black transition-all font-bold text-xs"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-ink-200 text-ink-600 hover:bg-ink-100 hover:text-black transition-all font-bold text-xs"
                 >
                   𝕏
                 </button>
@@ -176,7 +176,7 @@ export default function ArticleDetailClient({
                   type="button"
                   onClick={shareOnPinterest}
                   aria-label="Share on Pinterest"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-red-600 transition-all font-bold text-xs"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-ink-200 text-ink-600 hover:bg-ink-100 hover:text-signal transition-all font-bold text-xs"
                 >
                   p
                 </button>
@@ -184,14 +184,14 @@ export default function ArticleDetailClient({
                   type="button"
                   onClick={shareByEmail}
                   aria-label="Share via Email"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-ink-200 text-ink-600 hover:bg-ink-100 transition-all"
                 >
                   ✉
                 </button>
                 <button
                   type="button"
                   onClick={copyToClipboard}
-                  className="ml-1 rounded border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:bg-slate-100 transition-all"
+                  className="ml-1 rounded border border-ink-200 bg-ink-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-ink-700 hover:bg-ink-100 transition-all"
                 >
                   {copied ? "COPIED!" : "COPY LINK"}
                 </button>
@@ -216,27 +216,27 @@ export default function ArticleDetailClient({
               </div>
             )}
             {article.image && article.imageAlt && (
-              <p className="mt-2 text-[11px] text-slate-400 italic text-center">{article.imageAlt}</p>
+              <p className="mt-2 text-[11px] text-ink-400 italic text-center">{article.imageAlt}</p>
             )}
 
             {/* Article Body Content */}
-            <div className="mt-8 article-content text-slate-800 text-sm sm:text-[15px] leading-relaxed">
+            <div className="mt-8 article-content text-ink-800 text-sm sm:text-[15px] leading-relaxed">
               <div
-                className="rich-content article-body"
+                className="article-body"
                 dangerouslySetInnerHTML={{ __html: article.contentHtml }}
               />
             </div>
 
             {series.length > 0 && (
-              <section className="mt-10 rounded-xl border border-slate-200 p-5" aria-labelledby="series-heading">
-                <h2 id="series-heading" className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">More on this topic</h2>
+              <section className="mt-10 rounded-xl border border-ink-200 p-5" aria-labelledby="series-heading">
+                <h2 id="series-heading" className="text-xs font-bold uppercase tracking-[0.14em] text-ink-500">More on this topic</h2>
                 <ul className="mt-3 space-y-2 text-sm">
                   {series.map((s) => (
                     <li key={s.url}>
-                      <Link href={s.url} className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 hover:decoration-slate-700">
+                      <Link href={s.url} className="font-semibold text-ink-900 underline decoration-ink-300 underline-offset-2 hover:decoration-ink-700">
                         {s.title}
                       </Link>
-                      {s.pillar && <span className="ml-2 text-xs text-slate-500">Main guide</span>}
+                      {s.pillar && <span className="ml-2 text-xs text-ink-500">Main guide</span>}
                     </li>
                   ))}
                 </ul>
@@ -245,24 +245,24 @@ export default function ArticleDetailClient({
 
 
             {article.faq?.length > 0 && (
-              <section className="mt-12 -mx-4 rounded-3xl bg-[#F8F8F7] px-4 py-10 sm:-mx-6 sm:px-8" aria-labelledby="faq-heading">
+              <section className="mt-12 -mx-4 rounded-3xl bg-paper-50 px-4 py-10 sm:-mx-6 sm:px-8" aria-labelledby="faq-heading">
                 <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#2F80C9]">Got questions?</p>
-                <h2 id="faq-heading" className="mt-2 text-center text-2xl font-bold tracking-tight text-[#0B1527] sm:text-3xl">
+                <h2 id="faq-heading" className="mt-2 text-center text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
                   {faqHeading(article.focusKeyword)}
                 </h2>
                 <div className="mt-8 space-y-3">
                   {article.faq.map((f, i) => (
-                    <details key={i} className="group rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-5 text-base font-medium text-[#0B1527] sm:px-6 [&::-webkit-details-marker]:hidden">
+                    <details key={i} className="group rounded-2xl border border-ink-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-5 text-base font-medium text-ink-900 sm:px-6 [&::-webkit-details-marker]:hidden">
                         <span>{f.q}</span>
                         <span
                           aria-hidden
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg leading-none text-slate-700 transition-transform group-open:rotate-45"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-100 text-lg leading-none text-ink-700 transition-transform group-open:rotate-45"
                         >
                           +
                         </span>
                       </summary>
-                      <p className="px-5 pb-5 text-[15px] leading-relaxed text-slate-700 sm:px-6">{f.a}</p>
+                      <p className="px-5 pb-5 text-[15px] leading-relaxed text-ink-700 sm:px-6">{f.a}</p>
                     </details>
                   ))}
                 </div>
@@ -270,8 +270,8 @@ export default function ArticleDetailClient({
             )}
 
             {/* Bottom Share Bar */}
-            <div className="mt-12 pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+            <div className="mt-12 pt-6 border-t border-ink-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <span className="text-xs font-black uppercase tracking-wider text-ink-700">
                 SHARE THIS ARTICLE
               </span>
               <div className="flex items-center gap-2 text-xs">
@@ -279,7 +279,7 @@ export default function ArticleDetailClient({
                   type="button"
                   onClick={shareOnFacebook}
                   aria-label="Share on Facebook"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 text-ink-700 hover:bg-ink-100 font-bold"
                 >
                   f
                 </button>
@@ -287,7 +287,7 @@ export default function ArticleDetailClient({
                   type="button"
                   onClick={shareOnTwitter}
                   aria-label="Share on X"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 text-ink-700 hover:bg-ink-100 font-bold"
                 >
                   𝕏
                 </button>
@@ -295,7 +295,7 @@ export default function ArticleDetailClient({
                   type="button"
                   onClick={shareOnPinterest}
                   aria-label="Share on Pinterest"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 text-ink-700 hover:bg-ink-100 font-bold"
                 >
                   p
                 </button>
@@ -303,14 +303,14 @@ export default function ArticleDetailClient({
                   type="button"
                   onClick={shareByEmail}
                   aria-label="Share via Email"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 text-ink-700 hover:bg-ink-100"
                 >
                   ✉
                 </button>
                 <button
                   type="button"
                   onClick={copyToClipboard}
-                  className="ml-2 rounded border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-slate-700 hover:bg-slate-100"
+                  className="ml-2 rounded border border-ink-200 bg-ink-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-ink-700 hover:bg-ink-100"
                 >
                   {copied ? "COPIED!" : "COPY LINK"}
                 </button>

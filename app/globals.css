@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..800;1,6..72,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -29,7 +27,7 @@ html {
 body {
   background-color: #FAF9F5;
   color: #111318;
-  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -37,8 +35,8 @@ body {
 }
 
 ::selection {
-  background-color: #FAC5CA;
-  color: #9E1D2A;
+  background-color: #FECACA;
+  color: #7F1D1D;
 }
 
 /* Custom editorial scrollbar */
@@ -95,77 +93,9 @@ body {
   }
 }
 
-/* Editorial Article Typography */
-.article-body {
-  max-width: 100%;
-  color: #1C1F27;
-  font-family: "Newsreader", Georgia, Cambria, "Times New Roman", serif;
-  font-size: 1.18rem;
-  line-height: 1.85;
-  letter-spacing: -0.003em;
-}
-
-.article-body > p:first-of-type::first-letter {
-  float: left;
-  font-family: "Newsreader", Georgia, serif;
-  font-size: 4rem;
-  line-height: 0.82;
-  font-weight: 700;
-  margin-right: 0.65rem;
-  margin-top: 0.15rem;
-  color: #111318;
-}
-
-/* News articles: plain newspaper-style prose, no drop cap */
-.news-body > p:first-of-type::first-letter {
-  float: none;
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: inherit;
-  margin: 0;
-  color: inherit;
-}
-.news-body {
-  font-size: 1.14rem;
-  line-height: 1.8;
-}
-.news-body > p:first-of-type {
-  font-size: 1.28rem;
-  line-height: 1.65;
-  color: #111318;
-  font-weight: 500;
-}
-.news-body h2 {
-  font-size: 1.35rem;
-  margin-top: 2.2rem;
-}
-.news-body figure.news-figure {
-  margin: 2.25rem 0;
-}
-.news-body figure.news-figure img {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin: 0;
-  border-radius: 0.75rem;
-  box-shadow: none;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-}
-.news-body figure.news-figure figcaption {
-  margin-top: 0.55rem;
-  text-align: left;
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-.news-body figure.news-figure figcaption a {
-  color: inherit;
-  text-decoration: underline;
-}
-
-.article-body h1,
+/* Article editor (admin): the writing surface keeps its own styles. */
 .editor-body h1 {
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: var(--font-sans), sans-serif;
   font-size: 1.85rem;
   font-weight: 800;
   color: #111318;
@@ -175,9 +105,8 @@ body {
   line-height: 1.25;
 }
 
-.article-body h2,
 .editor-body h2 {
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: var(--font-sans), sans-serif;
   font-size: 1.5rem;
   font-weight: 800;
   color: #111318;
@@ -187,9 +116,8 @@ body {
   line-height: 1.3;
 }
 
-.article-body h3,
 .editor-body h3 {
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: var(--font-sans), sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
   color: #1C1F27;
@@ -198,47 +126,38 @@ body {
   letter-spacing: -0.01em;
 }
 
-.article-body p,
 .editor-body p {
   margin-bottom: 1.35rem;
 }
 
-.article-body ul,
-.article-body ol,
 .editor-body ul,
 .editor-body ol {
   margin-bottom: 1.5rem;
   padding-left: 1.5rem;
 }
 
-.article-body ul,
 .editor-body ul {
   list-style-type: disc;
 }
 
-.article-body ol,
 .editor-body ol {
   list-style-type: decimal;
 }
 
-.article-body li,
 .editor-body li {
   margin-bottom: 0.45rem;
 }
 
-.article-body li::marker,
 .editor-body li::marker {
   color: #C22938;
   font-weight: 700;
 }
 
-.article-body strong,
 .editor-body strong {
   color: #0A0B0E;
   font-weight: 700;
 }
 
-.article-body a,
 .editor-body a {
   color: #C22938;
   text-decoration: underline;
@@ -246,38 +165,14 @@ body {
   transition: color 0.15s ease;
 }
 
-.article-body a:hover,
 .editor-body a:hover {
   color: #9E1D2A;
 }
 
-.article-body blockquote {
-  border-left: 3px solid #C22938;
-  padding: 0.6rem 0 0.6rem 1.35rem;
-  margin: 2rem 0;
-  color: #414756;
-  font-style: italic;
-  font-size: 1.25rem;
-  line-height: 1.6;
-  background: rgba(194, 41, 56, 0.03);
-  border-radius: 0 0.5rem 0.5rem 0;
-}
-
-.article-body img {
-  border-radius: 0.625rem;
-  margin: 2rem 0;
-  max-width: 100%;
-  height: auto;
-  box-shadow: 0 4px 14px rgba(17, 19, 24, 0.08);
-}
-
-/* Captioned in-content figures */
-.article-body figure[data-figure-image],
 .editor-body figure[data-figure-image] {
   margin: 2rem 0;
 }
 
-.article-body figure[data-figure-image] img,
 .editor-body figure[data-figure-image] img {
   border-radius: 0.625rem;
   max-width: 100%;
@@ -285,14 +180,12 @@ body {
   display: block;
 }
 
-.article-body figure.img-align-center,
 .editor-body figure.img-align-center {
   margin-left: auto;
   margin-right: auto;
   text-align: center;
 }
 
-.article-body figure.img-align-left,
 .editor-body figure.img-align-left {
   float: left;
   max-width: 48%;
@@ -300,7 +193,6 @@ body {
   margin-bottom: 1.25rem;
 }
 
-.article-body figure.img-align-right,
 .editor-body figure.img-align-right {
   float: right;
   max-width: 48%;
@@ -308,33 +200,28 @@ body {
   margin-bottom: 1.25rem;
 }
 
-.article-body figure.img-align-full,
 .editor-body figure.img-align-full {
   width: 100%;
 }
 
-.article-body figcaption,
 .editor-body figcaption {
   margin-top: 0.6rem;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: var(--font-sans), sans-serif;
   font-size: 0.82rem;
   color: #7E8799;
   text-align: center;
 }
 
-.article-body table,
 .editor-body table {
   width: 100%;
   border-collapse: collapse;
   margin: 2rem 0;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: var(--font-sans), sans-serif;
   font-size: 0.92rem;
   border-radius: 0.5rem;
   overflow: hidden;
 }
 
-.article-body th,
-.article-body td,
 .editor-body th,
 .editor-body td {
   border: 1px solid #EAE5D9;
@@ -342,7 +229,6 @@ body {
   text-align: left;
 }
 
-.article-body th,
 .editor-body th {
   background-color: #F5F3EB;
   font-weight: 700;
@@ -353,7 +239,7 @@ body {
 .rich-content h1,
 .rich-content h2,
 .rich-content h3 {
-  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-weight: 700;
   color: #0f172a;
   margin-top: 1.1em;
@@ -460,3 +346,269 @@ body {
   pointer-events: none;
 }
 
+
+/* ------------------------------------------------------------------------
+   Type scale for public pages. Headlines in the serif, everything else
+   (labels, menus, meta) in the sans. Use these instead of one-off sizes.
+   ------------------------------------------------------------------------ */
+@layer components {
+  .type-display {
+    @apply font-serif text-[2.5rem] font-semibold leading-[1.05] tracking-[-0.02em] text-ink-950 sm:text-[3rem] lg:text-[3.5rem];
+  }
+  .type-title {
+    @apply font-serif text-[2rem] font-semibold leading-[1.1] tracking-[-0.018em] text-ink-950 sm:text-[2.5rem] lg:text-[2.875rem];
+  }
+  .type-section {
+    @apply font-serif text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.012em] text-ink-950 sm:text-[2rem];
+  }
+  .type-card {
+    @apply font-serif text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.008em] text-ink-950;
+  }
+  .type-lead {
+    @apply text-[1.0625rem] leading-relaxed text-ink-600 sm:text-[1.1875rem];
+  }
+  .type-kicker {
+    @apply font-sans text-xs font-semibold uppercase tracking-[0.12em] text-signal;
+  }
+  .type-meta {
+    @apply font-sans text-[0.8125rem] text-ink-500;
+  }
+}
+
+/* ------------------------------------------------------------------------
+   Article text (news, guides, legal pages). Kept last so it wins over the
+   older .rich-content rules where both classes are on one element.
+   ------------------------------------------------------------------------ */
+.article-body {
+  color: #1C1F27;
+  font-family: var(--font-serif), Georgia, Cambria, "Times New Roman", serif;
+  font-size: 1.125rem;
+  line-height: 1.75;
+  letter-spacing: -0.003em;
+  font-optical-sizing: auto;
+  overflow-wrap: break-word;
+}
+@media (min-width: 640px) {
+  .article-body {
+    font-size: 1.1875rem;
+  }
+}
+
+/* Text stays at a comfortable line length (about 70 characters); photos
+   and tables can use the full column. */
+.article-body > :where(p, ul, ol, h2, h3, h4, blockquote, dl, hr, pre) {
+  max-width: 42rem;
+}
+.article-body > :first-child {
+  margin-top: 0;
+}
+.article-body > p:first-of-type {
+  font-size: 1.15em;
+  line-height: 1.6;
+  color: #111318;
+}
+
+.article-body p {
+  margin: 0 0 1.35em;
+}
+
+.article-body h1,
+.article-body h2,
+.article-body h3 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 600;
+  color: #0A0B0E;
+  scroll-margin-top: 6rem;
+}
+.article-body h1,
+.article-body h2 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  margin: 2.2em 0 0.55em;
+}
+@media (min-width: 640px) {
+  .article-body h1,
+  .article-body h2 {
+    font-size: 1.75rem;
+  }
+}
+.article-body h3 {
+  font-size: 1.3rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin: 1.8em 0 0.45em;
+}
+.article-body h4 {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #2B303C;
+  margin: 1.8em 0 0.5em;
+}
+.article-body :where(h2, h3, h4) + p {
+  margin-top: 0;
+}
+
+.article-body a {
+  color: #0A0B0E;
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(220, 38, 38, 0.55);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease, color 0.15s ease;
+}
+.article-body a:hover {
+  color: #B91C1C;
+  text-decoration-color: currentColor;
+}
+
+.article-body strong,
+.article-body b {
+  font-weight: 600;
+  color: #0A0B0E;
+}
+
+.article-body ul,
+.article-body ol {
+  margin: 0 0 1.5em;
+  padding-left: 1.35em;
+}
+.article-body ul {
+  list-style: disc;
+}
+.article-body ol {
+  list-style: decimal;
+}
+.article-body li {
+  margin-bottom: 0.5em;
+  padding-left: 0.2em;
+}
+.article-body li > p {
+  margin-bottom: 0.4em;
+}
+.article-body ul > li::marker {
+  color: #B0B6C3;
+}
+.article-body ol > li::marker {
+  color: #5A6273;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.article-body blockquote {
+  margin: 2em 0;
+  padding: 0.15em 0 0.15em 1.25em;
+  border-left: 2px solid #DC2626;
+  color: #2B303C;
+  font-style: italic;
+  font-size: 1.2em;
+  line-height: 1.55;
+  background: none;
+  border-radius: 0;
+}
+.article-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.article-body hr {
+  border: 0;
+  height: 1px;
+  background: #ECEEF2;
+  margin: 2.75em 0;
+}
+
+.article-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 2em 0;
+  border-radius: 0.75rem;
+  box-shadow: none;
+}
+.article-body figure {
+  margin: 2.25em 0;
+}
+.article-body figure img {
+  margin: 0;
+}
+.article-body figcaption {
+  margin-top: 0.6rem;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #5A6273;
+  text-align: left;
+}
+.article-body figcaption a {
+  color: inherit;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+}
+.article-body figure.img-align-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+.article-body figure.img-align-left {
+  float: left;
+  max-width: 48%;
+  margin: 0.4em 1.75rem 1.25rem 0;
+}
+.article-body figure.img-align-right {
+  float: right;
+  max-width: 48%;
+  margin: 0.4em 0 1.25rem 1.75rem;
+}
+.article-body figure.img-align-full {
+  width: 100%;
+}
+@media (max-width: 639px) {
+  .article-body figure.img-align-left,
+  .article-body figure.img-align-right {
+    float: none;
+    max-width: 100%;
+    margin: 2em 0;
+  }
+}
+
+/* Tables scroll sideways on small screens instead of breaking the page. */
+.article-body table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 2em 0;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+@media (min-width: 640px) {
+  .article-body table {
+    display: table;
+  }
+}
+.article-body th,
+.article-body td {
+  border: 0;
+  border-bottom: 1px solid #ECEEF2;
+  padding: 0.7em 0.9em;
+  text-align: left;
+  vertical-align: top;
+}
+.article-body th {
+  background: #F5F3EB;
+  font-weight: 600;
+  color: #111318;
+}
+
+/* News: the same text style, with full-width captioned photos. */
+.news-body figure.news-figure img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}

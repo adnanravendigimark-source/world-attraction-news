@@ -41,29 +41,29 @@ export default function NumberedPagination({
         <Link
           href={hrefFor(page - 1)}
           aria-label="Previous page"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 bg-white text-xs font-bold text-ink-700 hover:bg-ink-100"
         >
           ‹
         </Link>
       )}
       {start > 1 && (
         <>
-          <Link href={hrefFor(1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100">
+          <Link href={hrefFor(1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 bg-white text-xs font-bold text-ink-700 hover:bg-ink-100">
             1
           </Link>
-          {start > 2 && <span className="px-1 text-xs text-slate-400">…</span>}
+          {start > 2 && <span className="px-1 text-xs text-ink-400">…</span>}
         </>
       )}
       {pages.map((p) =>
         p === page ? (
-          <span key={p} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#DC2626] text-xs font-bold text-white shadow-sm">
+          <span key={p} className="flex h-8 w-8 items-center justify-center rounded-full bg-signal text-xs font-bold text-white shadow-sm">
             {p}
           </span>
         ) : (
           <Link
             key={p}
             href={hrefFor(p)}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 bg-white text-xs font-bold text-ink-700 hover:bg-ink-100"
           >
             {p}
           </Link>
@@ -71,8 +71,8 @@ export default function NumberedPagination({
       )}
       {end < totalPages && (
         <>
-          {end < totalPages - 1 && <span className="px-1 text-xs text-slate-400">…</span>}
-          <Link href={hrefFor(totalPages)} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100">
+          {end < totalPages - 1 && <span className="px-1 text-xs text-ink-400">…</span>}
+          <Link href={hrefFor(totalPages)} className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 bg-white text-xs font-bold text-ink-700 hover:bg-ink-100">
             {totalPages}
           </Link>
         </>
@@ -81,7 +81,7 @@ export default function NumberedPagination({
         <Link
           href={hrefFor(page + 1)}
           aria-label="Next page"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 bg-white text-xs font-bold text-ink-700 hover:bg-ink-100"
         >
           ›
         </Link>

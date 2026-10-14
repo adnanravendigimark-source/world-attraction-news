@@ -63,7 +63,7 @@ export default function HomeHeroCarousel({
 
   return (
     <section
-      className="border-b border-slate-200 bg-white pt-2.5 pb-4 sm:pt-3 sm:pb-5"
+      className="border-b border-ink-200 bg-white pt-2.5 pb-4 sm:pt-3 sm:pb-5"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -72,22 +72,22 @@ export default function HomeHeroCarousel({
       ========================================= */}
       {tickerItems && tickerItems.length > 0 && (
         <Container className="mb-2.5 sm:mb-3">
-          <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-slate-50 border border-slate-200/80 px-2.5 py-1 overflow-hidden">
-            <div className="flex items-center gap-1.5 shrink-0 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
-              <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-[#DC2626]">
+          <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-ink-50 border border-ink-200/80 px-2.5 py-1 overflow-hidden">
+            <div className="flex items-center gap-1.5 shrink-0 bg-white border border-ink-200 px-2 py-0.5 rounded shadow-2xs">
+              <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-signal">
                 LIVE WIRE
               </span>
             </div>
             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar text-xs">
-              <span className="text-slate-400 font-bold shrink-0 hidden sm:inline">TRENDING:</span>
+              <span className="text-ink-400 font-bold shrink-0 hidden sm:inline">TRENDING:</span>
               {tickerItems.map((topic, i) => (
                 <Link
                   key={topic.href}
                   href={topic.href}
-                  className="whitespace-nowrap font-bold text-slate-700 hover:text-[#DC2626] transition-colors shrink-0 text-[11px] sm:text-xs"
+                  className="whitespace-nowrap font-bold text-ink-700 hover:text-signal transition-colors shrink-0 text-[11px] sm:text-xs"
                 >
-                  {topic.label} {i < tickerItems.length - 1 && <span className="text-slate-300 ml-3">•</span>}
+                  {topic.label} {i < tickerItems.length - 1 && <span className="text-ink-300 ml-3">•</span>}
                 </Link>
               ))}
             </div>
@@ -100,11 +100,11 @@ export default function HomeHeroCarousel({
       ========================================= */}
       <Container>
         {stories.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-14 text-center">
-            <h1 className="font-serif text-xl sm:text-2xl font-black text-[#0B1527]">
+          <div className="rounded-2xl border border-dashed border-ink-200 bg-ink-50/60 px-6 py-14 text-center">
+            <h1 className="font-serif text-xl sm:text-2xl font-black text-ink-900">
               No stories published yet
             </h1>
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 leading-relaxed">
+            <p className="mx-auto mt-2 max-w-md text-sm text-ink-500 leading-relaxed">
               Check back soon for the latest theme park and attraction news from around the world.
             </p>
           </div>
@@ -112,12 +112,12 @@ export default function HomeHeroCarousel({
           <div className="grid gap-4 lg:gap-5 lg:grid-cols-12 items-stretch">
             {/* Left Column: Big Lead Story */}
             <article
-              className={`flex flex-col justify-between group rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs hover:shadow-xs transition-all p-3.5 sm:p-4 relative ${hasMultiple ? "lg:col-span-7 xl:col-span-8" : "lg:col-span-12"
+              className={`flex flex-col justify-between group rounded-2xl border border-ink-200/90 bg-white overflow-hidden shadow-2xs hover:shadow-xs transition-all p-3.5 sm:p-4 relative ${hasMultiple ? "lg:col-span-7 xl:col-span-8" : "lg:col-span-12"
                 }`}
             >
               <div>
                 {/* Lead Image Container with Floating < > Buttons */}
-                <div className="relative block w-full h-48 sm:h-64 md:h-72 lg:h-[280px] xl:h-[305px] rounded-xl overflow-hidden bg-slate-100 mb-3 group/img">
+                <div className="relative block w-full h-48 sm:h-64 md:h-72 lg:h-[280px] xl:h-[305px] rounded-xl overflow-hidden bg-ink-100 mb-3 group/img">
                   <Link href={currentStory.href} className="block w-full h-full">
                     <Image
                       key={currentStory.id}
@@ -131,7 +131,7 @@ export default function HomeHeroCarousel({
                   </Link>
 
                   {/* Bureau / Live Badge */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-[#DC2626] text-white px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-widest shadow-md pointer-events-none">
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-signal text-white px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-widest shadow-md pointer-events-none">
                     <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
                     <span>{currentStory.eyebrow || "TOP STORY"}</span>
                   </div>
@@ -146,7 +146,7 @@ export default function HomeHeroCarousel({
                           prevStory();
                         }}
                         aria-label="Previous News Story"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur-md hover:bg-[#DC2626] hover:scale-105 transition-all shadow-md z-20 cursor-pointer"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur-md hover:bg-signal hover:scale-105 transition-all shadow-md z-20 cursor-pointer"
                       >
                         <svg className="h-4 w-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -161,7 +161,7 @@ export default function HomeHeroCarousel({
                           nextStory();
                         }}
                         aria-label="Next News Story"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur-md hover:bg-[#DC2626] hover:scale-105 transition-all shadow-md z-20 cursor-pointer"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur-md hover:bg-signal hover:scale-105 transition-all shadow-md z-20 cursor-pointer"
                       >
                         <svg className="h-4 w-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -179,7 +179,7 @@ export default function HomeHeroCarousel({
                               setActiveIdx(i);
                             }}
                             aria-label={`Jump to story ${i + 1}`}
-                            className={`h-1.5 rounded-full transition-all cursor-pointer ${i === activeIdx ? "w-4 bg-[#DC2626]" : "w-1.5 bg-white/60 hover:bg-white"
+                            className={`h-1.5 rounded-full transition-all cursor-pointer ${i === activeIdx ? "w-4 bg-signal" : "w-1.5 bg-white/60 hover:bg-white"
                               }`}
                           />
                         ))}
@@ -189,32 +189,32 @@ export default function HomeHeroCarousel({
                 </div>
 
                 {/* Eyebrow */}
-                <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#DC2626] mb-1">
+                <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-signal mb-1">
                   <span>{currentStory.cityName || "GLOBAL"} BUREAU</span>
-                  <span className="text-slate-300">•</span>
-                  <span className="text-slate-500">{currentStory.categoryName || "ATTRACTION NEWS"}</span>
+                  <span className="text-ink-300">•</span>
+                  <span className="text-ink-500">{currentStory.categoryName || "ATTRACTION NEWS"}</span>
                 </div>
 
                 {/* Title */}
-                <h1 className="font-serif text-xl sm:text-2xl lg:text-[25px] xl:text-[27px] font-black leading-snug sm:leading-tight text-[#0B1527] group-hover:text-[#DC2626] transition-colors line-clamp-2">
+                <h1 className="font-serif text-xl sm:text-2xl lg:text-[25px] xl:text-[27px] font-black leading-snug sm:leading-tight text-ink-900 group-hover:text-signal transition-colors line-clamp-2">
                   <Link href={currentStory.href}>{currentStory.title}</Link>
                 </h1>
 
                 {/* Excerpt */}
-                <p className="mt-1.5 text-xs sm:text-[13.5px] leading-relaxed text-slate-600 font-medium line-clamp-2">
+                <p className="mt-1.5 text-xs sm:text-[13.5px] leading-relaxed text-ink-600 font-medium line-clamp-2">
                   {currentStory.excerpt}
                 </p>
               </div>
 
               {/* Bottom Row */}
-              <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0">
-                  <div className="h-6 w-6 rounded-full bg-[#0B1527] text-white flex items-center justify-center font-bold text-[9px] shrink-0">
+              <div className="mt-3 pt-2.5 border-t border-ink-100 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 text-xs text-ink-500 min-w-0">
+                  <div className="h-6 w-6 rounded-full bg-ink-900 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
                     AN
                   </div>
                   <div className="min-w-0">
-                    <p className="font-bold text-slate-900 text-[11px] truncate">By {currentStory.author}</p>
-                    <p className="text-[10px] text-slate-500 truncate">
+                    <p className="font-bold text-ink-900 text-[11px] truncate">By {currentStory.author}</p>
+                    <p className="text-[10px] text-ink-500 truncate">
                       {currentStory.date}
                       {currentStory.date && currentStory.readTime && " • "}
                       {currentStory.readTime}
@@ -225,7 +225,7 @@ export default function HomeHeroCarousel({
                 <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
                   <Link
                     href={currentStory.href}
-                    className="inline-flex items-center gap-1 rounded-md bg-[#DC2626] px-3 sm:px-3.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-white shadow-2xs hover:bg-[#B91C1C] transition-colors"
+                    className="inline-flex items-center gap-1 rounded-md bg-signal px-3 sm:px-3.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-white shadow-2xs hover:bg-signal-dark transition-colors"
                   >
                     <span>READ FULL STORY</span>
                     <span aria-hidden="true">→</span>
@@ -236,18 +236,18 @@ export default function HomeHeroCarousel({
 
             {/* Right Column: Top Stories Wire — only when there's more than one real story */}
             {hasMultiple && (
-              <div className="lg:col-span-5 xl:col-span-4 flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-2xs">
+              <div className="lg:col-span-5 xl:col-span-4 flex flex-col justify-between rounded-2xl border border-ink-200/90 bg-white p-3.5 sm:p-4 shadow-2xs">
                 <div>
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
+                  <div className="flex items-center justify-between border-b border-ink-200 pb-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
-                      <h2 className="font-sans text-xs sm:text-[13px] font-black uppercase tracking-wider text-[#0B1527]">
+                      <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+                      <h2 className="font-sans text-xs sm:text-[13px] font-black uppercase tracking-wider text-ink-900">
                         TOP STORIES TODAY
                       </h2>
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono font-bold text-slate-400">
+                      <span className="text-[10px] font-mono font-bold text-ink-400">
                         {activeIdx + 1}/{stories.length}
                       </span>
                       <div className="flex items-center gap-1">
@@ -255,7 +255,7 @@ export default function HomeHeroCarousel({
                           type="button"
                           onClick={prevStory}
                           aria-label="Previous Story"
-                          className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer text-xs font-bold"
+                          className="flex h-5 w-5 items-center justify-center rounded border border-ink-200 bg-white text-ink-600 hover:bg-ink-100 hover:text-ink-900 transition-colors cursor-pointer text-xs font-bold"
                         >
                           ‹
                         </button>
@@ -263,7 +263,7 @@ export default function HomeHeroCarousel({
                           type="button"
                           onClick={nextStory}
                           aria-label="Next Story"
-                          className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer text-xs font-bold"
+                          className="flex h-5 w-5 items-center justify-center rounded border border-ink-200 bg-white text-ink-600 hover:bg-ink-100 hover:text-ink-900 transition-colors cursor-pointer text-xs font-bold"
                         >
                           ›
                         </button>
@@ -271,7 +271,7 @@ export default function HomeHeroCarousel({
                     </div>
                   </div>
 
-                  <div className="flex flex-col divide-y divide-slate-100">
+                  <div className="flex flex-col divide-y divide-ink-100">
                     {stories.map((story, idx) => {
                       const isActive = idx === activeIdx;
                       return (
@@ -279,11 +279,11 @@ export default function HomeHeroCarousel({
                           key={story.id || idx}
                           type="button"
                           onClick={() => setActiveIdx(idx)}
-                          className={`text-left py-2 first:pt-1 last:pb-1 group transition-all rounded-lg px-2 -mx-1 cursor-pointer ${isActive ? "bg-rose-50/70 border-l-3 border-[#DC2626]" : "hover:bg-slate-50"
+                          className={`text-left py-2 first:pt-1 last:pb-1 group transition-all rounded-lg px-2 -mx-1 cursor-pointer ${isActive ? "bg-rose-50/70 border-l-3 border-signal" : "hover:bg-ink-50"
                             }`}
                         >
                           <div className="flex items-center gap-2.5">
-                            <div className="relative h-12 w-16 sm:h-[3.25rem] sm:w-[4.5rem] shrink-0 rounded-md overflow-hidden bg-slate-100">
+                            <div className="relative h-12 w-16 sm:h-[3.25rem] sm:w-[4.5rem] shrink-0 rounded-md overflow-hidden bg-ink-100">
                               <Image
                                 src={story.image}
                                 alt={story.imageAlt || story.title}
@@ -294,19 +294,19 @@ export default function HomeHeroCarousel({
                             </div>
 
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[#DC2626] mb-0.5">
+                              <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-signal mb-0.5">
                                 <span>{story.cityName || story.eyebrow}</span>
                                 {isActive && (
-                                  <span className="ml-auto inline-block h-1.5 w-1.5 rounded-full bg-[#DC2626] animate-pulse" />
+                                  <span className="ml-auto inline-block h-1.5 w-1.5 rounded-full bg-signal animate-pulse" />
                                 )}
                               </div>
                               <h3
-                                className={`font-sans text-[11px] sm:text-xs font-bold leading-snug line-clamp-2 transition-colors ${isActive ? "text-[#DC2626]" : "text-[#0B1527] group-hover:text-[#DC2626]"
+                                className={`font-sans text-[11px] sm:text-xs font-bold leading-snug line-clamp-2 transition-colors ${isActive ? "text-signal" : "text-ink-900 group-hover:text-signal"
                                   }`}
                               >
                                 {story.title}
                               </h3>
-                              <p className="text-[9px] text-slate-400 font-medium">
+                              <p className="text-[9px] text-ink-400 font-medium">
                                 {story.date}
                                 {story.date && story.readTime && " • "}
                                 {story.readTime}
@@ -319,10 +319,10 @@ export default function HomeHeroCarousel({
                   </div>
                 </div>
 
-                <div className="mt-2 pt-2 border-t border-slate-100">
+                <div className="mt-2 pt-2 border-t border-ink-100">
                   <Link
                     href="/latest-news"
-                    className="text-[11px] font-black uppercase tracking-wider text-[#DC2626] hover:underline flex items-center justify-between group"
+                    className="text-[11px] font-black uppercase tracking-wider text-signal hover:underline flex items-center justify-between group"
                   >
                     <span>VIEW FULL NEWS WIRE</span>
                     <span className="group-hover:translate-x-0.5 transition-transform">→</span>

@@ -64,28 +64,28 @@ export default function CategoryDetailClient({
   const hasActiveFilters = Boolean(currentFilters.city || currentFilters.q);
 
   return (
-    <div className="bg-white min-h-screen text-[#0B1527] pb-16">
+    <div className="bg-white min-h-screen text-ink-900 pb-16">
       {/* =========================================
           1. BREADCRUMBS & HERO HEADER
       ========================================= */}
-      <div className="border-b border-slate-100 bg-white pt-5 pb-8">
+      <div className="border-b border-ink-100 bg-white pt-5 pb-8">
         <Container>
-          <nav className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-4">
-            <Link href="/" className="hover:text-slate-900 transition-colors">
+          <nav className="flex items-center gap-1.5 text-xs font-semibold text-ink-400 mb-4">
+            <Link href="/" className="hover:text-ink-900 transition-colors">
               Home
             </Link>
             <span>&gt;</span>
-            <Link href="/categories" className="hover:text-slate-900 transition-colors">
+            <Link href="/categories" className="hover:text-ink-900 transition-colors">
               Categories
             </Link>
             <span>&gt;</span>
-            <span className="text-slate-800">{category.name}</span>
+            <span className="text-ink-800">{category.name}</span>
           </nav>
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex flex-col sm:flex-row gap-5 items-start max-w-2xl">
               {category.image && (
-                <div className="relative h-28 w-44 sm:h-32 sm:w-48 shrink-0 overflow-hidden rounded-2xl border border-slate-200 shadow-xs">
+                <div className="relative h-28 w-44 sm:h-32 sm:w-48 shrink-0 overflow-hidden rounded-2xl border border-ink-200 shadow-xs">
                   <Image
                     src={category.image}
                     alt={category.imageAlt || category.name}
@@ -98,15 +98,15 @@ export default function CategoryDetailClient({
               )}
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="h-2 w-2 rounded-full bg-[#DC2626] animate-pulse" />
-                  <span className="text-[11px] font-black uppercase tracking-widest text-[#DC2626]">
+                  <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+                  <span className="text-[11px] font-black uppercase tracking-widest text-signal">
                     EDITORIAL BEAT
                   </span>
                 </div>
-                <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#0B1527]">
+                <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-ink-900">
                   {category.name}
                 </h1>
-                <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                <p className="mt-2 text-xs sm:text-sm text-ink-600 leading-relaxed font-medium">
                   {category.description || `Targeted reporting, opening calendars, and attraction developments across ${category.name.toLowerCase()}.`}
                 </p>
               </div>
@@ -120,10 +120,10 @@ export default function CategoryDetailClient({
                 </svg>
               </div>
 
-              <h3 className="font-sans text-xs font-black uppercase tracking-wider text-[#0B1527]">
+              <h3 className="font-sans text-xs font-black uppercase tracking-wider text-ink-900">
                 GET {category.name.toUpperCase()} ALERTS
               </h3>
-              <p className="mt-1 text-[11px] text-slate-500 leading-normal">
+              <p className="mt-1 text-[11px] text-ink-500 leading-normal">
                 Stay updated on new attractions, ride tech, and venue openings worldwide.
               </p>
               <div className="mt-2.5">
@@ -137,7 +137,7 @@ export default function CategoryDetailClient({
       {/* =========================================
           2. FILTER PILLS & SORT ROW
       ========================================= */}
-      <div className="border-b border-slate-200 bg-slate-50/50 py-3">
+      <div className="border-b border-ink-200 bg-ink-50/50 py-3">
         <Container>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             {/* City Pills — real cities, not a hardcoded list */}
@@ -147,8 +147,8 @@ export default function CategoryDetailClient({
                 onClick={() => navigate({ city: "", page: 1 })}
                 className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all ${
                   !currentFilters.city
-                    ? "bg-[#DC2626] text-white shadow-sm"
-                    : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-200/80"
+                    ? "bg-signal text-white shadow-sm"
+                    : "bg-white text-ink-700 hover:bg-ink-200 border border-ink-200/80"
                 }`}
               >
                 ALL STORIES
@@ -160,8 +160,8 @@ export default function CategoryDetailClient({
                   onClick={() => navigate({ city: c.slug, page: 1 })}
                   className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all ${
                     currentFilters.city === c.slug
-                      ? "bg-[#DC2626] text-white shadow-sm"
-                      : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-200/80"
+                      ? "bg-signal text-white shadow-sm"
+                      : "bg-white text-ink-700 hover:bg-ink-200 border border-ink-200/80"
                   }`}
                 >
                   {c.name}
@@ -171,11 +171,11 @@ export default function CategoryDetailClient({
 
             {/* Sort Dropdown */}
             <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-              <span className="text-xs font-bold text-slate-500">Sort by:</span>
+              <span className="text-xs font-bold text-ink-500">Sort by:</span>
               <select
                 value={currentFilters.sort}
                 onChange={(e) => navigate({ sort: e.target.value as Filters["sort"], page: 1 })}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer"
+                className="rounded-md border border-ink-200 bg-white px-3 py-1 text-xs font-bold text-ink-800 focus:border-signal focus:outline-none cursor-pointer"
               >
                 <option value="latest">Latest</option>
                 <option value="popular">Most Popular</option>
@@ -194,12 +194,12 @@ export default function CategoryDetailClient({
                 if (e.key === "Enter") navigate({ q, page: 1 });
               }}
               placeholder={`Search ${category.name.toLowerCase()} stories...`}
-              className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none"
+              className="w-full max-w-sm rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs text-ink-800 placeholder:text-ink-400 focus:border-signal focus:outline-none"
             />
             <button
               type="button"
               onClick={() => navigate({ q, page: 1 })}
-              className="rounded-lg bg-[#0B1527] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-[#0B1527]/90"
+              className="rounded-lg bg-ink-900 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-ink-900/90"
             >
               Search
             </button>
@@ -210,7 +210,7 @@ export default function CategoryDetailClient({
                   setQ("");
                   router.push(`/categories/${category.slug}`);
                 }}
-                className="text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                className="text-[11px] font-bold text-ink-500 hover:text-ink-800"
               >
                 Clear filters
               </button>
@@ -227,13 +227,13 @@ export default function CategoryDetailClient({
           <div className="grid gap-8 lg:grid-cols-12 items-start">
             {/* Left Column (68% / 8 cols): Horizontal Articles */}
             <div className="lg:col-span-8 flex flex-col gap-5">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <span className="text-xs font-black uppercase tracking-widest text-[#DC2626]">
+              <div className="flex items-center justify-between border-b border-ink-200 pb-3">
+                <span className="text-xs font-black uppercase tracking-widest text-signal">
                   {total} {total === 1 ? "STORY" : "STORIES"} IN {category.name.toUpperCase()}
                 </span>
                 <Link
                   href="/categories"
-                  className="text-xs font-black uppercase tracking-wider text-[#DC2626] hover:underline flex items-center gap-1"
+                  className="text-xs font-black uppercase tracking-wider text-signal hover:underline flex items-center gap-1"
                 >
                   <span>View All Categories</span>
                   <span aria-hidden="true">→</span>
@@ -254,11 +254,11 @@ export default function CategoryDetailClient({
                   return (
                     <article
                       key={article.id}
-                      className="group flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
+                      className="group flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6 bg-white p-3.5 sm:p-4 rounded-2xl border border-ink-200/80 shadow-sm hover:shadow-md hover:border-ink-300 transition-all"
                     >
                       <Link
                         href={href}
-                        className="relative w-full sm:w-56 md:w-64 shrink-0 h-44 sm:h-auto min-h-[140px] rounded-xl overflow-hidden bg-slate-100"
+                        className="relative w-full sm:w-56 md:w-64 shrink-0 h-44 sm:h-auto min-h-[140px] rounded-xl overflow-hidden bg-ink-100"
                       >
                         {article.image ? (
                           <Image
@@ -269,7 +269,7 @@ export default function CategoryDetailClient({
                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">
+                          <div className="flex h-full w-full items-center justify-center bg-ink-100 text-xs font-semibold text-ink-400">
                             No image
                           </div>
                         )}
@@ -278,21 +278,21 @@ export default function CategoryDetailClient({
                       <div className="flex flex-1 flex-col justify-between py-1">
                         <div>
                           <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
-                            <span className="text-[#DC2626]">{article.cityName}</span>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-slate-500">{category.name.toUpperCase()}</span>
+                            <span className="text-signal">{article.cityName}</span>
+                            <span className="text-ink-300">•</span>
+                            <span className="text-ink-500">{category.name.toUpperCase()}</span>
                           </div>
 
-                          <h2 className="mt-1.5 font-sans text-base sm:text-lg font-black leading-snug text-[#0B1527] group-hover:text-[#DC2626] transition-colors">
+                          <h2 className="mt-1.5 font-sans text-base sm:text-lg font-black leading-snug text-ink-900 group-hover:text-signal transition-colors">
                             <Link href={href}>{article.title}</Link>
                           </h2>
 
-                          <p className="mt-2 text-xs sm:text-[13px] leading-relaxed text-slate-600 line-clamp-2">
+                          <p className="mt-2 text-xs sm:text-[13px] leading-relaxed text-ink-600 line-clamp-2">
                             {article.excerpt}
                           </p>
                         </div>
 
-                        <div className="mt-3.5 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+                        <div className="mt-3.5 pt-3 border-t border-ink-100 text-[11px] text-ink-500">
                           <span>By {article.authorName}</span>
                           <span className="mx-1.5">•</span>
                           <span>{formatDate(article.publishedAt)}</span>
@@ -320,29 +320,29 @@ export default function CategoryDetailClient({
             {/* Right Sidebar (32% / 4 cols) */}
             <div className="lg:col-span-4 flex flex-col gap-6">
               {/* Beat Dossier Card */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-                <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-3 pb-2 border-b border-slate-100">
+              <div className="rounded-2xl border border-ink-200 bg-white p-5 sm:p-6 shadow-sm">
+                <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-ink-900 mb-3 pb-2 border-b border-ink-100">
                   {category.name} Beat Dossier
                 </h3>
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 bg-slate-50 rounded-xl text-center">
-                    <p className="text-xl font-black text-[#DC2626]">{total}</p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Stories</p>
+                  <div className="p-3 bg-ink-50 rounded-xl text-center">
+                    <p className="text-xl font-black text-signal">{total}</p>
+                    <p className="text-[10px] text-ink-500 font-bold uppercase">Stories</p>
                   </div>
-                  <div className="p-3 bg-slate-50 rounded-xl text-center">
-                    <p className="text-xl font-black text-[#0B1527]">Global</p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Coverage</p>
+                  <div className="p-3 bg-ink-50 rounded-xl text-center">
+                    <p className="text-xl font-black text-ink-900">Global</p>
+                    <p className="text-[10px] text-ink-500 font-bold uppercase">Coverage</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Focus: <strong className="text-slate-900">{category.name} developments, openings, and reviews.</strong>
+                <p className="text-xs text-ink-600 leading-relaxed">
+                  Focus: <strong className="text-ink-900">{category.name} developments, openings, and reviews.</strong>
                 </p>
               </div>
 
               {/* Browse Other Categories */}
               {allCategories.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-                  <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-3 pb-2 border-b border-slate-100">
+                <div className="rounded-2xl border border-ink-200 bg-white p-5 sm:p-6 shadow-sm">
+                  <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-ink-900 mb-3 pb-2 border-b border-ink-100">
                     Other Editorial Beats
                   </h3>
                   <div className="flex flex-col gap-2">
@@ -353,10 +353,10 @@ export default function CategoryDetailClient({
                         <Link
                           key={cat.id}
                           href={`/categories/${cat.slug}`}
-                          className="flex items-center justify-between py-1.5 text-xs text-slate-700 hover:text-[#DC2626] font-bold group"
+                          className="flex items-center justify-between py-1.5 text-xs text-ink-700 hover:text-signal font-bold group"
                         >
                           <span>{cat.name}</span>
-                          <span className="text-slate-400 group-hover:translate-x-0.5 transition-transform">→</span>
+                          <span className="text-ink-400 group-hover:translate-x-0.5 transition-transform">→</span>
                         </Link>
                       ))}
                   </div>
@@ -364,7 +364,7 @@ export default function CategoryDetailClient({
               )}
 
               {/* Have News in Category? Dark Box */}
-              <div className="relative overflow-hidden rounded-2xl bg-[#0B1527] text-white p-6 shadow-md flex flex-col gap-3">
+              <div className="relative overflow-hidden rounded-2xl bg-ink-900 text-white p-6 shadow-md flex flex-col gap-3">
                 <div className="absolute right-2 -bottom-2 opacity-15 pointer-events-none">
                   <svg className="w-24 h-24 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -375,12 +375,12 @@ export default function CategoryDetailClient({
                 <h3 className="font-serif text-lg font-black text-white">
                   Cover {category.name}?
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed max-w-[260px]">
+                <p className="text-xs text-ink-300 leading-relaxed max-w-[260px]">
                   Submit your scoops, opening announcements, or photo reports on {category.name.toLowerCase()}.
                 </p>
                 <Link
                   href="/write-for-us"
-                  className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#DC2626] py-2.5 px-4 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm self-start"
+                  className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-lg bg-signal py-2.5 px-4 text-xs font-black uppercase tracking-wider text-white hover:bg-signal-dark transition-colors shadow-sm self-start"
                 >
                   <span>WRITE FOR US</span>
                   <span aria-hidden="true">→</span>
@@ -396,16 +396,16 @@ export default function CategoryDetailClient({
       ========================================= */}
       <section className="mt-8">
         <Container>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="rounded-2xl border border-ink-200 bg-white p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-2xl shadow-sm">
                 📬
               </div>
               <div>
-                <h3 className="font-sans text-sm sm:text-base font-black text-[#0B1527]">
+                <h3 className="font-sans text-sm sm:text-base font-black text-ink-900">
                   Stay Updated on {category.name}
                 </h3>
-                <p className="mt-0.5 text-xs text-slate-500 leading-relaxed max-w-lg">
+                <p className="mt-0.5 text-xs text-ink-500 leading-relaxed max-w-lg">
                   Get breaking ride announcements, queue strategies, and ticket updates delivered to your inbox.
                 </p>
               </div>

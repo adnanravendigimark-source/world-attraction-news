@@ -64,14 +64,14 @@ export default function ArticleSidebar({
   return (
     <div className="lg:col-span-4 flex flex-col gap-6">
       {/* Never Miss an Update Card */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+      <div className="rounded-2xl border border-ink-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-sans text-sm font-black text-[#0B1527]">
+          <h3 className="font-sans text-sm font-black text-ink-900">
             Never Miss an Update
           </h3>
           <span className="text-xl">✉️</span>
         </div>
-        <p className="text-xs text-slate-500 leading-relaxed mb-4">
+        <p className="text-xs text-ink-500 leading-relaxed mb-4">
           Subscribe to get the latest attraction news, opening dates, and updates straight to your inbox.
         </p>
     
@@ -102,19 +102,19 @@ export default function ArticleSidebar({
               value={sidebarEmail}
               onChange={(e) => setSidebarEmail(e.target.value)}
               placeholder="Enter your email address"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#DC2626] focus:bg-white focus:outline-none transition-all shadow-2xs"
+              className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2.5 text-xs text-ink-800 placeholder:text-ink-400 focus:border-signal focus:bg-white focus:outline-none transition-all shadow-2xs"
             />
             <button
               type="submit"
               disabled={subscribing}
-              className="w-full rounded-xl bg-[#DC2626] py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-2xs disabled:opacity-60 cursor-pointer"
+              className="w-full rounded-xl bg-signal py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-signal-dark transition-colors shadow-2xs disabled:opacity-60 cursor-pointer"
             >
               {subscribing ? "SUBSCRIBING…" : "SUBSCRIBE"}
             </button>
             {subscribeError && (
-              <p className="text-[11px] font-medium text-[#DC2626] text-center">{subscribeError}</p>
+              <p className="text-[11px] font-medium text-signal text-center">{subscribeError}</p>
             )}
-            <p className="text-[10px] text-slate-400 text-center">
+            <p className="text-[10px] text-ink-400 text-center">
               No spam. Unsubscribe anytime.
             </p>
           </form>
@@ -123,8 +123,8 @@ export default function ArticleSidebar({
     
       {/* Related Stories Card */}
       {displayRelated.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-          <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527] mb-4 pb-2 border-b border-slate-100">
+        <div className="rounded-2xl border border-ink-200 bg-white p-5 sm:p-6 shadow-sm">
+          <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-ink-900 mb-4 pb-2 border-b border-ink-100">
             {relatedTitle}
           </h3>
           <div className="flex flex-col gap-4">
@@ -134,7 +134,7 @@ export default function ArticleSidebar({
                 href={item.href}
                 className="group flex items-start gap-3"
               >
-                <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100">
+                <div className="relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-ink-100">
                   {item.image && (
                     <Image
                       src={item.image}
@@ -146,13 +146,13 @@ export default function ArticleSidebar({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[#DC2626] block">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-signal block">
                     {item.eyebrow}
                   </span>
-                  <h4 className="font-sans text-xs font-bold text-[#0B1527] line-clamp-2 leading-snug group-hover:text-[#DC2626] transition-colors mt-0.5">
+                  <h4 className="font-sans text-xs font-bold text-ink-900 line-clamp-2 leading-snug group-hover:text-signal transition-colors mt-0.5">
                     {item.title}
                   </h4>
-                  <p className="text-[10px] text-slate-400 mt-1">
+                  <p className="text-[10px] text-ink-400 mt-1">
                     {formatDate(item.date)}{item.readingMinutes ? ` • ${item.readingMinutes} min read` : ""}
                   </p>
                 </div>
@@ -164,10 +164,10 @@ export default function ArticleSidebar({
     
       {/* Trending Now Card */}
       {displayTrending.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-          <div className="flex items-center gap-1.5 mb-4 pb-2 border-b border-slate-100">
+        <div className="rounded-2xl border border-ink-200 bg-white p-5 sm:p-6 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-4 pb-2 border-b border-ink-100">
             <span className="text-xs">📈</span>
-            <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-[#0B1527]">
+            <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-ink-900">
               Trending Now
             </h3>
           </div>
@@ -179,10 +179,10 @@ export default function ArticleSidebar({
                 href={item.href}
                 className="group flex items-center gap-3"
               >
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0B1527] text-[10px] font-black text-white">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink-900 text-[10px] font-black text-white">
                   {idx + 1}
                 </span>
-                <div className="relative h-11 w-11 shrink-0 rounded-md overflow-hidden bg-slate-100">
+                <div className="relative h-11 w-11 shrink-0 rounded-md overflow-hidden bg-ink-100">
                   {item.image && (
                     <Image
                       src={item.image}
@@ -194,10 +194,10 @@ export default function ArticleSidebar({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-sans text-xs font-bold text-[#0B1527] line-clamp-1 leading-snug group-hover:text-[#DC2626] transition-colors">
+                  <h4 className="font-sans text-xs font-bold text-ink-900 line-clamp-1 leading-snug group-hover:text-signal transition-colors">
                     {item.title}
                   </h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
+                  <p className="text-[10px] text-ink-400 mt-0.5">
                     {formatDate(item.date)}
                   </p>
                 </div>
@@ -208,7 +208,7 @@ export default function ArticleSidebar({
       )}
     
       {/* Have News to Share? Dark Box */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#0B1527] text-white p-6 shadow-md flex flex-col gap-3">
+      <div className="relative overflow-hidden rounded-2xl bg-ink-900 text-white p-6 shadow-md flex flex-col gap-3">
         <div className="absolute right-2 -bottom-2 opacity-15 pointer-events-none">
           <svg className="w-24 h-24 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -219,12 +219,12 @@ export default function ArticleSidebar({
         <h3 className="font-serif text-lg font-black text-white">
           Have News to Share?
         </h3>
-        <p className="text-xs text-slate-300 leading-relaxed max-w-[260px]">
+        <p className="text-xs text-ink-300 leading-relaxed max-w-[260px]">
           Submit your attraction news, updates, or opening announcements.
         </p>
         <Link
           href="/write-for-us"
-          className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#DC2626] py-2.5 px-4 text-xs font-black uppercase tracking-wider text-white hover:bg-[#B91C1C] transition-colors shadow-sm self-start"
+          className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-lg bg-signal py-2.5 px-4 text-xs font-black uppercase tracking-wider text-white hover:bg-signal-dark transition-colors shadow-sm self-start"
         >
           <span>SUBMIT YOUR NEWS</span>
           <span aria-hidden="true">→</span>

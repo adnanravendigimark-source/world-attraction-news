@@ -56,15 +56,15 @@ export default function PublicFooter({
   const activeSocialIcons = socialIcons.filter((s) => social[s.key]?.trim());
 
   return (
-    <footer className="bg-[#071120] text-slate-300 pt-14 pb-8 border-t border-slate-800">
+    <footer className="bg-ink-950 text-ink-300 pt-14 pb-8 border-t border-ink-800">
       <Container>
-        <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 pb-12 border-b border-slate-800/80">
+        <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 pb-12 border-b border-ink-800/80">
           {/* Logo & About */}
           <div className="sm:col-span-2 lg:col-span-2">
             <Link href="/" className="inline-block">
               <Logo variant="horizontal" theme="light" showTagline={false} />
             </Link>
-            {about && <p className="mt-4 text-xs leading-relaxed text-slate-400 max-w-xs">{about}</p>}
+            {about && <p className="mt-4 text-xs leading-relaxed text-ink-400 max-w-xs">{about}</p>}
           </div>
 
           {/* Admin-editable link columns */}
@@ -77,7 +77,7 @@ export default function PublicFooter({
                 <ul className="mt-4 space-y-2.5 text-xs">
                   {column.links.map((link, j) => (
                     <li key={j}>
-                      <Link href={link.href || "#"} className="text-slate-400 hover:text-white transition-colors">
+                      <Link href={link.href || "#"} className="text-ink-400 hover:text-white transition-colors">
                         {link.label}
                       </Link>
                     </li>
@@ -93,9 +93,9 @@ export default function PublicFooter({
             <div className="mt-4">
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors"
+                className="flex items-center gap-2 text-xs text-ink-400 hover:text-white transition-colors"
               >
-                <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="h-4 w-4 shrink-0 text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 <span className="truncate">{CONTACT_EMAIL}</span>
@@ -109,7 +109,7 @@ export default function PublicFooter({
                       href={social[s.key]}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex h-8 w-8 items-center justify-center rounded bg-slate-800 text-slate-300 transition-colors ${s.hoverClass}`}
+                      className={`flex h-8 w-8 items-center justify-center rounded bg-ink-800 text-ink-300 transition-colors ${s.hoverClass}`}
                       aria-label={s.label}
                     >
                       <svg className={`${s.iconClass || "h-4 w-4"} fill-current`} viewBox="0 0 24 24">
@@ -124,7 +124,7 @@ export default function PublicFooter({
         </div>
 
         {/* Bottom copyright line */}
-        <div className="flex flex-col items-center justify-between gap-2 pt-6 text-xs text-slate-500 sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-2 pt-6 text-xs text-ink-500 sm:flex-row">
           <p>{copyright}</p>
           <Link href="/login" className="hover:text-white transition-colors">
             Contributor login
