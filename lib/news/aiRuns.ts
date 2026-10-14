@@ -11,6 +11,7 @@ export interface AiRunInput {
   tokensIn?: number | null;
   tokensOut?: number | null;
   images?: number; // image calls
+  quality?: string; // image quality (low | medium | high), which sets the price
   durationMs: number;
   outcome: "ok" | "error";
   error?: string;
@@ -19,17 +20,21 @@ export interface AiRunInput {
 // Estimated USD prices, per million tokens (input, output) or per image.
 // OpenAI changes prices; override with AI_PRICES (JSON of the same shape) in
 // .env. Unknown models are logged without a cost.
-const DEFAULT_PRICES: Record<string, { in?: number; out?: number; image?: number }> = {
+// Image prices are per image at 1536x1024 (dall-e-3: 1792x1024), by quality.
+type ImagePrice = number | Partial<Record<"low" | "medium" | "high", number>>;
+const DEFAULT_PRICES: Record<string, { in?: number; out?: number; image?: ImagePrice }> = {
   "gpt-4o": { in: 2.5, out: 10 },
   "gpt-4o-mini": { in: 0.15, out: 0.6 },
   "gpt-4.1": { in: 2, out: 8 },
   "gpt-4.1-mini": { in: 0.4, out: 1.6 },
   "gpt-4.1-nano": { in: 0.1, out: 0.4 },
-  "gpt-image-1": { image: 0.063 }, // 1536x1024, medium quality
-  "dall-e-3": { image: 0.08 }, // 1792x1024, standard
+  "gpt-image-2": { image: { low: 0.005, medium: 0.041, high: 0.165 } },
+  "gpt-image-1.5": { image: { low: 0.005, medium: 0.041, high: 0.165 } }, // estimate: priced like gpt-image-2
+  "gpt-image-1": { image: { low: 0.016, medium: 0.063, high: 0.25 } },
+  "dall-e-3": { image: { low: 0.08, medium: 0.08, high: 0.12 } }, // standard / hd
 };
 
-function prices(): Record<string, { in?: number; out?: number; image?: number }> {
+function prices(): Record<string, { in?: number; out?: number; image?: ImagePrice }> {
   try {
     const extra = process.env.AI_PRICES ? JSON.parse(process.env.AI_PRICES) : {};
     return { ...DEFAULT_PRICES, ...extra };
@@ -39,7 +44,7 @@ function prices(): Record<string, { in?: number; out?: number; image?: number }>
 }
 
 // Longest matching price key, so "gpt-4o-mini-2024-07-18" uses gpt-4o-mini.
-export function estimateCost(model: string, tokensIn: number | null | undefined, tokensOut: number | null | undefined, images = 0): number | null {
+export function estimateCost(model: string, tokensIn: number | null | undefined, tokensOut: number | null | undefined, images = 0, quality = "medium"): number | null {
   const table = prices();
   const key = Object.keys(table)
     .filter((k) => model === k || model.startsWith(`${k}-`))
@@ -47,7 +52,10 @@ export function estimateCost(model: string, tokensIn: number | null | undefined,
   if (!key) return null;
   const p = table[key];
   let usd = 0;
-  if (images && p.image) usd += images * p.image;
+  if (images && p.image) {
+    const per = typeof p.image === "number" ? p.image : p.image[quality as "low" | "medium" | "high"] ?? p.image.medium ?? 0;
+    usd += images * per;
+  }
   if (p.in && tokensIn) usd += (tokensIn / 1_000_000) * p.in;
   if (p.out && tokensOut) usd += (tokensOut / 1_000_000) * p.out;
   return Math.round(usd * 1_000_000) / 1_000_000;
@@ -59,7 +67,7 @@ export async function recordAiRun(r: AiRunInput): Promise<void> {
     await sql`
       INSERT INTO ai_runs (kind, model, prompt_version, article_id, cluster_id, tokens_in, tokens_out, cost_usd, duration_ms, outcome, error)
       VALUES (${r.kind}, ${r.model}, ${r.promptVersion || ""}, ${r.articleId || null}, ${r.clusterId || null},
-              ${r.tokensIn ?? null}, ${r.tokensOut ?? null}, ${estimateCost(r.model, r.tokensIn, r.tokensOut, r.images || 0)},
+              ${r.tokensIn ?? null}, ${r.tokensOut ?? null}, ${estimateCost(r.model, r.tokensIn, r.tokensOut, r.images || 0, r.quality || "medium")},
               ${r.durationMs}, ${r.outcome}, ${(r.error || "").slice(0, 500)})`;
   } catch (err) {
     console.error("[ai_runs] couldn't record a model call (run scripts/setup-db.mjs):", (err as Error)?.message);

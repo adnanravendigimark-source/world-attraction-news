@@ -12,9 +12,16 @@ import { recordAiRevision } from "./aiRevision";
 const IMAGE_MODEL = () => process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2";
 const FALLBACK_MODELS = ["gpt-image-1.5", "gpt-image-1", "dall-e-3"];
 const DAILY_CAP = () => Number(process.env.NEWS_IMAGE_DAILY_CAP || 20);
-// "high" (the default) gives sharp, detailed, magazine-quality images; it
-// costs several times "medium". Set OPENAI_IMAGE_QUALITY=medium to spend less.
-const imageQuality = () => (["low", "medium", "high"].includes(String(process.env.OPENAI_IMAGE_QUALITY)) ? String(process.env.OPENAI_IMAGE_QUALITY) : "high");
+// Quality decides most of the cost (gpt-image-2, 1536x1024: about $0.04
+// medium, $0.165 high). An editor's click (Generate cover / Generate in the
+// article) uses OPENAI_IMAGE_QUALITY, default high. Images made by the
+// automation, when no free photo exists, use OPENAI_IMAGE_QUALITY_AUTO,
+// default medium, so unattended runs stay cheap.
+export type ImageQuality = "low" | "medium" | "high";
+const pick = (v: string | undefined, fallback: ImageQuality): ImageQuality => (["low", "medium", "high"].includes(String(v)) ? (v as ImageQuality) : fallback);
+export function imageQuality(mode: "manual" | "auto" = "manual"): ImageQuality {
+  return mode === "auto" ? pick(process.env.OPENAI_IMAGE_QUALITY_AUTO, "medium") : pick(process.env.OPENAI_IMAGE_QUALITY, "high");
+}
 
 // ------------------------------------------------------------- AI prompt
 //
@@ -152,11 +159,11 @@ async function checkCap(): Promise<void> {
 }
 
 // Every image call is logged in ai_runs (Phase 12), success or failure.
-async function callOpenAI(model: string, prompt: string, articleId?: string): Promise<Buffer> {
+async function callOpenAI(model: string, prompt: string, quality: ImageQuality, articleId?: string): Promise<Buffer> {
   const started = Date.now();
   try {
-    const png = await requestImage(model, prompt);
-    await recordAiRun({ kind: "image", model, articleId, images: 1, durationMs: Date.now() - started, outcome: "ok" });
+    const png = await requestImage(model, prompt, quality);
+    await recordAiRun({ kind: "image", model, articleId, images: 1, quality, durationMs: Date.now() - started, outcome: "ok" });
     return png;
   } catch (err: any) {
     await recordAiRun({ kind: "image", model, articleId, durationMs: Date.now() - started, outcome: "error", error: String(err?.message || err) });
@@ -164,13 +171,13 @@ async function callOpenAI(model: string, prompt: string, articleId?: string): Pr
   }
 }
 
-async function requestImage(model: string, prompt: string, withQuality = true): Promise<Buffer> {
+async function requestImage(model: string, prompt: string, quality: ImageQuality, withQuality = true): Promise<Buffer> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is not set.");
   const body: Record<string, unknown> =
     model === "dall-e-3"
-      ? { model, prompt, size: "1792x1024", quality: imageQuality() === "high" ? "hd" : "standard", response_format: "b64_json", n: 1 }
-      : { model, prompt, size: "1536x1024", ...(withQuality ? { quality: imageQuality() } : {}), n: 1 };
+      ? { model, prompt, size: "1792x1024", quality: quality === "high" ? "hd" : "standard", response_format: "b64_json", n: 1 }
+      : { model, prompt, size: "1536x1024", ...(withQuality ? { quality } : {}), n: 1 };
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 200_000); // gpt-image-2 at high quality takes about 1.5-2 minutes
   try {
@@ -184,7 +191,7 @@ async function requestImage(model: string, prompt: string, withQuality = true): 
     // A model that doesn't take the quality setting: once more without it.
     if (!res.ok && res.status === 400 && withQuality && /quality/i.test(String(json?.error?.message || ""))) {
       clearTimeout(timer);
-      return requestImage(model, prompt, false);
+      return requestImage(model, prompt, quality, false);
     }
     if (!res.ok) {
       const msg = String(json?.error?.message || `HTTP ${res.status}`);
@@ -206,13 +213,13 @@ async function requestImage(model: string, prompt: string, withQuality = true): 
 // One AI image: checks the daily limit, logs the call, and falls back to
 // dall-e-3 when gpt-image-1 isn't available to the account. Used for covers
 // and for images inside articles (lib/news/inlineImages.ts).
-export async function generateAiImage(articleId: string, prompt: string): Promise<Buffer> {
+export async function generateAiImage(articleId: string, prompt: string, quality: ImageQuality = imageQuality("manual")): Promise<Buffer> {
   await checkCap();
   const models = [IMAGE_MODEL(), ...FALLBACK_MODELS.filter((m) => m !== IMAGE_MODEL())];
   let last: any;
   for (const model of models) {
     try {
-      return await callOpenAI(model, prompt, articleId);
+      return await callOpenAI(model, prompt, quality, articleId);
     } catch (err: any) {
       last = err;
       // Only "this model isn't available to you" moves on to an older model;
@@ -228,9 +235,11 @@ export function modelUnavailable(err: { status?: number; message?: string }): bo
   return err?.status === 403 || err?.status === 404 || /verif|must be verified|does not exist|not found|access to model|invalid model|model .* not supported|unknown model/i.test(msg);
 }
 
-export async function generateCoverImage(articleId: string, extra = ""): Promise<{ url: string; alt: string; prompt: string; meta: ImageMeta }> {
+// auto: made by the automation (no free photo found), at the cheaper
+// automatic quality; otherwise an editor clicked Generate.
+export async function generateCoverImage(articleId: string, extra = "", opts: { auto?: boolean } = {}): Promise<{ url: string; alt: string; prompt: string; meta: ImageMeta }> {
   const { prompt, scene } = await buildImagePrompt(articleId, extra);
-  const png = await generateAiImage(articleId, prompt);
+  const png = await generateAiImage(articleId, prompt, imageQuality(opts.auto ? "auto" : "manual"));
 
   const file = new File([new Uint8Array(png)], "cover.png", { type: "image/png" });
   const uploaded = await uploadNewsCover(file);
@@ -329,7 +338,7 @@ export async function ensureImages(
     inlinePhotos = stored.slice(1, 1 + inlineLimit);
   } else if (allowAi && !hasCover) {
     try {
-      await generateCoverImage(articleId);
+      await generateCoverImage(articleId, "", { auto: true });
       cover = "ai";
     } catch {
       cover = "none";

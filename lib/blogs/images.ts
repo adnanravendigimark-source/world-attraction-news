@@ -78,7 +78,7 @@ export async function ensureBlogImages(articleId: string, opts: { allowAi?: bool
     }
   }
   if (cover === "none" && opts.allowAi !== false && !a.image) {
-    cover = await generateCoverImage(articleId).then(() => "ai" as const).catch(() => "none" as const);
+    cover = await generateCoverImage(articleId, "", { auto: true }).then(() => "ai" as const).catch(() => "none" as const);
   }
 
   // Inline photos, one per chosen section.
