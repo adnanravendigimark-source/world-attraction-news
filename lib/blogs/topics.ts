@@ -47,6 +47,7 @@ export const NEEDS = ["overview", "decision", "booking", "practical", "itinerary
 export type Need = (typeof NEEDS)[number];
 
 export interface TopicPlan {
+  topic?: string; // the typed topic the cluster was planned around (lowercase)
   role: "pillar" | "supporting";
   need: Need;
   primaryKeyword: string;

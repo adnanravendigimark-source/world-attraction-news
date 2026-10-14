@@ -93,6 +93,9 @@ export interface ClusterIdea {
 
 // ------------------------------------------------------------ pure helpers
 
+// The same typed topic, however it was spaced or capitalised.
+export const clusterKey = (topic: string) => topic.replace(/\s+/g, " ").trim().toLowerCase();
+
 const clip = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, n) : "");
 const keywordKey = (k: string) => [...topicTokens(k)].sort().join(" ");
 
@@ -124,6 +127,7 @@ export function normalizeCluster(raw: any, topic: string): ClusterIdea[] {
       topicType: NEED_TYPE[need],
       words,
       plan: {
+        topic: clusterKey(topic),
         role: isPillar ? "pillar" : "supporting",
         need,
         primaryKeyword,
@@ -244,6 +248,13 @@ export async function suggestCluster(topic: string, destination: string, created
   if (ideas.length === 0) throw new Error("No topic ideas came back. Try again.");
 
   const [text, links] = await Promise.all([freeSourceText(dest.label, t).catch(() => ""), suggestedLinks(dest).catch(() => [])]);
+  // Asking again for the same topic and place replaces the earlier ideas
+  // nobody accepted, instead of stacking a second copy of the cluster.
+  // Done only now, after the new plan succeeded, so a failed call loses nothing.
+  await sql`
+    UPDATE blog_topics SET status = 'dismissed', updated_at = now()
+    WHERE status = 'suggested' AND cluster_id IS NOT NULL AND plan->>'topic' = ${clusterKey(t)}
+      AND city_id IS NOT DISTINCT FROM ${dest.cityId}::uuid AND country_id IS NOT DISTINCT FROM ${dest.countryId}::uuid`;
   const clusterId = randomUUID();
   const ids: string[] = [];
   for (const idea of ideas) {

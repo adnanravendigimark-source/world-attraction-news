@@ -170,7 +170,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
               {g.clustered && (
                 <div className="flex flex-wrap items-center justify-between gap-2 bg-ink-50/60 px-5 py-2.5">
                   <p className="text-sm text-ink-700">
-                    <span className="font-semibold text-ink-900">Topic cluster</span> · {g.items[0].destination} · 1 main guide, {g.items.length - 1} supporting
+                    <span className="font-semibold text-ink-900">Topic cluster{g.items[0].plan?.topic ? `: “${g.items[0].plan.topic}”` : ""}</span> · {g.items[0].destination} · {clusterSummary(g.items)}
                   </p>
                   {canEdit && (
                     <button
@@ -266,6 +266,13 @@ const NEED_LABEL: Record<string, string> = {
 };
 const PRIORITY: Record<string, string> = { high: "bg-emerald-100 text-emerald-800", medium: "bg-blue-50 text-blue-800", low: "bg-ink-100 text-ink-600" };
 const RANK: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+// "1 main guide, 8 supporting", or "8 supporting (main guide already added)".
+function clusterSummary(items: BlogTopic[]): string {
+  const pillar = items.some((t) => t.plan?.role === "pillar");
+  const supporting = items.length - (pillar ? 1 : 0);
+  return pillar ? `1 main guide, ${supporting} supporting` : `${supporting} supporting (main guide already added)`;
+}
 
 // The ideas worth writing: not already covered on the site, and free sources
 // have material to research them. The main guide is always included.

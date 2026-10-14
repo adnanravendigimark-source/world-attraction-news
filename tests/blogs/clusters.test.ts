@@ -105,3 +105,12 @@ describe("skipped needs", () => {
     expect(out.map((o) => o.plan.need)).toEqual(["overview", "practical"]);
   });
 });
+
+import { clusterKey } from "@/lib/blogs/clusters";
+describe("asking twice for one topic", () => {
+  it("the cluster remembers its topic, so a new run replaces the old ideas", () => {
+    const out = normalizeCluster({ topics: [{ role: "pillar", need: "overview", title: "Arno River Boat Tour Guide", primary_keyword: "arno boat tour" }] }, "Arno  Boat Tour");
+    expect(out[0].plan.topic).toBe("arno boat tour");
+    expect(clusterKey("  ARNO boat   tour ")).toBe(clusterKey("arno boat tour"));
+  });
+});
