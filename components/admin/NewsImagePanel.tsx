@@ -93,7 +93,7 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
 
   async function generate() {
     setBusy("gen");
-    setMsg("Generating image… this takes 20–40 seconds.");
+    setMsg("Generating a high-quality AI cover… this takes 2–3 minutes.");
     try {
       const res = await fetch("/api/admin/news/images", {
         method: "POST",
@@ -117,7 +117,7 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
   // afterwards so the editor shows the new text.
   async function inlineAction(index: number, action: "generate" | "remove") {
     setBusy(`inline-${index}`);
-    setMsg(action === "generate" ? "Generating an image for this spot… up to a minute." : "Removing the image…");
+    setMsg(action === "generate" ? "Generating a high-quality image for this spot… this takes 2–3 minutes." : "Removing the image…");
     try {
       const res = await fetch("/api/admin/news/images", {
         method: "POST",

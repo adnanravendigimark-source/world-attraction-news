@@ -7,11 +7,14 @@ import { computeContentStats } from "../articles";
 import { recordAiRun } from "./aiRuns";
 import { recordAiRevision } from "./aiRevision";
 
-const IMAGE_MODEL = () => process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+// gpt-image-2 by default; older models are tried in turn when the account
+// can't use a newer one (see generateAiImage). OPENAI_IMAGE_MODEL overrides.
+const IMAGE_MODEL = () => process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2";
+const FALLBACK_MODELS = ["gpt-image-1.5", "gpt-image-1", "dall-e-3"];
 const DAILY_CAP = () => Number(process.env.NEWS_IMAGE_DAILY_CAP || 20);
-// "high" gives sharper, more detailed covers at several times the cost of
-// "medium" (the default, to keep spend low). Set OPENAI_IMAGE_QUALITY=high to opt in.
-const imageQuality = () => (["low", "medium", "high"].includes(String(process.env.OPENAI_IMAGE_QUALITY)) ? String(process.env.OPENAI_IMAGE_QUALITY) : "medium");
+// "high" (the default) gives sharp, detailed, magazine-quality images; it
+// costs several times "medium". Set OPENAI_IMAGE_QUALITY=medium to spend less.
+const imageQuality = () => (["low", "medium", "high"].includes(String(process.env.OPENAI_IMAGE_QUALITY)) ? String(process.env.OPENAI_IMAGE_QUALITY) : "high");
 
 // ------------------------------------------------------------- AI prompt
 //
@@ -38,9 +41,10 @@ const STORY_SCENES: [RegExp, string, string?][] = [
 ];
 
 const STYLE =
-  "Premium editorial travel photograph for a news website. Photorealistic, natural light, true-to-life colour, " +
-  "professional composition with a clear subject, sharp focus and gentle depth of field, as taken by an experienced travel photographer " +
-  "with a full-frame camera. Wide landscape framing with the main subject centred and calm space at the top and bottom, so it can be cropped to 16:9.";
+  "High-end travel magazine photograph. Photorealistic and true to the real place, with beautiful natural light suited to the scene " +
+  "(warm golden hour or soft clear daylight), rich but realistic colour, crisp fine detail, clean professional composition with a clear " +
+  "focal point and natural depth, as shot by an award-winning travel photographer on a full-frame camera. Wide landscape framing with the " +
+  "main subject centred and calm space at the top and bottom, so it can be cropped to 16:9. At most one or two people, seen from behind or far away, for scale.";
 
 const RULES =
   "Show real architecture and landscapes as they actually look; if unsure of a landmark's exact appearance, show a wider, accurate " +
@@ -58,6 +62,7 @@ export interface PromptInput {
   extra?: string; // an editor's direction
   sceneFrom?: string; // text that decides the kind of scene instead of the headline (a section heading)
   inline?: boolean; // an image inside the article rather than the cover
+  brief?: string | null; // a grounded visual brief (lib/news/imageBrief.ts); replaces the template scene
 }
 
 // The prompt and a plain description of the scene (used for the alt text).
@@ -74,7 +79,9 @@ export function composeImagePrompt(i: PromptInput): { prompt: string; scene: str
   const subjectNamesPlace = !!placeName && subject.toLowerCase().includes(placeName);
   const template = hit?.[1] || (subjectNamesPlace ? "{subject}, as a visitor would see it" : "{subject} in {place}, as a visitor would see it");
   const avoid = hit?.[2] || "";
-  const scene = template
+  const scene = i.brief?.trim()
+    ? i.brief.trim().replace(/[.\s]+$/, "")
+    : template
     .replace(/\{subject\}/g, subject)
     .replace(/\{place\}/g, place || "the destination")
     .replace(/^([^:]+): \1/, "$1")
@@ -94,10 +101,10 @@ export function composeImagePrompt(i: PromptInput): { prompt: string; scene: str
 export async function buildImagePrompt(
   articleId: string,
   extra = "",
-  opts: { subject?: string; sceneFrom?: string; inline?: boolean } = {}
+  opts: { subject?: string; sceneFrom?: string; inline?: boolean; passage?: string } = {}
 ): Promise<{ prompt: string; scene: string }> {
   const a = (await sql`
-    SELECT a.title, a.excerpt, a.news_cluster_id, a.type, ci.name AS city, COALESCE(ci.country, co.name) AS country
+    SELECT a.title, a.excerpt, a.content_html, a.news_cluster_id, a.type, ci.name AS city, COALESCE(ci.country, co.name) AS country
     FROM articles a LEFT JOIN cities ci ON ci.id = a.city_id LEFT JOIN countries co ON co.id = a.country_id
     WHERE a.id = ${articleId} LIMIT 1`)[0];
   if (!a) throw new Error("Article not found.");
@@ -114,7 +121,17 @@ export async function buildImagePrompt(
     !queries[0] && a.type !== "news"
       ? (await import("../blogs/images")).sectionSubject(String(a.title || "").split(":")[0], String(a.city || a.country || ""))
       : "";
+  // A visual brief from the text the image sits next to (the cover: the
+  // standfirst and opening paragraphs), so it shows the place the text is about.
+  const passage =
+    opts.passage ??
+    [String(a.excerpt || ""), ...[...String(a.content_html || "").matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)].slice(0, 2).map((m) => m[1])]
+      .join(" ")
+      .replace(/<[^>]+>/g, " ");
+  const destination = [a.city, a.country].filter(Boolean).join(", ");
+  const brief = await import("./imageBrief").then((m) => m.visualBrief({ title: String(a.title || ""), destination, passage, articleId })).catch(() => null);
   return composeImagePrompt({
+    brief,
     title: String(a.title || ""),
     excerpt: String(a.excerpt || ""),
     place: [a.city, a.country].filter(Boolean).join(", "),
@@ -147,15 +164,15 @@ async function callOpenAI(model: string, prompt: string, articleId?: string): Pr
   }
 }
 
-async function requestImage(model: string, prompt: string): Promise<Buffer> {
+async function requestImage(model: string, prompt: string, withQuality = true): Promise<Buffer> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is not set.");
   const body: Record<string, unknown> =
     model === "dall-e-3"
-      ? { model, prompt, size: "1792x1024", response_format: "b64_json", n: 1 }
-      : { model, prompt, size: "1536x1024", quality: imageQuality(), n: 1 };
+      ? { model, prompt, size: "1792x1024", quality: imageQuality() === "high" ? "hd" : "standard", response_format: "b64_json", n: 1 }
+      : { model, prompt, size: "1536x1024", ...(withQuality ? { quality: imageQuality() } : {}), n: 1 };
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 55_000);
+  const timer = setTimeout(() => ctrl.abort(), 200_000); // gpt-image-2 at high quality takes about 1.5-2 minutes
   try {
     const res = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
@@ -164,6 +181,11 @@ async function requestImage(model: string, prompt: string): Promise<Buffer> {
       signal: ctrl.signal,
     });
     const json: any = await res.json().catch(() => ({}));
+    // A model that doesn't take the quality setting: once more without it.
+    if (!res.ok && res.status === 400 && withQuality && /quality/i.test(String(json?.error?.message || ""))) {
+      clearTimeout(timer);
+      return requestImage(model, prompt, false);
+    }
     if (!res.ok) {
       const msg = String(json?.error?.message || `HTTP ${res.status}`);
       const err: any = new Error(msg);
@@ -186,16 +208,24 @@ async function requestImage(model: string, prompt: string): Promise<Buffer> {
 // and for images inside articles (lib/news/inlineImages.ts).
 export async function generateAiImage(articleId: string, prompt: string): Promise<Buffer> {
   await checkCap();
-  try {
-    return await callOpenAI(IMAGE_MODEL(), prompt, articleId);
-  } catch (err: any) {
-    // gpt-image-1 needs a verified org; fall back to dall-e-3 when it's unavailable.
-    const msg = String(err?.message || "");
-    if (IMAGE_MODEL() !== "dall-e-3" && (err?.status === 403 || err?.status === 404 || /verif|must be verified|does not exist|access/i.test(msg))) {
-      return await callOpenAI("dall-e-3", prompt, articleId);
+  const models = [IMAGE_MODEL(), ...FALLBACK_MODELS.filter((m) => m !== IMAGE_MODEL())];
+  let last: any;
+  for (const model of models) {
+    try {
+      return await callOpenAI(model, prompt, articleId);
+    } catch (err: any) {
+      last = err;
+      // Only "this model isn't available to you" moves on to an older model;
+      // anything else (content policy, timeout, rate limit) is reported as is.
+      if (!modelUnavailable(err)) throw err;
     }
-    throw err;
   }
+  throw last;
+}
+
+export function modelUnavailable(err: { status?: number; message?: string }): boolean {
+  const msg = String(err?.message || "");
+  return err?.status === 403 || err?.status === 404 || /verif|must be verified|does not exist|not found|access to model|invalid model|model .* not supported|unknown model/i.test(msg);
 }
 
 export async function generateCoverImage(articleId: string, extra = ""): Promise<{ url: string; alt: string; prompt: string; meta: ImageMeta }> {

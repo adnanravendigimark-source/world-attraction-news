@@ -33,7 +33,7 @@ describe("AI cover prompts are built from the story", () => {
   });
   it("always asks for realistic editorial photography framed for 16:9, with no text or logos", () => {
     const { prompt } = composeImagePrompt({ title: "Bali tourist levy rises", place: "Bali, Indonesia" });
-    expect(prompt).toMatch(/Premium editorial travel photograph/);
+    expect(prompt).toMatch(/High-end travel magazine photograph/);
     expect(prompt).toMatch(/16:9/);
     expect(prompt).toMatch(/No text, lettering, signage/);
     expect(prompt).toMatch(/watermarks/);

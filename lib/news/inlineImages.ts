@@ -28,6 +28,7 @@ interface SlotPos {
   at: number; // where a figure goes
   label: string;
   heading?: string;
+  passage: string; // the text around the spot, for the image brief
 }
 
 // Where images can go. Guides: after the first paragraph of each section.
@@ -40,13 +41,14 @@ function positions(html: string, guide: boolean): SlotPos[] {
       const start = m.index! + m[0].length;
       const end = i + 1 < heads.length ? heads[i + 1].index! : html.length;
       const close = html.indexOf("</p>", start);
-      out.push({ at: close >= 0 && close < end ? close + 4 : start, label: text(m[1]), heading: text(m[1]) });
+      const body = text(html.slice(start, end).replace(/<figure class="news-figure">[\s\S]*?<\/figure>/g, " "));
+      out.push({ at: close >= 0 && close < end ? close + 4 : start, label: text(m[1]), heading: text(m[1]), passage: `${text(m[1])}. ${body}` });
     });
   } else {
     const paras = [...html.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)];
-    paras.slice(0, -1).forEach((m) => {
+    paras.slice(0, -1).forEach((m, i) => {
       const t = text(m[1]);
-      out.push({ at: m.index! + m[0].length, label: t.length > 70 ? `${t.slice(0, 70)}…` : t });
+      out.push({ at: m.index! + m[0].length, label: t.length > 70 ? `${t.slice(0, 70)}…` : t, passage: `${t} ${text(paras[i + 1][1])}` });
     });
   }
   return out;
@@ -109,18 +111,19 @@ export async function inlineSlots(articleId: string): Promise<ImageSlot[]> {
 export async function generateInlineImage(articleId: string, index: number, direction = ""): Promise<{ url: string; alt: string; slots: ImageSlot[] }> {
   const a = await load(articleId);
   const slot = listSlots(a.html, a.guide)[index];
+  const passage = positions(a.html, a.guide)[index]?.passage || "";
   if (!slot) throw new Error("That spot isn't in the article any more. Reload and try again.");
   const place = String(a.city || a.country || "");
-  let opts: { subject?: string; sceneFrom?: string; inline: boolean };
+  let opts: { subject?: string; sceneFrom?: string; inline: boolean; passage: string };
   if (a.guide) {
     // A guide section: the heading is the subject and decides the scene.
     const { sectionSubject } = await import("../blogs/images");
-    opts = { subject: sectionSubject(slot.label, place) || slot.label, sceneFrom: slot.label, inline: true };
+    opts = { subject: sectionSubject(slot.label, place) || slot.label, sceneFrom: slot.label, inline: true, passage };
   } else {
     // A news story: a second subject from the writer if there is one, so it
     // differs from the cover; the story type still decides the scene.
     const q = await getQueries(articleId);
-    opts = { subject: q[1] || q[0] || "", inline: true };
+    opts = { subject: q[1] || q[0] || "", inline: true, passage };
   }
   const extra = [direction.trim(), a.guide ? "" : "A different view from the cover image."].filter(Boolean).join(" ");
   const { prompt, scene } = await buildImagePrompt(articleId, extra, opts);
