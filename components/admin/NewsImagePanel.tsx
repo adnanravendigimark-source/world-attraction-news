@@ -12,6 +12,11 @@ interface Meta {
   width?: number | null;
   height?: number | null;
 }
+interface Slot {
+  index: number;
+  label: string;
+  image: { url: string; alt: string; caption: string; ai: boolean } | null;
+}
 interface Candidate {
   url: string;
   publisher: string;
@@ -30,6 +35,8 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
   const [msg, setMsg] = useState("");
   const [image, setImage] = useState("");
   const [inline, setInline] = useState(true);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [inlineDirection, setInlineDirection] = useState("");
 
   const load = useCallback(() => {
     fetch(`/api/admin/news/images?articleId=${articleId}`)
@@ -38,6 +45,7 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
         if (d.meta) setMeta(d.meta);
         if (d.candidates) setCandidates(d.candidates);
         setImage(d.image || "");
+        if (Array.isArray(d.slots)) setSlots(d.slots);
       })
       .catch(() => {});
   }, [articleId]);
@@ -101,6 +109,29 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
       } else setMsg(d.error || "Generation failed.");
     } catch {
       setMsg("Generation failed. Check your connection and try again.");
+    }
+    setBusy("");
+  }
+
+  // An AI image (or removal) at one spot inside the article. The page reloads
+  // afterwards so the editor shows the new text.
+  async function inlineAction(index: number, action: "generate" | "remove") {
+    setBusy(`inline-${index}`);
+    setMsg(action === "generate" ? "Generating an image for this spot… up to a minute." : "Removing the image…");
+    try {
+      const res = await fetch("/api/admin/news/images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleId, inline: { action, index, direction: inlineDirection } }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (Array.isArray(d.slots)) setSlots(d.slots);
+        setMsg(action === "generate" ? "AI image placed in the article. Reloading…" : "Image removed. Reloading…");
+        setTimeout(() => window.location.reload(), 900);
+      } else setMsg(d.error || "That didn't work. Try again.");
+    } catch {
+      setMsg("That didn't work. Try again.");
     }
     setBusy("");
   }
@@ -197,6 +228,51 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
         </button>
         <p className="text-[11px] text-slate-500">Creates a realistic scene-setting image (not a photo of the actual event). Labelled AI-generated on the public page.</p>
       </div>
+
+      {slots.length > 0 && (
+        <div className="space-y-2 border-t border-slate-200 pt-3">
+          <p className="text-xs font-bold text-slate-900">Images inside the article</p>
+          <p className="text-[11px] text-slate-500">
+            Generate a realistic AI image for any spot, or replace a photo that doesn&apos;t fit. Each is captioned &ldquo;AI-generated&rdquo; on the public page.
+            Save your edits first: the page reloads afterwards.
+          </p>
+          <input
+            className={input}
+            placeholder="Optional direction for the next image, e.g. “boats on the Arno at golden hour”"
+            value={inlineDirection}
+            onChange={(e) => setInlineDirection(e.target.value)}
+          />
+          <ul className="space-y-1.5">
+            {slots.map((s) => (
+              <li key={s.index} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5">
+                <div className="h-10 w-16 shrink-0 overflow-hidden rounded bg-slate-100">
+                  {s.image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.image.url} alt="" className="h-full w-full object-cover" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-semibold text-slate-800" title={s.label}>{s.label || `Spot ${s.index + 1}`}</p>
+                  <p className="truncate text-[10px] text-slate-500">{s.image ? s.image.caption || "Photo" : "No image"}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => inlineAction(s.index, "generate")}
+                  disabled={!!busy}
+                  className="shrink-0 rounded border border-[#DC2626] px-2 py-1 text-[10px] font-bold text-[#DC2626] hover:bg-red-50 disabled:opacity-50"
+                >
+                  {busy === `inline-${s.index}` ? "Working…" : s.image ? "Replace with AI" : "Generate with AI"}
+                </button>
+                {s.image && (
+                  <button type="button" onClick={() => inlineAction(s.index, "remove")} disabled={!!busy} aria-label="Remove this image" className="shrink-0 px-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-50">
+                    ✕
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <p className="pt-1 text-xs font-bold text-slate-900">Rights</p>
 

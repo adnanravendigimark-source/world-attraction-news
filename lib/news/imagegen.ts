@@ -56,6 +56,8 @@ export interface PromptInput {
   subject?: string; // the writer's most specific photo subject
   type?: string; // "news" or "guide"
   extra?: string; // an editor's direction
+  sceneFrom?: string; // text that decides the kind of scene instead of the headline (a section heading)
+  inline?: boolean; // an image inside the article rather than the cover
 }
 
 // The prompt and a plain description of the scene (used for the alt text).
@@ -65,7 +67,9 @@ export function composeImagePrompt(i: PromptInput): { prompt: string; scene: str
   const subject = (i.subject || "").trim() || place || i.title.trim();
   // The headline decides the kind of scene; the standfirst only when the
   // headline gives no clue ("dining etiquette" in a sights guide is not a food story).
-  const hit = STORY_SCENES.find(([re]) => re.test(i.title)) || STORY_SCENES.find(([re]) => re.test(i.excerpt || ""));
+  const hit = i.sceneFrom
+    ? STORY_SCENES.find(([re]) => re.test(i.sceneFrom!))
+    : STORY_SCENES.find(([re]) => re.test(i.title)) || STORY_SCENES.find(([re]) => re.test(i.excerpt || ""));
   const placeName = place.split(",")[0].trim().toLowerCase();
   const subjectNamesPlace = !!placeName && subject.toLowerCase().includes(placeName);
   const template = hit?.[1] || (subjectNamesPlace ? "{subject}, as a visitor would see it" : "{subject} in {place}, as a visitor would see it");
@@ -77,7 +81,7 @@ export function composeImagePrompt(i: PromptInput): { prompt: string; scene: str
     .replace(/\s+/g, " ")
     .trim();
   const lines = [
-    `Cover photograph for a travel ${i.type === "news" ? "news story" : "guide"} titled "${i.title.trim().slice(0, 140)}".`,
+    `${i.inline ? "Photograph placed inside" : "Cover photograph for"} a travel ${i.type === "news" ? "news story" : "guide"} titled "${i.title.trim().slice(0, 140)}".`,
     place ? `Location: ${place}${i.where && i.where !== place ? ` (${i.where.slice(0, 120)})` : ""}.` : "",
     `Scene: ${scene}.${avoid ? ` ${avoid}` : ""}`,
     i.extra?.trim() ? `Editor's direction: ${i.extra.trim().slice(0, 300)}.` : "",
@@ -87,7 +91,11 @@ export function composeImagePrompt(i: PromptInput): { prompt: string; scene: str
   return { prompt: lines.filter(Boolean).join(" "), scene };
 }
 
-export async function buildImagePrompt(articleId: string, extra = ""): Promise<{ prompt: string; scene: string }> {
+export async function buildImagePrompt(
+  articleId: string,
+  extra = "",
+  opts: { subject?: string; sceneFrom?: string; inline?: boolean } = {}
+): Promise<{ prompt: string; scene: string }> {
   const a = (await sql`
     SELECT a.title, a.excerpt, a.news_cluster_id, a.type, ci.name AS city, COALESCE(ci.country, co.name) AS country
     FROM articles a LEFT JOIN cities ci ON ci.id = a.city_id LEFT JOIN countries co ON co.id = a.country_id
@@ -111,14 +119,18 @@ export async function buildImagePrompt(articleId: string, extra = ""): Promise<{
     excerpt: String(a.excerpt || ""),
     place: [a.city, a.country].filter(Boolean).join(", "),
     where,
-    subject: queries[0] || guideSubject,
+    subject: opts.subject || queries[0] || guideSubject,
+    sceneFrom: opts.sceneFrom,
+    inline: opts.inline,
     type: String(a.type || ""),
     extra,
   });
 }
 
+// Counts every AI image made in the last 24 hours (covers and in-article
+// images), from the ai_runs log.
 async function checkCap(): Promise<void> {
-  const rows = await sql`SELECT COUNT(*)::int AS n FROM article_image_meta WHERE source_type = 'ai' AND updated_at > now() - interval '24 hours'`;
+  const rows = await sql`SELECT COUNT(*)::int AS n FROM ai_runs WHERE kind = 'image' AND outcome = 'ok' AND created_at > now() - interval '24 hours'`;
   if (Number(rows[0]?.n ?? 0) >= DAILY_CAP()) throw new Error(`Daily AI image limit reached (${DAILY_CAP()}). Try again tomorrow or upload an image.`);
 }
 
@@ -169,22 +181,26 @@ async function requestImage(model: string, prompt: string): Promise<Buffer> {
   }
 }
 
-export async function generateCoverImage(articleId: string, extra = ""): Promise<{ url: string; alt: string; prompt: string; meta: ImageMeta }> {
+// One AI image: checks the daily limit, logs the call, and falls back to
+// dall-e-3 when gpt-image-1 isn't available to the account. Used for covers
+// and for images inside articles (lib/news/inlineImages.ts).
+export async function generateAiImage(articleId: string, prompt: string): Promise<Buffer> {
   await checkCap();
-  const { prompt, scene } = await buildImagePrompt(articleId, extra);
-
-  let png: Buffer;
   try {
-    png = await callOpenAI(IMAGE_MODEL(), prompt, articleId);
+    return await callOpenAI(IMAGE_MODEL(), prompt, articleId);
   } catch (err: any) {
     // gpt-image-1 needs a verified org; fall back to dall-e-3 when it's unavailable.
     const msg = String(err?.message || "");
     if (IMAGE_MODEL() !== "dall-e-3" && (err?.status === 403 || err?.status === 404 || /verif|must be verified|does not exist|access/i.test(msg))) {
-      png = await callOpenAI("dall-e-3", prompt, articleId);
-    } else {
-      throw err;
+      return await callOpenAI("dall-e-3", prompt, articleId);
     }
+    throw err;
   }
+}
+
+export async function generateCoverImage(articleId: string, extra = ""): Promise<{ url: string; alt: string; prompt: string; meta: ImageMeta }> {
+  const { prompt, scene } = await buildImagePrompt(articleId, extra);
+  const png = await generateAiImage(articleId, prompt);
 
   const file = new File([new Uint8Array(png)], "cover.png", { type: "image/png" });
   const uploaded = await uploadNewsCover(file);
