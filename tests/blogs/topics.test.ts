@@ -31,3 +31,38 @@ describe("different intents for one place are not duplicates", () => {
     expect(findSimilar("When to Visit Bali", ["Best Time to Visit Bali"])).toBe("Best Time to Visit Bali");
   });
 });
+
+import { suggestRequest } from "@/lib/blogs/topics";
+describe("suggest with AI", () => {
+  it("a typed topic asks for ideas about that topic", () => {
+    const r = suggestRequest("arno boat tour", "");
+    expect(r.user).toContain("TOPIC: arno boat tour");
+    expect(r.system).toContain("about that topic");
+    expect(r.needsPlace).toBe(true);
+  });
+  it("topic with a destination uses the destination given", () => {
+    const r = suggestRequest("arno boat tour", "Florence");
+    expect(r.needsPlace).toBe(false);
+    expect(r.user).toContain("DESTINATION: Florence");
+  });
+  it("destination only works as before", () => {
+    const r = suggestRequest("", "Bali");
+    expect(r.system).not.toContain("TOPIC");
+    expect(r.user).toBe("DESTINATION: Bali");
+  });
+  it("trims very long input", () => {
+    expect(suggestRequest("x".repeat(500), "").user.length).toBeLessThan(260);
+  });
+});
+
+import { siblingDuplicate } from "@/lib/blogs/topics";
+describe("ideas from one topic", () => {
+  const batch = ["Romantic Arno Boat Tours: Perfect for Couples", "Best Time for an Arno Boat Tour: Weather and Experience"];
+  it("sharing the topic's words is not a duplicate", () => {
+    expect(siblingDuplicate("Tips for Your Arno Boat Tour", batch, "arno boat tour")).toBe("");
+    expect(siblingDuplicate("What to See on an Arno Boat Tour", batch, "arno boat tour")).toBe("");
+  });
+  it("the same angle twice still is", () => {
+    expect(siblingDuplicate("Arno Boat Tours for Couples: Romantic Evenings", batch, "arno boat tour")).toBe(batch[0]);
+  });
+});

@@ -77,8 +77,10 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
   async function suggest() {
     setBusy("suggest");
     try {
-      const d = await post("/api/admin/blogs/suggest", { destination });
-      toast.success(`${d.topics.length} ideas for ${d.topics[0]?.destination || destination}.`);
+      const d = await post("/api/admin/blogs/suggest", { destination, topic: title });
+      const where = d.topics[0]?.destination || destination;
+      toast.success(title.trim() ? `${d.topics.length} ideas about "${title.trim()}" (${where}).` : `${d.topics.length} ideas for ${where}.`);
+      if (!destination.trim() && d.topics[0]?.destination) setDestination(d.topics[0].destination.split(",")[0]);
       await load();
     } catch (err: any) {
       toast.error(err.message);
@@ -120,7 +122,7 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
     <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-bold text-ink-900">Travel Blogs</h1>
-        <p className="mt-1 text-sm text-ink-600">Type a topic and its city or country to add it. Or type only a city or country to get topic ideas from AI.</p>
+        <p className="mt-1 text-sm text-ink-600">Add a topic with its city or country. Or click Suggest with AI for blog ideas about your topic, or for a city or country.</p>
       </div>
 
       {canEdit && (
@@ -128,31 +130,26 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
           <input className={`${input} md:flex-[2]`} placeholder="Topic, e.g. Best time to visit Florence" value={title} onChange={(e) => setTitle(e.target.value)} />
           <input
             className={`${input} md:flex-1`}
-            placeholder={title.trim() ? "City or country (required)" : "City or country, e.g. Florence"}
+            placeholder={title.trim() ? "City or country (needed to add)" : "City or country, e.g. Florence"}
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
           />
-          {/* One action at a time: a typed topic is added as it is; with no
-              topic, AI suggests topics for the destination. */}
-          {title.trim() ? (
-            <button
-              disabled={!!busy || !destination.trim()}
-              title={destination.trim() ? "" : "Type a city or country first"}
-              className="shrink-0 rounded-lg bg-ink-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-40"
-            >
-              {busy === "add" ? "Adding…" : "Add topic"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={suggest}
-              disabled={!!busy || !destination.trim()}
-              title={destination.trim() ? "" : "Type a city or country first"}
-              className="shrink-0 rounded-lg bg-[#DC2626] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#B91C1C] disabled:opacity-40"
-            >
-              {busy === "suggest" ? "Thinking…" : "Suggest with AI"}
-            </button>
-          )}
+          <button
+            disabled={!!busy || !title.trim() || !destination.trim()}
+            title={title.trim() && !destination.trim() ? "Type the city or country to add this topic" : ""}
+            className="shrink-0 rounded-lg bg-ink-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-40"
+          >
+            {busy === "add" ? "Adding…" : "Add topic"}
+          </button>
+          <button
+            type="button"
+            onClick={suggest}
+            disabled={!!busy || (!title.trim() && !destination.trim())}
+            title={title.trim() ? "Blog ideas about this topic" : "Blog ideas for this city or country"}
+            className="shrink-0 rounded-lg bg-[#DC2626] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#B91C1C] disabled:opacity-40"
+          >
+            {busy === "suggest" ? "Thinking…" : "Suggest with AI"}
+          </button>
         </form>
       )}
 

@@ -21,7 +21,7 @@ export const TOPIC_TYPES = [
 ] as const;
 export type TopicType = (typeof TOPIC_TYPES)[number]["value"];
 export const TOPIC_STATUSES = ["suggested", "queued", "generating", "drafted", "dismissed"] as const;
-export const SUGGEST_PROMPT_VERSION = "blog-suggest-2026-10-12";
+export const SUGGEST_PROMPT_VERSION = "blog-suggest-v2-2026-10-14";
 
 export interface BlogTopic {
   id: string;
@@ -213,18 +213,70 @@ export async function setTopicStatus(ids: string[], status: "queued" | "dismisse
 
 // ----------------------------------------------------------------- suggest
 
-const SUGGEST_PROMPT = `You plan evergreen travel articles for a travel website.
-Suggest article topics for ONE destination. Each topic is something travellers search for and that can be answered with researched facts.
-Rules:
-- Mix the types: travel_guide, things_to_do, attractions, itinerary, best_time, food, tickets, history.
+const SUGGEST_RULES = `Rules:
+- Each topic is something travellers search for and that can be answered with researched facts.
 - Titles are specific, plain and search-friendly (for example "Best Time to Visit Florence: Weather, Crowds and Prices by Month"), under 75 characters, no clickbait, no years.
+- type is one of: travel_guide, things_to_do, attractions, itinerary, best_time, food, tickets, history.
 - angle: one sentence saying what the article covers and for whom.
-- Do not repeat or closely rephrase any title in the EXISTING list.
+- Do not repeat or closely rephrase any title in the EXISTING list.`;
+
+const SUGGEST_PROMPT = `You plan evergreen travel articles for a travel website.
+Suggest article topics for ONE destination. Mix the types.
+${SUGGEST_RULES}
 Return JSON: {"topics":[{"title","angle","type"}]} with 10 topics.`;
 
-export async function suggestTopics(destination: string, createdBy = ""): Promise<BlogTopic[]> {
+// Ideas built around a topic the editor typed (for example "arno boat tour").
+const TOPIC_SUGGEST_PROMPT = `You plan evergreen travel articles for a travel website.
+The editor typed a TOPIC. Suggest 8 article topics about that topic, not general guides to the destination.
+- The first title is the typed topic itself, written as a clear, complete article title.
+- The others are closely related angles a traveller would also search for (how to book, prices, best time, what you see, alternatives, tips), each still clearly about the TOPIC.
+- destination: the one city (or, if the topic is country-wide, the country) the topic is in, written as "City, Country" or "Country". If DESTINATION is given, use it. If the topic names no place you can identify with confidence, return "" and no topics.
+${SUGGEST_RULES}
+Return JSON: {"destination": "...", "topics":[{"title","angle","type"}]}.`;
+
+// What to tell the model, and which destination to save the ideas under.
+export function suggestRequest(topic: string, destination: string): { system: string; user: string; needsPlace: boolean } {
+  const t = String(topic || "").replace(/\s+/g, " ").trim().slice(0, 120);
+  const d = String(destination || "").trim().slice(0, 80);
+  if (!t) return { system: SUGGEST_PROMPT, user: `DESTINATION: ${d}`, needsPlace: false };
+  return { system: TOPIC_SUGGEST_PROMPT, user: `TOPIC: ${t}\nDESTINATION: ${d || "(not given: work it out from the topic)"}`, needsPlace: !d };
+}
+
+// The model names the place as "Florence, Italy": try the city first, then the country.
+export async function resolveSuggestedPlace(place: string, topic: string): Promise<{ cityId: string | null; countryId: string | null; label: string }> {
+  const parts = String(place || "").split(",").map((p) => p.trim()).filter(Boolean);
+  for (const p of parts) {
+    try {
+      return await resolveDestination(p);
+    } catch {
+      /* try the next part */
+    }
+  }
+  throw new Error(`Couldn't tell which city or country "${topic}" is about. Type the city or country too, then try again.`);
+}
+
+// Two ideas from one topic batch are duplicates only if they still match
+// once the topic's own words are removed from both.
+export function siblingDuplicate(title: string, siblings: string[], topic: string): string {
+  const seed = topicTokens(topic);
+  const strip = (t: string) => [...topicTokens(t)].filter((w) => !seed.has(w)).join(" ");
+  const mine = strip(title);
+  if (!mine) return "";
+  for (const other of siblings) {
+    const rest = strip(other);
+    if (rest && findSimilar(mine, [rest])) return other;
+  }
+  return "";
+}
+
+// topic: what the editor typed (optional). destination: city or country
+// (optional when a topic is given). One AI call either way.
+export async function suggestTopics(destination: string, createdBy = "", topic = ""): Promise<BlogTopic[]> {
   if (!process.env.OPENAI_API_KEY?.trim()) throw new Error("OPENAI_API_KEY is not set.");
-  const dest = await resolveDestination(destination);
+  const req = suggestRequest(topic, destination);
+  if (!topic.trim() && !destination.trim()) throw new Error("Type a topic or a city or country first.");
+  // A typed destination is checked before paying for the model call.
+  let dest = req.needsPlace ? null : await resolveDestination(destination);
   const existing = await existingTitles();
   const { json } = await chatJson({
     kind: "suggest",
@@ -232,18 +284,27 @@ export async function suggestTopics(destination: string, createdBy = ""): Promis
     model: researchModel(),
     temperature: 0.7,
     timeoutMs: 45_000,
-    system: SUGGEST_PROMPT,
-    user: `DESTINATION: ${dest.label}\n\nEXISTING:\n${existing.slice(0, 80).map((t) => `- ${t}`).join("\n") || "(none)"}`,
+    system: req.system,
+    user: `${dest ? req.user.replace(/DESTINATION: .*/, `DESTINATION: ${dest.label}`) : req.user}\n\nEXISTING:\n${existing.slice(0, 80).map((t) => `- ${t}`).join("\n") || "(none)"}`,
   });
+  if (!dest) dest = await resolveSuggestedPlace(String(json?.destination || ""), topic.trim());
   const ideas: any[] = Array.isArray(json?.topics) ? json.topics : [];
   const seen = [...existing];
+  const siblings: string[] = [];
   const ids: string[] = [];
+  const topicMode = !!topic.trim();
   for (const idea of ideas.slice(0, 12)) {
     const title = String(idea?.title || "").trim().slice(0, 200);
     if (title.length < 5) continue;
     const type = TOPIC_TYPES.some((t) => t.value === idea?.type) ? String(idea.type) : "travel_guide";
-    const similar = (await sameTypeTitle(type, dest)) || findSimilar(title, seen);
+    // Ideas about one typed topic all share its words and are narrower than
+    // a city-wide guide, so they are only compared with existing articles,
+    // and with each other once the topic's own words are set aside.
+    const similar = topicMode
+      ? findSimilar(title, existing) || siblingDuplicate(title, siblings, topic)
+      : (await sameTypeTitle(type, dest)) || findSimilar(title, seen);
     seen.push(title);
+    siblings.push(title);
     const row = (await sql`
       INSERT INTO blog_topics (title, angle, topic_type, target_words, city_id, country_id, source, status, similar_title, created_by)
       VALUES (${title}, ${String(idea?.angle || "").trim().slice(0, 300)}, ${type}, ${defaultWords(type)}, ${dest.cityId}, ${dest.countryId},

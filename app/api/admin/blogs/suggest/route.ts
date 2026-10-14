@@ -6,14 +6,16 @@ import { suggestTopics } from "@/lib/blogs/topics";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// { destination: "Florence" } -> 10 topic ideas, saved as "suggested". One AI call.
+// { destination?: "Florence", topic?: "arno boat tour" } -> topic ideas, saved
+// as "suggested". With a topic, the ideas are about that topic and the
+// destination may be left out (the model names it; we check it). One AI call.
 export async function POST(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   try {
-    return NextResponse.json({ ok: true, topics: await suggestTopics(String(body?.destination || ""), session?.email || "") });
+    return NextResponse.json({ ok: true, topics: await suggestTopics(String(body?.destination || "").slice(0, 80), session?.email || "", String(body?.topic || "").slice(0, 120)) });
   } catch (err: any) {
     return NextResponse.json({ error: String(err?.message || err).slice(0, 300) }, { status: 400 });
   }
