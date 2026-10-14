@@ -288,13 +288,24 @@ export default function ArticleDetailClient({
             )}
 
             {article.faq?.length > 0 && (
-              <section className="mt-10 border-t border-slate-200 pt-6" aria-labelledby="faq-heading">
-                <h2 id="faq-heading" className="text-xl font-bold text-slate-900">Frequently asked questions</h2>
-                <div className="mt-4 divide-y divide-slate-200">
+              <section className="mt-12 -mx-4 rounded-3xl bg-[#F8F8F7] px-4 py-10 sm:-mx-6 sm:px-8" aria-labelledby="faq-heading">
+                <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#2F80C9]">Got questions?</p>
+                <h2 id="faq-heading" className="mt-2 text-center text-2xl font-bold tracking-tight text-[#0B1527] sm:text-3xl">
+                  {faqHeading(article.focusKeyword)}
+                </h2>
+                <div className="mt-8 space-y-3">
                   {article.faq.map((f, i) => (
-                    <details key={i} className="group py-3" open={i === 0}>
-                      <summary className="cursor-pointer list-none font-semibold text-slate-900">{f.q}</summary>
-                      <p className="mt-2 text-sm leading-relaxed text-slate-700">{f.a}</p>
+                    <details key={i} className="group rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-5 text-base font-medium text-[#0B1527] sm:px-6 [&::-webkit-details-marker]:hidden">
+                        <span>{f.q}</span>
+                        <span
+                          aria-hidden
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg leading-none text-slate-700 transition-transform group-open:rotate-45"
+                        >
+                          +
+                        </span>
+                      </summary>
+                      <p className="px-5 pb-5 text-[15px] leading-relaxed text-slate-700 sm:px-6">{f.a}</p>
                     </details>
                   ))}
                 </div>
@@ -526,4 +537,16 @@ export default function ArticleDetailClient({
       </Container>
     </div>
   );
+}
+
+// "arno boat tour" -> "Arno Boat Tour FAQs"; long or missing keywords get a
+// plain heading so it never reads like "Is An Arno Boat Tour Worth It FAQs".
+const SMALL_WORDS = new Set(["a", "an", "and", "at", "by", "for", "in", "of", "on", "or", "the", "to", "vs"]);
+function faqHeading(keyword: string | undefined): string {
+  const words = String(keyword || "").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0 || words.length > 4 || /\?$/.test(keyword || "")) return "Frequently Asked Questions";
+  const title = words
+    .map((w, i) => (i > 0 && SMALL_WORDS.has(w.toLowerCase()) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(" ");
+  return `${title} FAQs`;
 }
