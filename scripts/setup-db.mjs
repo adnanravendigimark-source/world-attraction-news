@@ -1426,6 +1426,10 @@ async function createNewsTables() {
   await sql`CREATE INDEX IF NOT EXISTS news_items_cluster_rel_idx ON news_items (cluster_id, relevance_score)`;
   // Which model and writer-prompt version wrote each AI news article.
   await sql`ALTER TABLE news_article_extra ADD COLUMN IF NOT EXISTS generation JSONB`;
+  // News boxes beside the story: "Key Updates" and "What Travelers Should
+  // Do" (lib/news/highlights.ts). Plain-text lists; empty for older stories.
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS key_updates JSONB NOT NULL DEFAULT '[]'::jsonb`;
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS traveler_steps JSONB NOT NULL DEFAULT '[]'::jsonb`;
   // Publisher URL behind a Google News link (lib/news/googleNews.ts), cached.
   await sql`ALTER TABLE news_items ADD COLUMN IF NOT EXISTS resolved_url TEXT`;
   // A story merged into another one (same event found twice) points at it.
@@ -1589,8 +1593,8 @@ async function main() {
   await addPerformanceIndexes();
   await backfillUserSlugs();
   await createNewsTables();
-  // News stories have no category (categories are for blog posts).
-  await sql`UPDATE articles SET category_id = NULL WHERE type = 'news' AND category_id IS NOT NULL`;
+  // (Removed Oct 2026: this used to clear every news story's category on each
+  // run. News now has categories: the label on cards and the /news filters.)
 
   if (SHOULD_SEED) {
     await seedCities();

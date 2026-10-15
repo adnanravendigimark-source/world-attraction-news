@@ -16,6 +16,11 @@ export function articleText(html: string): string {
     .trim();
 }
 
-export function contentHash(html: string): string {
-  return createHash("sha256").update(articleText(html)).digest("hex").slice(0, 32);
+// `extra` is any other checked text shown with the story (the Key Updates /
+// What Travelers Should Do bullets). Left empty, the hash is exactly what it
+// was before those existed, so older checks stay current.
+export function contentHash(html: string, extra: string[] = []): string {
+  const lines = extra.map((s) => String(s || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+  const text = lines.length ? `${articleText(html)}\n${lines.join("\n")}` : articleText(html);
+  return createHash("sha256").update(text).digest("hex").slice(0, 32);
 }

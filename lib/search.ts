@@ -16,6 +16,8 @@ function rowToArticleWithRelations(row: any): ArticleWithRelations {
     origin: row.origin || (row.type === "news" ? "ai_news" : "contributor"),
     countryId: row.country_id ?? null,
     faq: [],
+    keyUpdates: [],
+    travelerSteps: [],
     categoryId: row.category_id,
     attractionId: null,
     authorId: row.author_id,

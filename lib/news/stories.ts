@@ -1,6 +1,7 @@
 import { sql } from "../db";
 import { loadFilterConfig } from "./filter";
 import { contentHash } from "./contentHash";
+import { highlightsFromRow, highlightLines } from "./highlights";
 import { storyPipeline, type StoryPipeline } from "./stage";
 import { loadGazetteer, resolvePlace } from "./places";
 
@@ -120,6 +121,7 @@ export async function listStories(
   // "nothing yet" if a table or column isn't migrated.
   const arts = (await sql`
     SELECT DISTINCT ON (a.news_cluster_id) a.news_cluster_id, a.id, a.status, a.word_count, a.image, a.content_html, a.excerpt,
+           to_jsonb(a) -> 'key_updates' AS key_updates, to_jsonb(a) -> 'traveler_steps' AS traveler_steps,
            c.verdict, c.overridden, c.content_hash, m.source_type, m.credit
     FROM articles a
     LEFT JOIN news_article_checks c ON c.article_id = a.id
@@ -153,7 +155,7 @@ export async function listStories(
           }
         : null,
       check: a?.verdict
-        ? { verdict: a.verdict, overridden: !!a.overridden, stale: !!a.content_hash && a.content_hash !== contentHash(html) }
+        ? { verdict: a.verdict, overridden: !!a.overridden, stale: !!a.content_hash && a.content_hash !== contentHash(html, highlightLines(highlightsFromRow(a))) }
         : null,
     });
   };

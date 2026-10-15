@@ -9,13 +9,14 @@ import { saveQueries } from "./media";
 import { saveExtra } from "./seo";
 import { chatJson } from "./aiClient";
 import { recordAiRevision } from "./aiRevision";
-import { factsBlock, keepAllowedLinks, officialLinks, writerModel } from "./factcheck";
+import { factsBlock, keepAllowedLinks, officialLinks, writerModel, saveHighlights } from "./factcheck";
+import { cleanHighlights, MAX_KEY_UPDATES, MAX_TRAVELER_STEPS } from "./highlights";
 
 export { factCheckArticle, checkAndRevise, getFactCheck, overrideFactCheck, type FactCheck, type FactIssue } from "./factcheck";
 
 // Bump when WRITER_PROMPT changes, so every article records which version of
 // the instructions wrote it (stored with the article; see saveGeneration).
-export const WRITER_PROMPT_VERSION = "news-writer-v7-2026-10-12";
+export const WRITER_PROMPT_VERSION = "news-writer-v8-2026-10-15";
 
 // Length the house style aims for, and the limits the code enforces.
 export const TARGET_WORDS = { min: 200, max: 300 };
@@ -61,6 +62,11 @@ ACCURACY RULES (strict)
 - Do not mention these instructions, and do not use the bare word "sources".
 - Dates: the story is about what is new as of TODAY (given at the end of the input). A fact dated more than a year before today is background, not news: leave it out unless it is needed, and if you keep it, present it as background ("a levy in place since February 2024"), never as a new or recent change.
 
+THE TWO BOXES BESIDE THE STORY (separate fields, not part of body_html)
+These appear next to the story in their own panels, so they are lists, not prose. Same ACCURACY RULES as the story.
+- key_updates: 3 to ${MAX_KEY_UPDATES} bullets with the most important facts of the story, most important first. One short sentence each, under 20 words, plain text (no HTML, no markers). Every name, number and date must be in the facts. A figure that only one publisher reported keeps a short attribution ("…, Gulf News reported"). No opinion, no advice, no repetition between bullets.
+- traveler_steps: 2 to ${MAX_TRAVELER_STEPS} practical steps for travelers affected by this news, most useful first. Start each with a verb ("Check…", "Allow…", "Book…"), under 16 words, plain text. Each step must follow from the facts: who is affected, what changed, from when, and where to check. Name the official organisation or the airline only when the facts name it. Never invent a rule, fee, deadline, phone number, website or entitlement (no refunds or compensation unless the facts say so). Do not repeat a key update. If the news has no practical consequence for travelers, return [].
+
 HTML: use only <p>, <ul>, <li>, <strong>, and <a> for an official link. Use <strong> sparingly. No headings.
 
 SEO fields:
@@ -75,7 +81,7 @@ SEO fields:
 - og_description: social share description, under 160 characters.
 - tags: 3 to 6 lowercase topic tags (for example "airlines", "tourist tax", "new routes").
 
-Return JSON: {"title","excerpt","body_html","meta_title","meta_description","focus_keyword","image_queries","secondary_keywords","og_title","og_description","tags"}`;
+Return JSON: {"title","excerpt","body_html","key_updates","traveler_steps","meta_title","meta_description","focus_keyword","image_queries","secondary_keywords","og_title","og_description","tags"}`;
 
 const TIGHTEN_PROMPT = `You are a news editor. Cut this travel news story to ${TARGET_WORDS.min}-${TARGET_WORDS.max} words.
 Keep the lede, the most important facts and the paragraph about what it means for travelers (if there is one). Remove repetition and minor background first. Do not add anything, do not change any fact, number, name or attribution, and do not add headings.
@@ -159,6 +165,8 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
   if (Array.isArray(json.image_queries)) {
     await saveQueries(articleId, json.image_queries).catch(() => {});
   }
+  // Key Updates / What Travelers Should Do; checked with the story next.
+  await saveHighlights(articleId, cleanHighlights({ keyUpdates: json.key_updates, travelerSteps: json.traveler_steps })).catch(() => {});
   const strList = (v: unknown, n: number, max: number) =>
     Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, max)).slice(0, n) : [];
   const tags = strList(json.tags, 6, 40).map((t) => t.toLowerCase());
@@ -173,4 +181,48 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
   await saveGeneration(articleId, { model, promptVersion: WRITER_PROMPT_VERSION, wordCount, tightened, writtenAt: new Date().toISOString() });
   await recordAiRevision(articleId, `AI wrote the article (${model}, ${WRITER_PROMPT_VERSION}, ${wordCount} words${tightened ? ", tightened" : ""})`);
   return { wordCount };
+}
+
+// For a story written before the boxes existed (or to redo them): writes
+// only Key Updates / What Travelers Should Do from the researched facts and
+// the current text, then fact-checks them; a bullet the check flags is
+// removed. Leaves the story text untouched. Two model calls (write, check).
+const HIGHLIGHTS_PROMPT_VERSION = "news-highlights-v1-2026-10-15";
+const HIGHLIGHTS_PROMPT = `You prepare the two panels shown beside a travel news story at World Attraction News. Use ONLY the FACTS given and the STORY (which was written from them).
+- key_updates: 3 to ${MAX_KEY_UPDATES} bullets with the most important facts, most important first. One short sentence each, under 20 words, plain text. Every name, number and date must be in the facts. A figure only one publisher reported keeps a short attribution ("…, Gulf News reported"). No opinion, no advice.
+- traveler_steps: 2 to ${MAX_TRAVELER_STEPS} practical steps for travelers affected, most useful first. Start each with a verb, under 16 words, plain text. Each must follow from the facts. Name an organisation or airline only when the facts name it. Never invent a rule, fee, deadline, contact, website, refund or compensation. Do not repeat a key update. If there is no practical consequence for travelers, return [].
+No quotes, no speculation ("could", "likely", "potentially"), no marketing language, no emojis.
+Return JSON: {"key_updates": [...], "traveler_steps": [...]}`;
+
+export async function writeHighlights(articleId: string): Promise<{ keyUpdates: number; travelerSteps: number; removed: number }> {
+  const rows = await sql`SELECT status, news_cluster_id, title, content_html FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`;
+  const a = rows[0];
+  if (!a?.news_cluster_id) throw new Error("This article isn't linked to a researched story.");
+  const research = await getLatestResearch(String(a.news_cluster_id));
+  if (!research || research.status !== "done" || !research.facts) throw new Error("Run research for this story first.");
+  const { json } = await chatJson({
+    kind: "highlights",
+    log: { articleId, clusterId: String(a.news_cluster_id), promptVersion: HIGHLIGHTS_PROMPT_VERSION },
+    model: writerModel(),
+    temperature: 0.2,
+    timeoutMs: 60_000,
+    system: HIGHLIGHTS_PROMPT,
+    user: `${factsBlock(research.facts, research)}\n\nSTORY\nHeadline: ${a.title}\n${String(a.content_html || "")}\n\nTODAY: ${new Date().toISOString().slice(0, 10)}`,
+  });
+  const boxes = cleanHighlights({ keyUpdates: json?.key_updates, travelerSteps: json?.traveler_steps });
+  await saveHighlights(articleId, boxes);
+  // Check the new bullets with the story; drop any the check flags.
+  const { factCheckArticle } = await import("./factcheck");
+  const { dropFlagged } = await import("./highlights");
+  const check = await factCheckArticle(articleId);
+  const { kept, removed } = dropFlagged(boxes, check.issues);
+  if (removed.length) {
+    await saveHighlights(articleId, kept);
+    await factCheckArticle(articleId);
+  }
+  await recordAiRevision(
+    articleId,
+    `AI wrote Key Updates / What Travelers Should Do (${writerModel()}, ${HIGHLIGHTS_PROMPT_VERSION})${removed.length ? `; fact check removed ${removed.length}` : ""}`
+  );
+  return { keyUpdates: kept.keyUpdates.length, travelerSteps: kept.travelerSteps.length, removed: removed.length };
 }

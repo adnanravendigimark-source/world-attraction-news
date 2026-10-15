@@ -7,6 +7,7 @@ import Container from "@/components/Container";
 import NewsletterForm from "@/components/NewsletterForm";
 import SocialShare from "@/components/SocialShare";
 import CategoryIcon from "@/components/CategoryIcon";
+import { KeyUpdatesBox, TravelerStepsBox } from "@/components/NewsBoxes";
 import {
   getArticleSources,
   getPublishedNews,
@@ -82,6 +83,7 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
     ...c,
     href: newsCounts[c.id] ? `/news?category=${encodeURIComponent(c.slug)}` : `/categories/${c.slug}`,
   }));
+  const hasBoxes = article.keyUpdates.length > 0 || article.travelerSteps.length > 0;
   const showUpdated = article.updatedAt && article.publishedAt && fmt(article.updatedAt) !== fmt(article.publishedAt);
 
   return (
@@ -245,8 +247,22 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
               </figure>
             )}
 
-            {/* Article Content */}
-            <div className="article-body news-body mt-7" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
+            {/* Article Content, with the Key Updates / What Travelers Should Do
+                boxes beside it on desktop. On phones: Key Updates above the
+                story, the steps below it. */}
+            {hasBoxes ? (
+              <div className="mt-7 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
+                <KeyUpdatesBox items={article.keyUpdates} className="mb-7 lg:hidden" />
+                <div className="article-body news-body news-body--beside min-w-0 lg:col-span-7" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
+                <TravelerStepsBox items={article.travelerSteps} className="mt-8 lg:hidden" />
+                <div className="hidden space-y-8 lg:sticky lg:top-24 lg:col-span-5 lg:block">
+                  <KeyUpdatesBox items={article.keyUpdates} />
+                  <TravelerStepsBox items={article.travelerSteps} />
+                </div>
+              </div>
+            ) : (
+              <div className="article-body news-body mt-7" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
+            )}
 
             {/* This site's pages the story mentions */}
             {related.length > 0 && (

@@ -612,3 +612,15 @@ body {
   aspect-ratio: 16 / 9;
   object-fit: cover;
 }
+
+/* News story beside the Key Updates / What Travelers Should Do boxes: the
+   column is narrower, so the text steps down a size. */
+@media (min-width: 1024px) {
+  .news-body.news-body--beside {
+    font-size: 1.0625rem;
+    line-height: 1.7;
+  }
+  .news-body.news-body--beside > p:first-of-type {
+    font-size: 1.1em;
+  }
+}

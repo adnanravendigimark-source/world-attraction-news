@@ -5,6 +5,7 @@ import type { ModerationSignals } from "./moderation";
 import { sanitizeArticleHtml, stripLinkTags } from "./sanitizeHtml";
 import { slugifyCountry } from "./countries";
 import { contentHash } from "./news/contentHash";
+import { highlightsFromRow, highlightLines } from "./news/highlights";
 import { dedupeSources } from "./news/sourceNames";
 
 // Full editorial workflow (Final Phase spec):
@@ -45,6 +46,9 @@ export interface Article {
   cityId: string | null;
   countryId: string | null; // country-level guides (no city)
   faq: FaqItem[];
+  // News only: the boxes beside the story (lib/news/highlights.ts).
+  keyUpdates: string[];
+  travelerSteps: string[];
   categoryId: string | null;
   attractionId: string | null;
   authorId: string;
@@ -109,6 +113,7 @@ function rowToArticle(row: any): Article {
     cityId: row.city_id ?? null,
     countryId: row.country_id ?? null,
     faq: Array.isArray(row.faq) ? row.faq.filter((f: any) => f && f.q && f.a).map((f: any) => ({ q: String(f.q), a: String(f.a) })) : [],
+    ...highlightsFromRow(row),
     categoryId: row.category_id,
     attractionId: row.attraction_id ?? null,
     authorId: row.author_id,
@@ -1031,7 +1036,10 @@ export async function newsPublishProblems(
   id: string,
   opts: { quality?: { score: number; overlap: { phrase: string; source: string }[] } } = {}
 ): Promise<string[]> {
-  const rows = await sql`SELECT type, origin, faq, title, excerpt, content_html, word_count, news_cluster_id FROM articles WHERE id = ${id} LIMIT 1`;
+  // to_jsonb(...)->: works before the key_updates/traveler_steps migration too.
+  const rows = await sql`SELECT type, origin, faq, title, excerpt, content_html, word_count, news_cluster_id,
+    to_jsonb(articles) -> 'key_updates' AS key_updates, to_jsonb(articles) -> 'traveler_steps' AS traveler_steps
+    FROM articles WHERE id = ${id} LIMIT 1`;
   const a = rows[0];
   // AI blogs (Track B5) pass the same gate, with long-form limits.
   const blog = !!a && a.type !== "news" && a.origin === "ai_blog";
@@ -1054,7 +1062,7 @@ export async function newsPublishProblems(
     const c = chk[0];
     if (!c) {
       if (a.news_cluster_id || blog) problems.push("Run the fact check before publishing.");
-    } else if (c.content_hash && c.content_hash !== contentHash(html)) {
+    } else if (c.content_hash && c.content_hash !== contentHash(html, highlightLines(highlightsFromRow(a)))) {
       problems.push("The article changed after the last fact check. Re-run the check.");
     } else if ((c.verdict === "fail" || c.verdict === "failed") && !c.overridden) {
       problems.push("The fact check found unsupported claims. Fix them and re-run the check, or approve the override with a reason.");

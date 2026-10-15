@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { saveHighlights } from "@/lib/news/factcheck";
+import { cleanHighlights } from "@/lib/news/highlights";
 import { getSession } from "@/lib/session";
 import {
   getArticleById,
@@ -408,6 +410,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         imageAlt: article.imageAlt,
         changeSummary: "Edited by admin",
       });
+      // News boxes (Key Updates / What Travelers Should Do), one item per line.
+      if (article.type === "news" && (body.keyUpdates !== undefined || body.travelerSteps !== undefined)) {
+        const current = { keyUpdates: article.keyUpdates, travelerSteps: article.travelerSteps };
+        await saveHighlights(
+          article.id,
+          cleanHighlights({
+            keyUpdates: body.keyUpdates !== undefined ? body.keyUpdates : current.keyUpdates,
+            travelerSteps: body.travelerSteps !== undefined ? body.travelerSteps : current.travelerSteps,
+          })
+        );
+      }
       await logActivity(session, "article_edited", { type: "article", id: article.id, label: article.title });
       // Only matters for an already-live article — editing a draft/pending
       // one has nothing public to refresh yet. The city (and its country)

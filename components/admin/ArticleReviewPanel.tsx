@@ -10,6 +10,7 @@ import { articlePath } from "@/lib/destinations";
 import TiptapArticleEditor from "@/components/dashboard/TiptapArticleEditor";
 import NewsImagePanel from "@/components/admin/NewsImagePanel";
 import NewsWriterPanel from "@/components/admin/NewsWriterPanel";
+import NewsHighlightsEditor from "@/components/admin/NewsHighlightsEditor";
 import NewsReadyBar from "@/components/admin/NewsReadyBar";
 import NewsSourcesPanel from "@/components/admin/NewsSourcesPanel";
 import NewsLinksPanel from "@/components/admin/NewsLinksPanel";
@@ -54,6 +55,8 @@ interface EditState {
   tags: string;
   canonicalUrl: string;
   slug: string;
+  keyUpdates: string; // news boxes, one item per line
+  travelerSteps: string;
 }
 
 function buildEditState(article: ArticleWithRelations): EditState {
@@ -72,6 +75,8 @@ function buildEditState(article: ArticleWithRelations): EditState {
     tags: (article.tags || []).join(", "),
     canonicalUrl: article.canonicalUrl || "",
     slug: article.slug || "",
+    keyUpdates: (article.keyUpdates || []).join("\n"),
+    travelerSteps: (article.travelerSteps || []).join("\n"),
   };
 }
 
@@ -353,6 +358,7 @@ export default function ArticleReviewPanel({
           focusKeyword: edit.focusKeyword.trim(),
           tags: edit.tags ? edit.tags.split(",").map((s) => s.trim()).filter(Boolean) : [],
           canonicalUrl: edit.canonicalUrl.trim(),
+          ...(article.type === "news" ? { keyUpdates: edit.keyUpdates, travelerSteps: edit.travelerSteps } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -427,7 +433,9 @@ export default function ArticleReviewPanel({
       (edit.metaDescription || "") !== (article.metaDescription || "") ||
       (edit.focusKeyword || "") !== (article.focusKeyword || "") ||
       (edit.canonicalUrl || "") !== (article.canonicalUrl || "") ||
-      edit.tags.trim() !== (article.tags || []).join(", ").trim()
+      edit.tags.trim() !== (article.tags || []).join(", ").trim() ||
+      edit.keyUpdates.trim() !== (article.keyUpdates || []).join("\n").trim() ||
+      edit.travelerSteps.trim() !== (article.travelerSteps || []).join("\n").trim()
     );
   }, [edit, article, contentBaseline]);
 
@@ -658,6 +666,15 @@ export default function ArticleReviewPanel({
               />
             </div>
 
+            {article.type === "news" && (
+              <NewsHighlightsEditor
+                articleId={article.id}
+                keyUpdates={edit.keyUpdates}
+                travelerSteps={edit.travelerSteps}
+                onChange={(field, value) => updateEdit(field, value)}
+                hasUnsavedEdits={isContentDirty}
+              />
+            )}
             {article.type === "news" && <NewsWriterPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
             {article.type === "news" && <NewsSourcesPanel articleId={article.id} />}
             {article.origin === "ai_blog" && <BlogPanel articleId={article.id} faq={article.faq || []} hasUnsavedEdits={isContentDirty} />}

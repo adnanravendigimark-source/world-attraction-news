@@ -4,7 +4,7 @@ import { dbErrorMessage } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { enrichArticle } from "@/lib/news/seo";
-import { writeArticle } from "@/lib/news/writer";
+import { writeArticle, writeHighlights } from "@/lib/news/writer";
 import { checkAndRevise, factCheckArticle, getFactCheck, overrideFactCheck } from "@/lib/news/factcheck";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,7 @@ export async function GET(req: Request) {
 //   verify   fact check + one automatic revision if it fails
 //   check    fact check only (never changes the article)
 //   override { reason } allow publishing despite a failed check
+//   highlights  AI writes Key Updates / What Travelers Should Do only, then checks them
 export async function POST(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "update");
@@ -45,6 +46,11 @@ export async function POST(req: Request) {
       if (r.revised) await enrichArticle(articleId);
       return NextResponse.json({ ok: true, check: r.check, revised: r.revised });
     }
+    if (action === "highlights") {
+      const r = await writeHighlights(articleId);
+      await logActivity(session, "news_highlights_written", { type: "article", id: articleId, label: `AI key updates (${r.keyUpdates}) and steps (${r.travelerSteps})` });
+      return NextResponse.json({ ok: true, ...r, check: await getFactCheck(articleId) });
+    }
     if (action === "check") {
       return NextResponse.json({ ok: true, check: await factCheckArticle(articleId) });
     }
@@ -58,7 +64,7 @@ export async function POST(req: Request) {
   } catch (err: any) {
     console.error("[api/admin/news/write] error:", err);
     const msg = typeof err?.message === "string" ? err.message : "";
-    const known = /OpenAI|research|short|long|Unpublish|linked|unreadable|OPENAI|reason|model/i.test(msg);
+    const known = /OpenAI|research|short|long|Unpublish|linked|unreadable|OPENAI|reason|model|database update/i.test(msg);
     return NextResponse.json({ error: known ? msg : dbErrorMessage(err), detail: process.env.NODE_ENV !== "production" ? msg : undefined }, { status: known ? 400 : 500 });
   }
 }

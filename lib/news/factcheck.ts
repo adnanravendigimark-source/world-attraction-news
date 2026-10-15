@@ -22,6 +22,7 @@ import { recordAiRevision } from "./aiRevision";
 export const CHECK_PROMPT_VERSION = "news-check-2026-10-12";
 export const REVISE_PROMPT_VERSION = "news-revise-2026-10-12";
 import { contentHash } from "./contentHash";
+import { dropFlagged, highlightLines, highlightsCheckHtml, highlightsFromRow, type NewsHighlights } from "./highlights";
 
 export type Verdict = "passed" | "needs_review" | "failed";
 
@@ -292,7 +293,8 @@ const VERDICT_ALIASES: Record<string, Verdict> = { pass: "passed", fail: "failed
 export async function getFactCheck(articleId: string): Promise<FactCheck | null> {
   try {
     const rows = await sql`
-      SELECT c.verdict, c.issues, c.claims, c.overridden, c.override_reason, c.model, c.checked_at, c.content_hash, a.content_html
+      SELECT c.verdict, c.issues, c.claims, c.overridden, c.override_reason, c.model, c.checked_at, c.content_hash, a.content_html,
+             to_jsonb(a) -> 'key_updates' AS key_updates, to_jsonb(a) -> 'traveler_steps' AS traveler_steps
       FROM news_article_checks c JOIN articles a ON a.id = c.article_id
       WHERE c.article_id = ${articleId} LIMIT 1`;
     const r = rows[0];
@@ -307,7 +309,7 @@ export async function getFactCheck(articleId: string): Promise<FactCheck | null>
       model: r.model || "",
       checkedAt: new Date(r.checked_at).toISOString(),
       // Checks saved before hashes existed have no hash: treat as current.
-      stale: !!r.content_hash && r.content_hash !== contentHash(String(r.content_html || "")),
+      stale: !!r.content_hash && r.content_hash !== contentHash(String(r.content_html || ""), highlightLines(highlightsFromRow(r))),
     };
   } catch {
     return null;
@@ -341,13 +343,17 @@ async function loadBlogForCheck(articleId: string, a: any) {
 }
 
 async function loadForCheck(articleId: string): Promise<{ article: any; research: any; facts: string; blog?: boolean }> {
-  const rows = await sql`SELECT content_html, news_cluster_id, status, type, origin, faq, title, excerpt, meta_title, meta_description FROM articles WHERE id = ${articleId} LIMIT 1`;
+  const rows = await sql`SELECT content_html, news_cluster_id, status, type, origin, faq, title, excerpt, meta_title, meta_description,
+    to_jsonb(articles) -> 'key_updates' AS key_updates, to_jsonb(articles) -> 'traveler_steps' AS traveler_steps
+    FROM articles WHERE id = ${articleId} LIMIT 1`;
   if (rows[0] && rows[0].type !== "news" && rows[0].origin === "ai_blog") return loadBlogForCheck(articleId, rows[0]);
   const a = rows[0]?.type === "news" ? rows[0] : null;
   if (!a?.news_cluster_id) throw new Error("This article isn't linked to a researched story.");
   const research = await getLatestResearch(String(a.news_cluster_id));
   if (!research || research.status !== "done" || !research.facts) throw new Error("Run research for this story first.");
-  return { article: a, research, facts: factsBlock(research.facts, research) };
+  // The Key Updates / What Travelers Should Do bullets are claims too.
+  const boxes = highlightsCheckHtml(highlightsFromRow(a));
+  return { article: boxes ? { ...a, check_html: String(a.content_html || "") + boxes } : a, research, facts: factsBlock(research.facts, research) };
 }
 
 // Checks the article's current text. Never changes the article.
@@ -358,7 +364,7 @@ export async function factCheckArticle(articleId: string): Promise<FactCheck> {
   const rules = [...ruleIssues(html, facts), ...(article.type === "news" ? headlineIssues(article, facts) : [])];
   const m = await modelCheck(html, facts, { articleId, clusterId: article.news_cluster_id ? String(article.news_cluster_id) : null });
   const issues = [...rules, ...m.issues];
-  await saveCheck(articleId, verdictFor(issues), issues, m.claims, m.model, contentHash(raw));
+  await saveCheck(articleId, verdictFor(issues), issues, m.claims, m.model, contentHash(raw, highlightLines(highlightsFromRow(article))));
   return (await getFactCheck(articleId)) as FactCheck;
 }
 
@@ -376,6 +382,12 @@ Return JSON: {"body_html": "..."}`;
 export async function checkAndRevise(articleId: string): Promise<{ check: FactCheck; revised: boolean; wordCount: number | null }> {
   let check = await factCheckArticle(articleId);
   if (check.verdict !== "failed") return { check, revised: false, wordCount: null };
+  // News boxes: a bullet the check flags is removed (never rewritten).
+  const boxes = await dropFlaggedHighlights(articleId, check);
+  if (boxes.removed > 0 && boxes.onlyBoxIssues) {
+    check = await factCheckArticle(articleId);
+    return { check, revised: true, wordCount: null };
+  }
   // Long guides get a second fixing round; news gets one.
   const first = await reviseOnce(articleId, check);
   if (!first.revised || first.check.verdict !== "failed" || !first.blog) return first.result;
@@ -388,8 +400,11 @@ async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revise
   const none = { revised: false, check, blog: !!blog, result: { check, revised: false, wordCount: null } };
   if (["published", "scheduled"].includes(article.status)) return none;
   const current = stripOurFigures(String(article.content_html || ""));
-  // Body sentences only: headline and meta problems are for the editor.
-  const high = check.issues.filter((i) => i.severity === "high" && !HEADLINE_ISSUE.test(i.text));
+  // Body sentences only: headline and meta problems are for the editor, and
+  // problems with the news boxes are handled by dropFlaggedHighlights().
+  const boxText = highlightLines(highlightsFromRow(article));
+  const { boxIssues } = dropFlagged({ keyUpdates: boxText, travelerSteps: [] }, check.issues);
+  const high = check.issues.filter((i) => i.severity === "high" && !HEADLINE_ISSUE.test(i.text) && !boxIssues.has(i.text));
   if (high.length === 0) return none;
   const { json } = await chatJson({
     kind: "revise",
@@ -412,4 +427,29 @@ async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revise
   await recordAiRevision(articleId, `AI revised ${high.length} sentence(s) the fact check flagged (${writerModel()}, ${REVISE_PROMPT_VERSION})`);
   check = await factCheckArticle(articleId);
   return { revised: true, check, blog: !!blog, result: { check, revised: true, wordCount: stats.wordCount } };
+}
+
+// Removes Key Updates / What Travelers Should Do bullets that a failed check
+// flagged. Unpublished drafts only, like the body reviser.
+async function dropFlaggedHighlights(articleId: string, check: FactCheck): Promise<{ removed: number; onlyBoxIssues: boolean }> {
+  const rows = await sql`SELECT status, to_jsonb(articles) -> 'key_updates' AS key_updates, to_jsonb(articles) -> 'traveler_steps' AS traveler_steps
+    FROM articles WHERE id = ${articleId} AND type = 'news' LIMIT 1`;
+  const a = rows[0];
+  if (!a || ["published", "scheduled"].includes(a.status)) return { removed: 0, onlyBoxIssues: false };
+  const { kept, removed, boxIssues } = dropFlagged(highlightsFromRow(a), check.issues);
+  if (removed.length === 0) return { removed: 0, onlyBoxIssues: false };
+  await saveHighlights(articleId, kept);
+  await recordAiRevision(articleId, `Removed ${removed.length} Key Updates / What Travelers Should Do bullet(s) the fact check flagged`);
+  const bodyIssues = check.issues.filter((i) => i.severity === "high" && !HEADLINE_ISSUE.test(i.text) && !boxIssues.has(i.text));
+  return { removed: removed.length, onlyBoxIssues: bodyIssues.length === 0 };
+}
+
+export async function saveHighlights(articleId: string, h: NewsHighlights): Promise<void> {
+  try {
+    await sql`UPDATE articles SET key_updates = ${JSON.stringify(h.keyUpdates)}::jsonb, traveler_steps = ${JSON.stringify(h.travelerSteps)}::jsonb, updated_at = now()
+      WHERE id = ${articleId}`;
+  } catch (err: any) {
+    if (/key_updates|traveler_steps/.test(String(err?.message))) throw new Error("A database update is needed: run `node scripts/setup-db.mjs`, then try again.");
+    throw err;
+  }
 }
