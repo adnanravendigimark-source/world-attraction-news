@@ -49,20 +49,7 @@ export default function HomeHeroCarousel({ slides = [] }: { slides?: HeroSlide[]
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* The whole photo is shown (object-contain, nothing cropped) inside
-          the same fixed-height hero. The space it does not cover is filled
-          with a blurred copy of the same photo, so there are no empty bars. */}
-      <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-        <Image
-          key={`bg-${current.id || current.image}`}
-          src={current.image}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center scale-110 blur-2xl brightness-90"
-        />
-      </div>
+      {/* Full-width edge-to-edge background image */}
       <div className="absolute inset-0">
         <Image
           key={current.id || current.image}
@@ -71,7 +58,7 @@ export default function HomeHeroCarousel({ slides = [] }: { slides?: HeroSlide[]
           fill
           priority
           sizes="100vw"
-          className="object-contain object-right"
+          className="object-cover object-center transition-transform duration-700 group-hover:scale-101"
         />
       </div>
 
