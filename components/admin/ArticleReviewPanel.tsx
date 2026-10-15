@@ -611,10 +611,10 @@ export default function ArticleReviewPanel({
                 </div>
               </div>
 
-              {article.type !== "news" && (
+              {/* News uses the category for its label and the /news filters. */}
               <div>
                 <label className="block text-xs font-bold text-slate-900 mb-1">
-                  Category {article.origin === "ai_blog" ? <span className="text-slate-400 font-normal">(optional)</span> : <span className="text-[#DC2626]">*</span>}
+                  Category {article.type === "news" || article.origin === "ai_blog" ? <span className="text-slate-400 font-normal">(optional)</span> : <span className="text-[#DC2626]">*</span>}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
@@ -625,7 +625,7 @@ export default function ArticleReviewPanel({
                     onChange={(e) => updateEdit("categoryId", e.target.value || null)}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 focus:border-[#DC2626] focus:outline-none cursor-pointer shadow-2xs appearance-none"
                   >
-                    <option value="">Select category</option>
+                    <option value="">{article.type === "news" ? "No category" : "Select category"}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -637,7 +637,6 @@ export default function ArticleReviewPanel({
                   </span>
                 </div>
               </div>
-              )}
             </div>
 
             {/* Short Excerpt / Lead Summary */}
