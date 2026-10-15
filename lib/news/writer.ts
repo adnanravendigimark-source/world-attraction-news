@@ -16,7 +16,7 @@ export { factCheckArticle, checkAndRevise, getFactCheck, overrideFactCheck, type
 
 // Bump when WRITER_PROMPT changes, so every article records which version of
 // the instructions wrote it (stored with the article; see saveGeneration).
-export const WRITER_PROMPT_VERSION = "news-writer-v8-2026-10-15";
+export const WRITER_PROMPT_VERSION = "news-writer-v9-2026-10-15";
 
 // Length the house style aims for, and the limits the code enforces.
 export const TARGET_WORDS = { min: 200, max: 300 };
@@ -64,7 +64,7 @@ ACCURACY RULES (strict)
 
 THE TWO BOXES BESIDE THE STORY (separate fields, not part of body_html)
 These appear next to the story in their own panels, so they are lists, not prose. Same ACCURACY RULES as the story.
-- key_updates: 3 to ${MAX_KEY_UPDATES} bullets with the most important facts of the story, most important first. One short sentence each, under 20 words, plain text (no HTML, no markers). Every name, number and date must be in the facts. A figure that only one publisher reported keeps a short attribution ("…, Gulf News reported"). No opinion, no advice, no repetition between bullets.
+- key_updates: 3 to ${MAX_KEY_UPDATES} bullets with the most important facts of the story, most important first. One short sentence each, under 20 words, plain text (no HTML, no markers). Every name, number and date must be in the facts. A figure that only one publisher reported keeps a short attribution ("…, Gulf News reported"). No opinion, no advice, no repetition between bullets. Key updates are what is NEW: never use a fact dated more than a year before TODAY (that is background). Say exactly who a fact applies to; never widen it (a rule for one country stays one country).
 - traveler_steps: 2 to ${MAX_TRAVELER_STEPS} practical steps for travelers affected by this news, most useful first. Start each with a verb ("Check…", "Allow…", "Book…"), under 16 words, plain text. Each step must follow from the facts: who is affected, what changed, from when, and where to check. Name the official organisation or the airline only when the facts name it. Never invent a rule, fee, deadline, phone number, website or entitlement (no refunds or compensation unless the facts say so). Do not repeat a key update. If the news has no practical consequence for travelers, return [].
 
 HTML: use only <p>, <ul>, <li>, <strong>, and <a> for an official link. Use <strong> sparingly. No headings.
@@ -187,9 +187,9 @@ export async function writeArticle(articleId: string): Promise<{ wordCount: numb
 // only Key Updates / What Travelers Should Do from the researched facts and
 // the current text, then fact-checks them; a bullet the check flags is
 // removed. Leaves the story text untouched. Two model calls (write, check).
-const HIGHLIGHTS_PROMPT_VERSION = "news-highlights-v1-2026-10-15";
+const HIGHLIGHTS_PROMPT_VERSION = "news-highlights-v2-2026-10-15";
 const HIGHLIGHTS_PROMPT = `You prepare the two panels shown beside a travel news story at World Attraction News. Use ONLY the FACTS given and the STORY (which was written from them).
-- key_updates: 3 to ${MAX_KEY_UPDATES} bullets with the most important facts, most important first. One short sentence each, under 20 words, plain text. Every name, number and date must be in the facts. A figure only one publisher reported keeps a short attribution ("…, Gulf News reported"). No opinion, no advice.
+- key_updates: 3 to ${MAX_KEY_UPDATES} bullets with the most important facts, most important first. One short sentence each, under 20 words, plain text. Every name, number and date must be in the facts. A figure only one publisher reported keeps a short attribution ("…, Gulf News reported"). No opinion, no advice. Key updates are what is NEW: never use a fact dated more than a year before TODAY (that is background). Say exactly who a fact applies to; never widen it (a rule for one country stays one country).
 - traveler_steps: 2 to ${MAX_TRAVELER_STEPS} practical steps for travelers affected, most useful first. Start each with a verb, under 16 words, plain text. Each must follow from the facts. Name an organisation or airline only when the facts name it. Never invent a rule, fee, deadline, contact, website, refund or compensation. Do not repeat a key update. If there is no practical consequence for travelers, return [].
 No quotes, no speculation ("could", "likely", "potentially"), no marketing language, no emojis.
 Return JSON: {"key_updates": [...], "traveler_steps": [...]}`;
