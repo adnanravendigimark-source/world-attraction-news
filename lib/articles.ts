@@ -1051,7 +1051,14 @@ export async function newsPublishProblems(
   if (blog) {
     if (Number(a.word_count || 0) < 500) problems.push("The guide is too short (at least 500 words).");
     if (!Array.isArray(a.faq) || a.faq.length === 0) problems.push("Add the FAQ (regenerate the blog or add questions).");
-  } else if (Number(a.word_count || 0) < 150) problems.push("Article is too short (aim for 200–300 words).");
+  } else {
+    if (Number(a.word_count || 0) < 150) problems.push("Article is too short (aim for 200–300 words).");
+    // Every news story shows Key Updates beside it (What Travelers Should Do
+    // is optional: some news has no practical consequence).
+    if (highlightsFromRow(a).keyUpdates.length === 0) {
+      problems.push('Add the Key Updates (type them, or click "Write both with AI").');
+    }
+  }
   const src = await sql`SELECT COUNT(*)::int AS n FROM article_sources WHERE article_id = ${id}`;
   if (Number(src[0]?.n ?? 0) < 1) problems.push("Add at least one source.");
   // Fact check: an AI-researched story needs a check of its current text.
