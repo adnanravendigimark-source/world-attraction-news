@@ -14,7 +14,7 @@ import {
   getPublishedNews,
   getFeaturedStories,
   getTrendingStories,
-  getPublishedArticleCountsByCategory,
+  getStoryCountsByCategory,
 } from "@/lib/articles";
 import { resolvePageMetadata, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { pickHeroStories, pickDestinations, popularCategories, storyHref, storyDate, readTime, storyLabel } from "@/lib/home";
@@ -30,7 +30,7 @@ const getHomePageData = unstable_cache(
       getCitiesWithArticleCounts().catch(() => []),
       getCategories().catch(() => []),
       getFeaturedCategorySlugs().catch(() => [] as string[]),
-      getPublishedArticleCountsByCategory().catch(() => ({} as Record<string, number>)),
+      getStoryCountsByCategory().catch(() => ({} as Record<string, number>)),
       getPublishedArticles({ limit: 12 }).catch(() => []),
       getPublishedNews({ limit: 12 })
         .then((r) => r.articles)
@@ -40,7 +40,7 @@ const getHomePageData = unstable_cache(
     ]);
     return { cities, categories, featuredCategorySlugs, categoryCounts, guides, news, featured, trending };
   },
-  ["homepage-data-v3"],
+  ["homepage-data-v4"],
   { revalidate: 60, tags: ["homepage"] }
 );
 

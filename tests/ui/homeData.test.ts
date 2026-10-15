@@ -51,3 +51,18 @@ describe("home page: categories and labels", () => {
     expect(storyDate("2026-10-12T23:30:00Z")).toBe("Oct 12, 2026");
   });
 });
+
+import { newsPaging } from "@/lib/home";
+describe("Travel News list paging", () => {
+  it("page 1 holds the lead plus nine cards, later pages nine", () => {
+    expect(newsPaging(1, 2)).toEqual({ offset: 0, limit: 10, totalPages: 1 });
+    expect(newsPaging(1, 10).totalPages).toBe(1);
+    expect(newsPaging(1, 11).totalPages).toBe(2);
+    expect(newsPaging(2, 25)).toEqual({ offset: 10, limit: 9, totalPages: 3 });
+    expect(newsPaging(3, 25).offset).toBe(19);
+  });
+  it("treats junk page numbers as page 1", () => {
+    expect(newsPaging(NaN, 5).offset).toBe(0);
+    expect(newsPaging(-4, 5).offset).toBe(0);
+  });
+});

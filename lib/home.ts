@@ -88,3 +88,16 @@ export function popularCategories(categories: Category[], counts: Record<string,
     .slice(0, max)
     .map((x) => x.c);
 }
+
+// Travel News list: page 1 has a lead story plus nine cards (10), later pages
+// nine cards. Returns the slice to load and how many pages there are.
+export const NEWS_FIRST_PAGE = 10;
+export const NEWS_PER_PAGE = 9;
+export function newsPaging(page: number, total: number): { offset: number; limit: number; totalPages: number } {
+  const p = Math.max(1, Math.floor(page) || 1);
+  return {
+    offset: p === 1 ? 0 : NEWS_FIRST_PAGE + (p - 2) * NEWS_PER_PAGE,
+    limit: p === 1 ? NEWS_FIRST_PAGE : NEWS_PER_PAGE,
+    totalPages: total <= NEWS_FIRST_PAGE ? 1 : 1 + Math.ceil((total - NEWS_FIRST_PAGE) / NEWS_PER_PAGE),
+  };
+}

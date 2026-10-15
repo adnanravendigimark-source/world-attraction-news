@@ -522,18 +522,19 @@ export async function getFeaturedStories(limit = 4): Promise<ArticleWithRelation
   }
 }
 
-export async function getTrendingStories(limit = 5): Promise<ArticleWithRelations[]> {
+export async function getTrendingStories(limit = 5, type?: "news" | "guide"): Promise<ArticleWithRelations[]> {
+  const t = type || "";
   try {
     const recent = await sql(
-      `${JOIN_SELECT} WHERE a.status = 'published' AND a.published_at >= now() - interval '30 days' AND a.view_count > 0
+      `${JOIN_SELECT} WHERE a.status = 'published' AND ($2 = '' OR a.type = $2) AND a.published_at >= now() - interval '30 days' AND a.view_count > 0
        ORDER BY a.view_count DESC, a.published_at DESC LIMIT $1`,
-      [limit]
+      [limit, t]
     );
     if (recent.length >= limit) return recent.map(rowToArticleWithRelations);
     const ids = recent.map((r: any) => r.id);
     const rest = await sql(
-      `${JOIN_SELECT} WHERE a.status = 'published' AND NOT (a.id = ANY($2::uuid[])) ORDER BY a.published_at DESC LIMIT $1`,
-      [limit - recent.length, ids]
+      `${JOIN_SELECT} WHERE a.status = 'published' AND ($3 = '' OR a.type = $3) AND NOT (a.id = ANY($2::uuid[])) ORDER BY a.published_at DESC LIMIT $1`,
+      [limit - recent.length, ids, t]
     );
     return [...recent, ...rest].map(rowToArticleWithRelations);
   } catch (err) {
@@ -1385,20 +1386,41 @@ export async function createNewsDraft(input: {
   return article;
 }
 
-export async function getPublishedNews(opts: { limit?: number; offset?: number } = {}): Promise<{ articles: ArticleWithRelations[]; total: number }> {
+export async function getPublishedNews(
+  opts: { limit?: number; offset?: number; categorySlug?: string } = {}
+): Promise<{ articles: ArticleWithRelations[]; total: number }> {
   try {
     await publishDueScheduledArticles();
     const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
     const offset = Math.max(opts.offset ?? 0, 0);
+    const cat = (opts.categorySlug || "").trim();
+    // Parameterised; an empty category means "all".
     const rows = await sql(
-      `${JOIN_SELECT} WHERE a.type = 'news' AND a.status = 'published' ORDER BY COALESCE(a.published_at, a.updated_at) DESC LIMIT $1 OFFSET $2`,
-      [limit, offset]
+      `${JOIN_SELECT} WHERE a.type = 'news' AND a.status = 'published' AND ($3 = '' OR cat.slug = $3)
+       ORDER BY COALESCE(a.published_at, a.updated_at) DESC LIMIT $1 OFFSET $2`,
+      [limit, offset, cat]
     );
-    const count = await sql`SELECT COUNT(*)::int AS n FROM articles WHERE type = 'news' AND status = 'published'`;
+    const count = await sql`
+      SELECT COUNT(*)::int AS n FROM articles a LEFT JOIN categories cat ON cat.id = a.category_id
+      WHERE a.type = 'news' AND a.status = 'published' AND (${cat} = '' OR cat.slug = ${cat})`;
     return { articles: rows.map(rowToArticleWithRelations), total: Number(count[0]?.n ?? 0) };
   } catch (err) {
     console.error("[getPublishedNews error]:", err);
     return { articles: [], total: 0 };
+  }
+}
+
+// Published stories per category id; type limits it to news or guides.
+export async function getStoryCountsByCategory(type?: "news" | "guide"): Promise<Record<string, number>> {
+  try {
+    const t = type || "";
+    const rows = await sql`
+      SELECT category_id, COUNT(*)::int AS count FROM articles
+      WHERE status = 'published' AND category_id IS NOT NULL AND (${t} = '' OR type = ${t})
+      GROUP BY category_id`;
+    return Object.fromEntries(rows.map((r: any) => [r.category_id, r.count]));
+  } catch {
+    return {};
   }
 }
 
