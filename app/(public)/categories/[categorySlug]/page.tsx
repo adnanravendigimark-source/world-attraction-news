@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import CategoryDetailClient from "./CategoryDetailClient";
 import { getCategoryBySlug, getCategories } from "@/lib/categories";
-import { getPublishedArticlesPage, type ArticleSort } from "@/lib/articles";
-import { getCities } from "@/lib/cities";
+import { getPublishedArticlesPage, getCategoryCoverage, type ArticleSort } from "@/lib/articles";
 import { resolvePageMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
-import { articlePath } from "@/lib/destinations";
-import { SITE_NAME } from "@/lib/site";
+import { publicPath } from "@/lib/content/paths";
 
 // Stays force-dynamic: real server-side city filter, search, sort, and
 // pagination come from searchParams — same reasoning as /latest-news.
@@ -37,8 +35,8 @@ export async function generateMetadata({
   // actually reaches the live page — same fix as the country/city pages,
   // see the country page's comment for the full reasoning.
   return resolvePageMetadata(`/categories/${category.slug}`, {
-    title: category.metaTitle || `${category.name} Attraction Coverage & News | ${SITE_NAME}`,
-    description: category.metaDescription || category.description || `The latest ${category.name.toLowerCase()} news from attractions around the world.`,
+    title: category.metaTitle || `${category.name}: Travel News & Guides`,
+    description: category.metaDescription || category.description || `The latest ${category.name.toLowerCase()} travel news and guides.`,
     image: category.image || undefined,
   });
 }
@@ -59,7 +57,7 @@ export default async function CategoryPage({
   const page = Math.max(1, Number(searchParams?.page) || 1);
   const sort = toSort(searchParams?.sort);
 
-  const [result, allCategories, cities] = await Promise.all([
+  const [result, allCategories, coverage] = await Promise.all([
     getPublishedArticlesPage({
       categorySlug: category.slug,
       citySlug: searchParams?.city,
@@ -67,9 +65,10 @@ export default async function CategoryPage({
       page,
       pageSize: PAGE_SIZE,
       sort,
+      types: ["news", "guide"],
     }),
     getCategories(),
-    getCities(),
+    getCategoryCoverage(category.id),
   ]);
 
   const breadcrumbs = [
@@ -87,7 +86,7 @@ export default async function CategoryPage({
         page={result.page}
         totalPages={result.totalPages}
         allCategories={allCategories}
-        cities={cities.map((c) => ({ slug: c.slug, name: c.name }))}
+        coverage={coverage}
         currentFilters={{ city: searchParams?.city || "", q: searchParams?.q || "", sort }}
       />
       <script
@@ -95,7 +94,7 @@ export default async function CategoryPage({
         dangerouslySetInnerHTML={{
           __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
-            itemListJsonLd(result.articles.map((a) => ({ name: a.title, path: articlePath(a.countrySlug, a.citySlug, a.slug) }))),
+            itemListJsonLd(result.articles.map((a) => ({ name: a.title, path: publicPath(a) }))),
           ]),
         }}
       />

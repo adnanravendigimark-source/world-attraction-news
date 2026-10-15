@@ -5,7 +5,7 @@ import { getCitiesWithArticleCounts } from "@/lib/cities";
 import { getAllCountries } from "@/lib/countries";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { countryPath } from "@/lib/destinations";
-import { SITE_NAME } from "@/lib/site";
+import { getStoryCountsByCountry } from "@/lib/articles";
 
 // Pure read, no searchParams (search/sort/filter is client-side over the
 // full list) — real ISR. City & country counts change slowly enough that a wider
@@ -14,19 +14,20 @@ export const revalidate = 300;
 
 const getDestinationsPageData = unstable_cache(
   async () => {
-    const [cities, countries] = await Promise.all([
+    const [cities, countries, countryCounts] = await Promise.all([
       getCitiesWithArticleCounts(),
       getAllCountries(),
+      getStoryCountsByCountry(),
     ]);
-    return { cities, countries };
+    return { cities, countries, countryCounts };
   },
-  ["destinations-page-data-v3"],
-  { revalidate: 300, tags: ["cities", "countries"] }
+  ["destinations-page-data-v4"],
+  { revalidate: 300, tags: ["cities", "countries", "articles"] }
 );
 
 export const metadata: Metadata = buildMetadata({
-  title: `Destinations by Country — Global Attraction News & Travel Intelligence | ${SITE_NAME}`,
-  description: "Explore destination countries and city bureaus for the latest attraction news, theme park updates, and travel dispatches.",
+  title: "Destinations: Travel News & Guides by Country",
+  description: "Browse travel news and guides by country and city.",
   path: "/destinations",
 });
 
@@ -36,7 +37,7 @@ const breadcrumbs = [
 ];
 
 export default async function DestinationsPage() {
-  const { cities, countries } = await getDestinationsPageData();
+  const { cities, countries, countryCounts } = await getDestinationsPageData();
 
   const mappedCities: DestinationCity[] = cities.map((c) => ({
     id: c.id,
@@ -61,7 +62,7 @@ export default async function DestinationsPage() {
 
   return (
     <>
-      <DestinationsClient dbCities={mappedCities} dbCountries={mappedCountries} />
+      <DestinationsClient dbCities={mappedCities} dbCountries={mappedCountries} countryStoryCounts={countryCounts} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

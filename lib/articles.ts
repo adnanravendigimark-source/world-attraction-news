@@ -210,17 +210,27 @@ const JOIN_SELECT = `
 
 // --- Public reads (published only) -----------------------------------
 
+// Which story types a public listing includes. Defaults to guides only (the
+// original behaviour); category, country and city pages pass both.
+export type StoryType = "news" | "guide";
+function typeCondition(types: StoryType[] | undefined, params: any[]): string {
+  const list = (types && types.length ? types : ["guide"]).filter((t) => t === "news" || t === "guide");
+  params.push(list.length ? list : ["guide"]);
+  return `a.type = ANY($${params.length}::text[]) AND a.status = 'published'`;
+}
+
 export async function getPublishedArticles(opts: {
   countrySlug?: string;
   citySlug?: string;
   categorySlug?: string;
   limit?: number;
+  types?: StoryType[];
 } = {}): Promise<ArticleWithRelations[]> {
   try {
     await publishDueScheduledArticles();
     const limit = opts.limit ?? 200;
-    const conditions = ["a.type = 'guide' AND a.status = 'published'"];
     const params: any[] = [];
+    const conditions = [typeCondition(opts.types, params)];
     if (opts.countrySlug) {
       params.push(opts.countrySlug);
       conditions.push(`(c.country_slug = $${params.length} OR (a.city_id IS NULL AND co.slug = $${params.length}))`);
@@ -401,13 +411,14 @@ export async function getPublishedArticlesPage(opts: {
   page?: number;
   pageSize?: number;
   sort?: ArticleSort;
+  types?: StoryType[];
 } = {}): Promise<{ articles: ArticleWithRelations[]; total: number; page: number; pageSize: number; totalPages: number }> {
   const page = Math.max(1, opts.page ?? 1);
   const pageSize = opts.pageSize ?? 12;
   try {
     await publishDueScheduledArticles();
-    const conditions = ["a.type = 'guide' AND a.status = 'published'"];
     const params: any[] = [];
+    const conditions = [typeCondition(opts.types, params)];
     if (opts.citySlug) {
       params.push(opts.citySlug);
       conditions.push(`c.slug = $${params.length}`);
@@ -577,7 +588,7 @@ export async function getPublishedArticleCountsByCategory(): Promise<Record<stri
 }
 
 // The /categories index needs one representative image per category (the
-// most recent published article's). Doing that with N `getPublishedArticles`
+// most recent published story's, news or guide). Doing that with N `getPublishedArticles`
 // calls (one per category) is an N+1 query pattern; DISTINCT ON gets every
 // category's latest image in a single round trip.
 export async function getLatestPublishedArticleImageByCategory(): Promise<Record<string, string>> {
@@ -585,8 +596,8 @@ export async function getLatestPublishedArticleImageByCategory(): Promise<Record
     const rows = await sql`
       SELECT DISTINCT ON (category_id) category_id, image
       FROM articles
-      WHERE type = 'guide' AND status = 'published' AND category_id IS NOT NULL AND image IS NOT NULL AND image != ''
-      ORDER BY category_id, published_at DESC
+      WHERE status = 'published' AND category_id IS NOT NULL AND image IS NOT NULL AND image != ''
+      ORDER BY category_id, COALESCE(published_at, updated_at) DESC
     `;
     return Object.fromEntries(rows.map((r: any) => [r.category_id, r.image]));
   } catch {
@@ -1476,4 +1487,74 @@ export async function getLatestNewsHeadline(): Promise<{ title: string; slug: st
 
 export function newsPath(slug: string): string {
   return `/news/${slug}`;
+}
+
+// What a category page shows beside its list: how many published news
+// stories and guides it holds, and the cities those stories are about (for
+// the city filter, so it never offers a city with nothing in it).
+export interface StoryCoverage {
+  news: number;
+  guides: number;
+  cities: { slug: string; name: string; count: number }[];
+  latestImage: string | null;
+}
+
+export async function getCategoryCoverage(categoryId: string): Promise<StoryCoverage> {
+  try {
+    const [types, cities, latest] = await Promise.all([
+      sql`SELECT type, COUNT(*)::int AS count FROM articles
+          WHERE status = 'published' AND category_id = ${categoryId} GROUP BY type`,
+      sql`SELECT c.slug, c.name, COUNT(*)::int AS count FROM articles a JOIN cities c ON c.id = a.city_id
+          WHERE a.status = 'published' AND a.category_id = ${categoryId}
+          GROUP BY c.slug, c.name ORDER BY count DESC, c.name ASC`,
+      sql`SELECT image FROM articles
+          WHERE status = 'published' AND category_id = ${categoryId} AND COALESCE(image, '') <> ''
+          ORDER BY COALESCE(published_at, updated_at) DESC LIMIT 1`,
+    ]);
+    const by = Object.fromEntries(types.map((r: any) => [r.type, r.count]));
+    return {
+      news: by.news ?? 0,
+      guides: by.guide ?? 0,
+      cities: cities.map((r: any) => ({ slug: r.slug, name: r.name, count: r.count })),
+      latestImage: latest[0]?.image || null,
+    };
+  } catch {
+    return { news: 0, guides: 0, cities: [], latestImage: null };
+  }
+}
+
+// Published news stories and guides about a country (its cities plus
+// country-level stories), for the country page's totals.
+export async function getCountryStoryCounts(countrySlug: string): Promise<{ news: number; guides: number }> {
+  try {
+    const rows = await sql`
+      SELECT a.type, COUNT(*)::int AS count
+      FROM articles a
+      LEFT JOIN cities c ON c.id = a.city_id
+      LEFT JOIN countries co ON co.id = a.country_id
+      WHERE a.status = 'published'
+        AND (c.country_slug = ${countrySlug} OR (a.city_id IS NULL AND co.slug = ${countrySlug}))
+      GROUP BY a.type`;
+    const by = Object.fromEntries(rows.map((r: any) => [r.type, r.count]));
+    return { news: by.news ?? 0, guides: by.guide ?? 0 };
+  } catch {
+    return { news: 0, guides: 0 };
+  }
+}
+
+// Published stories (news and guides) per country slug, counting stories
+// filed to one of its cities and country-level stories with no city.
+export async function getStoryCountsByCountry(): Promise<Record<string, number>> {
+  try {
+    const rows = await sql`
+      SELECT COALESCE(c.country_slug, co.slug) AS slug, COUNT(*)::int AS count
+      FROM articles a
+      LEFT JOIN cities c ON c.id = a.city_id
+      LEFT JOIN countries co ON co.id = a.country_id
+      WHERE a.status = 'published' AND COALESCE(c.country_slug, co.slug) IS NOT NULL
+      GROUP BY 1`;
+    return Object.fromEntries(rows.map((r: any) => [r.slug, r.count]));
+  } catch {
+    return {};
+  }
 }

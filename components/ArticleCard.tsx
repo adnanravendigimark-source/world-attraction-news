@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ArticleWithRelations } from "@/lib/articles";
-import { articlePath } from "@/lib/destinations";
+import { publicPath } from "@/lib/content/paths";
 
 function formatDate(iso: string | null) {
   if (!iso) return "";
@@ -22,7 +22,8 @@ export default function ArticleCard({
   // Real article URL — /latest-news is the listing page, not an article
   // namespace. The route (see lib/destinations.ts) is
   // /[countrySlug]/[citySlug]/[slug].
-  const href = articlePath(article.countrySlug, article.citySlug, article.slug);
+  const href = publicPath(article);
+  const place = article.cityName || article.countryName || (article.type === "news" ? "Travel News" : "Travel Guide");
 
   // Compact wire-feed variant (used in top stories lists, sidebar, trending)
   if (size === "compact") {
@@ -46,7 +47,7 @@ export default function ArticleCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-signal">
-            <span>{article.cityName}</span>
+            <span>{place}</span>
             {article.breaking && (
               <span className="rounded bg-signal px-1 py-0.2 text-[9px] text-white">Live</span>
             )}
@@ -88,7 +89,7 @@ export default function ArticleCard({
         <div className="flex flex-col justify-between sm:col-span-7 py-1">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-signal">
-              <span>{article.cityName}</span>
+              <span>{place}</span>
               {article.categoryName && (
                 <>
                   <span className="text-ink-300" aria-hidden="true">·</span>
@@ -143,7 +144,7 @@ export default function ArticleCard({
       </div>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-signal">
-          <span>{article.cityName}</span>
+          <span>{place}</span>
           {article.categoryName && (
             <>
               <span className="text-ink-300" aria-hidden="true">·</span>

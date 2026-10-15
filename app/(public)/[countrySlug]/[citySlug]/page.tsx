@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import CityDetailClient from "./CityDetailClient";
 import { getCityBySlug } from "@/lib/cities";
+import { publicPath } from "@/lib/content/paths";
 import { getPublishedArticles, getPublishedArticleByAnySlug, getPublishedCountryGuide } from "@/lib/articles";
 import GuideArticle from "../GuideArticle";
 import { resolvePageMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
@@ -21,10 +22,10 @@ const getCachedCityBySlug = unstable_cache(
 
 const getCachedCityPageData = unstable_cache(
   async (citySlug: string) => {
-    const articles = await getPublishedArticles({ citySlug });
+    const articles = await getPublishedArticles({ citySlug, types: ["news", "guide"] });
     return { articles };
   },
-  ["city-page-data"],
+  ["city-page-data-v2"],
   { revalidate: 60, tags: ["articles"] }
 );
 
@@ -54,8 +55,8 @@ export async function generateMetadata({
   // for consistency, since the Indexing admin UI already implied this
   // toggle worked for cities.
   return resolvePageMetadata(cityPath(city.countrySlug, city.slug), {
-    title: city.metaTitle || `${city.name} Attraction News & Travel Intelligence`,
-    description: city.metaDescription || city.intro,
+    title: city.metaTitle || `${city.name}, ${city.country}: Travel News & Guides`,
+    description: city.metaDescription || city.intro || `Travel news and guides for ${city.name}, ${city.country}.`,
     image: city.heroImage,
   });
 }
@@ -102,7 +103,7 @@ export default async function CityPage({
           __html: jsonLdScript([
             breadcrumbJsonLd(breadcrumbs),
             itemListJsonLd(
-              articles.map((a) => ({ name: a.title, path: articlePath(city.countrySlug, city.slug, a.slug) }))
+              articles.map((a) => ({ name: a.title, path: publicPath(a) }))
             ),
           ]),
         }}

@@ -9,8 +9,9 @@ import NumberedPagination from "@/components/NumberedPagination";
 import NewsletterForm from "@/components/NewsletterForm";
 import EmptyState from "@/components/EmptyState";
 import type { Category } from "@/lib/categories";
-import type { ArticleWithRelations } from "@/lib/articles";
-import { articlePath } from "@/lib/destinations";
+import type { ArticleWithRelations, StoryCoverage } from "@/lib/articles";
+import { publicPath } from "@/lib/content/paths";
+import CategoryIcon from "@/components/CategoryIcon";
 
 interface Filters {
   city: string;
@@ -30,7 +31,7 @@ export default function CategoryDetailClient({
   page,
   totalPages,
   allCategories,
-  cities,
+  coverage,
   currentFilters,
 }: {
   category: Category;
@@ -39,7 +40,7 @@ export default function CategoryDetailClient({
   page: number;
   totalPages: number;
   allCategories: Category[];
-  cities: { slug: string; name: string }[];
+  coverage: StoryCoverage;
   currentFilters: Filters;
 }) {
   const router = useRouter();
@@ -62,6 +63,13 @@ export default function CategoryDetailClient({
   }
 
   const hasActiveFilters = Boolean(currentFilters.city || currentFilters.q);
+  const heroImage = category.image || coverage.latestImage;
+  const allStories = coverage.news + coverage.guides;
+  // Keep the city in the list when it is the active filter, even if it has
+  // no stories (a hand-typed URL), so the pill shows what is selected.
+  const cityPills = coverage.cities.some((c) => c.slug === currentFilters.city) || !currentFilters.city
+    ? coverage.cities
+    : [...coverage.cities, { slug: currentFilters.city, name: currentFilters.city.replace(/-/g, " "), count: 0 }];
 
   return (
     <div className="bg-white min-h-screen text-ink-900 pb-16">
@@ -84,10 +92,10 @@ export default function CategoryDetailClient({
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex flex-col sm:flex-row gap-5 items-start max-w-2xl">
-              {category.image && (
+              {heroImage && (
                 <div className="relative h-28 w-44 sm:h-32 sm:w-48 shrink-0 overflow-hidden rounded-2xl border border-ink-200 shadow-xs">
                   <Image
-                    src={category.image}
+                    src={heroImage}
                     alt={category.imageAlt || category.name}
                     fill
                     className="object-cover"
@@ -98,16 +106,16 @@ export default function CategoryDetailClient({
               )}
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+                  <CategoryIcon slug={category.slug} className="h-4 w-4 text-signal" />
                   <span className="text-[11px] font-black uppercase tracking-widest text-signal">
-                    EDITORIAL BEAT
+                    CATEGORY
                   </span>
                 </div>
                 <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-ink-900">
                   {category.name}
                 </h1>
                 <p className="mt-2 text-xs sm:text-sm text-ink-600 leading-relaxed font-medium">
-                  {category.description || `Targeted reporting, opening calendars, and attraction developments across ${category.name.toLowerCase()}.`}
+                  {category.description || `Travel news and guides about ${category.name.toLowerCase()}.`}
                 </p>
               </div>
             </div>
@@ -124,7 +132,7 @@ export default function CategoryDetailClient({
                 GET {category.name.toUpperCase()} ALERTS
               </h3>
               <p className="mt-1 text-[11px] text-ink-500 leading-normal">
-                Stay updated on new attractions, ride tech, and venue openings worldwide.
+                Get new {category.name.toLowerCase()} stories in your inbox.
               </p>
               <div className="mt-2.5">
                 <NewsletterForm source={`category-${category.slug}`} variant="light" />
@@ -140,7 +148,7 @@ export default function CategoryDetailClient({
       <div className="border-b border-ink-200 bg-ink-50/50 py-3">
         <Container>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* City Pills — real cities, not a hardcoded list */}
+            {/* City pills: only cities that have stories in this category */}
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
               <button
                 type="button"
@@ -153,7 +161,7 @@ export default function CategoryDetailClient({
               >
                 ALL STORIES
               </button>
-              {cities.map((c) => (
+              {cityPills.map((c) => (
                 <button
                   key={c.slug}
                   type="button"
@@ -165,6 +173,7 @@ export default function CategoryDetailClient({
                   }`}
                 >
                   {c.name}
+                  {c.count > 0 && <span className="ml-1 opacity-60">{c.count}</span>}
                 </button>
               ))}
             </div>
@@ -220,7 +229,7 @@ export default function CategoryDetailClient({
       </div>
 
       {/* =========================================
-          3. TWO-COLUMN WIRE & SIDEBAR
+          3. STORY LIST & SIDEBAR
       ========================================= */}
       <section className="py-8 sm:py-10">
         <Container>
@@ -249,7 +258,8 @@ export default function CategoryDetailClient({
                 />
               ) : (
                 articles.map((article) => {
-                  const href = articlePath(article.countrySlug, article.citySlug, article.slug);
+                  const href = publicPath(article);
+                  const place = article.cityName || article.countryName || (article.type === "news" ? "Travel News" : "Travel Guide");
 
                   return (
                     <article
@@ -278,9 +288,9 @@ export default function CategoryDetailClient({
                       <div className="flex flex-1 flex-col justify-between py-1">
                         <div>
                           <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
-                            <span className="text-signal">{article.cityName}</span>
+                            <span className="text-signal">{place}</span>
                             <span className="text-ink-300">•</span>
-                            <span className="text-ink-500">{category.name.toUpperCase()}</span>
+                            <span className="text-ink-500">{article.type === "news" ? "News" : "Guide"}</span>
                           </div>
 
                           <h2 className="mt-1.5 font-sans text-base sm:text-lg font-black leading-snug text-ink-900 group-hover:text-signal transition-colors">
@@ -293,8 +303,12 @@ export default function CategoryDetailClient({
                         </div>
 
                         <div className="mt-3.5 pt-3 border-t border-ink-100 text-[11px] text-ink-500">
-                          <span>By {article.authorName}</span>
-                          <span className="mx-1.5">•</span>
+                          {article.authorName && (
+                            <>
+                              <span>By {article.authorName}</span>
+                              <span className="mx-1.5">•</span>
+                            </>
+                          )}
                           <span>{formatDate(article.publishedAt)}</span>
                           <span className="mx-1.5">•</span>
                           <span>{article.readingTimeMinutes || 1} min read</span>
@@ -319,31 +333,37 @@ export default function CategoryDetailClient({
 
             {/* Right Sidebar (32% / 4 cols) */}
             <div className="lg:col-span-4 flex flex-col gap-6">
-              {/* Beat Dossier Card */}
+              {/* What this category holds, from the published stories */}
               <div className="rounded-2xl border border-ink-200 bg-white p-5 sm:p-6 shadow-sm">
                 <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-ink-900 mb-3 pb-2 border-b border-ink-100">
-                  {category.name} Beat Dossier
+                  In {category.name}
                 </h3>
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-3 gap-2">
                   <div className="p-3 bg-ink-50 rounded-xl text-center">
-                    <p className="text-xl font-black text-signal">{total}</p>
+                    <p className="text-xl font-black text-signal">{allStories}</p>
                     <p className="text-[10px] text-ink-500 font-bold uppercase">Stories</p>
                   </div>
-                  <div className="p-3 bg-ink-50 rounded-xl text-center">
-                    <p className="text-xl font-black text-ink-900">Global</p>
-                    <p className="text-[10px] text-ink-500 font-bold uppercase">Coverage</p>
-                  </div>
+                  <Link href="/news" className="p-3 bg-ink-50 rounded-xl text-center hover:bg-ink-100 transition-colors">
+                    <p className="text-xl font-black text-ink-900">{coverage.news}</p>
+                    <p className="text-[10px] text-ink-500 font-bold uppercase">News</p>
+                  </Link>
+                  <Link href="/latest-news" className="p-3 bg-ink-50 rounded-xl text-center hover:bg-ink-100 transition-colors">
+                    <p className="text-xl font-black text-ink-900">{coverage.guides}</p>
+                    <p className="text-[10px] text-ink-500 font-bold uppercase">Guides</p>
+                  </Link>
                 </div>
-                <p className="text-xs text-ink-600 leading-relaxed">
-                  Focus: <strong className="text-ink-900">{category.name} developments, openings, and reviews.</strong>
-                </p>
+                {coverage.cities.length > 0 && (
+                  <p className="mt-3 text-xs text-ink-600 leading-relaxed">
+                    Places covered: <strong className="text-ink-900">{coverage.cities.slice(0, 6).map((c) => c.name).join(", ")}{coverage.cities.length > 6 ? ` and ${coverage.cities.length - 6} more` : ""}</strong>
+                  </p>
+                )}
               </div>
 
               {/* Browse Other Categories */}
               {allCategories.length > 0 && (
                 <div className="rounded-2xl border border-ink-200 bg-white p-5 sm:p-6 shadow-sm">
                   <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-ink-900 mb-3 pb-2 border-b border-ink-100">
-                    Other Editorial Beats
+                    Other Categories
                   </h3>
                   <div className="flex flex-col gap-2">
                     {allCategories
@@ -355,7 +375,10 @@ export default function CategoryDetailClient({
                           href={`/categories/${cat.slug}`}
                           className="flex items-center justify-between py-1.5 text-xs text-ink-700 hover:text-signal font-bold group"
                         >
-                          <span>{cat.name}</span>
+                          <span className="flex items-center gap-2">
+                            <CategoryIcon slug={cat.slug} className="h-3.5 w-3.5 text-ink-400 group-hover:text-signal" />
+                            {cat.name}
+                          </span>
                           <span className="text-ink-400 group-hover:translate-x-0.5 transition-transform">→</span>
                         </Link>
                       ))}
@@ -376,7 +399,7 @@ export default function CategoryDetailClient({
                   Cover {category.name}?
                 </h3>
                 <p className="text-xs text-ink-300 leading-relaxed max-w-[260px]">
-                  Submit your scoops, opening announcements, or photo reports on {category.name.toLowerCase()}.
+                  Have news or a guide about {category.name.toLowerCase()}? Send it to our editors.
                 </p>
                 <Link
                   href="/write-for-us"
@@ -391,32 +414,6 @@ export default function CategoryDetailClient({
         </Container>
       </section>
 
-      {/* =========================================
-          4. BOTTOM NEWSLETTER STRIP
-      ========================================= */}
-      <section className="mt-8">
-        <Container>
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-2xl shadow-sm">
-                📬
-              </div>
-              <div>
-                <h3 className="font-sans text-sm sm:text-base font-black text-ink-900">
-                  Stay Updated on {category.name}
-                </h3>
-                <p className="mt-0.5 text-xs text-ink-500 leading-relaxed max-w-lg">
-                  Get breaking ride announcements, queue strategies, and ticket updates delivered to your inbox.
-                </p>
-              </div>
-            </div>
-
-            <div className="w-full md:w-auto">
-              <NewsletterForm source={`category-${category.slug}-footer`} variant="light" />
-            </div>
-          </div>
-        </Container>
-      </section>
     </div>
   );
 }

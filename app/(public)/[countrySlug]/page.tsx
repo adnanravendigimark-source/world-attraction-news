@@ -3,24 +3,24 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import { getCitiesByCountrySlug, getCityBySlug } from "@/lib/cities";
 import { getCountryBySlug } from "@/lib/countries";
-import { getPublishedArticles, getPublishedArticleByAnySlug } from "@/lib/articles";
+import { getPublishedArticles, getPublishedArticleByAnySlug, getCountryStoryCounts } from "@/lib/articles";
 import { resolvePageMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 import { cityPath, countryPath, articlePath } from "@/lib/destinations";
-import { SITE_NAME } from "@/lib/site";
 import CountryClient from "./CountryClient";
 
 export const revalidate = 300;
 
 const getCachedCountryData = unstable_cache(
   async (countrySlug: string) => {
-    const [cities, country, articles] = await Promise.all([
+    const [cities, country, articles, counts] = await Promise.all([
       getCitiesByCountrySlug(countrySlug),
       getCountryBySlug(countrySlug),
-      getPublishedArticles({ countrySlug, limit: 12 }),
+      getPublishedArticles({ countrySlug, limit: 12, types: ["news", "guide"] }),
+      getCountryStoryCounts(countrySlug),
     ]);
-    return { cities, country, articles };
+    return { cities, country, articles, counts };
   },
-  ["country-data-hub"],
+  ["country-data-hub-v2"],
   { revalidate: 300, tags: ["cities", "countries", "articles"] }
 );
 
@@ -31,12 +31,12 @@ export async function generateMetadata({ params }: { params: { countrySlug: stri
 
   const title =
     country?.metaTitle?.trim() ||
-    `${countryName} Destinations — Attraction News & Travel Updates | ${SITE_NAME}`;
+    `${countryName}: Travel News & Guides`;
   const description =
     country?.metaDescription?.trim() ||
     (country?.intro
       ? country.intro.slice(0, 155)
-      : `Explore attraction news and travel updates from ${countryName}'s cities: ${cities.map((c) => c.name).join(", ")}.`);
+      : `Travel news and guides for ${countryName}${cities.length ? `: ${cities.map((c) => c.name).join(", ")}` : ""}.`);
 
   // resolvePageMetadata (not buildMetadata directly) so an admin's
   // noindex/nofollow override for this country (Admin -> Indexing ->
@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: { params: { countrySlug: stri
 }
 
 export default async function CountryPage({ params }: { params: { countrySlug: string } }) {
-  const { cities, country, articles } = await getCachedCountryData(params.countrySlug);
+  const { cities, country, articles, counts } = await getCachedCountryData(params.countrySlug);
   if (!cities.length && !country) {
     const maybeArticle = await getPublishedArticleByAnySlug(params.countrySlug);
     if (maybeArticle) {
@@ -83,6 +83,7 @@ export default async function CountryPage({ params }: { params: { countrySlug: s
         countryData={country}
         cities={cities}
         articles={articles}
+        counts={counts}
       />
       <script
         type="application/ld+json"

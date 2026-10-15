@@ -18,20 +18,18 @@ export default function CountryClient({
   countryData,
   cities = [],
   articles = [],
+  counts = { news: 0, guides: 0 },
 }: {
   countrySlug: string;
   countryName: string;
   countryData?: Country | null;
   cities: (City & { articleCount: number })[];
   articles?: ArticleWithRelations[];
+  counts?: { news: number; guides: number };
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCitySlug, setSelectedCitySlug] = useState<string>("all");
 
-  const totalDispatches = useMemo(
-    () => cities.reduce((sum, c) => sum + (c.articleCount || 0), 0),
-    [cities]
-  );
 
   const filteredCities = useMemo(() => {
     return cities.filter((city) => {
@@ -50,7 +48,7 @@ export default function CountryClient({
 
   const overviewText =
     countryData?.intro?.trim() ||
-    `Explore attraction news, theme park updates, and visitor guides across ${countryName}. From iconic landmarks to hidden cultural venues, discover the latest dispatches from our destination bureaus.`;
+    `Travel news and guides for ${countryName}${cities.length ? `, covering ${cities.map((c) => c.name).slice(0, 5).join(", ")}` : ""}.`;
 
   return (
     <div className="bg-white min-h-screen text-ink-900 pb-16">
@@ -74,9 +72,9 @@ export default function CountryClient({
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 mb-2">
-                <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-signal" />
                 <span className="text-[11px] font-black uppercase tracking-widest text-signal">
-                  COUNTRY BUREAU · {countryName.toUpperCase()}
+                  DESTINATION · {countryName.toUpperCase()}
                 </span>
               </div>
               <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-ink-900">
@@ -87,10 +85,13 @@ export default function CountryClient({
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-ink-500 font-semibold">
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-ink-100 px-2.5 py-1 text-ink-700">
-                  📍 {cities.length} {cities.length === 1 ? "City Destination" : "City Destinations"}
+                  📍 {cities.length} {cities.length === 1 ? "City" : "Cities"}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-ink-100 px-2.5 py-1 text-ink-700">
-                  📰 {totalDispatches} {totalDispatches === 1 ? "Dispatch" : "Dispatches"}
+                  📰 {counts.news} News {counts.news === 1 ? "Story" : "Stories"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-ink-100 px-2.5 py-1 text-ink-700">
+                  🧭 {counts.guides} {counts.guides === 1 ? "Guide" : "Guides"}
                 </span>
               </div>
             </div>
@@ -107,7 +108,7 @@ export default function CountryClient({
                 GET {countryName.toUpperCase()} ALERTS
               </h3>
               <p className="mt-1 text-[11px] text-ink-500 leading-normal">
-                Stay updated on city guides, theme park openings, and travel updates across {countryName}.
+                Get new travel news and guides for {countryName} in your inbox.
               </p>
               <div className="mt-2.5">
                 <NewsletterForm source={`country-${countrySlug}`} variant="light" />
@@ -261,7 +262,7 @@ export default function CountryClient({
                           <div className="absolute inset-0 bg-gradient-to-t from-ink-900 via-ink-900/30 to-transparent" />
 
                           <span className="absolute top-3 right-3 rounded-full bg-black/60 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-white border border-white/10">
-                            {city.articleCount} {city.articleCount === 1 ? "dispatch" : "dispatches"}
+                            {city.articleCount} {city.articleCount === 1 ? "story" : "stories"}
                           </span>
 
                           <div className="absolute bottom-3 left-4 text-white">
@@ -272,9 +273,11 @@ export default function CountryClient({
                         </div>
 
                         <div className="flex flex-1 flex-col p-4 sm:p-5">
-                          <p className="text-xs text-ink-600 leading-relaxed line-clamp-3 mb-4">
-                            {city.intro || `News and visitor updates from ${city.name}'s landmark attractions, theme parks, and historic venues.`}
-                          </p>
+                          {city.intro && (
+                            <p className="text-xs text-ink-600 leading-relaxed line-clamp-3 mb-4">
+                              {city.intro}
+                            </p>
+                          )}
                           <div className="mt-auto pt-3 border-t border-ink-100 flex items-center justify-between">
                             <span className="text-xs font-black uppercase tracking-wider text-signal flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                               <span>Explore {city.name}</span>
@@ -288,16 +291,16 @@ export default function CountryClient({
                 )}
               </div>
 
-              {/* Latest Dispatches from this Country (if any) */}
+              {/* Latest news and guides about this country (if any) */}
               {articles.length > 0 && (
                 <div className="mt-4 pt-8 border-t border-ink-200">
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <span className="text-xs font-black uppercase tracking-widest text-signal">
-                        LATEST REPORTING
+                        LATEST STORIES
                       </span>
                       <h2 className="font-serif text-2xl font-bold text-ink-900 mt-1">
-                        Recent Dispatches from {countryName}
+                        Latest from {countryName}
                       </h2>
                     </div>
                   </div>
@@ -314,31 +317,6 @@ export default function CountryClient({
         </Container>
       </section>
 
-      {/* =========================================
-          3. BOTTOM NEWSLETTER STRIP
-      ========================================= */}
-      <section className="mt-8">
-        <Container>
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-2xl shadow-sm">
-                📬
-              </div>
-              <div>
-                <h3 className="font-sans text-sm sm:text-base font-black text-ink-900">
-                  Stay Updated on {countryName}
-                </h3>
-                <p className="mt-0.5 text-xs text-ink-500 leading-relaxed max-w-lg">
-                  Get breaking attraction news and travel updates delivered to your inbox.
-                </p>
-              </div>
-            </div>
-            <div className="w-full md:w-auto">
-              <NewsletterForm source={`country-${countrySlug}-footer`} variant="light" />
-            </div>
-          </div>
-        </Container>
-      </section>
     </div>
   );
 }

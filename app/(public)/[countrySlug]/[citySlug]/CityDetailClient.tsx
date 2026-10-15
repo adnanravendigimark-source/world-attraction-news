@@ -8,10 +8,11 @@ import NewsletterForm from "@/components/NewsletterForm";
 import EmptyState from "@/components/EmptyState";
 import type { City } from "@/lib/cities";
 import type { ArticleWithRelations } from "@/lib/articles";
-import { cityPath, countryPath, articlePath } from "@/lib/destinations";
+import { countryPath } from "@/lib/destinations";
+import { publicPath } from "@/lib/content/paths";
 
 const PAGE_SIZE = 10;
-const ALL_TAG = "ALL NEWS";
+const ALL_TAG = "ALL STORIES";
 
 export default function CityDetailClient({
   city,
@@ -67,6 +68,8 @@ export default function CityDetailClient({
   }, [searchKeyword, activeTag, sortBy]);
   const page = Math.min(currentPage, totalPages);
   const pagedArticles = filteredArticles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const newsCount = articles.filter((a) => a.type === "news").length;
+  const guideCount = articles.length - newsCount;
   const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1).slice(
     Math.max(0, Math.min(page - 3, totalPages - 5)),
     Math.max(0, Math.min(page - 3, totalPages - 5)) + 5
@@ -100,16 +103,16 @@ export default function CityDetailClient({
             {/* Left Title & Tagline */}
             <div className="max-w-xl">
               <div className="flex items-center gap-2 mb-2">
-                <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-signal" />
                 <span className="text-[11px] font-black uppercase tracking-widest text-signal">
-                  {city.name.toUpperCase()} BUREAU • {city.country.toUpperCase()}
+                  {city.name.toUpperCase()} • {city.country.toUpperCase()}
                 </span>
               </div>
               <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-ink-900">
                 {city.name} Travel & News
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-ink-600 leading-relaxed font-medium">
-                {city.intro || `Verified on-the-ground reporting, visitor guides, and updates from our ${city.name} correspondents.`}
+                {city.intro || `Travel news and guides for ${city.name}, ${city.country}.`}
               </p>
             </div>
 
@@ -123,10 +126,10 @@ export default function CityDetailClient({
               </div>
 
               <h3 className="font-sans text-xs font-black uppercase tracking-wider text-ink-900">
-                Get {city.name} Dispatches
+                Get {city.name} Updates
               </h3>
               <p className="mt-1 text-[11px] text-ink-500 leading-normal">
-                Receive the latest destination intelligence directly to your inbox.
+                Get new {city.name} travel news and guides in your inbox.
               </p>
               <div className="mt-2.5">
                 <NewsletterForm source={`city-${city.slug}`} variant="light" />
@@ -212,7 +215,7 @@ export default function CityDetailClient({
             <div className="lg:col-span-8 flex flex-col gap-4">
               <div className="flex items-center justify-between border-b border-ink-100 pb-2">
                 <span className="text-xs font-black uppercase tracking-widest text-signal">
-                  {filteredArticles.length} {filteredArticles.length === 1 ? "DISPATCH" : "DISPATCHES"}
+                  {filteredArticles.length} {filteredArticles.length === 1 ? "STORY" : "STORIES"}
                 </span>
                 <span className="text-xs text-ink-400">
                   Showing {filteredArticles.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
@@ -223,11 +226,11 @@ export default function CityDetailClient({
               {pagedArticles.length === 0 ? (
                 <div className="rounded-2xl border border-ink-200 bg-white p-12 text-center">
                   <EmptyState
-                    title={`No articles found for ${city.name}`}
+                    title={`No stories found for ${city.name}`}
                     description={
                       searchKeyword
-                        ? `No dispatches match "${searchKeyword}". Try clearing your search keyword.`
-                        : `Our ${city.name} correspondents are actively working on new stories. Check back shortly.`
+                        ? `No stories match "${searchKeyword}". Try clearing your search.`
+                        : `No published stories about ${city.name} yet.`
                     }
                   />
                   {searchKeyword && (
@@ -243,7 +246,7 @@ export default function CityDetailClient({
               ) : (
                 <>
                   {pagedArticles.map((article) => {
-                    const href = articlePath(city.countrySlug, city.slug, article.slug);
+                    const href = publicPath(article);
 
                     return (
                       <article
@@ -275,7 +278,7 @@ export default function CityDetailClient({
                           <div>
                             {/* Eyebrow */}
                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
-                              <span className="text-signal">{city.name.toUpperCase()}</span>
+                              <span className="text-signal">{article.type === "news" ? "NEWS" : "GUIDE"}</span>
                               {article.categoryName && (
                                 <>
                                   <span className="text-ink-300">•</span>
@@ -297,11 +300,19 @@ export default function CityDetailClient({
 
                           {/* Author & Date */}
                           <div className="mt-3.5 pt-3 border-t border-ink-100 text-[11px] text-ink-500">
-                            <span>By {article.authorName}</span>
-                            <span className="mx-1.5">•</span>
+                            {article.authorName && (
+                              <>
+                                <span>By {article.authorName}</span>
+                                <span className="mx-1.5">•</span>
+                              </>
+                            )}
                             <span>{formatDate(article.publishedAt)}</span>
-                            <span className="mx-1.5">•</span>
-                            <span>{article.readingTimeMinutes || 3} min read</span>
+                            {article.readingTimeMinutes ? (
+                              <>
+                                <span className="mx-1.5">•</span>
+                                <span>{article.readingTimeMinutes} min read</span>
+                              </>
+                            ) : null}
                           </div>
                         </div>
                       </article>
@@ -351,14 +362,20 @@ export default function CityDetailClient({
 
             {/* Right Sidebar (32% / 4 cols) */}
             <div className="lg:col-span-4 flex flex-col gap-6">
-              {/* Bureau Dossier Card */}
+              {/* What we have published about this city */}
               <div className="rounded-2xl border border-ink-200 bg-white p-5 sm:p-6 shadow-sm">
                 <h3 className="font-sans text-xs sm:text-sm font-black uppercase tracking-wider text-ink-900 mb-3 pb-2 border-b border-ink-100">
-                  {city.name} Bureau Dossier
+                  About {city.name}
                 </h3>
-                <div className="p-3.5 bg-ink-50 rounded-xl mb-4 text-center">
-                  <p className="text-2xl font-black text-ink-900">{articles.length}</p>
-                  <p className="text-[10px] text-ink-500 font-bold uppercase tracking-wider mt-0.5">Published Dispatches</p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3.5 bg-ink-50 rounded-xl text-center">
+                    <p className="text-2xl font-black text-ink-900">{newsCount}</p>
+                    <p className="text-[10px] text-ink-500 font-bold uppercase tracking-wider mt-0.5">News {newsCount === 1 ? "Story" : "Stories"}</p>
+                  </div>
+                  <div className="p-3.5 bg-ink-50 rounded-xl text-center">
+                    <p className="text-2xl font-black text-ink-900">{guideCount}</p>
+                    <p className="text-[10px] text-ink-500 font-bold uppercase tracking-wider mt-0.5">{guideCount === 1 ? "Guide" : "Guides"}</p>
+                  </div>
                 </div>
                 <div className="space-y-2 text-xs text-ink-600">
                   <p>
@@ -373,7 +390,7 @@ export default function CityDetailClient({
                     href={countryPath(city.countrySlug)}
                     className="text-xs font-black uppercase tracking-wider text-signal flex items-center gap-1 hover:underline"
                   >
-                    <span>Explore {city.country} Hub</span>
+                    <span>More in {city.country}</span>
                     <span aria-hidden="true">→</span>
                   </Link>
                   <Link
@@ -398,7 +415,7 @@ export default function CityDetailClient({
                   Have News from {city.name}?
                 </h3>
                 <p className="text-xs text-ink-300 leading-relaxed max-w-[260px]">
-                  Submit your travel dispatches, photo reports, or scoop tips for {city.name}.
+                  Have news or a guide about {city.name}? Send it to our editors.
                 </p>
                 <Link
                   href="/write-for-us"
@@ -413,32 +430,6 @@ export default function CityDetailClient({
         </Container>
       </section>
 
-      {/* =========================================
-          4. BOTTOM NEWSLETTER STRIP
-      ========================================= */}
-      <section className="mt-8">
-        <Container>
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-2xl shadow-sm">
-                📬
-              </div>
-              <div>
-                <h3 className="font-sans text-sm sm:text-base font-black text-ink-900">
-                  Stay Updated on {city.name}
-                </h3>
-                <p className="mt-0.5 text-xs text-ink-500 leading-relaxed max-w-lg">
-                  Get destination intelligence and updates delivered to your inbox.
-                </p>
-              </div>
-            </div>
-
-            <div className="w-full md:w-auto">
-              <NewsletterForm source={`city-${city.slug}-footer`} variant="light" />
-            </div>
-          </div>
-        </Container>
-      </section>
     </div>
   );
 }

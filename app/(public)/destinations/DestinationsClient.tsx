@@ -109,15 +109,17 @@ const REGION_ORDER = ["Europe", "Asia", "North America", "South America", "Ocean
 export default function DestinationsClient({
   dbCities = [],
   dbCountries = [],
+  countryStoryCounts = {},
 }: {
   dbCities?: DestinationCity[];
   dbCountries?: DestinationCountryData[];
+  countryStoryCounts?: Record<string, number>;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"dispatches" | "cities" | "alpha">("dispatches");
+  const [sortBy, setSortBy] = useState<"stories" | "cities" | "alpha">("stories");
 
   // 1. Build unified Country items from database countries and cities
   const allCountryItems = useMemo<DestinationCountryItem[]>(() => {
@@ -169,14 +171,23 @@ export default function DestinationsClient({
       }
     }
 
-    return Array.from(countryMap.values()).map((country) => ({
-      ...country,
-      intro:
-        country.intro.trim() ||
-        `Explore landmark attractions, theme parks, and visitor guides across ${country.name}. Discover dispatches from our city bureaus.`,
-      cities: country.cities.sort((a, b) => (b.articleCount || 0) - (a.articleCount || 0)),
-    }));
-  }, [dbCities, dbCountries]);
+    return Array.from(countryMap.values()).map((country) => {
+      const cities = country.cities.sort((a, b) => (b.articleCount || 0) - (a.articleCount || 0));
+      return {
+        ...country,
+        // The country's own intro from Admin; otherwise a plain line naming
+        // its cities (no invented description).
+        intro:
+          country.intro.trim() ||
+          (cities.length
+            ? `Travel news and guides for ${cities.slice(0, 4).map((c) => c.name).join(", ")}${cities.length > 4 ? " and more" : ""}.`
+            : `Travel news and guides for ${country.name}.`),
+        // Stories filed to its cities plus country-level stories.
+        totalArticles: countryStoryCounts[country.slug] ?? country.totalArticles,
+        cities,
+      };
+    });
+  }, [dbCities, dbCountries, countryStoryCounts]);
 
   // 2. Global reverse lookup map for city -> country and country -> region
   const { cityToCountryMap } = useMemo(() => {
@@ -412,7 +423,7 @@ export default function DestinationsClient({
     setSelectedRegion("all");
     setSelectedCountry("all");
     setSelectedCity("all");
-    setSortBy("dispatches");
+    setSortBy("stories");
   };
 
   const hasActiveFilters =
@@ -476,7 +487,7 @@ export default function DestinationsClient({
     } else if (sortBy === "cities") {
       sorted.sort((a, b) => b.cityCount - a.cityCount || b.totalArticles - a.totalArticles);
     } else {
-      // Default: "dispatches"
+      // Default: "stories"
       sorted.sort((a, b) => b.totalArticles - a.totalArticles || b.cityCount - a.cityCount);
     }
 
@@ -505,14 +516,14 @@ export default function DestinationsClient({
               <div className="flex items-center gap-2 mb-2">
                 <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
                 <span className="text-[11px] font-black uppercase tracking-widest text-signal">
-                  GLOBAL COUNTRY BUREAUS
+                  BROWSE BY COUNTRY
                 </span>
               </div>
               <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-ink-900">
                 Destinations
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-ink-600 leading-relaxed font-medium">
-                Browse our global destination hubs by country. Select any country to explore all of its city bureaus, theme parks, landmark venues, and latest travel dispatches.
+                Pick a country to see its cities and the latest travel news and guides about them.
               </p>
             </div>
 
@@ -529,7 +540,7 @@ export default function DestinationsClient({
                 GET DESTINATION ALERTS
               </h3>
               <p className="mt-1 text-[11px] text-ink-500 leading-normal">
-                Stay updated on city guides, theme park openings, and travel intelligence.
+                Get new destination news and guides in your inbox.
               </p>
               <div className="mt-2.5">
                 <NewsletterForm source="destinations" variant="light" />
@@ -669,10 +680,10 @@ export default function DestinationsClient({
                   </h3>
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as "dispatches" | "cities" | "alpha")}
+                    onChange={(e) => setSortBy(e.target.value as "stories" | "cities" | "alpha")}
                     className="w-full rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-xs text-ink-800 focus:border-signal focus:bg-white focus:outline-none cursor-pointer"
                   >
-                    <option value="dispatches">Most Dispatches</option>
+                    <option value="stories">Most Stories</option>
                     <option value="cities">Most Cities</option>
                     <option value="alpha">Alphabetical (A-Z)</option>
                   </select>
@@ -716,10 +727,10 @@ export default function DestinationsClient({
                   <span className="font-semibold">Sort by:</span>
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as "dispatches" | "cities" | "alpha")}
+                    onChange={(e) => setSortBy(e.target.value as "stories" | "cities" | "alpha")}
                     className="rounded-md border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-800 focus:border-signal focus:outline-none cursor-pointer"
                   >
-                    <option value="dispatches">Most Dispatches</option>
+                    <option value="stories">Most Stories</option>
                     <option value="cities">Most Cities</option>
                     <option value="alpha">Alphabetical (A-Z)</option>
                   </select>
@@ -777,7 +788,10 @@ export default function DestinationsClient({
                             {country.intro}
                           </p>
 
-                          <div className="mt-auto pt-3 border-t border-ink-100">
+                          <div className="mt-auto pt-3 border-t border-ink-100 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold text-ink-400">
+                              {country.cityCount} {country.cityCount === 1 ? "city" : "cities"} · {country.totalArticles} {country.totalArticles === 1 ? "story" : "stories"}
+                            </span>
                             <Link
                               href={countryPath(country.slug)}
                               className="text-xs font-black uppercase tracking-wider text-signal flex items-center gap-1 group-hover:translate-x-1 transition-transform"
@@ -809,7 +823,7 @@ export default function DestinationsClient({
                     Stay Updated on Global Destinations
                   </h3>
                   <p className="mt-0.5 text-xs text-ink-500 leading-relaxed max-w-lg">
-                    Get the latest destination dispatches, theme park intelligence, and attraction travel news delivered straight to your inbox.
+                    Get the latest travel news and destination guides delivered to your inbox.
                   </p>
                 </div>
               </div>
