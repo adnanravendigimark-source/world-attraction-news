@@ -79,10 +79,10 @@ export default function ArticleSidebar({
           <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl space-y-1 text-center">
             <p className="font-bold flex items-center justify-center gap-1.5 text-emerald-700">
               <span>✓</span>
-              <span>You&apos;re subscribed to our dispatch wire!</span>
+              <span>You&apos;re subscribed. Thank you!</span>
             </p>
             <p className="text-[11px] text-emerald-600">
-              A welcome confirmation email has been sent to your inbox.
+              We&apos;ve sent a welcome email to your inbox.
             </p>
           </div>
         ) : (

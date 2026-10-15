@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import Container from "@/components/Container";
 import ArticleSidebar, { type SidebarItem } from "@/components/ArticleSidebar";
+import PhotoCredit, { type PhotoCreditInfo } from "@/components/PhotoCredit";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { publicPath } from "@/lib/content/paths";
 import type { ArticleWithRelations } from "@/lib/articles";
 import { cityPath, countryPath, articlePath } from "@/lib/destinations";
@@ -14,25 +16,29 @@ export default function ArticleDetailClient({
   relatedStories = [],
   trendingStories = [],
   series = [],
+  photoCredit,
+  viewCounted = false,
 }: {
   article: ArticleWithRelations;
   relatedStories?: ArticleWithRelations[];
   trendingStories?: ArticleWithRelations[];
   // Published articles from the same topic cluster, main guide first.
   series?: { title: string; url: string; pillar: boolean }[];
+  photoCredit?: PhotoCreditInfo;
+  // True when the server already counted this view (GuideArticle); the
+  // browser only counts on cached pages where the server cannot.
+  viewCounted?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!article.id) return;
+    if (!article.id || viewCounted) return;
     fetch(`/api/articles/${article.id}/view`, { method: "POST" })
       .catch((err) => console.error("[ArticleDetailClient] view tracking error:", err));
-  }, [article.id]);
+  }, [article.id, viewCounted]);
 
-  const fullUrl =
-    typeof window !== "undefined"
-      ? window.location.href
-      : `https://worldattractionnews.com${articlePath(article.countrySlug, article.citySlug, article.slug)}`;
+  // Canonical address, the same on the server and in the browser.
+  const fullUrl = `${SITE_URL}${articlePath(article.countrySlug, article.citySlug, article.slug)}`;
 
   const copyToClipboard = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -64,7 +70,7 @@ export default function ArticleDetailClient({
   };
 
   const shareByEmail = () => {
-    window.location.href = `mailto:?subject=${encodeURIComponent(article.title)}&body=${encodeURIComponent(`Check out this story on Attraction News: ${fullUrl}`)}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(article.title)}&body=${encodeURIComponent(`Read this on ${SITE_NAME}: ${fullUrl}`)}`;
   };
 
   const formatDate = (iso: string | null) => {
@@ -87,7 +93,7 @@ export default function ArticleDetailClient({
           </Link>
           <span>&gt;</span>
           <Link href="/latest-news" className="hover:text-ink-900 transition-colors">
-            Blog
+            Travel Guides
           </Link>
           <span>&gt;</span>
           {article.citySlug ? (
@@ -141,14 +147,25 @@ export default function ArticleDetailClient({
                 </div>
                 <div className="text-xs text-ink-600">
                   <p className="font-bold text-ink-900">
-                    By {article.authorName}
+                    By{" "}
+                    {article.authorSlug ? (
+                      <Link href={`/author/${article.authorSlug}`} className="hover:underline">
+                        {article.authorName}
+                      </Link>
+                    ) : (
+                      article.authorName
+                    )}
                   </p>
                   <p className="text-[11px] text-ink-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                    <span>{formatDate(article.publishedAt)}</span>
+                    <time dateTime={article.publishedAt || undefined}>{formatDate(article.publishedAt)}</time>
                     <span>•</span>
                     <span>{article.readingTimeMinutes || 1} min read</span>
-                    <span>•</span>
-                    <span>Updated {formatDate(article.updatedAt || article.publishedAt)}</span>
+                    {article.updatedAt && formatDate(article.updatedAt) !== formatDate(article.publishedAt) && (
+                      <>
+                        <span>•</span>
+                        <span>Updated {formatDate(article.updatedAt)}</span>
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
@@ -206,17 +223,17 @@ export default function ArticleDetailClient({
                 image's real width/height to size a non-fill next/image
                 against instead. */}
             {article.image && (
-              <div className="mt-6">
+              <figure className="mt-6">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={article.image}
                   alt={article.imageAlt || article.title}
                   className="w-full h-auto rounded-2xl shadow-sm"
                 />
-              </div>
-            )}
-            {article.image && article.imageAlt && (
-              <p className="mt-2 text-[11px] text-ink-400 italic text-center">{article.imageAlt}</p>
+                {/* Credit the licence requires (or the AI-image note); the alt
+                    text is for screen readers, not a caption. */}
+                <PhotoCredit info={photoCredit} className="mt-2 text-xs text-ink-500" />
+              </figure>
             )}
 
             {/* Article Body Content */}

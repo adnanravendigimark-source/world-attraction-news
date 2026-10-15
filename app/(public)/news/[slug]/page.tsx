@@ -8,6 +8,7 @@ import NewsletterForm from "@/components/NewsletterForm";
 import SocialShare from "@/components/SocialShare";
 import CategoryIcon from "@/components/CategoryIcon";
 import { KeyUpdatesBox, TravelerStepsBox } from "@/components/NewsBoxes";
+import PhotoCredit from "@/components/PhotoCredit";
 import {
   getArticleSources,
   getPublishedNews,
@@ -227,23 +228,7 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
                   />
                 </div>
                 {/* Credit is required by the photo's licence (Wikimedia, Unsplash). */}
-                {(imageMeta.credit || imageMeta.sourceType === "ai") && (
-                  <figcaption className="mt-2 text-xs text-gray-500 leading-snug">
-                    {imageMeta.sourceType === "ai" ? (
-                      "Illustrative image generated with AI. It does not show the actual event."
-                    ) : imageMeta.sourceUrl ? (
-                      <>
-                        Photo:{" "}
-                        <a href={imageMeta.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-                          {imageMeta.credit}
-                        </a>
-                        {imageMeta.license ? ` · ${imageMeta.license}` : ""}
-                      </>
-                    ) : (
-                      `Photo: ${imageMeta.credit}`
-                    )}
-                  </figcaption>
-                )}
+                <PhotoCredit info={imageMeta} className="mt-2 text-xs text-gray-500 leading-snug" />
               </figure>
             )}
 

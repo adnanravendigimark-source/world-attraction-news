@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import LatestNewsClient from "./LatestNewsClient";
-import { getPublishedArticlesPage, getTrendingArticles, type ArticleSort } from "@/lib/articles";
-import { getCitiesWithArticleCounts } from "@/lib/cities";
+import { getPublishedArticlesPage, getTrendingArticles, getStoryCountsByCategory, getStoryCountsByCity, type ArticleSort } from "@/lib/articles";
+import { getCities } from "@/lib/cities";
 import { getCategories } from "@/lib/categories";
 import { buildMetadata, breadcrumbJsonLd, jsonLdScript } from "@/lib/seo";
 
@@ -37,8 +37,8 @@ export async function generateMetadata({
       (searchParams?.sort && searchParams.sort !== "latest")
   );
   return buildMetadata({
-    title: "Blog — Attraction Guides, Openings & Travel Stories", // the root layout appends the site name
-    description: "Attraction guides, openings, ticket tips and travel stories from our writers around the world.",
+    title: "Travel Guides: Attractions, Itineraries & Tips", // the root layout appends the site name
+    description: "Attraction guides, itineraries, ticket tips and travel advice from our writers around the world.",
     path: "/latest-news",
     noIndex: isFiltered,
   });
@@ -46,7 +46,7 @@ export async function generateMetadata({
 
 const breadcrumbs = [
   { name: "Home", path: "/" },
-  { name: "Blog", path: "/latest-news" },
+  { name: "Travel Guides", path: "/latest-news" },
 ];
 
 export default async function LatestNewsPage({
@@ -57,7 +57,7 @@ export default async function LatestNewsPage({
   const page = Math.max(1, Number(searchParams?.page) || 1);
   const sort = toSort(searchParams?.sort);
 
-  const [result, trending, cities, categories] = await Promise.all([
+  const [result, trending, cities, categories, cityCounts, categoryCounts] = await Promise.all([
     getPublishedArticlesPage({
       citySlug: searchParams?.city,
       categorySlug: searchParams?.category,
@@ -67,9 +67,15 @@ export default async function LatestNewsPage({
       sort,
     }),
     getTrendingArticles(5),
-    getCitiesWithArticleCounts(),
+    getCities(),
     getCategories(),
+    getStoryCountsByCity("guide"),
+    getStoryCountsByCategory("guide"),
   ]);
+  // Filters only offer places and categories that have guides (plus the one
+  // currently selected, so an old link still shows its filter).
+  const filterCities = cities.filter((c) => cityCounts[c.slug] || c.slug === searchParams?.city);
+  const filterCategories = categories.filter((c) => categoryCounts[c.id] || c.slug === searchParams?.category);
 
   return (
     <>
@@ -79,8 +85,8 @@ export default async function LatestNewsPage({
         page={result.page}
         totalPages={result.totalPages}
         trending={trending}
-        cities={cities.map((c) => ({ slug: c.slug, name: c.name }))}
-        categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
+        cities={filterCities.map((c) => ({ slug: c.slug, name: c.name }))}
+        categories={filterCategories.map((c) => ({ slug: c.slug, name: c.name }))}
         currentFilters={{
           city: searchParams?.city || "",
           category: searchParams?.category || "",

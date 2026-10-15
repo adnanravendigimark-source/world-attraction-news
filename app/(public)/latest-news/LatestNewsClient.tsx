@@ -106,7 +106,7 @@ export default function LatestNewsClient({
               Home
             </Link>
             <span>&gt;</span>
-            <span className="text-ink-800">Blog</span>
+            <span className="text-ink-800">Travel Guides</span>
           </nav>
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -114,14 +114,14 @@ export default function LatestNewsClient({
               <div className="flex items-center gap-2 mb-2">
                 <span className="h-2 w-2 rounded-full bg-signal animate-pulse" />
                 <span className="text-[11px] font-black uppercase tracking-widest text-signal">
-                  TRAVEL BLOG
+                  GUIDES
                 </span>
               </div>
               <h1 className="font-serif text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-ink-900">
-                Blog
+                Travel Guides
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-ink-600 leading-relaxed font-medium">
-                Attraction guides, openings, ticket tips and travel stories from our writers around the world.
+                Attraction guides, itineraries, ticket tips and travel advice from our writers around the world.
               </p>
             </div>
 
@@ -154,7 +154,7 @@ export default function LatestNewsClient({
         <Container>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <p className="text-xs font-semibold text-ink-500">
-              {total} {total === 1 ? "story" : "stories"}
+              {total} {total === 1 ? "guide" : "guides"}
               {hasActiveFilters ? " matching your filters" : ""}
             </p>
 
@@ -184,7 +184,7 @@ export default function LatestNewsClient({
             <div className="lg:col-span-8 flex flex-col gap-5">
               {articles.length === 0 ? (
                 <div className="p-8 text-center bg-ink-50 rounded-xl border border-ink-200">
-                  <p className="font-bold text-ink-700">No stories match your filter criteria.</p>
+                  <p className="font-bold text-ink-700">{hasActiveFilters ? "No guides match your filters." : "No guides published yet."}</p>
                   {hasActiveFilters && (
                     <button
                       type="button"
@@ -226,7 +226,7 @@ export default function LatestNewsClient({
                       <div className="flex flex-1 flex-col justify-between py-1">
                         <div>
                           <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider">
-                            <span className="text-signal">{article.cityName}</span>
+                            <span className="text-signal">{article.cityName || article.countryName}</span>
                             {article.categoryName && (
                               <>
                                 <span className="text-ink-300">•</span>
@@ -279,7 +279,7 @@ export default function LatestNewsClient({
 
                 <div className="mb-4">
                   <label htmlFor="search-news-input" className="block text-xs font-bold text-ink-700 mb-1.5">
-                    Search News
+                    Search guides
                   </label>
                   <div className="relative">
                     <input
@@ -398,7 +398,7 @@ export default function LatestNewsClient({
                             {item.title}
                           </h4>
                           <p className="mt-0.5 text-[10px] font-semibold text-ink-400 uppercase">
-                            <span className="text-signal">{item.cityName}</span> • {formatDate(item.publishedAt)}
+                            <span className="text-signal">{item.cityName || item.countryName}</span> • {formatDate(item.publishedAt)}
                           </p>
                         </div>
                       </Link>

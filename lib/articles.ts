@@ -1425,6 +1425,20 @@ export async function getPublishedNews(
   }
 }
 
+// Published stories per city slug; type limits it to news or guides.
+export async function getStoryCountsByCity(type?: "news" | "guide"): Promise<Record<string, number>> {
+  try {
+    const t = type || "";
+    const rows = await sql`
+      SELECT c.slug, COUNT(*)::int AS count FROM articles a JOIN cities c ON c.id = a.city_id
+      WHERE a.status = 'published' AND (${t} = '' OR a.type = ${t})
+      GROUP BY c.slug`;
+    return Object.fromEntries(rows.map((r: any) => [r.slug, r.count]));
+  } catch {
+    return {};
+  }
+}
+
 // Published stories per category id; type limits it to news or guides.
 export async function getStoryCountsByCategory(type?: "news" | "guide"): Promise<Record<string, number>> {
   try {
