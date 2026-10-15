@@ -7,6 +7,7 @@ import { sql } from "../db";
 import { createNewsDraft, getArticleById, type Article } from "../articles";
 import { getLatestResearch, isKnown } from "./research";
 import { loadGazetteer } from "./places";
+import { pickNewsCategorySlug } from "./newsCategory";
 import { resolveOrCreateCity } from "../cities";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -23,6 +24,7 @@ export async function createDraftFromStory(clusterId: string): Promise<{ article
   if (existing) {
     // Older drafts were created as 'draft', which the admin review screen hides.
     await sql`UPDATE articles SET status = 'pending' WHERE id = ${existing.id} AND status = 'draft'`;
+    await fillNewsCategory(existing.id).catch(() => {});
     const a = await getArticleById(existing.id);
     if (a) return { article: a, created: false };
   }
@@ -75,8 +77,9 @@ export async function createDraftFromStory(clusterId: string): Promise<{ article
     contentHtml: html,
     excerpt: happened.slice(0, 200),
     clusterId,
-    // News stories have no category; categories are for blog posts.
-    categoryId: null,
+    // Set from the headline or the story's topic (see newsCategory.ts); the
+    // editor can change it in the article editor.
+    categoryId: await categoryIdFor(title, String(clusters[0].category || "")).catch(() => null),
     sources,
   });
   // Destination: the one site destination the story is about, if there is
@@ -92,6 +95,25 @@ export async function createDraftFromStory(clusterId: string): Promise<{ article
     article.cityId = cityId;
   }
   return { article, created: true };
+}
+
+// The site category for a news draft, or null when unclear.
+async function categoryIdFor(title: string, topic: string): Promise<string | null> {
+  const cats = (await sql`SELECT id, slug FROM categories`) as any[];
+  const slug = pickNewsCategorySlug(title, topic, cats.map((c) => c.slug));
+  return slug ? cats.find((c) => c.slug === slug)?.id ?? null : null;
+}
+
+// Gives an existing news draft without a category one (never overwrites an
+// editor's choice).
+async function fillNewsCategory(articleId: string): Promise<void> {
+  const row = (await sql`
+    SELECT a.title, c.category AS topic FROM articles a LEFT JOIN story_clusters c ON c.id = a.news_cluster_id
+    WHERE a.id = ${articleId} AND a.type = 'news' AND a.category_id IS NULL LIMIT 1
+  `)[0];
+  if (!row) return;
+  const id = await categoryIdFor(String(row.title || ""), String(row.topic || ""));
+  if (id) await sql`UPDATE articles SET category_id = ${id} WHERE id = ${articleId} AND category_id IS NULL`;
 }
 
 // A story about exactly one known city that isn't a destination on the site
