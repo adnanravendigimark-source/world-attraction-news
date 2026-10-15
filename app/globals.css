@@ -394,11 +394,7 @@ body {
   }
 }
 
-/* Text stays at a comfortable line length (about 70 characters); photos
-   and tables can use the full column. */
-.article-body > :where(p, ul, ol, h2, h3, h4, blockquote, dl, hr, pre) {
-  max-width: 42rem;
-}
+/* Text uses the full column, the same width as the photos. */
 .article-body > :first-child {
   margin-top: 0;
 }
