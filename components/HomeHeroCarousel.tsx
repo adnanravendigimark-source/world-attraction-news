@@ -62,9 +62,9 @@ export default function HomeHeroCarousel({ slides = [] }: { slides?: HeroSlide[]
         />
       </div>
 
-      {/* Dark Vignette: Left side heavily darkened for typography, right sunset side vivid & clear */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 via-55% to-transparent pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent pointer-events-none" />
+      {/* Light shade behind the text only, so the photo stays clear; the
+          text carries its own shadow for contrast on bright photos. */}
+      <div className="absolute inset-y-0 left-0 w-full md:w-3/5 bg-gradient-to-r from-black/55 via-black/25 to-transparent pointer-events-none" />
 
       {/* Aligned Content Container */}
       <Container className="relative z-10 flex h-full flex-col justify-center">
@@ -77,19 +77,19 @@ export default function HomeHeroCarousel({ slides = [] }: { slides?: HeroSlide[]
           </div>
 
           {/* Headline (3-line wrap in serif) */}
-          <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[44px] xl:text-[48px] font-bold leading-[1.14] text-white drop-shadow-sm max-w-lg sm:max-w-xl">
+          <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[44px] xl:text-[48px] font-bold leading-[1.14] text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.55)] max-w-lg sm:max-w-xl">
             <Link href={current.href} className="hover:underline decoration-white/40">
               {current.title}
             </Link>
           </h1>
 
           {/* Excerpt */}
-          <p className="mt-3.5 sm:mt-4 text-xs sm:text-sm md:text-[15px] leading-relaxed text-gray-200/90 max-w-lg line-clamp-3">
+          <p className="mt-3.5 sm:mt-4 text-xs sm:text-sm md:text-[15px] leading-relaxed text-white/95 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)] max-w-lg line-clamp-3">
             {current.excerpt}
           </p>
 
           {/* Meta line: Calendar + Date + 4 min read */}
-          <div className="mt-4 sm:mt-5 flex items-center gap-2 text-xs sm:text-sm text-gray-300 font-normal">
+          <div className="mt-4 sm:mt-5 flex items-center gap-2 text-xs sm:text-sm text-white/90 font-normal [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
             <svg className="h-4 w-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
               <line x1="16" y1="2" x2="16" y2="6" />
