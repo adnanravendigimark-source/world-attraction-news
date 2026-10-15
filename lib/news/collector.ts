@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { sql } from "../db";
+import { newsWindowDays } from "./trend";
 import { parseFeed, type ParsedFeedItem } from "./rss";
 import { fetchNewsApi, fetchCurrents } from "./providers";
 import { getNewsSources, rowToSource, type NewsSource } from "./sources";
@@ -12,8 +13,8 @@ import { refreshStoryPlaces, tagPlaces } from "./places";
 const USER_AGENT = "WorldAttractionNewsBot/1.0 (+news discovery; contact via site)";
 const MAX_BYTES = 3 * 1024 * 1024;
 const MAX_ITEMS_PER_SOURCE = 50;
-// Only fresh news is kept: items published more than a day ago are skipped.
-const MAX_AGE_DAYS = 1;
+// Only recent news is kept: items published before the news window (Admin ->
+// Trending News, "last N days"; lib/news/trend.ts collectDays) are skipped.
 const CONCURRENCY = 4;
 
 export interface SourceResult {
@@ -81,7 +82,7 @@ async function fetchFeedXml(
 }
 
 async function storeItems(source: NewsSource, items: ParsedFeedItem[]): Promise<number> {
-  const cutoff = Date.now() - MAX_AGE_DAYS * 24 * 3600 * 1000;
+  const cutoff = Date.now() - (await newsWindowDays()) * 24 * 3600 * 1000;
   const fresh = items
     .filter((i) => i.title && (i.url || i.externalId))
     .filter((i) => !i.publishedAt || Date.parse(i.publishedAt) >= cutoff)
@@ -281,14 +282,18 @@ export async function runFetch(opts: { trigger: string; force?: boolean; sourceI
 // Retention: items the filter rejected and no story uses are only kept for a
 // month (the feed and its run log stay readable for recent ones).
 export const RETENTION_DAYS = 30;
-// Only the last 24 hours of news is shown. Items older than two days are
-// removed unless their story has an article (draft or published); stories
-// left with no items and no article go too.
+// Only the news window (last N days) is shown. Items a day older than that
+// (and at least two days old) are removed unless their story has an article
+// (draft or published); stories left with no items and no article go too.
 export const FRESH_KEEP_HOURS = 48;
+export function keepHours(windowDays: number): number {
+  return Math.max(FRESH_KEEP_HOURS, (windowDays + 1) * 24);
+}
 export async function pruneOldItems(): Promise<number> {
+  const hours = keepHours(await newsWindowDays());
   const rows = await sql`
     DELETE FROM news_items i
-    WHERE COALESCE(i.published_at, i.created_at) < now() - (${FRESH_KEEP_HOURS}::int * interval '1 hour')
+    WHERE COALESCE(i.published_at, i.created_at) < now() - (${hours}::int * interval '1 hour')
       AND NOT EXISTS (SELECT 1 FROM articles a WHERE a.news_cluster_id IS NOT NULL AND a.news_cluster_id = i.cluster_id)
     RETURNING i.id
   `;

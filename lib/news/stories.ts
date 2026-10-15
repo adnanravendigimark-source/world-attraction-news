@@ -1,4 +1,5 @@
 import { sql } from "../db";
+import { newsWindowDays } from "./trend";
 import { loadFilterConfig } from "./filter";
 import { contentHash } from "./contentHash";
 import { highlightsFromRow, highlightLines } from "./highlights";
@@ -52,7 +53,7 @@ export async function listStories(
   const q = (opts.q || "").trim();
   const like = q ? `%${q.replace(/[%_\\]/g, (c) => "\\" + c)}%` : "";
   const category = opts.category || "";
-  // Only fresh stories (an item in the last 24 hours) whose sources can be
+  // Only recent stories (an item within the news window, last N days) whose sources can be
   // read are listed. Destination search: stories tagged with the place, or
   // whose items mention it by name (places the tagger does not know).
   const placeRaw = (opts.place || "").trim();
@@ -62,6 +63,7 @@ export async function listStories(
   const status = opts.status ?? "";
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
   const minRel = (await loadFilterConfig()).relevantMin;
+  const windowDays = await newsWindowDays();
 
   // Only stories with at least one clearly travel-related item are ever listed.
   const clusters = (await sql`
@@ -70,7 +72,7 @@ export async function listStories(
     FROM story_clusters c
     WHERE EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = c.id AND i.relevance_score >= ${minRel})
       AND (${like} = '' OR canonical_title ILIKE ${like})
-      AND c.last_seen_at > now() - interval '24 hours'
+      AND c.last_seen_at > now() - (${windowDays}::int * interval '1 day')
       AND (c.readable_sources IS NULL OR c.readable_sources > 0)
       AND (${placeKey} = '' OR ((${placeKey} = ANY(c.places)
            OR EXISTS (SELECT 1 FROM news_items pi WHERE pi.cluster_id = c.id AND (pi.title ILIKE ${placeLike} OR pi.description ILIKE ${placeLike})))))
@@ -85,7 +87,7 @@ export async function listStories(
       SELECT COUNT(*)::int AS n FROM story_clusters c
       WHERE EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = c.id AND i.relevance_score >= ${minRel})
         AND (${like} = '' OR canonical_title ILIKE ${like}) AND (${category} = '' OR category = ${category}) AND source_count >= ${minSources}
-        AND c.last_seen_at > now() - interval '24 hours'
+        AND c.last_seen_at > now() - (${windowDays}::int * interval '1 day')
         AND (c.readable_sources IS NULL OR c.readable_sources > 0)
         AND (${placeKey} = '' OR ((${placeKey} = ANY(c.places)
              OR EXISTS (SELECT 1 FROM news_items pi WHERE pi.cluster_id = c.id AND (pi.title ILIKE ${placeLike} OR pi.description ILIKE ${placeLike})))))
@@ -95,9 +97,9 @@ export async function listStories(
   const fr = (await sql`
     SELECT COUNT(*)::int AS collected,
            COUNT(*) FILTER (WHERE relevance_score >= ${minRel})::int AS travel
-    FROM news_items WHERE COALESCE(published_at, created_at) > now() - interval '24 hours'
+    FROM news_items WHERE COALESCE(published_at, created_at) > now() - (${windowDays}::int * interval '1 day')
   `.catch(() => [{ collected: 0, travel: 0 }]))[0] as any;
-  const funnel: StoryFunnel = { itemsCollected: Number(fr?.collected ?? 0), itemsTravel: Number(fr?.travel ?? 0), storiesTravel: total, windowDays: 1 };
+  const funnel: StoryFunnel = { itemsCollected: Number(fr?.collected ?? 0), itemsTravel: Number(fr?.travel ?? 0), storiesTravel: total, windowDays };
   if (clusters.length === 0) return { stories: [], total, funnel };
 
   const ids = clusters.map((c) => c.id);

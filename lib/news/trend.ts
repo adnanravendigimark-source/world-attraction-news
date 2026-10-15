@@ -15,8 +15,13 @@ export interface TrendConfig {
   categoryWeights: Record<string, number>;
   defaultCategoryWeight: number;
   thresholds: { high: number; review: number };
-  windowDays: number;
+  windowDays: number; // stories trend-scored (last N days)
+  // How far back news is collected and listed on the Trending News desk.
+  collectDays: number;
 }
+
+// Choices offered in the admin for collectDays.
+export const COLLECT_DAY_OPTIONS = [1, 2, 3, 7, 14] as const;
 
 export const DEFAULT_TREND_CONFIG: TrendConfig = {
   // Phase 6: story size (publishers) weighs as much as freshness, so a story
@@ -46,7 +51,18 @@ export const DEFAULT_TREND_CONFIG: TrendConfig = {
   // values from editors' own picks once there are enough of them.
   thresholds: { high: 60, review: 50 },
   windowDays: 7,
+  collectDays: 3,
 };
+
+// Days of news to collect and list; always one of COLLECT_DAY_OPTIONS.
+export function clampCollectDays(v: unknown): number {
+  const n = Math.round(Number(v));
+  return (COLLECT_DAY_OPTIONS as readonly number[]).includes(n) ? n : DEFAULT_TREND_CONFIG.collectDays;
+}
+
+export async function newsWindowDays(): Promise<number> {
+  return clampCollectDays((await loadTrendConfig()).collectDays);
+}
 
 export interface TrendBreakdown {
   freshness: number;
@@ -91,6 +107,7 @@ export async function saveTrendConfig(patch: Partial<TrendConfig>): Promise<Tren
     ...(patch.freshnessBands ? { freshnessBands: patch.freshnessBands.map(([h, v]) => [Number(h), Number(v)] as [number, number]) } : {}),
     ...(patch.staleScore !== undefined ? { staleScore: Number(patch.staleScore) } : {}),
     ...(patch.sourceCurve ? { sourceCurve: patch.sourceCurve.map(Number) } : {}),
+    ...(patch.collectDays !== undefined ? { collectDays: clampCollectDays(patch.collectDays) } : {}),
     weights: { ...current.weights, ...(patch.weights || {}) },
     thresholds: { ...current.thresholds, ...(patch.thresholds || {}) },
     categoryWeights: { ...current.categoryWeights, ...(patch.categoryWeights || {}) },
@@ -119,6 +136,9 @@ export function validateTrendPatch(p: any): string | null {
     const r = Number(p.thresholds.review ?? DEFAULT_TREND_CONFIG.thresholds.review);
     if (![h, r].every((n) => Number.isFinite(n) && n >= 0 && n <= 100)) return "Thresholds must be between 0 and 100.";
     if (r > h) return "The review threshold can't be higher than the high-priority threshold.";
+  }
+  if (p.collectDays !== undefined && !(COLLECT_DAY_OPTIONS as readonly number[]).includes(Number(p.collectDays))) {
+    return `Collect news for ${COLLECT_DAY_OPTIONS.join(", ")} days.`;
   }
   if (p.freshnessBands !== undefined) {
     const b = p.freshnessBands;

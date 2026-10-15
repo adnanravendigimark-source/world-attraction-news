@@ -44,6 +44,9 @@ export default function NewsDesk({ lastFetchAt, canEdit }: { lastFetchAt: string
   const [lastFetch, setLastFetch] = useState(lastFetchAt);
   const [generating, setGenerating] = useState<{ id: string; text: string } | null>(null);
   const [tick, setTick] = useState(0);
+  // News window: how many days of news are collected and listed.
+  const [windowDays, setWindowDays] = useState(3);
+  const [savingWindow, setSavingWindow] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,6 +57,7 @@ export default function NewsDesk({ lastFetchAt, canEdit }: { lastFetchAt: string
       if (!res.ok) throw new Error(data.error || "Could not load stories.");
       setStories(data.stories);
       setTotal(data.total);
+      if (data.funnel?.windowDays) setWindowDays(data.funnel.windowDays);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -65,6 +69,28 @@ export default function NewsDesk({ lastFetchAt, canEdit }: { lastFetchAt: string
   useEffect(() => {
     load();
   }, [load]);
+
+  async function changeWindow(days: number) {
+    setSavingWindow(true);
+    try {
+      const res = await fetch("/api/admin/news/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ collectDays: days }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not save.");
+      setWindowDays(days);
+      toast.success(`Showing news from the last ${days === 1 ? "24 hours" : `${days} days`}. Fetch latest news to fill in older items.`);
+      setTick((t) => t + 1);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSavingWindow(false);
+    }
+  }
+
+  const windowLabel = windowDays === 1 ? "24 hours" : `${windowDays} days`;
 
   async function fetchLatest() {
     setFetching(true);
@@ -134,7 +160,27 @@ export default function NewsDesk({ lastFetchAt, canEdit }: { lastFetchAt: string
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl font-bold text-ink-900">Trending News</h1>
-          <p className="mt-1 text-sm text-ink-600">Travel news from the last 24 hours. Generate an article, review it, then publish.</p>
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-ink-600">
+            Travel news from the last
+            {canEdit ? (
+              <select
+                aria-label="How far back to collect and list news"
+                value={windowDays}
+                disabled={savingWindow}
+                onChange={(e) => changeWindow(Number(e.target.value))}
+                className="rounded-md border border-ink-200 bg-white px-1.5 py-0.5 text-sm font-semibold text-ink-900 disabled:opacity-60"
+              >
+                {[1, 2, 3, 7, 14].map((d) => (
+                  <option key={d} value={d}>
+                    {d === 1 ? "24 hours" : `${d} days`}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="font-semibold text-ink-900">{windowLabel}</span>
+            )}
+            . Generate an article, review it, then publish.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <details className="relative">
@@ -185,7 +231,7 @@ export default function NewsDesk({ lastFetchAt, canEdit }: { lastFetchAt: string
         {loading && stories.length === 0 && <li className="p-6 text-sm text-ink-500">Loading…</li>}
         {!loading && stories.length === 0 && (
           <li className="p-6 text-sm text-ink-500">
-            {place ? `No fresh news for ${place} in the last 24 hours.` : "No fresh news yet. Click Fetch latest news."}
+            {place ? `No news for ${place} in the last ${windowLabel}.` : "No fresh news yet. Click Fetch latest news."}
           </li>
         )}
         {stories.map((s, i) => {

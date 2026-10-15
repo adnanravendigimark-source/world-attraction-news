@@ -5,6 +5,7 @@
 // hides a distinct story, a missed merge only costs a duplicate row the editor
 // can see. Only travel-relevant / borderline items are clustered.
 import { sql } from "../db";
+import { newsWindowDays } from "./trend";
 import { normalizeUrl, prepareTitle, sameStoryPrepared, type PreparedTitle } from "./similarity";
 
 const WINDOW_DAYS = 3;
@@ -44,7 +45,8 @@ export interface ClusterRunResult {
 // windowDays: how far back to group items; the destination search uses 7 so
 // a week of fresh news for a place is grouped, not just the last few days.
 export async function runClustering(opts: { windowDays?: number } = {}): Promise<ClusterRunResult> {
-  const windowDays = Math.min(Math.max(opts.windowDays ?? WINDOW_DAYS, 1), 14);
+  // At least the news window, so every listed item can join a story.
+  const windowDays = Math.min(Math.max(opts.windowDays ?? Math.max(WINDOW_DAYS, await newsWindowDays()), 1), 14);
   const rows = (await sql`
     SELECT i.id, i.cluster_id, i.title, i.description, i.url, i.published_at, i.created_at, i.relevance_category,
            s.reliability_score AS reliability,

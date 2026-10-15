@@ -4,6 +4,7 @@
 // usual Generate article button. No OpenAI calls.
 
 import { sql } from "../db";
+import { newsWindowDays } from "./trend";
 import { collectSource } from "./collector";
 import { rowToSource } from "./sources";
 import { mergeDuplicateClusters, runClustering } from "./cluster";
@@ -53,6 +54,7 @@ export async function searchPlaceNews(query: string): Promise<{ place: string; k
   // scores them low ("Florence Cathedral begins bell tower restoration").
   // Items scoring under PLACE_FLOOR, or not about the place, stay out.
   const { relevantMin } = await loadFilterConfig();
+  const days = await newsWindowDays();
   const like = `%${p.name.replace(/[%_\\]/g, (c) => "\\" + c)}%`;
   const promoted = (await sql`
     UPDATE news_items i SET filter_status = 'relevant', relevance_score = ${relevantMin},
@@ -60,12 +62,12 @@ export async function searchPlaceNews(query: string): Promise<{ place: string; k
     FROM news_sources s
     WHERE s.id = i.source_id AND s.rss_url = ${SEARCH_SOURCE_URL}
       AND i.filter_status IN ('borderline', 'irrelevant') AND COALESCE(i.relevance_score, 0) >= ${PLACE_FLOOR}
-      AND COALESCE(i.published_at, i.created_at) > now() - interval '24 hours'
+      AND COALESCE(i.published_at, i.created_at) > now() - (${days}::int * interval '1 day')
       AND (${p.key} = ANY(COALESCE(i.places, '{}')) OR i.title ILIKE ${like})
     RETURNING i.id
   `.catch(() => [])) as any[];
   if (r.added > 0 || promoted.length > 0) {
-    await runClustering({ windowDays: 2 });
+    await runClustering({ windowDays: Math.max(2, days) });
     await mergeDuplicateClusters().catch(() => {});
     await runTrendScoring().catch(() => {});
   }
@@ -75,7 +77,7 @@ export async function searchPlaceNews(query: string): Promise<{ place: string; k
   // research are hidden, and more coverage is searched for where needed.
   const fresh = (await sql`
     SELECT id FROM story_clusters
-    WHERE ${p.key} = ANY(places) AND last_seen_at > now() - interval '24 hours'
+    WHERE ${p.key} = ANY(places) AND last_seen_at > now() - (${days}::int * interval '1 day')
       AND status NOT IN ('ignored', 'merged') AND readable_checked_at IS NULL
     ORDER BY trend_score DESC NULLS LAST LIMIT 12
   `.catch(() => [])) as any[];

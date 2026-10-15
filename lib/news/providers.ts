@@ -37,7 +37,8 @@ async function getJson(url: string, headers: Record<string, string>): Promise<an
 export async function fetchNewsApi(query: string): Promise<ParsedFeedItem[]> {
   const key = process.env.NEWSAPI_KEY;
   if (!key) throw new MissingKeyError("NEWSAPI_KEY is not set.");
-  const from = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
+  const { newsWindowDays } = await import("./trend");
+  const from = new Date(Date.now() - (await newsWindowDays()) * 24 * 3600 * 1000).toISOString();
   const url =
     "https://newsapi.org/v2/everything?" +
     new URLSearchParams({ q: query, language: "en", sortBy: "publishedAt", pageSize: "50", from }).toString();

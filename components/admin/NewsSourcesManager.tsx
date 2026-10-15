@@ -200,16 +200,32 @@ export default function NewsSourcesManager({ initialSources, categories, types, 
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 text-xs">
-        <span className={`rounded-full px-3 py-1 ${keys.newsapi ? "bg-emerald-100 text-emerald-800" : "bg-ink-100 text-ink-600"}`}>
-          NewsAPI key: {keys.newsapi ? "set" : "not set (NEWSAPI_KEY)"}
-        </span>
-        <span className={`rounded-full px-3 py-1 ${keys.currents ? "bg-emerald-100 text-emerald-800" : "bg-ink-100 text-ink-600"}`}>
-          Currents key: {keys.currents ? "set" : "not set (CURRENTS_API_KEY)"}
-        </span>
-        <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-800">
-          Official: {sources.filter((s) => s.isOfficial && s.isActive && s.lastStatus !== "error").length} active and healthy of{" "}
-          {sources.filter((s) => s.isOfficial).length}
-        </span>
+        {/* NewsAPI and Currents are optional paid feeds. A missing key only
+            matters when a source uses that provider. */}
+        {(["newsapi", "currents"] as const).map((p) => {
+          const label = p === "newsapi" ? "NewsAPI" : "Currents";
+          const env = p === "newsapi" ? "NEWSAPI_KEY" : "CURRENTS_API_KEY";
+          const used = sources.filter((s) => s.isActive && s.type === p).length;
+          const set = keys[p];
+          const tone = set ? "bg-emerald-100 text-emerald-800" : used > 0 ? "bg-red-100 text-red-800" : "bg-ink-100 text-ink-600";
+          return (
+            <span key={p} className={`rounded-full px-3 py-1 ${tone}`} title={set ? `${env} is set.` : `Add ${env} to the server settings to use ${label} sources.`}>
+              {label}: {set ? "key set" : used > 0 ? `key missing (${env}), ${used} source${used === 1 ? "" : "s"} can't fetch` : "optional, not used"}
+            </span>
+          );
+        })}
+        {(() => {
+          const official = sources.filter((s) => s.isOfficial);
+          const on = official.filter((s) => s.isActive);
+          const failing = on.filter((s) => s.lastStatus === "error").length;
+          const off = official.length - on.length;
+          return (
+            <span className={`rounded-full px-3 py-1 ${failing ? "bg-red-50 text-red-800" : "bg-blue-50 text-blue-800"}`}>
+              Official: {on.length - failing} working{failing ? `, ${failing} failing` : ""}
+              {off ? `, ${off} switched off` : ""}
+            </span>
+          );
+        })()}
         <span className="ml-auto flex gap-1">
           {(["all", "official", "review"] as const).map((f) => (
             <button key={f} onClick={() => setFilter(f)} className={`rounded-full px-3 py-1 ${filter === f ? "bg-ink-900 text-white" : "bg-ink-100 text-ink-700"}`}>
