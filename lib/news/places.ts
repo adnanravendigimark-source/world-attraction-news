@@ -8,6 +8,7 @@
 
 import { sql } from "../db";
 import { CITIES, COUNTRIES } from "./placeData";
+import { NOT_AIRLINE } from "./links";
 
 export interface PlaceEntry {
   name: string; // display name
@@ -17,6 +18,7 @@ export interface PlaceEntry {
 }
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export const placeKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 export function buildGazetteer(siteCities: { name: string; country: string }[] = []): PlaceEntry[] {
@@ -46,7 +48,7 @@ function matchers(g: PlaceEntry[]) {
   if (!m) {
     m = g.map((entry) => ({
       entry,
-      re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${entry.patterns.map(esc).join("|")})(?![\\p{L}\\p{N}])`, "u"),
+      re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${entry.patterns.map(esc).join("|")})(?![\\p{L}\\p{N}])${NOT_AIRLINE}`, "u"),
     }));
     compiled.set(g, m);
   }

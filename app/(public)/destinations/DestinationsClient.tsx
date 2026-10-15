@@ -788,13 +788,13 @@ export default function DestinationsClient({
                             {country.intro}
                           </p>
 
-                          <div className="mt-auto pt-3 border-t border-ink-100 flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold text-ink-400">
+                          <div className="mt-auto pt-3 border-t border-ink-100 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                            <span className="whitespace-nowrap text-[11px] font-semibold text-ink-400">
                               {country.cityCount} {country.cityCount === 1 ? "city" : "cities"} · {country.totalArticles} {country.totalArticles === 1 ? "story" : "stories"}
                             </span>
                             <Link
                               href={countryPath(country.slug)}
-                              className="text-xs font-black uppercase tracking-wider text-signal flex items-center gap-1 group-hover:translate-x-1 transition-transform"
+                              className="whitespace-nowrap text-xs font-black uppercase tracking-wider text-signal flex items-center gap-1 group-hover:translate-x-1 transition-transform"
                             >
                               <span>Explore {country.name}</span>
                               <span aria-hidden="true">→</span>

@@ -7,6 +7,11 @@
 
 export const MAX_IN_TEXT = 3;
 
+// A place name that is part of an airline's name is not a mention of the
+// place: "Alaska Airlines", "Qatar Airways", "Singapore Airlines". Used as a
+// regex lookahead after a place name (here and in lib/news/places.ts).
+export const NOT_AIRLINE = "(?!\\s+(?:Airlines|Airways|Air\\s+Lines)(?![\\p{L}\\p{N}]))";
+
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -21,7 +26,7 @@ export function applyLink(html: string, name: string, url: string, opts: { skipL
   let paragraphs = 0; // <p> elements opened so far
   let inFirstPara = false;
   let done = false;
-  const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${escapeRe(name)})(?![\\p{L}\\p{N}])`, "iu");
+  const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${escapeRe(name)})(?![\\p{L}\\p{N}])${NOT_AIRLINE}`, "iu");
   const safeUrl = url.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   return parts
     .map((p) => {

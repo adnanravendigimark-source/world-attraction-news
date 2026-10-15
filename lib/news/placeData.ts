@@ -69,7 +69,7 @@ export const CITIES: [string, string, string[]?][] = [
   ["Casablanca", "Morocco"], ["Fez", "Morocco"], ["Cape Town", "South Africa"], ["Johannesburg", "South Africa"],
   ["Nairobi", "Kenya"], ["Zanzibar", "Tanzania"], ["Serengeti", "Tanzania"], ["Kilimanjaro", "Tanzania"], ["Victoria Falls", "Zimbabwe"],
   // Americas
-  ["New York", "United States", ["New York City", "NYC", "Manhattan"]], ["Los Angeles", "United States"], ["San Francisco", "United States"],
+  ["New York", "United States", ["New York City", "NYC", "Manhattan"]], ["Los Angeles", "United States", ["Hollywood", "Burbank", "LAX"]], ["San Francisco", "United States"],
   ["Las Vegas", "United States"], ["Miami", "United States"], ["Orlando", "United States"], ["Chicago", "United States"],
   ["Washington DC", "United States", ["Washington, D.C."]], ["Boston", "United States"], ["Seattle", "United States"], ["Hawaii", "United States", ["Honolulu", "Maui"]],
   ["New Orleans", "United States"], ["Grand Canyon", "United States"], ["Yellowstone", "United States"], ["Alaska", "United States"],
