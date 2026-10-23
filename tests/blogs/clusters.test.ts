@@ -114,3 +114,15 @@ describe("asking twice for one topic", () => {
     expect(clusterKey("  ARNO boat   tour ")).toBe(clusterKey("arno boat tour"));
   });
 });
+
+import { supportFor as supportFor2 } from "@/lib/blogs/clusters";
+describe("supportFor: plural subjects", () => {
+  it("finds passages that use the singular form", () => {
+    const text = [
+      "Playa de las Teresitas is a beach with golden sand.",
+      "El Medano beach is popular with windsurfers.",
+      "The beach at Los Gigantes sits below tall cliffs.",
+    ].join("\n");
+    expect(supportFor2(text, "Beaches", "overview").support).toBe("found");
+  });
+});

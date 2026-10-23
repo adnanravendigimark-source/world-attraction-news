@@ -69,3 +69,32 @@ describe("the topic's own subject", () => {
     expect(factsAboutSubject(facts, "")).toBe(4); // a destination topic: every fact counts
   });
 });
+
+import { stemWord, isKindSubject } from "@/lib/blogs/research";
+describe("subject check: plurals and kinds of place", () => {
+  it("matches singular and plural forms", () => {
+    expect(stemWord("beaches")).toBe("beach");
+    expect(stemWord("galleries")).toBe("gallery");
+    expect(stemWord("museums")).toBe("museum");
+    expect(stemWord("pass")).toBe("pass");
+    expect(factsAboutSubject([{ claim: "Playa del Duque is a golden-sand beach in Costa Adeje." }], "Beaches")).toBe(1);
+  });
+
+  it("treats Beaches, Restaurants and Museums as kinds, not one named place", () => {
+    expect(isKindSubject("Beaches")).toBe(true);
+    expect(isKindSubject("Restaurants")).toBe(true);
+    expect(isKindSubject("Siam Park")).toBe(false);
+    expect(isKindSubject("Sagrada Família")).toBe(false);
+  });
+
+  it("counts facts about specific places for a kind subject", () => {
+    const facts = [
+      { claim: "Playa de las Teresitas has golden sand imported from the Sahara.", subtopic: "places" },
+      { claim: "El Médano is popular with windsurfers.", subtopic: "places" },
+      { claim: "Tenerife has two airports.", subtopic: "transport" },
+    ];
+    expect(factsAboutSubject(facts, "Beaches")).toBe(2);
+    // A named place still needs its name in the fact.
+    expect(factsAboutSubject(facts, "Siam Park")).toBe(0);
+  });
+});

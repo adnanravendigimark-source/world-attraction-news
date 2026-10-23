@@ -148,13 +148,40 @@ export function subjectWords(subject: string): string[] {
   return fold(subject).split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
 }
 
+// Singular form of an English word, so "beaches" matches "beach" and
+// "museums" matches "museum".
+export function stemWord(w: string): string {
+  if (w.length > 4 && w.endsWith("ies")) return w.slice(0, -3) + "y";
+  if (w.length > 4 && /(ches|shes|sses|xes|zes)$/.test(w)) return w.slice(0, -2);
+  if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
+  return w;
+}
+
+// Kinds of place or activity rather than one named place: "Beaches",
+// "Restaurants", "Museums". Facts about them name the individual places
+// ("Playa de las Teresitas has golden sand"), often without the kind word.
+const KIND_WORDS = new Set(
+  "beach restaurant hotel resort museum gallery park garden market shop shopping bar cafe nightlife club island village town neighborhood neighbourhood district church cathedral temple mosque castle palace monument landmark attraction viewpoint hike hiking trail walk tour excursion trip activity festival event food dish cuisine wine street spa pool waterfall lake mountain volcano cave".split(" ")
+);
+export function isKindSubject(subject: string): boolean {
+  const words = subjectWords(subject).map(stemWord);
+  return words.length > 0 && words.every((w) => KIND_WORDS.has(w));
+}
+
 // How many facts are about the subject. Pure; exported for tests.
-export function factsAboutSubject(facts: Pick<BlogFact, "claim">[], subject: string): number {
-  const words = subjectWords(subject);
+export function factsAboutSubject(facts: { claim: string; subtopic?: string }[], subject: string): number {
+  const words = subjectWords(subject).map(stemWord);
   if (words.length === 0) return facts.length;
+  const factWords = (claim: string) => new Set(fold(claim).split(/[^a-z0-9]+/).map(stemWord));
   // Most of the subject's words: "Siam Park" needs "siam"; one-word subjects need that word.
   const need = Math.max(1, Math.ceil(words.length / 2));
-  return facts.filter((f) => words.filter((w) => fold(f.claim).includes(w)).length >= need).length;
+  const kind = isKindSubject(subject);
+  return facts.filter((f) => {
+    const fw = factWords(f.claim);
+    if (words.filter((w) => fw.has(w)).length >= need) return true;
+    // A kind of place: a fact about a specific place or dish counts too.
+    return kind && ["places", "food"].includes(String(f.subtopic || ""));
+  }).length;
 }
 
 // The subject's official website, from Wikidata (P856), for a Wikipedia page.
@@ -344,7 +371,9 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
   const about = factsAboutSubject(facts, subject);
   if (subject && about < MIN_SUBJECT_FACTS) {
     return fail(
-      `Free sources say little about ${subject}: only ${about} of ${facts.length} facts are about it. Add its official website or another page about it as a source and run research again.`,
+      isKindSubject(subject)
+        ? `Free sources say little about ${subject.toLowerCase()} here: only ${about} of ${facts.length} facts are about them. Add a page that lists them (for example the tourism board's ${subject.toLowerCase()} page) as a source and run research again.`
+        : `Free sources say little about ${subject}: only ${about} of ${facts.length} facts are about it. Add its official website or another page about it as a source and run research again.`,
       sources
     );
   }

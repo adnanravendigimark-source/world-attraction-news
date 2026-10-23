@@ -169,7 +169,11 @@ const GENERIC = new Set(["tour", "trip", "guide", "visit", "ticket", "cruise", "
 // Do the free sources say enough about this idea to research it? Looks for
 // passages that mention the topic's subject (e.g. "Arno") and the idea's need.
 export function supportFor(text: string, topic: string, need: Need): { support: "found" | "thin"; note: string } {
-  const subject = [...topicTokens(topic)].filter((w) => !GENERIC.has(w));
+  // topicTokens drops a final "s" ("beaches" -> "beache"); trim it to a
+  // stem that matches both forms in the text ("beach", "galler").
+  const subject = [...topicTokens(topic)]
+    .filter((w) => !GENERIC.has(w))
+    .map((w) => w.replace(/(ch|sh|ss|x|z)e$/, "$1").replace(/ie$/, ""));
   if (subject.length === 0) return { support: "thin", note: "Couldn't tell what the topic is about." };
   const paras = String(text || "")
     .split(/\n+/)
