@@ -33,7 +33,17 @@ const VERDICT: Record<Check["verdict"], { label: string; box: string }> = {
 // AI writer + fact check for a news draft. Writing replaces the article body,
 // title and SEO fields with a fresh draft built from the researched facts;
 // the fact check (with one automatic revision) then runs as a second request.
-export default function NewsWriterPanel({ articleId, hasUnsavedEdits }: { articleId: string; hasUnsavedEdits: boolean }) {
+// mode "blog": AI blog guides have their own writer (BlogPanel), so only the
+// fact check, the override and the quality checklist are shown.
+export default function NewsWriterPanel({
+  articleId,
+  hasUnsavedEdits,
+  mode = "news",
+}: {
+  articleId: string;
+  hasUnsavedEdits: boolean;
+  mode?: "news" | "blog";
+}) {
   const [check, setCheck] = useState<Check | null>(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
@@ -96,13 +106,15 @@ export default function NewsWriterPanel({ articleId, hasUnsavedEdits }: { articl
 
   return (
     <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
-      <p className="text-xs font-bold text-slate-900">AI writer and fact check</p>
+      <p className="text-xs font-bold text-slate-900">{mode === "blog" ? "Fact check and quality" : "AI writer and fact check"}</p>
       <p className="text-[11px] text-slate-500">
-        Writes the article, SEO fields and internal links from the story's researched facts only, then checks every claim against them. Needs research to be run first.
+        {mode === "blog"
+          ? "Checks every claim in the guide against its research. Save your edits first, then re-run the check before publishing."
+          : "Writes the article, SEO fields and internal links from the story's researched facts only, then checks every claim against them. Needs research to be run first."}
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
-        {!confirm ? (
+        {mode === "blog" ? null : !confirm ? (
           <button type="button" disabled={!!busy} onClick={() => setConfirm(true)} className="rounded-lg bg-[#DC2626] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">
             {busy === "write" ? "Writing…" : "Write article with AI"}
           </button>
@@ -115,7 +127,7 @@ export default function NewsWriterPanel({ articleId, hasUnsavedEdits }: { articl
             <button type="button" onClick={() => setConfirm(false)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold">Cancel</button>
           </>
         )}
-        <button type="button" disabled={!!busy} onClick={() => run("check")} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">
+        <button type="button" disabled={!!busy || hasUnsavedEdits} title={hasUnsavedEdits ? "Save your edits first" : undefined} onClick={() => run("check")} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">
           {busy === "check" ? "Checking…" : "Re-run fact check"}
         </button>
       </div>

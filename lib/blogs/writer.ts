@@ -255,6 +255,9 @@ const SWAPS: [RegExp, string][] = [
   [/\bnestled\b/gi, "set"],
   [/\bboasts\b/gi, "has"],
   [/\ba plethora of\b/gi, "many"],
+  // "a must-see for visitors" (a noun) reads "a highlight for visitors";
+  // "a must-see museum" (before a noun) reads "a top museum".
+  [/\bmust-see(?=\s*(?:[.,;:!?)]|$|\s+(?:for|in|on|at|when|if|and|or|during|while)\b))/gi, "highlight"],
   [/\bmust-see\b/gi, "top"],
   [/\ba rich tapestry of\b/gi, "a mix of"],
   [/\btapestry\b/gi, "mix"],

@@ -678,6 +678,9 @@ export default function ArticleReviewPanel({
             {article.type === "news" && <NewsWriterPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
             {article.type === "news" && <NewsSourcesPanel articleId={article.id} />}
             {article.origin === "ai_blog" && <BlogPanel articleId={article.id} faq={article.faq || []} hasUnsavedEdits={isContentDirty} />}
+            {article.origin === "ai_blog" && article.type !== "news" && (
+              <NewsWriterPanel articleId={article.id} hasUnsavedEdits={isContentDirty} mode="blog" />
+            )}
             {(article.type === "news" || article.origin === "ai_blog") && <NewsLinksPanel articleId={article.id} hasUnsavedEdits={isContentDirty} />}
             {(article.type === "news" || article.origin === "ai_blog") && <NewsAuditPanel articleId={article.id} />}
 

@@ -12,6 +12,8 @@ import { storyBusy } from "@/lib/news/jobs";
 import { enrichArticle } from "@/lib/news/seo";
 import { ensureImages } from "@/lib/news/imagegen";
 import { computeQuality } from "@/lib/news/quality";
+import { computeBlogQuality } from "@/lib/blogs/quality";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
@@ -89,7 +91,10 @@ export async function GET(req: Request) {
   const articleId = new URL(req.url).searchParams.get("articleId") || "";
   if (!articleId) return NextResponse.json({ error: "articleId is required." }, { status: 400 });
   try {
-    return NextResponse.json({ quality: await computeQuality(articleId) });
+    // AI blog guides are scored with their own checklist (same as the Ready bar).
+    const kind = (await sql`SELECT type, origin FROM articles WHERE id = ${articleId} LIMIT 1`)[0];
+    const blog = !!kind && kind.type !== "news" && kind.origin === "ai_blog";
+    return NextResponse.json({ quality: blog ? await computeBlogQuality(articleId) : await computeQuality(articleId) });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || dbErrorMessage(err) }, { status: 500 });
   }

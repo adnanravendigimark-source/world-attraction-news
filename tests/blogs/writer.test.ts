@@ -104,3 +104,13 @@ describe("outline repair", () => {
     expect(() => no2({ sections: [{ heading: "A", facts: [0, 1] }] }, 4, 1000)).toThrow(/too few facts/);
   });
 });
+
+import { tidyStyle as tidyStyle2 } from "@/lib/blogs/writer";
+describe("tidyStyle: must-see", () => {
+  it("keeps the sentence grammatical", () => {
+    expect(tidyStyle2("The porticoes are a must-see for any visitor.")).toBe("The porticoes are a highlight for any visitor.");
+    expect(tidyStyle2("The towers are a must-see.")).toBe("The towers are a highlight.");
+    expect(tidyStyle2("Visit this must-see museum.")).toBe("Visit this top museum.");
+    expect(tidyStyle2("Must-see sights include the towers.")).toBe("Top sights include the towers.");
+  });
+});
