@@ -98,3 +98,24 @@ describe("subject check: plurals and kinds of place", () => {
     expect(factsAboutSubject(facts, "Siam Park")).toBe(0);
   });
 });
+
+describe("topicSubject: action words and possessives", () => {
+  it("finds the subject of a ticket guide", () => {
+    expect(topicSubject("Where to Buy Tickets for Barcelona's Attractions", "Barcelona, Spain")).toBe("Attractions");
+    expect(isKindSubject(topicSubject("Where to Buy Tickets for Barcelona's Attractions", "Barcelona, Spain"))).toBe(true);
+    expect(topicSubject("How to Book Sagrada Família Tickets Online", "Barcelona, Spain")).toBe("Sagrada Família");
+    expect(topicSubject("Is Siam Park Worth Visiting? What to Expect", "Tenerife, Spain")).toBe("Siam Park");
+  });
+});
+
+describe("a ticket guide for a kind of place", () => {
+  it("counts ticket facts too", () => {
+    const facts = [
+      { claim: "Sagrada Família tickets must be booked online for a time slot.", subtopic: "tickets" },
+      { claim: "Park Güell's monumental zone needs a timed ticket.", subtopic: "tickets" },
+      { claim: "Casa Batlló is on Passeig de Gràcia.", subtopic: "places" },
+      { claim: "Barcelona's metro runs until midnight on weekdays.", subtopic: "transport" },
+    ];
+    expect(factsAboutSubject(facts, topicSubject("Where to Buy Tickets for Barcelona's Attractions", "Barcelona, Spain"))).toBe(3);
+  });
+});

@@ -138,9 +138,19 @@ const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
 // What the article is about beyond its destination: "Is Siam Park Worth
 // Visiting? What to Expect" (Tenerife) -> "Siam Park". Empty for topics that
 // are about the destination itself ("Best Time to Visit Bali").
+// What the guide does with the subject, not the subject itself: "Where to
+// Buy Tickets for Barcelona's Attractions" is about "Attractions".
+const ACTION_WORDS = /\b(buy|buying|book|booking|bookings|reserve|reserving|tickets?|passes|pass|prices?|pricing|costs?|admission|entry|entrance|fees?|cheap|cheapest|discounts?|deals?|save|saving|money|skip|lines?|queues?|online|get|getting|use|using|options?)\b/gi;
+
 export function topicSubject(title: string, destination: string): string {
   // sectionSubject drops filler and the destination name (lib/blogs/images.ts).
-  return sectionSubject(String(title || "").split(":")[0], destination.split(",")[0].trim());
+  const s = sectionSubject(String(title || "").split(":")[0], destination.split(",")[0].trim())
+    .replace(/(^|\s)['’]s\b/g, " ") // "Barcelona's Attractions" -> " 's Attractions" after the name is removed
+    .replace(/\s+/g, " ")
+    .trim();
+  const subject = s.replace(ACTION_WORDS, " ").replace(/\s+/g, " ").trim();
+  // Keep the words when nothing else is left ("Tickets" alone is the subject).
+  return subject || s;
 }
 
 // Words of the subject that identify it ("siam", "park").
@@ -179,8 +189,8 @@ export function factsAboutSubject(facts: { claim: string; subtopic?: string }[],
   return facts.filter((f) => {
     const fw = factWords(f.claim);
     if (words.filter((w) => fw.has(w)).length >= need) return true;
-    // A kind of place: a fact about a specific place or dish counts too.
-    return kind && ["places", "food"].includes(String(f.subtopic || ""));
+    // A kind of place: a fact about a specific place, dish or its tickets counts too.
+    return kind && ["places", "food", "tickets"].includes(String(f.subtopic || ""));
   }).length;
 }
 
