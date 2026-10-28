@@ -11,7 +11,7 @@
 import { chatJson } from "./aiClient";
 import { researchModel } from "./research";
 
-export const IMAGE_BRIEF_VERSION = "image-brief-2026-10-14";
+export const IMAGE_BRIEF_VERSION = "image-brief-2026-10-28";
 
 const fold = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -37,14 +37,16 @@ export function briefIsGrounded(brief: string, source: string): boolean {
   return names.every((n) => fold(n).split(/\s+/).every((w) => w.length < 3 || src.includes(w)));
 }
 
-const SYSTEM = `You write the visual brief for ONE realistic editorial travel photograph that will sit next to a passage of a travel article.
+const SYSTEM = `You write the visual brief for ONE realistic editorial photograph that will sit next to a passage of a travel article. A reader must see at a glance that the photo shows what the passage says.
 Rules:
-- Show the real place the PASSAGE is about. Name it exactly as the passage or the destination names it (for example a district, square, street, park, river or building it mentions).
-- Never show or name a place, landmark or building the passage, headline and destination do not mention, even if it is famous.
-- Choose a real, plausible vantage point and the light (time of day, season if the passage gives one). Describe what is in the frame: the place, its typical architecture or landscape, a few people far away or from behind at most.
-- No text, signs, logos, maps, cards, graphics or collage; one photograph.
-- Do not depict accidents, conflict, damage or emergencies; show the place calmly.
-- Start with the place's name (for example "Gràcia district, Barcelona: ..."). Capitalise only real place names.
+- First decide what the PASSAGE is mainly about:
+  a) A PLACE (a district, square, street, park, river, building, beach or landmark it names): show that real place.
+  b) Something travellers DO or USE (applying for a visa, submitting documents, paying a fee or tax, checking in, security screening, boarding, buying tickets, queuing at a counter, a new rule or requirement): show that activity as an everyday scene in its real setting, for example "Visa application centre in New Delhi: a traveller's hands passing a passport and application forms across a service counter to a staff member, other applicants waiting on chairs in the background". Do NOT replace the activity with a building's exterior or a street view.
+- Name the setting exactly as the passage, headline or destination names it. Never show or name a place, landmark or building they do not mention, even if it is famous.
+- Choose a plausible vantage point and the light. People: hands, from behind or far away only; no recognisable faces.
+- Documents, passports, screens and signs show no readable text. No flags, national emblems, logos, maps, graphics or collage; one photograph.
+- Do not depict accidents, conflict, damage or emergencies.
+- Start with the setting's name (for example "Gràcia district, Barcelona: ..." or "Visa application centre in New Delhi: ..."). Capitalise only real names.
 - 1 to 2 sentences, at most 60 words.
 Return JSON: {"scene": "..."}`;
 

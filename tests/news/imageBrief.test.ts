@@ -44,3 +44,11 @@ describe("model fallback", () => {
     expect(modelUnavailable({ status: 429, message: "Rate limit reached" })).toBe(false);
   });
 });
+
+describe("activity briefs", () => {
+  it("accepts a visa-centre scene when its names come from the passage", () => {
+    const passage = "Indian citizens applying for visas to China must now submit their applications through the visa application centre in New Delhi.";
+    expect(briefIsGrounded("Visa application centre in New Delhi: a traveller's hands passing a passport and forms across a service counter.", passage)).toBe(true);
+    expect(briefIsGrounded("The Chinese Embassy in Beijing: a grand gate at dawn.", passage)).toBe(false);
+  });
+});

@@ -68,3 +68,25 @@ describe("boat tours", () => {
     expect(scene).toBe("Arno Boat Tour: a small sightseeing boat on the water in Florence, Italy, with the city's real waterfront behind it");
   });
 });
+
+describe("a visa story shows applying for a visa, not a building", () => {
+  it("uses the application counter scene without readable text or emblems", () => {
+    const { scene, prompt } = composeImagePrompt({
+      title: "China changes visa application rules for Indian travellers",
+      place: "New Delhi, India",
+      subject: "visa application centre",
+      sceneFrom: "Indian citizens applying for visas to China must now submit their applications online",
+      inline: true,
+      type: "news",
+    });
+    expect(scene).toMatch(/hands passing a passport and application forms across a service counter/);
+    expect(scene).toMatch(/New Delhi, India/);
+    expect(prompt).toMatch(/no readable text/i);
+    expect(prompt).toMatch(/no flags, emblems or logos/i);
+  });
+
+  it("a tourist tax story still shows the place", () => {
+    const { scene } = composeImagePrompt({ title: "Bali tourist levy rises", place: "Bali, Indonesia" });
+    expect(scene).toMatch(/street-level view of Bali, Indonesia/);
+  });
+});

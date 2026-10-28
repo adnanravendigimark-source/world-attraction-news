@@ -36,7 +36,8 @@ const STORY_SCENES: [RegExp, string, string?][] = [
   [/\b(strike|strikes|missile|attack|war|conflict|protest|unrest|security)\b/i, "a calm, wide establishing view of {place} on an ordinary day", "No sign of conflict, damage, smoke, weapons, military or emergency vehicles."],
   [/\b(hurricane|storm|typhoon|cyclone|flood|earthquake|wildfire|fire|volcano|eruption|heatwave|weather)\b/i, "a calm, wide establishing view of {place} in natural daylight", "No storm, damage, flooding, fire or rescue scenes."],
   [/\b(airport|terminal|flight|flights|airline|airlines|aviation|route|routes|runway|aircraft|plane)\b/i, "{subject}: an airport terminal exterior or a modern aircraft on the apron at {place}", "Aircraft in plain, unbranded white livery."],
-  [/\b(visa|visas|passport|border|entry rules?|immigration|e-?visa|tourist tax|levy|fee|fees)\b/i, "an uncrowded, recognisable street-level view of {place} as travellers see it on arrival"],
+  [/\b(visa|visas|passports?|immigration|e-?visa|consulate|embassy)\b/i, "{subject}: a traveller's hands passing a passport and application forms across a service counter at a visa application centre in {place}, other applicants waiting in the background", "Passports, forms, screens and signs show no readable text; no flags, emblems or logos."],
+  [/\b(border|entry rules?|tourist tax|levy|fee|fees)\b/i, "an uncrowded, recognisable street-level view of {place} as travellers see it on arrival"],
   [/\b(boat|boats|river cruise|canal|canals|gondola)\b/i, "{subject}: a small sightseeing boat on the water in {place}, with the city's real waterfront behind it"],
   [/\b(cruise|cruises|ship|port|ferry)\b/i, "{subject}: a cruise ship or ferry at the waterfront of {place}", "Ship in plain, unbranded livery."],
   [/\b(train|rail|railway|station|metro|high-speed)\b/i, "{subject}: a modern train or the main railway station of {place}"],
@@ -51,12 +52,12 @@ const STYLE =
   "High-end travel magazine photograph. Photorealistic and true to the real place, with beautiful natural light suited to the scene " +
   "(warm golden hour or soft clear daylight), rich but realistic colour, crisp fine detail, clean professional composition with a clear " +
   "focal point and natural depth, as shot by an award-winning travel photographer on a full-frame camera. Wide landscape framing with the " +
-  "main subject centred and calm space at the top and bottom, so it can be cropped to 16:9. At most one or two people, seen from behind or far away, for scale.";
+  "main subject centred and calm space at the top and bottom, so it can be cropped to 16:9. People only as the scene needs them: hands, seen from behind or far away, never a recognisable face.";
 
 const RULES =
   "Show real architecture and landscapes as they actually look; if unsure of a landmark's exact appearance, show a wider, accurate " +
   "street-level or skyline view of the place instead of an invented close-up. No text, lettering, signage, captions, logos, brand names, " +
-  "watermarks or flags with writing. No recognisable faces. Do not depict the news event itself, damage, injuries, weapons or emergencies. " +
+  "watermarks, flags or national emblems; documents and screens show no readable text. No recognisable faces. Do not depict the news event itself as if it were a real photo of it, and no damage, injuries, weapons or emergencies; an everyday activity the text describes (applying for a visa, checking in, paying a fee) may be shown as a generic scene. " +
   "Not an illustration, painting, 3D render or collage, and not a generic stock photo.";
 
 export interface PromptInput {
