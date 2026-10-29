@@ -129,3 +129,50 @@ describe("promotional wording", () => {
     expect(verdict(issues)).toBe("needs_review");
   });
 });
+
+describe("gpt-6-luna request body", () => {
+  it("sends reasoning effort none and keeps temperature (the API rejects temperature without it)", () => {
+    const b = buildChatBody({ system: "s", user: "u", model: "gpt-6-luna", temperature: 0.2 });
+    expect(b.reasoning_effort).toBe("none");
+    expect(b.temperature).toBe(0.2);
+  });
+  it("drops temperature when the call asks for thinking (the fact check)", () => {
+    const b = buildChatBody({ system: "s", user: "u", model: "gpt-6-luna", temperature: 0, reasoningEffort: "low" });
+    expect(b.reasoning_effort).toBe("low");
+    expect(b.temperature).toBeUndefined();
+  });
+  it("leaves older models as they were", () => {
+    expect(buildChatBody({ system: "s", user: "u", model: "gpt-4o-mini", temperature: 0.2 }).reasoning_effort).toBeUndefined();
+    expect(buildChatBody({ system: "s", user: "u", model: "o4-mini", temperature: 0.2 }).reasoning_effort).toBeUndefined();
+    expect(isReasoningModel("gpt-6-luna")).toBe(true);
+  });
+});
+
+import { modelGone } from "@/lib/news/aiClient";
+import { blogModel, checkModel, writerModel } from "@/lib/news/factcheck";
+import { researchModel } from "@/lib/news/research";
+describe("model defaults and retirement fallback", () => {
+  it("news, research and checks default to gpt-6-luna; guides to gpt-4o", () => {
+    for (const k of ["OPENAI_MODEL", "OPENAI_WRITER_MODEL", "OPENAI_CHECK_MODEL", "OPENAI_BLOG_MODEL"]) delete process.env[k];
+    expect([researchModel(), writerModel(), checkModel(), blogModel()]).toEqual(["gpt-6-luna", "gpt-6-luna", "gpt-6-luna", "gpt-4o"]);
+  });
+  it("recognises a retired model, not other errors", () => {
+    expect(modelGone({ status: 404, message: "The model `gpt-4o` does not exist or you do not have access to it." })).toBe(true);
+    expect(modelGone({ status: 400, message: "The model gpt-4o has been deprecated" })).toBe(true);
+    expect(modelGone({ status: 429, message: "Rate limit reached for model gpt-4o" })).toBe(false);
+    expect(modelGone({ status: 400, message: "Unsupported value: 'temperature'" })).toBe(false);
+  });
+  it("retries once with the fallback model when the model is gone", async () => {
+    const calls: string[] = [];
+    process.env.OPENAI_API_KEY = "test";
+    const fake = (async (_url: any, init: any) => {
+      const body = JSON.parse(init.body);
+      calls.push(body.model);
+      if (body.model === "gpt-4o") return new Response(JSON.stringify({ error: { message: "The model `gpt-4o` does not exist" } }), { status: 404 });
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }), { status: 200 });
+    }) as any;
+    const r = await chatJson({ system: "s", user: "u", model: "gpt-4o", fallbackModel: "gpt-6-luna" }, fake);
+    expect(r.json).toEqual({ ok: true });
+    expect(calls).toEqual(["gpt-4o", "gpt-6-luna"]);
+  });
+});

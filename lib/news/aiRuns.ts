@@ -23,6 +23,7 @@ export interface AiRunInput {
 // Image prices are per image at 1536x1024 (dall-e-3: 1792x1024), by quality.
 type ImagePrice = number | Partial<Record<"low" | "medium" | "high", number>>;
 const DEFAULT_PRICES: Record<string, { in?: number; out?: number; image?: ImagePrice }> = {
+  "gpt-6-luna": { in: 0.1, out: 0.5 }, // OpenAI list price, checked 2026-10-29
   "gpt-4o": { in: 2.5, out: 10 },
   "gpt-4o-mini": { in: 0.15, out: 0.6 },
   "gpt-4.1": { in: 2, out: 8 },

@@ -50,8 +50,17 @@ export interface FactCheck {
   stale: boolean; // the article text changed after this check
 }
 
-export const checkModel = () => process.env.OPENAI_CHECK_MODEL?.trim() || "gpt-4o";
-export const writerModel = () => process.env.OPENAI_WRITER_MODEL?.trim() || "gpt-4o";
+// Defaults chosen on 2026-10-29 by writing the same story and guide with each
+// model: gpt-6-luna writes accurate, plain news at about 1/20 of gpt-4o's cost,
+// but its long guides read padded and robotic, so guides stay on gpt-4o
+// (OPENAI_BLOG_MODEL) and fall back to the news writer once gpt-4o retires.
+export const checkModel = () => process.env.OPENAI_CHECK_MODEL?.trim() || "gpt-6-luna";
+export const checkEffort = (): "none" | "low" | "medium" | "high" => {
+  const v = String(process.env.OPENAI_CHECK_EFFORT || "").trim();
+  return v === "none" || v === "medium" || v === "high" ? v : "low";
+};
+export const writerModel = () => process.env.OPENAI_WRITER_MODEL?.trim() || "gpt-6-luna";
+export const blogModel = () => process.env.OPENAI_BLOG_MODEL?.trim() || "gpt-4o";
 
 // ---------------------------------------------------------------- facts text
 
@@ -260,6 +269,8 @@ export async function modelCheck(
     log: { ...log, promptVersion: CHECK_PROMPT_VERSION },
     model: checkModel(),
     temperature: 0,
+    // A reasoning model checks claims more carefully with a little thinking.
+    reasoningEffort: checkEffort(),
     timeoutMs: 75_000,
     system: CHECK_PROMPT,
     user: `FACTS\n${facts}\n\nARTICLE\n${plain(html)}`,
@@ -409,7 +420,8 @@ async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revise
   const { json } = await chatJson({
     kind: "revise",
     log: { articleId, promptVersion: REVISE_PROMPT_VERSION },
-    model: writerModel(),
+    model: blog ? blogModel() : writerModel(),
+    fallbackModel: writerModel(),
     temperature: 0.1,
     timeoutMs: 75_000,
     system: blog ? BLOG_REVISE_PROMPT : REVISE_PROMPT,

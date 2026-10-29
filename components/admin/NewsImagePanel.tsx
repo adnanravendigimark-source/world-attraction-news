@@ -115,9 +115,15 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
 
   // An AI image (or removal) at one spot inside the article. The page reloads
   // afterwards so the editor shows the new text.
-  async function inlineAction(index: number, action: "generate" | "remove") {
-    setBusy(`inline-${index}`);
-    setMsg(action === "generate" ? "Generating a high-quality image for this spot… this takes 2–3 minutes." : "Removing the image…");
+  async function inlineAction(index: number, action: "photo" | "generate" | "remove") {
+    setBusy(`inline-${index}-${action}`);
+    setMsg(
+      action === "photo"
+        ? "Searching Unsplash and Wikimedia Commons for a free photo of this…"
+        : action === "generate"
+          ? "Generating an AI image for this spot… this takes 1–3 minutes."
+          : "Removing the image…"
+    );
     try {
       const res = await fetch("/api/admin/news/images", {
         method: "POST",
@@ -127,7 +133,7 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
         if (Array.isArray(d.slots)) setSlots(d.slots);
-        setMsg(action === "generate" ? "AI image placed in the article. Reloading…" : "Image removed. Reloading…");
+        setMsg(action === "photo" ? "Free photo placed in the article, with its credit. Reloading…" : action === "generate" ? "AI image placed in the article. Reloading…" : "Image removed. Reloading…");
         setTimeout(() => window.location.reload(), 900);
       } else setMsg(d.error || "That didn't work. Try again.");
     } catch {
@@ -233,8 +239,8 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
         <div className="space-y-2 border-t border-slate-200 pt-3">
           <p className="text-xs font-bold text-slate-900">Images inside the article</p>
           <p className="text-[11px] text-slate-500">
-            Generate a realistic AI image for any spot, or replace a photo that doesn&apos;t fit. Each is captioned &ldquo;AI-generated&rdquo; on the public page.
-            Save your edits first: the page reloads afterwards.
+            Try <strong>Find free photo</strong> first (Unsplash or Wikimedia Commons, credited, no cost). Use AI only when no photo fits: each AI image costs money
+            and is captioned &ldquo;AI-generated&rdquo; on the public page. Save your edits first: the page reloads afterwards.
           </p>
           <input
             className={input}
@@ -257,11 +263,19 @@ export default function NewsImagePanel({ articleId, onImported }: { articleId: s
                 </div>
                 <button
                   type="button"
+                  onClick={() => inlineAction(s.index, "photo")}
+                  disabled={!!busy}
+                  className="shrink-0 rounded bg-slate-900 px-2 py-1 text-[10px] font-bold text-white hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {busy === `inline-${s.index}-photo` ? "Searching…" : "Find free photo"}
+                </button>
+                <button
+                  type="button"
                   onClick={() => inlineAction(s.index, "generate")}
                   disabled={!!busy}
                   className="shrink-0 rounded border border-[#DC2626] px-2 py-1 text-[10px] font-bold text-[#DC2626] hover:bg-red-50 disabled:opacity-50"
                 >
-                  {busy === `inline-${s.index}` ? "Working…" : s.image ? "Replace with AI" : "Generate with AI"}
+                  {busy === `inline-${s.index}-generate` ? "Working…" : s.image ? "Replace with AI" : "Generate with AI"}
                 </button>
                 {s.image && (
                   <button type="button" onClick={() => inlineAction(s.index, "remove")} disabled={!!busy} aria-label="Remove this image" className="shrink-0 px-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-50">

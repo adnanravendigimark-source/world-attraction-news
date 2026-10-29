@@ -50,3 +50,15 @@ describe("prompt for an image inside a guide", () => {
     expect(prompt).toMatch(/^Photograph placed inside a travel guide/);
   });
 });
+
+import { freePhotoQueries } from "@/lib/news/inlineImages";
+describe("free photo search for one spot", () => {
+  it("puts the place with each subject, direction first, no duplicates", () => {
+    expect(
+      freePhotoQueries({ place: "Florence", direction: "Ponte Vecchio at sunset", sectionSubject: "Ponte Vecchio", writerQueries: ["Ponte Vecchio", "Uffizi Gallery Florence"] })
+    ).toEqual(["Florence Ponte Vecchio at sunset", "Florence Ponte Vecchio", "Uffizi Gallery Florence"]);
+  });
+  it("returns nothing to search when there is no subject", () => {
+    expect(freePhotoQueries({ place: "Florence" })).toEqual([]);
+  });
+});

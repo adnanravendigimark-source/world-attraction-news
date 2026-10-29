@@ -5,7 +5,7 @@ import { dbErrorMessage, sql } from "@/lib/db";
 import { requireApiPermission } from "@/lib/permissions";
 import { getImageMeta, saveImageMeta, listCandidates, importCandidate, recropCover } from "@/lib/news/images";
 import { ensureImages, generateCoverImage, previewImages } from "@/lib/news/imagegen";
-import { generateInlineImage, inlineSlots, removeInlineImage } from "@/lib/news/inlineImages";
+import { findInlinePhoto, generateInlineImage, inlineSlots, removeInlineImage } from "@/lib/news/inlineImages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
@@ -68,13 +68,18 @@ async function POSTHandler(req: Request) {
       return NextResponse.json({ error: err?.message || "Photo search failed." }, { status: 400 });
     }
   }
-  // { articleId, inline: { action: "generate" | "remove", index, direction? } }
+  // { articleId, inline: { action: "photo" | "generate" | "remove", index, direction? } }
   // → an AI image inside the article at one spot (see lib/news/inlineImages.ts)
   if (body?.articleId && body?.inline && typeof body.inline === "object") {
     const index = Number(body.inline.index);
     if (!Number.isInteger(index) || index < 0 || index > 200) return NextResponse.json({ error: "Choose a spot in the article." }, { status: 400 });
     try {
       if (body.inline.action === "remove") return NextResponse.json({ ok: true, slots: await removeInlineImage(String(body.articleId), index) });
+      if (body.inline.action === "photo") {
+        // Free photo (Unsplash / Wikimedia Commons): no AI cost.
+        const direction = typeof body.inline.direction === "string" ? body.inline.direction.slice(0, 300) : "";
+        return NextResponse.json({ ok: true, ...(await findInlinePhoto(String(body.articleId), index, direction)) });
+      }
       if (body.inline.action === "generate") {
         const direction = typeof body.inline.direction === "string" ? body.inline.direction.slice(0, 300) : "";
         return NextResponse.json({ ok: true, ...(await generateInlineImage(String(body.articleId), index, direction)) });

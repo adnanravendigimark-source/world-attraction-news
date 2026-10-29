@@ -11,7 +11,7 @@ import { sql } from "../db";
 import { computeContentStats } from "../articles";
 import { uploadImage } from "../blob";
 import { buildImagePrompt, generateAiImage } from "./imagegen";
-import { figureHtml, getQueries } from "./media";
+import { altForPhoto, captionHtml, creditLine, figureHtml, findPhoto, getQueries, storePhoto } from "./media";
 import { recordAiRevision } from "./aiRevision";
 
 const FIGURE = /^\s*<figure class="news-figure">[\s\S]*?<\/figure>/;
@@ -90,12 +90,15 @@ async function load(articleId: string) {
 }
 
 // Saves the new text and keeps the in-article image record in step with it.
-async function save(articleId: string, html: string, added: { url: string } | null, note: string) {
+type InlineEntry = { url: string; credit: string; license: string; source: string };
+const AI_ENTRY = (url: string): InlineEntry => ({ url, credit: "AI-generated", license: "AI-generated image (OpenAI)", source: "" });
+
+async function save(articleId: string, html: string, added: InlineEntry | null, note: string) {
   const stats = computeContentStats(html);
   await sql`UPDATE articles SET content_html = ${html}, word_count = ${stats.wordCount}, reading_time_minutes = ${stats.readingTimeMinutes}, updated_at = now() WHERE id = ${articleId}`;
   const cur = (await sql`SELECT inline FROM article_image_meta WHERE article_id = ${articleId} LIMIT 1`.catch(() => []))[0] as any;
   const kept = (Array.isArray(cur?.inline) ? cur.inline : []).filter((e: any) => e?.url && html.includes(e.url));
-  const next = added ? [...kept, { url: added.url, credit: "AI-generated", license: "AI-generated image (OpenAI)", source: "" }] : kept;
+  const next = added ? [...kept, added] : kept;
   await sql`
     INSERT INTO article_image_meta (article_id, inline, updated_at) VALUES (${articleId}, ${JSON.stringify(next)}::jsonb, now())
     ON CONFLICT (article_id) DO UPDATE SET inline = EXCLUDED.inline`;
@@ -134,7 +137,50 @@ export async function generateInlineImage(articleId: string, index: number, dire
   // Re-read so an edit made while the image was generating isn't lost.
   const fresh = await load(articleId);
   const html = setSlotFigure(fresh.html, fresh.guide, index, figureHtml(stored.url, alt, caption));
-  await save(articleId, html, { url: stored.url }, `AI image ${slot.image ? "replaced" : "added"} in the article (${slot.label.slice(0, 60)})`);
+  await save(articleId, html, AI_ENTRY(stored.url), `AI image ${slot.image ? "replaced" : "added"} in the article (${slot.label.slice(0, 60)})`);
+  return { url: stored.url, alt, slots: listSlots(html, fresh.guide) };
+}
+
+// Search words for a free photo at one spot: the editor's direction, then the
+// section's subject (guides) or the writer's photo subjects (news), each with
+// the place so photos of somewhere else don't match. Pure; exported for tests.
+export function freePhotoQueries(input: { place: string; direction?: string; sectionSubject?: string; writerQueries?: string[] }): string[] {
+  const place = input.place.trim();
+  const withPlace = (q: string) => (q && place && !q.toLowerCase().includes(place.toLowerCase()) ? `${place} ${q}` : q);
+  const out = [
+    withPlace((input.direction || "").trim()),
+    withPlace((input.sectionSubject || "").trim()),
+    ...(input.writerQueries || []).map((q) => withPlace(q.trim())),
+  ];
+  return [...new Set(out.filter(Boolean))];
+}
+
+// Finds a free, credited photo (Unsplash or Wikimedia Commons) for one spot,
+// so an editor tries the free option before paying for an AI image. Never
+// reuses a photo already in the article or on the cover. Throws a plain
+// message when nothing suitable is found.
+export async function findInlinePhoto(articleId: string, index: number, direction = ""): Promise<{ url: string; alt: string; slots: ImageSlot[] }> {
+  const a = await load(articleId);
+  const slot = listSlots(a.html, a.guide)[index];
+  if (!slot) throw new Error("That spot isn't in the article any more. Reload and try again.");
+  const place = String(a.city || a.country || "");
+  const subject = a.guide ? (await import("../blogs/images")).sectionSubject(slot.label, place) : "";
+  const queries = freePhotoQueries({ place, direction, sectionSubject: subject, writerQueries: await getQueries(articleId) });
+  if (queries.length === 0) throw new Error("Type what the photo should show in the box above, then try again.");
+  const meta = (await sql`SELECT source_url, inline FROM article_image_meta WHERE article_id = ${articleId} LIMIT 1`.catch(() => []))[0] as any;
+  const exclude = new Set<string>([String(meta?.source_url || ""), ...(Array.isArray(meta?.inline) ? meta.inline.map((e: any) => String(e?.source || "")) : [])].filter(Boolean));
+  const photo = await findPhoto(queries, exclude, { place, country: String(a.country || "") }).catch(() => null);
+  if (!photo) throw new Error("No free photo of this found on Unsplash or Wikimedia Commons. Type a different description above, or use Generate with AI.");
+  const stored = await storePhoto(photo, { cover: false });
+  const alt = altForPhoto(photo);
+  const fresh = await load(articleId);
+  const html = setSlotFigure(fresh.html, fresh.guide, index, figureHtml(stored.url, alt, captionHtml(photo)));
+  await save(
+    articleId,
+    html,
+    { url: stored.url, credit: creditLine(photo), license: photo.license, source: photo.pageUrl },
+    `Free photo ${slot.image ? "replaced" : "added"} in the article (${slot.label.slice(0, 60)})`
+  );
   return { url: stored.url, alt, slots: listSlots(html, fresh.guide) };
 }
 

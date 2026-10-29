@@ -8,7 +8,7 @@ import { sql } from "../db";
 import { computeContentStats, generateUniqueSlug, getNewsAuthorId } from "../articles";
 import { sanitizeArticleHtml } from "../sanitizeHtml";
 import { chatJson } from "../news/aiClient";
-import { writerModel } from "../news/factcheck";
+import { blogModel, writerModel } from "../news/factcheck";
 import { getTopic, type BlogTopic } from "./topics";
 import { getLatestBlogResearch, type BlogFact, type BlogResearch } from "./research";
 import { cityPath, countryPath } from "../destinations";
@@ -159,7 +159,8 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
   const { json } = await chatJson({
     kind: "blog_outline",
     log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
-    model: writerModel(),
+    model: blogModel(),
+    fallbackModel: writerModel(),
     temperature: 0.3,
     timeoutMs: 60_000,
     system: OUTLINE_PROMPT,
@@ -200,7 +201,8 @@ export async function sectionStep(topicId: string, index: number): Promise<{ ind
   const { json } = await chatJson({
     kind: "blog_section",
     log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
-    model: writerModel(),
+    model: blogModel(),
+    fallbackModel: writerModel(),
     temperature: 0.4,
     timeoutMs: 75_000,
     system: SECTION_PROMPT,
@@ -212,7 +214,8 @@ export async function sectionStep(topicId: string, index: number): Promise<{ ind
     const more = await chatJson({
       kind: "blog_section",
       log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
-      model: writerModel(),
+      model: blogModel(),
+      fallbackModel: writerModel(),
       temperature: 0.4,
       timeoutMs: 75_000,
       system: SECTION_PROMPT,
@@ -314,7 +317,8 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
   const { json } = await chatJson({
     kind: "blog_finish",
     log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
-    model: writerModel(),
+    model: blogModel(),
+    fallbackModel: writerModel(),
     temperature: 0.3,
     timeoutMs: 75_000,
     system: FINISH_PROMPT,
@@ -327,7 +331,8 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
     const fix = await chatJson({
       kind: "blog_intro",
       log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
-      model: writerModel(),
+      model: blogModel(),
+      fallbackModel: writerModel(),
       temperature: 0.2,
       timeoutMs: 45_000,
       system: `Rewrite this introduction so the exact phrase "${outline.primaryKeyword}" appears naturally in its first two sentences (capitalise it as normal prose). Change as little as possible; add no new facts. Return JSON: {"html"}`,

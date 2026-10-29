@@ -23,8 +23,8 @@ describe("quality: editors' clicks vs automation", () => {
     delete process.env.OPENAI_IMAGE_QUALITY;
     delete process.env.OPENAI_IMAGE_QUALITY_AUTO;
   });
-  it("defaults: high when an editor clicks, medium when the automation makes one", () => {
-    expect(imageQuality("manual")).toBe("high");
+  it("defaults: medium for editors' clicks and the automation (cost)", () => {
+    expect(imageQuality("manual")).toBe("medium");
     expect(imageQuality("auto")).toBe("medium");
   });
   it("each can be set; nonsense falls back to the default", () => {
@@ -33,6 +33,8 @@ describe("quality: editors' clicks vs automation", () => {
     expect(imageQuality("manual")).toBe("medium");
     expect(imageQuality("auto")).toBe("low");
     process.env.OPENAI_IMAGE_QUALITY = "ultra";
+    expect(imageQuality("manual")).toBe("medium");
+    process.env.OPENAI_IMAGE_QUALITY = "high";
     expect(imageQuality("manual")).toBe("high");
   });
 });

@@ -14,13 +14,15 @@ const FALLBACK_MODELS = ["gpt-image-1.5", "gpt-image-1", "dall-e-3"];
 const DAILY_CAP = () => Number(process.env.NEWS_IMAGE_DAILY_CAP || 20);
 // Quality decides most of the cost (gpt-image-2, 1536x1024: about $0.04
 // medium, $0.165 high). An editor's click (Generate cover / Generate in the
-// article) uses OPENAI_IMAGE_QUALITY, default high. Images made by the
+// article) uses OPENAI_IMAGE_QUALITY, default medium. Images made by the
 // automation, when no free photo exists, use OPENAI_IMAGE_QUALITY_AUTO,
 // default medium, so unattended runs stay cheap.
 export type ImageQuality = "low" | "medium" | "high";
 const pick = (v: string | undefined, fallback: ImageQuality): ImageQuality => (["low", "medium", "high"].includes(String(v)) ? (v as ImageQuality) : fallback);
 export function imageQuality(mode: "manual" | "auto" = "manual"): ImageQuality {
-  return mode === "auto" ? pick(process.env.OPENAI_IMAGE_QUALITY_AUTO, "medium") : pick(process.env.OPENAI_IMAGE_QUALITY, "high");
+  // Default medium for both (about a quarter of high's price; sharp enough at
+  // the 1200×675 the site shows). Set OPENAI_IMAGE_QUALITY=high to go back.
+  return mode === "auto" ? pick(process.env.OPENAI_IMAGE_QUALITY_AUTO, "medium") : pick(process.env.OPENAI_IMAGE_QUALITY, "medium");
 }
 
 // ------------------------------------------------------------- AI prompt

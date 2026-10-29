@@ -9,6 +9,13 @@ export interface ChatJsonInput {
   user: string;
   model: string;
   temperature?: number;
+  // How much hidden "thinking" a reasoning model does (gpt-6-luna, gpt-5.x).
+  // Reasoning tokens are billed as output, so "none" is the cheap default;
+  // the fact check asks for "low". Ignored by models that don't reason.
+  reasoningEffort?: ReasoningEffort;
+  // Used once when OpenAI says the model no longer exists (a retired model,
+  // e.g. gpt-4o after 14 January 2027), so a shutdown doesn't stop the site.
+  fallbackModel?: string;
   timeoutMs?: number;
   // Short label for error messages and the ai_runs log ("research", "write", "check", "revise").
   kind?: string;
@@ -33,10 +40,24 @@ export class AiError extends Error {
   }
 }
 
-// Reasoning models (o1, o3, o4-mini, gpt-5…) reject sampling parameters
-// such as temperature, so they are left out for them.
+export type ReasoningEffort = "none" | "low" | "medium" | "high";
+
+// Reasoning models (o1, o3, o4-mini, gpt-5…, gpt-6…) reject sampling
+// parameters such as temperature, so they are left out for them.
 export function isReasoningModel(model: string): boolean {
-  return /^(o\d|gpt-5)/i.test(model.trim());
+  return /^(o\d|gpt-5|gpt-6)/i.test(model.trim());
+}
+
+// Models that take reasoning_effort "none" (gpt-6-luna, gpt-5.1 and later).
+// With "none" they also accept temperature (checked against the API,
+// 2026-10-29: gpt-6-luna rejects temperature 0.2 without it).
+export function takesEffortNone(model: string): boolean {
+  return /^(gpt-6|gpt-5\.\d)/i.test(model.trim());
+}
+
+function defaultEffort(): ReasoningEffort {
+  const v = String(process.env.OPENAI_REASONING_EFFORT || "").trim();
+  return v === "low" || v === "medium" || v === "high" ? v : "none";
 }
 
 export function buildChatBody(input: ChatJsonInput): Record<string, unknown> {
@@ -48,7 +69,15 @@ export function buildChatBody(input: ChatJsonInput): Record<string, unknown> {
       { role: "user", content: input.user },
     ],
   };
-  if (!isReasoningModel(input.model) && typeof input.temperature === "number") body.temperature = input.temperature;
+  if (takesEffortNone(input.model)) {
+    const effort = input.reasoningEffort ?? defaultEffort();
+    body.reasoning_effort = effort;
+    if (effort === "none" && typeof input.temperature === "number") body.temperature = input.temperature;
+  } else if (!isReasoningModel(input.model)) {
+    if (typeof input.temperature === "number") body.temperature = input.temperature;
+  } else if (input.reasoningEffort && input.reasoningEffort !== "none") {
+    body.reasoning_effort = input.reasoningEffort;
+  }
   return body;
 }
 
@@ -58,7 +87,25 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Calls the chat completions API in JSON mode. Retries once on rate limits
 // and server errors; never retries on a timeout (the caller's job retry
 // handles that, with back-off).
+// True when OpenAI rejected the request because the model is gone or not
+// available to this account (not for bad input or rate limits).
+export function modelGone(err: { status?: number; message?: string }): boolean {
+  const msg = String(err?.message || "");
+  return (err?.status === 404 || err?.status === 400 || err?.status === 403) && /model[^.]*(does not exist|not found|deprecated|has been retired|no longer available|do not have access)/i.test(msg);
+}
+
 export async function chatJson(input: ChatJsonInput, fetchImpl: typeof fetch = fetch): Promise<ChatJsonResult> {
+  try {
+    return await chatJsonOnce(input, fetchImpl);
+  } catch (err: any) {
+    if (input.fallbackModel && input.fallbackModel !== input.model && modelGone(err)) {
+      return chatJsonOnce({ ...input, model: input.fallbackModel, fallbackModel: undefined }, fetchImpl);
+    }
+    throw err;
+  }
+}
+
+async function chatJsonOnce(input: ChatJsonInput, fetchImpl: typeof fetch): Promise<ChatJsonResult> {
   const started = Date.now();
   try {
     const result = await callChat(input, fetchImpl);

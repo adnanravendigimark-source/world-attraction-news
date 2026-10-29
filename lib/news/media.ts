@@ -279,7 +279,7 @@ export async function findPhoto(queries: string[], exclude: Set<string> = new Se
         continue;
       }
       for (const r of results) {
-        if (!r.imageUrl || exclude.has(r.imageUrl) || !isPublicUrl(r.imageUrl)) continue;
+        if (!r.imageUrl || exclude.has(r.imageUrl) || exclude.has(r.pageUrl) || !isPublicUrl(r.imageUrl)) continue;
         const score = scorePhoto(r, ctx);
         if (score !== null && (!best || score > best.score)) best = { photo: r, score };
       }

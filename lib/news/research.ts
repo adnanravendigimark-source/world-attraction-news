@@ -74,7 +74,9 @@ const MAX_SOURCES = 6;
 const MAX_TOTAL_CHARS = 30_000;
 
 export function researchModel(): string {
-  return process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
+  // gpt-6-luna: compared with gpt-4o-mini on 2026-10-29, it found more facts
+  // and labelled single-source ones honestly, at a lower price.
+  return process.env.OPENAI_MODEL?.trim() || "gpt-6-luna";
 }
 
 export function researchDailyCap(): number {
