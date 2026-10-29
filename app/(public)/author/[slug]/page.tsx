@@ -15,18 +15,24 @@ import { buildMetadata, breadcrumbJsonLd, personJsonLd, jsonLdScript } from "@/l
 //
 // See app/(public)/page.tsx for why the DB reads below go through
 // unstable_cache instead of relying on `revalidate` alone.
-export const revalidate = 180;
+export const revalidate = 3600;
 
 const getCachedAuthorBySlug = unstable_cache((slug: string) => findUserBySlug(slug), ["author-by-slug"], {
-  revalidate: 180,
+  revalidate: 3600,
   tags: ["users"],
 });
 
 const getCachedAuthorArticles = unstable_cache(
   (authorId: string) => getPublishedArticlesByAuthorId(authorId),
   ["author-articles"],
-  { revalidate: 180, tags: ["articles"] }
+  { revalidate: 3600, tags: ["articles"] }
 );
+
+// Empty list = nothing prebuilt at deploy; each page renders on first visit,
+// then is served from cache until a publish/edit purges it (lib/revalidateSite.ts).
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const author = await getCachedAuthorBySlug(params.slug);

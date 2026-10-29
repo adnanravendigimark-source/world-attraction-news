@@ -2,15 +2,15 @@
   "crons": [
     {
       "path": "/api/cron/publish-scheduled",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 */3 * * *"
     },
     {
       "path": "/api/cron/news-fetch",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 */3 * * *"
     },
     {
       "path": "/api/cron/news-jobs",
-      "schedule": "*/10 * * * *"
+      "schedule": "5 */3 * * *"
     }
   ]
 }

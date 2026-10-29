@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { requireApiPermission } from "@/lib/permissions";
@@ -19,7 +20,7 @@ export async function GET() {
 
 // { action: "create", title, destination, angle?, topicType?, targetWords? }
 // { action: "status", ids: string[], status: "queued" | "dismissed" }
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -38,3 +39,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: String(err?.message || err).slice(0, 300) }, { status: 400 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

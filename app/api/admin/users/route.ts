@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getContributors, createContributorByAdmin, setUserRoleId } from "@/lib/users";
@@ -26,7 +27,7 @@ export async function GET() {
 // remaining job is Admin -> Roles & Permissions' "Add User": creating a new
 // *admin* account and, optionally, assigning it one of the roles an
 // unrestricted admin has created.
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -76,3 +77,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err?.message || dbErrorMessage(err) }, { status: 400 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

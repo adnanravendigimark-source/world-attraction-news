@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { uploadImage, uploadNewsCover } from "@/lib/blob";
@@ -6,7 +7,7 @@ import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -35,3 +36,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

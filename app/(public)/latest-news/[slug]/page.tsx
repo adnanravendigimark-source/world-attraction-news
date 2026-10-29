@@ -2,7 +2,6 @@ import { permanentRedirect, notFound } from "next/navigation";
 import { getPublishedArticleByAnySlug } from "@/lib/articles";
 import { articlePath } from "@/lib/destinations";
 
-export const dynamic = "force-dynamic";
 
 // Legacy route. Articles live at /[country]/[city]/[slug] now (see
 // lib/destinations.ts) — this pre-restructure URL shape is no longer linked
@@ -13,6 +12,12 @@ export const dynamic = "force-dynamic";
 // content, and this route's own canonical/JSON-LD previously and incorrectly
 // pointed at itself instead of the real URL), permanently redirect straight
 // to the real article page.
+// Empty list = nothing prebuilt at deploy; each page renders on first visit,
+// then is served from cache until a publish/edit purges it (lib/revalidateSite.ts).
+export async function generateStaticParams() {
+  return [];
+}
+
 export default async function LegacyLatestNewsArticleRedirect({
   params,
 }: {

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Container from "@/components/Container";
 import NewsletterForm from "@/components/NewsletterForm";
@@ -14,10 +13,9 @@ import {
   getPublishedNews,
   getPublishedNewsBySlug,
   getStoryCountsByCategory,
-  incrementArticleView,
 } from "@/lib/articles";
 import { getCategories } from "@/lib/categories";
-import { getClientIpFromHeaders } from "@/lib/rateLimit";
+import ArticleViewBeacon from "@/components/ArticleViewBeacon";
 import { breadcrumbJsonLd, jsonLdScript, newsArticleJsonLd, resolvePageMetadata } from "@/lib/seo";
 import { getImageMeta, isNewsCoverSize } from "@/lib/news/images";
 import { getLinks, relatedBoxItems } from "@/lib/news/internalLinks";
@@ -26,7 +24,12 @@ import { getPageIndexing } from "@/lib/indexing";
 import { popularCategories, storyHref, storyDate, storyLabel } from "@/lib/home";
 import { SITE_URL } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+
+// Empty list = nothing prebuilt at deploy; each page renders on first visit,
+// then is served from cache until a publish/edit purges it (lib/revalidateSite.ts).
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const article = await getPublishedNewsBySlug(params.slug);
@@ -62,8 +65,7 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
   const article = await getPublishedNewsBySlug(params.slug);
   if (!article) notFound();
 
-  // Count the view (once per reader per 30 minutes), as guide pages do.
-  article.viewCount = await incrementArticleView(article.id, getClientIpFromHeaders(headers())).catch(() => article.viewCount);
+  // Views are counted from the browser (ArticleViewBeacon) so this page can be cached.
 
   const [sources, imageMeta, links, latest, categories, newsCounts] = await Promise.all([
     getArticleSources(article.id).catch(() => []),
@@ -89,6 +91,7 @@ export default async function NewsArticlePage({ params }: { params: { slug: stri
 
   return (
     <div className="bg-white min-h-screen text-ink-900 pb-20">
+      <ArticleViewBeacon articleId={article.id} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

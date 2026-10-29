@@ -2,11 +2,17 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { getCityBySlug } from "@/lib/cities";
 import { articlePath } from "@/lib/destinations";
 
+
 // Legacy URL shim — see app/(public)/cities/[citySlug]/page.tsx for why this
 // route only redirects rather than rendering. Deliberately does NOT call
 // incrementArticleView() (unlike the real article page) — a redirect isn't
 // a real read of the article, the destination page's own render is.
-export const dynamic = "force-dynamic";
+//
+// Empty list = nothing prebuilt at deploy; each page renders on first visit,
+// then is served from cache until a publish/edit purges it (lib/revalidateSite.ts).
+export async function generateStaticParams() {
+  return [];
+}
 
 export default async function LegacyArticleRedirect({
   params,

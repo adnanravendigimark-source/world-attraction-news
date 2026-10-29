@@ -2,22 +2,17 @@
 // and country-level guides (/[country]/[slug]). Counts the view, renders the
 // article and its FAQ, and adds Article (+ FAQPage) structured data.
 
-import { headers } from "next/headers";
 import ArticleDetailClient from "@/components/ArticleDetailClient";
-import { getRelatedPublishedArticles, getTrendingArticles, incrementArticleView, type ArticleWithRelations } from "@/lib/articles";
-import { getClientIpFromHeaders } from "@/lib/rateLimit";
+import { getRelatedPublishedArticles, getTrendingArticles, type ArticleWithRelations } from "@/lib/articles";
+import ArticleViewBeacon from "@/components/ArticleViewBeacon";
 import { articleJsonLd, faqJsonLd, jsonLdScript } from "@/lib/seo";
 import { articlePath } from "@/lib/destinations";
 import { publishedClusterArticles } from "@/lib/blogs/clusters";
 import { getImageMeta } from "@/lib/news/images";
 
-// countView is off on cached (ISR) routes, where reading request headers
-// is not allowed; the country-level route is one of those.
+// Views are counted from the browser (ArticleViewBeacon) so every guide route
+// can be cached. countView=false keeps the country-level guide uncounted, as before.
 export default async function GuideArticle({ article, countView = true }: { article: ArticleWithRelations; countView?: boolean }) {
-  if (countView) {
-    const ip = getClientIpFromHeaders(headers());
-    article.viewCount = await incrementArticleView(article.id, ip);
-  }
   // Research sources are for editors (admin, fact check), not shown publicly.
   const [related, trending, series, imageMeta] = await Promise.all([
     article.cityId ? getRelatedPublishedArticles(article.cityId, article.id, 4) : Promise.resolve([]),
@@ -31,6 +26,7 @@ export default async function GuideArticle({ article, countView = true }: { arti
   const faq = faqJsonLd(article.faq);
   return (
     <>
+      {countView && <ArticleViewBeacon articleId={article.id} />}
       <ArticleDetailClient
         article={article}
         relatedStories={related}

@@ -10,7 +10,7 @@ import { getStoryCountsByCategory, getLatestPublishedArticleImageByCategory } fr
 import { popularCategories } from "@/lib/home";
 import { buildMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } from "@/lib/seo";
 
-export const revalidate = 300;
+export const revalidate = 3600;
 
 // Every category, its published story count (news and guides) and the
 // newest story image, for cards whose category has no image set in Admin.
@@ -24,7 +24,7 @@ const getCategoriesPageData = unstable_cache(
     return { categories, counts, latestImages };
   },
   ["categories-page-data-v2"],
-  { revalidate: 300, tags: ["categories", "articles"] }
+  { revalidate: 3600, tags: ["categories", "articles"] }
 );
 
 export const metadata: Metadata = buildMetadata({

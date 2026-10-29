@@ -15,9 +15,11 @@ const connectionUrl =
   process.env.DATABASE_URL?.trim() ||
   "postgresql://postgres:postgres@localhost:5432/postgres";
 
-const neonClient = neon(connectionUrl, {
-  fetchOptions: { cache: "no-store" },
-});
+// No `cache: "no-store"`: it forced every public page to render dynamically,
+// waking Neon on every visit and crawler hit. Public pages are now cached and
+// purged on publish/edit (lib/revalidateSite.ts). Admin, contributor and
+// /api routes are force-dynamic, so their queries stay uncached.
+const neonClient = neon(connectionUrl);
 
 export const sql = ((strings: any, ...values: any[]) => {
   if (!process.env.DATABASE_URL) {

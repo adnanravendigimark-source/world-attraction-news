@@ -5,7 +5,8 @@ import { getEnabledSitemapByType, getCitySitemapUrls, buildUrlsetXml } from "@/l
 // lib/sitemaps.ts, which queries only the `cities` table and excludes any
 // city with a noindex override (indexing_settings key `city:<id>`). 404s if
 // this sitemap has been disabled/deleted from Admin -> SEO -> Sitemaps.
-export const dynamic = "force-dynamic";
+// Cached for an hour (also purged on publish) instead of a DB query per crawler hit.
+export const revalidate = 3600;
 
 export async function GET() {
   const config = await getEnabledSitemapByType("CITY");

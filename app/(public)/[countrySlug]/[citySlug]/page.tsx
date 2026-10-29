@@ -12,12 +12,12 @@ import { cityPath, countryPath, articlePath } from "@/lib/destinations";
 // Pure read, no searchParams — real ISR. Admin city edits and article
 // publish/unpublish for this city call revalidatePath(cityPath(countrySlug, citySlug)),
 // i.e. revalidatePath(`/${countrySlug}/${citySlug}`).
-export const revalidate = 60;
+export const revalidate = 3600;
 
 const getCachedCityBySlug = unstable_cache(
   (slug: string) => getCityBySlug(slug),
   ["city-by-slug"],
-  { revalidate: 60, tags: ["cities"] }
+  { revalidate: 3600, tags: ["cities"] }
 );
 
 const getCachedCityPageData = unstable_cache(
@@ -26,8 +26,14 @@ const getCachedCityPageData = unstable_cache(
     return { articles };
   },
   ["city-page-data-v2"],
-  { revalidate: 60, tags: ["articles"] }
+  { revalidate: 3600, tags: ["articles"] }
 );
+
+// Empty list = nothing prebuilt at deploy; each page renders on first visit,
+// then is served from cache until a publish/edit purges it (lib/revalidateSite.ts).
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({
   params,

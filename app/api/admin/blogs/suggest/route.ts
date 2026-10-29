@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { requireApiPermission } from "@/lib/permissions";
@@ -9,7 +10,7 @@ export const maxDuration = 60;
 // { destination?: "Florence", topic?: "arno boat tour" } -> topic ideas, saved
 // as "suggested". With a topic, the ideas are about that topic and the
 // destination may be left out (the model names it; we check it). One AI call.
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -20,3 +21,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: String(err?.message || err).slice(0, 300) }, { status: 400 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

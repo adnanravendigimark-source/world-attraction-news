@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { updateOwnProfile } from "@/lib/users";
@@ -5,7 +6,7 @@ import { dbErrorMessage } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -33,3 +34,5 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const PATCH = withSiteRevalidate(PATCHHandler);

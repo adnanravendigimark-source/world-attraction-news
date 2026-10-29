@@ -10,7 +10,8 @@ import { getSitemaps, escapeXml } from "@/lib/sitemaps";
 // used Next's native single-urlset sitemap() convention and mixed every
 // content type into one flat list — that file is gone; every content type
 // now has its own dedicated child route (see app/sitemap-*.xml/route.ts).
-export const dynamic = "force-dynamic";
+// Cached for an hour (also purged on publish) instead of a DB query per crawler hit.
+export const revalidate = 3600;
 
 function escapeXmlAttr(value: string): string {
   return escapeXml(value);

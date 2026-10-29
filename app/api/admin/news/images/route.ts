@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage, sql } from "@/lib/db";
@@ -31,7 +32,7 @@ export async function GET(req: Request) {
 
 // PUT { articleId, sourceType, credit, license, sourceUrl } → save provenance
 // POST { articleId, imageUrl } → import a candidate as the cover
-export async function PUT(req: Request) {
+async function PUTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "update");
   if (denied) return denied;
@@ -50,7 +51,7 @@ export async function PUT(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "update");
   if (denied) return denied;
@@ -119,3 +120,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err?.message || dbErrorMessage(err) }, { status: 400 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);
+export const PUT = withSiteRevalidate(PUTHandler);

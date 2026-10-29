@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -22,7 +23,7 @@ export const maxDuration = 300; // AI steps; see lib/news/jobs.ts
 // request stays under the time limit:
 //   research -> write (draft + article + SEO + links) -> check (fact check,
 //   one automatic revision) -> images -> quality
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "create");
   if (denied) return denied;
@@ -99,3 +100,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: err?.message || dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

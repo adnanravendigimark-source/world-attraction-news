@@ -8,7 +8,7 @@ import { resolvePageMetadata, breadcrumbJsonLd, itemListJsonLd, jsonLdScript } f
 import { cityPath, countryPath, articlePath } from "@/lib/destinations";
 import CountryClient from "./CountryClient";
 
-export const revalidate = 300;
+export const revalidate = 3600;
 
 const getCachedCountryData = unstable_cache(
   async (countrySlug: string) => {
@@ -21,8 +21,14 @@ const getCachedCountryData = unstable_cache(
     return { cities, country, articles, counts };
   },
   ["country-data-hub-v2"],
-  { revalidate: 300, tags: ["cities", "countries", "articles"] }
+  { revalidate: 3600, tags: ["cities", "countries", "articles"] }
 );
+
+// Empty list = nothing prebuilt at deploy; each page renders on first visit,
+// then is served from cache until a publish/edit purges it (lib/revalidateSite.ts).
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: { params: { countrySlug: string } }): Promise<Metadata> {
   const { cities, country } = await getCachedCountryData(params.countrySlug);

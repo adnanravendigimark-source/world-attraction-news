@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
 }
 
 // Triage a raw item: { id, status: "new" | "dismissed" | "shortlisted" }
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -45,3 +46,5 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const PATCH = withSiteRevalidate(PATCHHandler);

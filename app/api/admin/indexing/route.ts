@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getIndexingOverview, setIndexing, setBulkIndexing, type IndexingPageType } from "@/lib/indexing";
@@ -19,7 +20,7 @@ export async function GET() {
   }
 }
 
-export async function PUT(req: Request) {
+async function PUTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "indexing", "update");
   if (denied) return denied;
@@ -66,3 +67,5 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const PUT = withSiteRevalidate(PUTHandler);

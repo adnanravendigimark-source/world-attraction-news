@@ -227,7 +227,6 @@ export async function getPublishedArticles(opts: {
   types?: StoryType[];
 } = {}): Promise<ArticleWithRelations[]> {
   try {
-    await publishDueScheduledArticles();
     const limit = opts.limit ?? 200;
     const params: any[] = [];
     const conditions = [typeCondition(opts.types, params)];
@@ -257,7 +256,6 @@ export async function getPublishedArticleBySlug(
   citySlug: string,
   articleSlug: string
 ): Promise<ArticleWithRelations | undefined> {
-  await publishDueScheduledArticles();
   const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND c.slug = $1 AND a.slug = $2 LIMIT 1`;
   const rows = await sql(query, [citySlug, articleSlug]);
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
@@ -266,7 +264,6 @@ export async function getPublishedArticleBySlug(
 // A country-level guide: /[countrySlug]/[articleSlug] (Track B1).
 export async function getPublishedCountryGuide(countrySlug: string, articleSlug: string): Promise<ArticleWithRelations | undefined> {
   try {
-    await publishDueScheduledArticles();
     const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.city_id IS NULL AND co.slug = $1 AND a.slug = $2 LIMIT 1`;
     const rows = await sql(query, [countrySlug, articleSlug]);
     return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
@@ -278,7 +275,6 @@ export async function getPublishedCountryGuide(countrySlug: string, articleSlug:
 export async function getPublishedArticleByAnySlug(
   slug: string
 ): Promise<ArticleWithRelations | undefined> {
-  await publishDueScheduledArticles();
   const query = `${JOIN_SELECT} WHERE a.type = 'guide' AND a.status = 'published' AND a.slug = $1 LIMIT 1`;
   const rows = await sql(query, [slug]);
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
@@ -416,7 +412,6 @@ export async function getPublishedArticlesPage(opts: {
   const page = Math.max(1, opts.page ?? 1);
   const pageSize = opts.pageSize ?? 12;
   try {
-    await publishDueScheduledArticles();
     const params: any[] = [];
     const conditions = [typeCondition(opts.types, params)];
     if (opts.citySlug) {
@@ -1416,7 +1411,6 @@ export async function getPublishedNews(
   opts: { limit?: number; offset?: number; categorySlug?: string } = {}
 ): Promise<{ articles: ArticleWithRelations[]; total: number }> {
   try {
-    await publishDueScheduledArticles();
     const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
     const offset = Math.max(opts.offset ?? 0, 0);
     const cat = (opts.categorySlug || "").trim();
@@ -1465,7 +1459,6 @@ export async function getStoryCountsByCategory(type?: "news" | "guide"): Promise
 }
 
 export async function getPublishedNewsBySlug(slug: string): Promise<ArticleWithRelations | undefined> {
-  await publishDueScheduledArticles();
   const rows = await sql(`${JOIN_SELECT} WHERE a.type = 'news' AND a.status = 'published' AND a.slug = $1 LIMIT 1`, [slug]);
   return rows.length ? rowToArticleWithRelations(rows[0]) : undefined;
 }

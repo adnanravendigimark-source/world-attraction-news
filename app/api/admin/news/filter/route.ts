@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -29,7 +30,7 @@ export async function GET() {
 }
 
 // Save edited settings (or { reset: true }) and re-score stored items.
-export async function PUT(req: Request) {
+async function PUTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -59,7 +60,7 @@ export async function PUT(req: Request) {
 // Re-run the travel-relevance filter. Body: { onlyPending?: boolean }, or
 // { try: { title, description?, config? } } to score one headline without
 // saving anything (config: unsaved settings from the editor).
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -89,3 +90,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);
+export const PUT = withSiteRevalidate(PUTHandler);

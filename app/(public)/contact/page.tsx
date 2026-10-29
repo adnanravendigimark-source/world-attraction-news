@@ -5,7 +5,6 @@ import { buildMetadata } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 import { getContactPageConfig } from "@/lib/settings";
 
-export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildMetadata({
   title: `Contact Us | ${SITE_NAME}`,
   description: "Get in touch with the Attraction Travel News editorial team.",

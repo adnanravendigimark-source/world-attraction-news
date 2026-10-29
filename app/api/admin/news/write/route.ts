@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
 //   check    fact check only (never changes the article)
 //   override { reason } allow publishing despite a failed check
 //   highlights  AI writes Key Updates / What Travelers Should Do only, then checks them
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "update");
   if (denied) return denied;
@@ -68,3 +69,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: known ? msg : dbErrorMessage(err), detail: process.env.NODE_ENV !== "production" ? msg : undefined }, { status: known ? 400 : 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

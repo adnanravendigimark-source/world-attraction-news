@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -9,7 +10,7 @@ import { recordDecision } from "@/lib/news/decisions";
 export const dynamic = "force-dynamic";
 
 // Body: { clusterId }. Creates (or returns the existing) news draft for a story.
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "create");
   if (denied) return denied;
@@ -36,3 +37,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: known ? err.message : dbErrorMessage(err), detail }, { status: known ? 400 : 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

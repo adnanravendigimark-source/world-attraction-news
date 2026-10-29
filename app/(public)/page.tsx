@@ -22,7 +22,7 @@ import { SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from "@/lib/site";
 
 // Cached for 60s; publishing or (un)featuring an article clears the
 // "homepage" tag so changes show at once (see the admin article routes).
-export const revalidate = 60;
+export const revalidate = 3600;
 
 const getHomePageData = unstable_cache(
   async () => {
@@ -41,7 +41,7 @@ const getHomePageData = unstable_cache(
     return { cities, categories, featuredCategorySlugs, categoryCounts, guides, news, featured, trending };
   },
   ["homepage-data-v4"],
-  { revalidate: 60, tags: ["homepage"] }
+  { revalidate: 3600, tags: ["homepage"] }
 );
 
 export async function generateMetadata(): Promise<Metadata> {

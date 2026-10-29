@@ -4,7 +4,8 @@ import { getEnabledSitemapByType, getCountrySitemapUrls, buildUrlsetXml } from "
 // Strictly COUNTRY-type URLs only — see getCountrySitemapUrls() in
 // lib/sitemaps.ts, which queries only the `countries` table. 404s if this
 // sitemap has been disabled/deleted from Admin -> SEO -> Sitemaps.
-export const dynamic = "force-dynamic";
+// Cached for an hour (also purged on publish) instead of a DB query per crawler hit.
+export const revalidate = 3600;
 
 export async function GET() {
   const config = await getEnabledSitemapByType("COUNTRY");

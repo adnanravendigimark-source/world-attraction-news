@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage, sql } from "@/lib/db";
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
 
 // PUT { articleId, sources: [{ title, url, publisher, isOfficial }] } replaces
 // the whole list in the given order. Not allowed once the article is live.
-export async function PUT(req: Request) {
+async function PUTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "update");
   if (denied) return denied;
@@ -50,3 +51,5 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const PUT = withSiteRevalidate(PUTHandler);

@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage, sql } from "@/lib/db";
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
 
 // Body: { action: "cluster" | "rebuild" | "score" }, { action: "status", id, status },
 // { action: "merge", targetId, ids } or { action: "move", itemId, targetId | null }
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -100,3 +101,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: dbErrorMessage(err), detail }, { status: 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

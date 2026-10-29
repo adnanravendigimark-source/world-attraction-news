@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
 
 // POST { articleId, refresh: true } → plan the links again
 // POST { articleId, linkId, action: "remove" | "restore" | "to_text" | "to_related" }
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "update");
   if (denied) return denied;
@@ -48,3 +49,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err?.message || dbErrorMessage(err) }, { status: 400 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

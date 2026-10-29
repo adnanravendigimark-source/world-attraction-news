@@ -5,14 +5,12 @@ import { getPublishedArticleBySlug, getPublishedArticleByAnySlug } from "@/lib/a
 import { resolvePageMetadata } from "@/lib/seo";
 import { articlePath } from "@/lib/destinations";
 
-// Deliberately stays force-dynamic (not ISR like the other read-only public
-// pages) — this page has a real per-request write, incrementArticleView()
-// below, that has to run on every single visit for view counts to be
-// accurate. Caching this route's render would skip that call on cache hits
-// and silently undercount views (view count feeds "popular" sort elsewhere
-// on the site), so full dynamic rendering is the correct choice here, not
-// an oversight.
-export const dynamic = "force-dynamic";
+
+// Empty list = nothing prebuilt at deploy; each page renders on first visit,
+// then is served from cache until a publish/edit purges it (lib/revalidateSite.ts).
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({
   params,

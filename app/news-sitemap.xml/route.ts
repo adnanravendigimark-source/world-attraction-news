@@ -13,7 +13,8 @@ import { getNoIndexKeySet } from "@/lib/sitemaps";
 // (they're still fully covered by the general sitemap + NewsArticle JSON-LD
 // on the article page itself), so there's no reason to list them and no
 // reason to cap this list at 1,000 URLs the way a general sitemap must.
-export const dynamic = "force-dynamic";
+// Cached for an hour (also purged on publish) instead of a DB query per crawler hit.
+export const revalidate = 3600;
 
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 

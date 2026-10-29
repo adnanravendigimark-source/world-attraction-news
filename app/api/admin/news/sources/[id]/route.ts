@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -7,7 +8,7 @@ import { deleteNewsSource, getNewsSource, setNewsSourceActive, updateNewsSource,
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+async function PATCHHandler(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -45,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+async function DELETEHandler(_req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "delete");
   if (denied) return denied;
@@ -60,3 +61,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const PATCH = withSiteRevalidate(PATCHHandler);
+export const DELETE = withSiteRevalidate(DELETEHandler);

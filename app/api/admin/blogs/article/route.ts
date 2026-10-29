@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { requireApiPermission } from "@/lib/permissions";
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
 }
 
 // { articleId, action: "regenerate", index } -> rewrites one section, then re-checks facts.
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "articles", "update");
   if (denied) return denied;
@@ -32,3 +33,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: String(err?.message || err).slice(0, 300) }, { status: 400 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

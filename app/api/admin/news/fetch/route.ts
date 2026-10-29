@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 // Manual "Fetch now". Body: {} fetches every active source; { sourceId } tests one.
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -33,3 +34,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

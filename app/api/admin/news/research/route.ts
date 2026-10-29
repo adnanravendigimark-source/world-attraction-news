@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { dbErrorMessage } from "@/lib/db";
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
 }
 
 // Body: { clusterId }
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   const denied = await requireApiPermission(session, "news", "update");
   if (denied) return denied;
@@ -56,3 +57,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err?.message === "Story not found." ? err.message : dbErrorMessage(err), detail }, { status: 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

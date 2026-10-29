@@ -6,7 +6,8 @@ import { getEnabledSitemapByType, getStaticSitemapUrls, buildUrlsetXml } from "@
 // city, category, or article URL. 404s if this sitemap has been disabled
 // (or its config row deleted) from Admin -> SEO -> Sitemaps, so a disabled
 // sitemap can never still be reachable at its old URL.
-export const dynamic = "force-dynamic";
+// Cached for an hour (also purged on publish) instead of a DB query per crawler hit.
+export const revalidate = 3600;
 
 export async function GET() {
   const config = await getEnabledSitemapByType("STATIC");

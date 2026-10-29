@@ -12,10 +12,10 @@ import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 //
 // See app/(public)/page.tsx for why the DB read below goes through
 // unstable_cache instead of relying on `revalidate` alone.
-export const revalidate = 600;
+export const revalidate = 3600;
 
 const getCachedCities = unstable_cache(() => getCities(), ["about-page-cities"], {
-  revalidate: 600,
+  revalidate: 3600,
   tags: ["cities"],
 });
 

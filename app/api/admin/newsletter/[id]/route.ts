@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { toggleSubscriberStatus, deleteSubscriber } from "@/lib/newsletter";
@@ -6,7 +7,7 @@ import { requireApiPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(
+async function PATCHHandler(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
@@ -25,7 +26,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+async function DELETEHandler(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
@@ -40,3 +41,6 @@ export async function DELETE(
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const PATCH = withSiteRevalidate(PATCHHandler);
+export const DELETE = withSiteRevalidate(DELETEHandler);

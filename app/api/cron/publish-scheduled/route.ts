@@ -2,16 +2,17 @@ import { NextResponse } from "next/server";
 import { cronDenied } from "@/lib/cronAuth";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { publishDueScheduledArticles } from "@/lib/scheduling";
+import { revalidateSite } from "@/lib/revalidateSite";
 
 export const dynamic = "force-dynamic";
 
 // Meant to be hit on a regular interval by a platform scheduler (Vercel
-// Cron — see vercel.json, configured for every 5 minutes) so scheduled
+// Cron — see vercel.json, configured for every 3 hours) so scheduled
 // articles go live automatically without an admin needing to be online.
-// Also called defensively from every public content read in
-// lib/articles.ts, so this endpoint isn't the only thing making
-// "automatic" actually true — it's what makes it prompt rather than
-// "whenever the next visitor happens to load a page."
+// Runs every 3 hours (vercel.json) — public reads no longer call it, so a
+// cached page view never writes to the DB. Admin article lists still call it
+// (getAllArticles), so an editor looking at the dashboard also publishes
+// anything due.
 //
 // Protected by CRON_SECRET (set in your Vercel project's environment
 // variables) so this can't be triggered by anyone who finds the URL —
@@ -35,6 +36,8 @@ export async function GET(req: Request) {
     revalidatePath("/destinations", "layout");
     revalidateTag("homepage");
     revalidateTag("articles");
+    // Public pages are fully cached now; purge everything a new article can appear on.
+    revalidateSite();
   }
   return NextResponse.json({ ok: true, published: publishedCount });
 }

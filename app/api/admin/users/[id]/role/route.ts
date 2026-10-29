@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { findUserById, setUserRoleId } from "@/lib/users";
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 // Gated on the "roles" page's "update" permission, not "contributors" —
 // holding permission to edit contributor profiles should never imply the
 // ability to change what any admin account can access.
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+async function PATCHHandler(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -77,3 +78,5 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const PATCH = withSiteRevalidate(PATCHHandler);

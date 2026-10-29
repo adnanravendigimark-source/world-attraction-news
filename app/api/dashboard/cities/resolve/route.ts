@@ -1,3 +1,4 @@
+import { withSiteRevalidate } from "@/lib/revalidateSite";
 import { NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 // one already matches, otherwise creating a minimal new one. Requires any
 // signed-in session (contributor or admin), same as the geo/cities search
 // endpoint it pairs with.
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -44,3 +45,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: dbErrorMessage(err) }, { status: 500 });
   }
 }
+
+export const POST = withSiteRevalidate(POSTHandler);

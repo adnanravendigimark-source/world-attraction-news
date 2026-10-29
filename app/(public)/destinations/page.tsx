@@ -10,7 +10,7 @@ import { getStoryCountsByCountry } from "@/lib/articles";
 // Pure read, no searchParams (search/sort/filter is client-side over the
 // full list) — real ISR. City & country counts change slowly enough that a wider
 // window is safe; admin mutations call revalidatePath("/destinations").
-export const revalidate = 300;
+export const revalidate = 3600;
 
 const getDestinationsPageData = unstable_cache(
   async () => {
@@ -22,7 +22,7 @@ const getDestinationsPageData = unstable_cache(
     return { cities, countries, countryCounts };
   },
   ["destinations-page-data-v4"],
-  { revalidate: 300, tags: ["cities", "countries", "articles"] }
+  { revalidate: 3600, tags: ["cities", "countries", "articles"] }
 );
 
 export const metadata: Metadata = buildMetadata({
