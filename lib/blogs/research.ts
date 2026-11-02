@@ -141,6 +141,9 @@ const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
 // What the guide does with the subject, not the subject itself: "Where to
 // Buy Tickets for Barcelona's Attractions" is about "Attractions".
 const ACTION_WORDS = /\b(buy|buying|book|booking|bookings|reserve|reserving|tickets?|passes|pass|prices?|pricing|costs?|admission|entry|entrance|fees?|cheap|cheapest|discounts?|deals?|save|saving|money|skip|lines?|queues?|online|get|getting|use|using|options?)\b/gi;
+// Trip-length and quantity words: "How Many Days in Dubai?" is about Dubai
+// itself (no separate subject), not about "Many".
+const PLANNING_WORDS = /\b(many|much|few|several|enough|ideal|perfect|nights?|hours?|weeks?|months?|spend|stay|staying|length|duration|budget|trip|holiday|vacation|weekend|first|time|visit)\b/gi;
 
 export function topicSubject(title: string, destination: string): string {
   // sectionSubject drops filler and the destination name (lib/blogs/images.ts).
@@ -148,9 +151,9 @@ export function topicSubject(title: string, destination: string): string {
     .replace(/(^|\s)['’]s\b/g, " ") // "Barcelona's Attractions" -> " 's Attractions" after the name is removed
     .replace(/\s+/g, " ")
     .trim();
-  const subject = s.replace(ACTION_WORDS, " ").replace(/\s+/g, " ").trim();
-  // Keep the words when nothing else is left ("Tickets" alone is the subject).
-  return subject || s;
+  // Nothing left but filler ("How Many Days in Dubai?"): a guide to the
+  // destination itself, so every researched fact counts.
+  return s.replace(ACTION_WORDS, " ").replace(PLANNING_WORDS, " ").replace(/\s+/g, " ").trim();
 }
 
 // Words of the subject that identify it ("siam", "park").

@@ -119,3 +119,14 @@ describe("a ticket guide for a kind of place", () => {
     expect(factsAboutSubject(facts, topicSubject("Where to Buy Tickets for Barcelona's Attractions", "Barcelona, Spain"))).toBe(3);
   });
 });
+
+describe("topicSubject: trip-length guides", () => {
+  it("treats 'How Many Days in Dubai?' as a guide to Dubai itself", () => {
+    expect(topicSubject("How Many Days in Dubai? What to Expect From Your Trip", "Dubai, United Arab Emirates")).toBe("");
+    expect(topicSubject("How Much Time to Spend in Bali", "Bali, Indonesia")).toBe("");
+    expect(factsAboutSubject([{ claim: "Dubai has a desert climate." }], topicSubject("How Many Days in Dubai?", "Dubai"))).toBe(1);
+  });
+  it("still finds a named subject", () => {
+    expect(topicSubject("How Many Hours Do You Need at Siam Park?", "Tenerife, Spain")).toBe("Siam Park");
+  });
+});
