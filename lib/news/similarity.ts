@@ -66,6 +66,8 @@ const GENERIC_NAME_WORDS = new Set(
 );
 
 // Words that appear in every kind of travel story and so prove little.
+// What kind of thing a headline is about, not what happened to it.
+const KIND_WORDS = new Set(["cruise", "ship", "vessel", "liner", "ferry", "airline", "airport", "terminal", "plane", "aircraft", "hotel", "resort", "train", "rail", "station", "museum", "park", "beach", "tourist", "tourism", "traveller", "traveler", "passenger"]);
 const WEAK_WORDS = new Set(["change", "visitor", "rule", "introduce", "open", "increase", "first", "new", "update", "day", "week", "year"]);
 
 // Opposite actions: "PAL cancels Riyadh flights" and "Flyadeal launches
@@ -211,9 +213,18 @@ export function sameStoryPrepared(x: PreparedTitle, y: PreparedTitle): boolean {
   // For the looser place rule, at least two shared words must say what
   // happened ("flights", "attack"), not just that something changed for
   // visitors.
+  // Words that only say what kind of thing it is ("cruise ship", "airport",
+  // "hotel") don't count on their own: "Singapore cruise ship detects
+  // COVID-19 case" and "Never-Ending Cruise Ship to Sail to Singapore" share
+  // a place and "cruise ship" but are different events.
   let telling = 0;
-  for (const t of x.tokens) if (y.tokens.has(t) && !WEAK_WORDS.has(t) && !(x.ents.has(t) && y.ents.has(t))) telling++;
-  return telling >= 2;
+  let event = 0;
+  for (const t of x.tokens) {
+    if (!y.tokens.has(t) || WEAK_WORDS.has(t) || (x.ents.has(t) && y.ents.has(t))) continue;
+    telling++;
+    if (!KIND_WORDS.has(t)) event++;
+  }
+  return telling >= 2 && event >= 1;
 }
 
 export function sameStoryTitles(titleA: string, titleB: string, descA = "", descB = ""): boolean {

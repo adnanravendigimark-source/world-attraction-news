@@ -12,13 +12,25 @@ import { generateNewsArticle } from "@/lib/news/clientPipeline";
 
 const PAGE = 20;
 
-function ago(iso: string | null): string {
+function ago(iso: string | null, now = Date.now()): string {
   if (!iso) return "";
-  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  const mins = Math.max(0, Math.round((now - Date.parse(iso)) / 60000));
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins} min ago`;
   if (mins < 1440) return `${Math.round(mins / 60)} h ago`;
   return `${Math.round(mins / 1440)} d ago`;
+}
+
+// When a story was first reported (the earliest article's date), and when
+// newer coverage arrived if that was much later: "first reported 3 d ago ·
+// updated 2 h ago". Showing only the newest article made a story from
+// October 31 look two hours old. Pure; exported for tests.
+export function storyAge(s: { publishedFirstAt: string | null; firstSeenAt: string; lastSeenAt: string }, now = Date.now()): string {
+  const first = s.publishedFirstAt || s.firstSeenAt || s.lastSeenAt;
+  if (!first) return "";
+  const label = `first reported ${ago(first, now)}`;
+  const last = s.lastSeenAt;
+  return last && Date.parse(last) - Date.parse(first) > 12 * 3600_000 ? `${label} · updated ${ago(last, now)}` : label;
 }
 
 // Three states an editor cares about.
@@ -257,7 +269,7 @@ export default function NewsDesk({ lastFetchAt, canEdit }: { lastFetchAt: string
                   )}
                 </div>
                 <p className="mt-1 pl-10 text-xs text-ink-500">
-                  {[s.category, `${s.sourceCount} ${s.sourceCount === 1 ? "source" : "sources"}`, ago(s.lastSeenAt)].filter(Boolean).join(" · ")}
+                  {[s.category, `${s.sourceCount} ${s.sourceCount === 1 ? "source" : "sources"}`, storyAge(s)].filter(Boolean).join(" · ")}
                 </p>
                 {busy && <p className="mt-1 pl-10 text-xs font-medium text-blue-700">{generating!.text}</p>}
               </div>

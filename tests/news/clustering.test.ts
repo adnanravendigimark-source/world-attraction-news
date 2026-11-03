@@ -136,3 +136,16 @@ describe("automatic merge respects editor splits", () => {
     expect(planMerges([a, { ...b, keptApart: ["a"] }])).toEqual([]);
   });
 });
+
+import { sameStoryTitles as same2 } from "@/lib/news/similarity";
+describe("kind words are not proof of one event", () => {
+  it("keeps a Singapore COVID case apart from a ship sailing to Singapore", () => {
+    expect(same2("Singapore cruise ship detects COVID-19 case - Reuters", "Never-Ending Cruise Ship to Sail to Singapore Without Residents")).toBe(false);
+    expect(same2("Singapore cruise ship detects COVID-19 case - Reuters", "Never-Ending Cruise Ship That Abandoned Passengers in Cambodia Will Leave for Singapore")).toBe(false);
+  });
+  it("still groups one event told two ways", () => {
+    expect(same2("Never-Ending Cruise Ship That Abandoned Passengers in Cambodia Will Leave for Singapore", "Never-Ending Cruise Ship to Sail to Singapore Without Residents")).toBe(true);
+    expect(same2("Creditor takes control of cruise ship stranded in Cambodia - Khmer Times", "Stranded cruise ship crew stuck in Cambodia without pay - Khmer Times")).toBe(true);
+    expect(same2("Airlines suspend flights to Riyadh after attack", "Air India cancels Riyadh flights after attack on airport")).toBe(true);
+  });
+});
