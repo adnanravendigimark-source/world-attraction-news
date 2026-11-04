@@ -129,6 +129,15 @@ export function isOffTopicTitle(title: string): boolean {
   return OFF_TOPIC.test(title);
 }
 
+// A page found by searching for the topic must share a word with it or the
+// destination: a search for a Paris trip guide returned the Jules Verne
+// novel "From the Earth to the Moon". Pure; exported for tests.
+export function relatedTitle(pageTitle: string, words: string[], destination: string): boolean {
+  const have = new Set(fold(pageTitle).split(/[^a-z0-9]+/).filter((w) => w.length >= 4).map(stemWord));
+  const want = [...words, ...fold(destination).split(/[^a-z0-9]+/)].filter((w) => w.length >= 4).map((w) => stemWord(fold(w)));
+  return want.some((w) => have.has(w));
+}
+
 function destinationName(t: BlogTopic): string {
   return t.destination.split(",")[0].trim();
 }
@@ -255,7 +264,7 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
   for (const q of topicQueries(topic.topicType, dest, topic.title)) {
     if (wanted.length >= 5) break;
     for (const t of await wikiSearch("en.wikipedia.org", q.slice(0, 200), 3)) {
-      if (seen.has(t.toLowerCase()) || isOffTopicTitle(t)) continue;
+      if (seen.has(t.toLowerCase()) || isOffTopicTitle(t) || !relatedTitle(t, words, dest)) continue;
       seen.add(t.toLowerCase());
       wanted.push(["en.wikipedia.org", t, "Wikipedia"]);
       break; // best match per query
@@ -367,6 +376,10 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
       log: { promptVersion: BLOG_RESEARCH_PROMPT_VERSION },
       model,
       temperature: 0.1,
+      // gpt-6-luna with no reasoning sometimes returns an empty list for a
+      // broad topic ("How to Plan and Book a Trip to Paris": 0 facts; with
+      // low reasoning 28). Low costs about $0.0005 more per run.
+      reasoningEffort: "low",
       timeoutMs: 90_000,
       system: SYSTEM_PROMPT,
       user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nARTICLE TYPE: ${topic.topicType}${topic.angle ? `\nANGLE: ${topic.angle}` : ""}\n\n${blocks.join("\n\n---\n\n")}`,

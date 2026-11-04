@@ -130,3 +130,16 @@ describe("topicSubject: trip-length guides", () => {
     expect(topicSubject("How Many Hours Do You Need at Siam Park?", "Tenerife, Spain")).toBe("Siam Park");
   });
 });
+
+import { relatedTitle } from "@/lib/blogs/research";
+describe("pages found by topic search must be related", () => {
+  const words = ["ticket", "book", "plan", "book", "trip", "paris"];
+  it("drops an unrelated page", () => {
+    expect(relatedTitle("From the Earth to the Moon", words, "France")).toBe(false);
+  });
+  it("keeps pages that share a topic or place word", () => {
+    expect(relatedTitle("Paris Métro", words, "France")).toBe(true);
+    expect(relatedTitle("Rail transport in France", words, "France")).toBe(true);
+    expect(relatedTitle("Tuscan cuisine", ["cuisine", "food", "dishes"], "Florence")).toBe(true);
+  });
+});
