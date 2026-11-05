@@ -66,13 +66,15 @@ export async function listStories(
   const windowDays = await newsWindowDays();
 
   // Only stories with at least one clearly travel-related item are ever listed.
+  // The window ("last 24 hours") is about when a story was FIRST reported:
+  // a four-day-old story with one new article today is not today's news.
   const clusters = (await sql`
     SELECT c.*, (SELECT COALESCE(MAX(i.relevance_score), 0)::int FROM news_items i WHERE i.cluster_id = c.id) AS max_relevance,
            (SELECT i.filter_reason FROM news_items i WHERE i.cluster_id = c.id ORDER BY i.relevance_score DESC NULLS LAST LIMIT 1) AS rel_reason
     FROM story_clusters c
     WHERE EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = c.id AND i.relevance_score >= ${minRel})
       AND (${like} = '' OR canonical_title ILIKE ${like})
-      AND c.last_seen_at > now() - (${windowDays}::int * interval '1 day')
+      AND COALESCE(c.published_first_at, c.first_seen_at) > now() - (${windowDays}::int * interval '1 day')
       AND (c.readable_sources IS NULL OR c.readable_sources > 0)
       AND (${placeKey} = '' OR ((${placeKey} = ANY(c.places)
            OR EXISTS (SELECT 1 FROM news_items pi WHERE pi.cluster_id = c.id AND (pi.title ILIKE ${placeLike} OR pi.description ILIKE ${placeLike})))))
@@ -87,7 +89,7 @@ export async function listStories(
       SELECT COUNT(*)::int AS n FROM story_clusters c
       WHERE EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = c.id AND i.relevance_score >= ${minRel})
         AND (${like} = '' OR canonical_title ILIKE ${like}) AND (${category} = '' OR category = ${category}) AND source_count >= ${minSources}
-        AND c.last_seen_at > now() - (${windowDays}::int * interval '1 day')
+        AND COALESCE(c.published_first_at, c.first_seen_at) > now() - (${windowDays}::int * interval '1 day')
         AND (c.readable_sources IS NULL OR c.readable_sources > 0)
         AND (${placeKey} = '' OR ((${placeKey} = ANY(c.places)
              OR EXISTS (SELECT 1 FROM news_items pi WHERE pi.cluster_id = c.id AND (pi.title ILIKE ${placeLike} OR pi.description ILIKE ${placeLike})))))

@@ -20,7 +20,7 @@ export interface AutomationConfig {
   enabled: boolean;
   dailyTarget: number; // stories started per rolling 24h
   minScore: number; // minimum trend score
-  maxAgeHours: number; // ignore stories not seen within this window
+  maxAgeHours: number; // ignore stories first reported before this window
   draft: boolean; // create a draft after research
   image: boolean; // generate an AI cover after the draft
   inlinePhotos: boolean; // add a photo between paragraphs (150+ words)
@@ -114,7 +114,7 @@ export async function enqueueEligible(cfg?: AutomationConfig): Promise<{ queued:
     WHERE sc.status NOT IN ('ignored', 'merged')
       AND sc.trend_score >= ${c.minScore}
       AND EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = sc.id AND i.relevance_score >= ${minRel})
-      AND sc.last_seen_at > now() - (${c.maxAgeHours} * interval '1 hour')
+      AND COALESCE(sc.published_first_at, sc.first_seen_at) > now() - (${c.maxAgeHours} * interval '1 hour')
       AND NOT EXISTS (SELECT 1 FROM articles a WHERE a.news_cluster_id = sc.id)
       AND NOT EXISTS (SELECT 1 FROM news_jobs j WHERE j.cluster_id = sc.id AND j.kind = 'research'
                       AND (j.status IN ('queued', 'running', 'done', 'cancelled')
@@ -135,7 +135,7 @@ export async function countEligible(cfg?: AutomationConfig): Promise<number> {
     WHERE sc.status NOT IN ('ignored', 'merged')
       AND sc.trend_score >= ${c.minScore}
       AND EXISTS (SELECT 1 FROM news_items i WHERE i.cluster_id = sc.id AND i.relevance_score >= ${minRel})
-      AND sc.last_seen_at > now() - (${c.maxAgeHours} * interval '1 hour')
+      AND COALESCE(sc.published_first_at, sc.first_seen_at) > now() - (${c.maxAgeHours} * interval '1 hour')
       AND NOT EXISTS (SELECT 1 FROM articles a WHERE a.news_cluster_id = sc.id)
       AND NOT EXISTS (SELECT 1 FROM news_jobs j WHERE j.cluster_id = sc.id AND j.kind = 'research' AND j.status IN ('queued', 'running', 'done', 'cancelled'))`;
   return Number(r[0]?.n ?? 0);
