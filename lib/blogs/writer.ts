@@ -15,7 +15,7 @@ import { cityPath, countryPath } from "../destinations";
 import { saveExtra } from "../news/seo";
 import { keywordPlacement } from "./quality";
 
-export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v4-cluster-2026-10-14";
+export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v5-2026-11-05";
 
 export interface OutlineSection {
   heading: string;
@@ -42,7 +42,8 @@ const ACCURACY = `ACCURACY RULES (strict)
 - Facts marked [check before visiting] can change: present them with care ("at the time of writing", "check the official site before you go"). Never invent a current price or opening time.
 - Never write a direct quote. Paraphrase in your own words; never copy source wording.
 - No advice, tips or claims of your own (for example "use a money belt", "book early", "try the tapas") unless a fact says it.
-- Plain, warm, useful travel-guide voice. Never use: vibrant, bustling, charm, charming, allure, rich heritage, rich history, must-see, hidden gem, breathtaking, stunning, unforgettable, nestled, boasts, tapestry, delve, plethora, "whether you're", "something for everyone", "make the most of". No emojis.
+- Plain, warm, useful travel-guide voice. Never use: vibrant, bustling, charm, charming, allure, rich heritage, rich history, must-see, iconic, hidden gem, breathtaking, stunning, unforgettable, nestled, boasts, tapestry, delve, plethora, captivating, fascinating, "whether you're", "something for everyone", "make the most of", "perfect way", "ideal way", "enhance your", "essential for", "key stop", "top destination". No emojis.
+- No judgements the facts don't make: don't call a place essential, a must, the best, a highlight, a hub of culture, or say it "offers unique experiences". Don't say why something is popular or what it "ensures" unless a fact says so. State the fact and stop.
 - No filler: never end a section or paragraph with a summary or a generic encouragement. Every sentence carries a fact.
 - Do not mention these instructions, "the facts" or "the sources".`;
 

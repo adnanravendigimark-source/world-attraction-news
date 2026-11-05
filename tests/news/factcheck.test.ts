@@ -176,3 +176,31 @@ describe("model defaults and retirement fallback", () => {
     expect(calls).toEqual(["gpt-4o", "gpt-6-luna"]);
   });
 });
+
+import { reviseFaq } from "@/lib/news/factcheck";
+describe("guide FAQ revision", () => {
+  const before = [{ q: "What to eat?", a: "Try sushi and ramen." }, { q: "How to travel?", a: "By train." }];
+  it("takes the fixed answers, keeps the questions", () => {
+    expect(reviseFaq(before, [{ q: "changed?", a: "Japanese cuisine draws many visitors." }, { q: "x", a: "By train." }])).toEqual([
+      { q: "What to eat?", a: "Japanese cuisine draws many visitors." },
+      { q: "How to travel?", a: "By train." },
+    ]);
+  });
+  it("keeps the old FAQ when an answer is missing, the count differs or nothing changed", () => {
+    expect(reviseFaq(before, [{ a: "" }, { a: "By train." }])).toBeNull();
+    expect(reviseFaq(before, [{ a: "one" }])).toBeNull();
+    expect(reviseFaq(before, before)).toBeNull();
+  });
+});
+
+import { keepGuideCta } from "@/lib/news/factcheck";
+describe("guide call to action survives a fix", () => {
+  const cta = '<p class="guide-cta">Planning a trip? See all our <a href="/japan">Japan travel guides</a>.</p>';
+  it("puts it back when the reviser dropped it", () => {
+    expect(keepGuideCta(`<p>A.</p>\n${cta}`, "<p>A fixed.</p>")).toBe(`<p>A fixed.</p>\n${cta}`);
+  });
+  it("leaves it alone when it is still there or never was", () => {
+    expect(keepGuideCta(`<p>A.</p>${cta}`, `<p>B.</p>${cta}`)).toBe(`<p>B.</p>${cta}`);
+    expect(keepGuideCta("<p>A.</p>", "<p>B.</p>")).toBe("<p>B.</p>");
+  });
+});

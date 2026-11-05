@@ -20,7 +20,7 @@ import { recordAiRevision } from "./aiRevision";
 // Recorded with every check and revision call (ai_runs). Change them whenever
 // CHECK_PROMPT or REVISE_PROMPT changes.
 export const CHECK_PROMPT_VERSION = "news-check-2026-10-12";
-export const REVISE_PROMPT_VERSION = "news-revise-2026-10-12";
+export const REVISE_PROMPT_VERSION = "news-revise-2026-11-05";
 import { contentHash } from "./contentHash";
 import { dropFlagged, highlightLines, highlightsCheckHtml, highlightsFromRow, type NewsHighlights } from "./highlights";
 
@@ -346,10 +346,14 @@ async function loadBlogForCheck(articleId: string, a: any) {
   const { blogFactsText } = await import("../blogs/research");
   const facts = await blogFactsText(articleId);
   if (!facts) throw new Error("Run research for this blog's topic first.");
-  // FAQ answers are claims too.
-  const faq = (Array.isArray(a.faq) ? a.faq : []).map((f: any) => `<p>${f.q} ${f.a}</p>`).join("");
+  // FAQ answers are claims too; the questions are not (checking them only
+  // produced "This is a question and does not state a fact").
+  const faq = (Array.isArray(a.faq) ? a.faq : []).map((f: any) => `<p>${f.a}</p>`).join("");
   // Headings name sections, they don't state facts.
-  const body = String(a.content_html || "").replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, " ");
+  // Neither does the closing "See all our … travel guides" link.
+  const body = String(a.content_html || "")
+    .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, " ")
+    .replace(/<p class="guide-cta">[\s\S]*?<\/p>/gi, " ");
   return { article: { ...a, check_html: body + faq }, research: null, facts, blog: true };
 }
 
@@ -383,15 +387,25 @@ const REVISE_PROMPT = `You are revising a news article after a fact check. Fix O
 Remove or rewrite each flagged sentence so every claim, name, place and number is stated in the facts. Remove speculation and cause or purpose statements the facts don't give. Keep the rest of the article word for word, the same paragraphs (<p>, <ul>, <li>, <strong>, <a>; no headings), and a plain neutral tone. Do not add new content.
 Return JSON: {"body_html": "..."}`;
 
-const BLOG_REVISE_PROMPT = `You are revising a travel guide after a fact check. Fix ONLY the listed problems, using only the FACTS provided.
-Remove or rewrite each flagged sentence so every claim, name, place and number is stated in the facts. Remove advice or tips the facts don't give. Keep everything else word for word, including every <h2> and <h3> heading, the paragraphs and lists (<p>, <h2>, <h3>, <ul>, <li>, <strong>, <a>). Do not add new content.
-Return JSON: {"body_html": "..."}`;
+const BLOG_REVISE_PROMPT = `You are revising a travel guide after a fact check. Fix ONLY the listed problems, using only the FACTS provided. Problems can be in the ARTICLE HTML or in the FAQ answers.
+For each flagged sentence: keep the part the facts support and drop the rest. If a sentence states a fact plus a judgement ("X is a key stop", "this ensures a smooth trip", "a perfect way to unwind"), keep only the fact. If nothing in it is supported, delete the sentence. Replace flagged words (iconic, must-see, perfect way, enhance, significant, due to, as a result) with plain wording or remove them, unless the facts say it. Remove advice or tips the facts don't give.
+Keep everything else word for word, including every <h2> and <h3> heading, the paragraphs and lists (<p>, <h2>, <h3>, <ul>, <li>, <strong>, <a>), and every FAQ question. Do not add new content.
+Return JSON: {"body_html": "...", "faq": [{"q": "...", "a": "..."}]} with the FAQ in the same order.`;
 
 // Checks, and if the check fails, makes one automatic revision of the
 // failing sentences and checks again. Used right after the AI writes an
 // article (pipeline step and job). Never touches a published article.
 export async function checkAndRevise(articleId: string): Promise<{ check: FactCheck; revised: boolean; wordCount: number | null }> {
   let check = await factCheckArticle(articleId);
+  // Guides are fixed until they pass (up to two rounds), wording hints
+  // included; news only when the check fails.
+  const blog = (await sql`SELECT origin, type FROM articles WHERE id = ${articleId} LIMIT 1`.catch(() => []))[0] as any;
+  if (blog && blog.type !== "news" && blog.origin === "ai_blog") {
+    if (check.verdict === "passed") return { check, revised: false, wordCount: null };
+    const first = await reviseOnce(articleId, check);
+    if (!first.revised || first.check.verdict === "passed") return first.result;
+    return (await reviseOnce(articleId, first.check)).result;
+  }
   if (check.verdict !== "failed") return { check, revised: false, wordCount: null };
   // News boxes: a bullet the check flags is removed (never rewritten).
   const boxes = await dropFlaggedHighlights(articleId, check);
@@ -415,8 +429,11 @@ async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revise
   // problems with the news boxes are handled by dropFlaggedHighlights().
   const boxText = highlightLines(highlightsFromRow(article));
   const { boxIssues } = dropFlagged({ keyUpdates: boxText, travelerSteps: [] }, check.issues);
-  const high = check.issues.filter((i) => i.severity === "high" && !HEADLINE_ISSUE.test(i.text) && !boxIssues.has(i.text));
+  // Guides: every issue the check raised, wording hints too, so the guide can
+  // pass. News: only the high ones (news hints are left to the editor).
+  const high = check.issues.filter((i) => (blog || i.severity === "high") && !HEADLINE_ISSUE.test(i.text) && !boxIssues.has(i.text));
   if (high.length === 0) return none;
+  const faqIn = blog && Array.isArray(article.faq) ? article.faq : [];
   const { json } = await chatJson({
     kind: "revise",
     log: { articleId, promptVersion: REVISE_PROMPT_VERSION },
@@ -425,20 +442,45 @@ async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revise
     temperature: 0.1,
     timeoutMs: 75_000,
     system: blog ? BLOG_REVISE_PROMPT : REVISE_PROMPT,
-    user: `${facts}\n\nARTICLE HTML\n${current}\n\nPROBLEMS TO FIX\n${high.map((i) => `- "${i.text}": ${i.problem}`).join("\n")}`,
+    user: `${facts}\n\nARTICLE HTML\n${current}${faqIn.length ? `\n\nFAQ\n${JSON.stringify(faqIn)}` : ""}\n\nPROBLEMS TO FIX\n${high.map((i) => `- "${i.text}": ${i.problem}`).join("\n")}`,
   });
   let revised = sanitizeArticleHtml(String(json?.body_html || "")).trim();
   // Guides keep their section photos through a fix.
   if (blog && revised) {
     const { sectionFigures, restoreFigures } = await import("../blogs/images");
     revised = restoreFigures(revised, sectionFigures(String(article.content_html || "")));
+    revised = keepGuideCta(String(article.content_html || ""), revised);
   }
   const stats = computeContentStats(revised);
   if (!revised || stats.wordCount < 90) return none;
   await sql`UPDATE articles SET content_html = ${revised}, word_count = ${stats.wordCount}, reading_time_minutes = ${stats.readingTimeMinutes}, updated_at = now() WHERE id = ${articleId}`;
+  // Guides: fixed FAQ answers, only when every question came back.
+  const faqOut = blog ? reviseFaq(faqIn, json?.faq) : null;
+  if (faqOut) await sql`UPDATE articles SET faq = ${JSON.stringify(faqOut)}::jsonb WHERE id = ${articleId}`;
   await recordAiRevision(articleId, `AI revised ${high.length} sentence(s) the fact check flagged (${writerModel()}, ${REVISE_PROMPT_VERSION})`);
   check = await factCheckArticle(articleId);
   return { revised: true, check, blog: !!blog, result: { check, revised: true, wordCount: stats.wordCount } };
+}
+
+// The closing "See all our … travel guides" link survives a fix: the reviser
+// treated it as an unsupported sentence and deleted it. Pure; exported for tests.
+export function keepGuideCta(before: string, after: string): string {
+  const cta = before.match(/<p class="guide-cta">[\s\S]*?<\/p>/)?.[0];
+  if (!cta || after.includes('class="guide-cta"')) return after;
+  return `${after.trimEnd()}\n${cta}`;
+}
+
+// The reviser's FAQ, accepted only if it has the same questions in the same
+// order with non-empty answers; otherwise the old FAQ stays. Pure; exported for tests.
+export function reviseFaq(before: { q: string; a: string }[], after: unknown): { q: string; a: string }[] | null {
+  if (!Array.isArray(after) || before.length === 0 || after.length !== before.length) return null;
+  const out: { q: string; a: string }[] = [];
+  for (let i = 0; i < before.length; i++) {
+    const a = String((after[i] as any)?.a || "").replace(/<[^>]+>/g, "").trim();
+    if (!a) return null;
+    out.push({ q: before[i].q, a: a.slice(0, 800) });
+  }
+  return out.some((f, i) => f.a !== before[i].a) ? out : null;
 }
 
 // Removes Key Updates / What Travelers Should Do bullets that a failed check
