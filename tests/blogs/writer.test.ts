@@ -17,9 +17,12 @@ describe("blog outline", () => {
     expect(o.sections[2].facts).toEqual([5, 6]);
     expect(o.sections[3].facts).toEqual([7, 8]);
     const total = o.sections.reduce((n, s) => n + s.words, 0);
-    // 9 facts carry about 600 words at most, whatever the topic's maximum.
-    expect(total).toBeGreaterThan(400);
-    expect(total).toBeLessThan(560);
+    // 9 facts carry about 200 words; the guide is still the 500-word minimum
+    // (body 400), shared by each section's facts.
+    expect(o.recommendedWords).toBe(500);
+    expect(total).toBeGreaterThanOrEqual(395);
+    expect(total).toBeLessThanOrEqual(405);
+    expect(o.sections[0].words).toBeGreaterThan(o.sections[1].words); // 3 facts vs 2
   });
   it("refuses an outline with too little support", () => {
     expect(() => normalizeOutline({ sections: [{ heading: "A", facts: [0, 1] }] }, 2, 1000)).toThrow();
@@ -78,10 +81,22 @@ describe("on-page SEO checks", () => {
 
 describe("outline length follows the facts", () => {
   it("never asks for more words than the facts can carry", () => {
-    const facts = 14;
-    const sections = [0, 1, 2].map((i) => ({ heading: `S${i}`, words: 300, facts: [i * 2, i * 2 + 1] }));
-    const o = normalizeOutline({ title: "t", recommended_words: 2000, sections }, facts, 1800);
-    expect(o.recommendedWords).toBe(630);
+    // 3 sections of 10 facts: 30 facts x 22 words = 660 body words, 825 in all.
+    const sections = [0, 1, 2].map((i) => ({ heading: `S${i}`, words: 300, facts: Array.from({ length: 10 }, (_, k) => i * 10 + k) }));
+    const o = normalizeOutline({ title: "t", recommended_words: 2000, sections }, 30, 1800);
+    expect(o.recommendedWords).toBe(825);
+    expect(o.sections.map((s) => s.words)).toEqual([220, 220, 220]);
+  });
+  it("a section's words follow its facts, not the model's guess", () => {
+    const o = normalizeOutline({ title: "t", recommended_words: 3000, sections: [
+      { heading: "Transport", words: 200, facts: Array.from({ length: 15 }, (_, k) => k) },
+      { heading: "Food", words: 400, facts: [15, 16] },
+      { heading: "Tips", words: 400, facts: [17, 18] },
+      { heading: "Regions", words: 400, facts: [19, 20, 21, 22, 23, 24, 25] },
+    ] }, 34, 1900);
+    const byName = Object.fromEntries(o.sections.map((s) => [s.heading, s.words]));
+    expect(byName.Transport).toBeGreaterThan(byName.Regions);
+    expect(byName.Food).toBeLessThan(100); // 2 facts: ~60-80 words, not 170
   });
 });
 
@@ -112,5 +127,20 @@ describe("tidyStyle: must-see", () => {
     expect(tidyStyle2("The towers are a must-see.")).toBe("The towers are a highlight.");
     expect(tidyStyle2("Visit this must-see museum.")).toBe("Visit this top museum.");
     expect(tidyStyle2("Must-see sights include the towers.")).toBe("Top sights include the towers.");
+  });
+});
+
+describe("outline uses the facts the model skipped", () => {
+  it("adds each skipped fact to the section with the same subtopic", () => {
+    const sub = ["seasons", "seasons", "transport", "transport", "food", "food", "seasons", "transport", "history"];
+    const o = normalizeOutline({ title: "t", sections: [
+      { heading: "Weather", facts: [0, 1] },
+      { heading: "Getting Around", facts: [2, 3] },
+      { heading: "Food", facts: [4, 5] },
+    ] }, 9, 1500, sub);
+    const by = Object.fromEntries(o.sections.map((s) => [s.heading, s.facts]));
+    expect(by.Weather).toEqual([0, 1, 6]);
+    expect(by["Getting Around"]).toEqual([2, 3, 7]);
+    expect(o.sections.flatMap((s) => s.facts)).not.toContain(8); // no history section: left out
   });
 });

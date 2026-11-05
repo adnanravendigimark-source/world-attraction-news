@@ -204,3 +204,22 @@ describe("guide call to action survives a fix", () => {
     expect(keepGuideCta("<p>A.</p>", "<p>B.</p>")).toBe("<p>B.</p>");
   });
 });
+
+import { hashMatches } from "@/lib/news/contentHash";
+describe("fact check fingerprint", () => {
+  it("adding a link next to punctuation doesn't make the check stale", () => {
+    const before = "<p>Visit Tokyo, Kyoto and Osaka.</p>";
+    const after = '<p>Visit <a href="/japan/tokyo">Tokyo</a>, Kyoto and <strong>Osaka</strong>.</p>';
+    expect(contentHash(after)).toBe(contentHash(before));
+  });
+  it("a word change still does", () => {
+    expect(contentHash("<p>Visit Tokyo, Kyoto.</p>")).not.toBe(contentHash("<p>Visit Tokyo, Nara.</p>"));
+  });
+  it("checks saved with the old fingerprint still match unchanged text", () => {
+    const html = '<p>Visit <a href="/x">Tokyo</a>, Kyoto.</p>';
+    const { createHash } = require("crypto");
+    const legacy = createHash("sha256").update(html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()).digest("hex").slice(0, 32);
+    expect(hashMatches(legacy, html)).toBe(true);
+    expect(hashMatches(legacy, '<p>Visit <a href="/x">Tokyo</a>, Nara.</p>')).toBe(false);
+  });
+});

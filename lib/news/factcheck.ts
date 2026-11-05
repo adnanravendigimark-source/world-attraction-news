@@ -19,9 +19,9 @@ import { recordAiRevision } from "./aiRevision";
 
 // Recorded with every check and revision call (ai_runs). Change them whenever
 // CHECK_PROMPT or REVISE_PROMPT changes.
-export const CHECK_PROMPT_VERSION = "news-check-2026-10-12";
+export const CHECK_PROMPT_VERSION = "news-check-2026-11-05";
 export const REVISE_PROMPT_VERSION = "news-revise-2026-11-05";
-import { contentHash } from "./contentHash";
+import { contentHash, hashMatches } from "./contentHash";
 import { dropFlagged, highlightLines, highlightsCheckHtml, highlightsFromRow, type NewsHighlights } from "./highlights";
 
 export type Verdict = "passed" | "needs_review" | "failed";
@@ -259,10 +259,15 @@ Rules: a cause or purpose ("because", "due to", "to boost") is supported only if
 Skip sentences that state no fact.
 Return JSON: {"claims":[{"text":"exact sentence","supported":true,"facts":["F1"]},{"text":"...","supported":false,"facts":[],"problem":"...","severity":"high"}]}`;
 
+// Guides are written from reference pages (Wikivoyage, Wikipedia, official
+// sites), where nearly every fact has one source: attribution isn't needed.
+const GUIDE_NOTE = `\nThis ARTICLE is a travel guide written from reference pages, not news: a fact stated by one source needs no attribution, and a single-source fact stated plainly is supported.`;
+
 export async function modelCheck(
   html: string,
   facts: string,
-  log?: { articleId?: string; clusterId?: string | null }
+  log?: { articleId?: string; clusterId?: string | null },
+  opts: { guide?: boolean } = {}
 ): Promise<{ claims: CheckedClaim[]; issues: FactIssue[]; model: string }> {
   const { json, model } = await chatJson({
     kind: "check",
@@ -272,7 +277,7 @@ export async function modelCheck(
     // A reasoning model checks claims more carefully with a little thinking.
     reasoningEffort: checkEffort(),
     timeoutMs: 75_000,
-    system: CHECK_PROMPT,
+    system: opts.guide ? CHECK_PROMPT + GUIDE_NOTE : CHECK_PROMPT,
     user: `FACTS\n${facts}\n\nARTICLE\n${plain(html)}`,
   });
   const claims: CheckedClaim[] = [];
@@ -320,7 +325,7 @@ export async function getFactCheck(articleId: string): Promise<FactCheck | null>
       model: r.model || "",
       checkedAt: new Date(r.checked_at).toISOString(),
       // Checks saved before hashes existed have no hash: treat as current.
-      stale: !!r.content_hash && r.content_hash !== contentHash(String(r.content_html || ""), highlightLines(highlightsFromRow(r))),
+      stale: !!r.content_hash && !hashMatches(r.content_hash, String(r.content_html || ""), highlightLines(highlightsFromRow(r))),
     };
   } catch {
     return null;
@@ -373,11 +378,11 @@ async function loadForCheck(articleId: string): Promise<{ article: any; research
 
 // Checks the article's current text. Never changes the article.
 export async function factCheckArticle(articleId: string): Promise<FactCheck> {
-  const { article, facts } = await loadForCheck(articleId);
+  const { article, facts, blog } = await loadForCheck(articleId);
   const raw = String(article.content_html || "");
   const html = stripOurFigures(String(article.check_html ?? raw)); // photo captions aren't claims
   const rules = [...ruleIssues(html, facts), ...(article.type === "news" ? headlineIssues(article, facts) : [])];
-  const m = await modelCheck(html, facts, { articleId, clusterId: article.news_cluster_id ? String(article.news_cluster_id) : null });
+  const m = await modelCheck(html, facts, { articleId, clusterId: article.news_cluster_id ? String(article.news_cluster_id) : null }, { guide: !!blog });
   const issues = [...rules, ...m.issues];
   await saveCheck(articleId, verdictFor(issues), issues, m.claims, m.model, contentHash(raw, highlightLines(highlightsFromRow(article))));
   return (await getFactCheck(articleId)) as FactCheck;

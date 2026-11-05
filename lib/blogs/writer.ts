@@ -15,7 +15,7 @@ import { cityPath, countryPath } from "../destinations";
 import { saveExtra } from "../news/seo";
 import { keywordPlacement } from "./quality";
 
-export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v5-2026-11-05";
+export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v6-2026-11-05";
 
 export interface OutlineSection {
   heading: string;
@@ -78,11 +78,11 @@ First work out the SEO plan:
 - primary_keyword: the 2-5 word phrase people would type (for example "best time to visit Barcelona").
 - secondary_keywords: 3 to 5 related phrases and variants.
 - reader_questions: 4 to 6 questions searchers commonly ask about this topic that the facts can answer.
-- recommended_words: the length that fully answers the intent without padding, given how much the facts cover (never more than the MAX LENGTH).
+- recommended_words: the length that fully answers the intent without padding, given how much the facts cover (about 22 words per fact; never more than the MAX LENGTH).
 Then make the outline:
 - 4 to 8 sections with clear H2 headings that a traveller would scan for. Headings are plain and specific ("Weather in Barcelona by Season", "Getting Around"), not clever.
-- For each section: intent (one sentence: what the reader learns), words (its share of the target length), and facts (the numbers of the facts it uses; every section needs at least 2; a fact may be used in only one section).
-- Leave out sections the facts can't support. Do not plan an introduction, conclusion or FAQ section; those are written separately.
+- For each section: intent (one sentence: what the reader learns), words (its share of the target length), and facts (the numbers of the facts it uses; every section needs at least 3; a fact may be used in only one section). Merge thin subjects into a neighbouring section rather than giving them their own.
+- Use every fact somewhere: each fact number should appear in exactly one section (skip only facts that don't fit this topic at all). Leave out sections the facts can't support. Do not plan an introduction, conclusion or FAQ section; those are written separately.
 - Cover the searcher's main questions; put the most searched-for answer first. The FIRST H2 must contain the primary keyword (or a close variant with the same main words), naturally.
 - title: the H1 headline: contains the primary keyword near the start, specific, under 65 characters, no year, no clickbait.
 If a SERIES PLAN is given, this article is one of a set about the same topic:
@@ -90,7 +90,10 @@ If a SERIES PLAN is given, this article is one of a set about the same topic:
 - Keep to this article's own purpose (its NEED). Subjects that OTHER ARTICLES IN THE SERIES cover get at most a sentence here, never their own section.
 Return JSON: {"title","search_intent","primary_keyword","secondary_keywords","reader_questions","recommended_words","sections":[{"heading","intent","words","facts"}]}`;
 
-export function normalizeOutline(raw: any, factCount: number, targetWords: number): BlogOutline {
+export const WORDS_PER_FACT = 22; // measured: fact-checked guides keep about 19-24 words per fact
+const MIN_GUIDE_WORDS = 500;
+
+export function normalizeOutline(raw: any, factCount: number, targetWords: number, subtopics: string[] = []): BlogOutline {
   const used = new Set<number>();
   const planned: OutlineSection[] = [];
   for (const s of Array.isArray(raw?.sections) ? raw.sections : []) {
@@ -110,6 +113,23 @@ export function normalizeOutline(raw: any, factCount: number, targetWords: numbe
     while (sec.facts.length < 2 && unused.length) sec.facts.push(unused.shift()!);
   }
   const sections = planned.filter((sec) => sec.facts.length >= 2);
+  // The model leaves facts out even when told to use them all (27 of 43 on
+  // one guide), and the sections it did plan then get padded. Each fact it
+  // skipped goes to the section that already holds most facts of the same
+  // subtopic (weather facts to the weather section); a fact whose subtopic no
+  // section has stays out.
+  if (subtopics.length) {
+    for (const f of unused.splice(0)) {
+      const topic = subtopics[f];
+      let best: OutlineSection | null = null;
+      let bestCount = 0;
+      for (const sec of sections) {
+        const n = sec.facts.filter((x) => subtopics[x] === topic).length;
+        if (n > bestCount) [best, bestCount] = [sec, n];
+      }
+      if (best) best.facts.push(f);
+    }
+  }
   if (sections.length < 3) {
     throw new Error(
       factCount < 12
@@ -117,13 +137,18 @@ export function normalizeOutline(raw: any, factCount: number, targetWords: numbe
         : "The outline came back with too few sections. Click Generate again; if it repeats, add a page about the topic as a source."
     );
   }
-  // Length follows the intent and the facts, up to the topic's maximum:
-  // roughly 45 words per cited fact is what the facts can carry without padding.
+  // Length follows the facts each section has: about WORDS_PER_FACT words per
+  // fact is what survives the fact check (the Japan guide was planned at 45
+  // per fact, 1530 words; after the check removed the padding, 579 were
+  // left). Sections get their share by their facts, not by the model's
+  // guess, so a 2-fact section is never asked for 170 words. The guide is at
+  // least MIN_GUIDE_WORDS (the publish gate) and at most the topic's maximum.
   const recommended = Math.round(Number(raw?.recommended_words) || targetWords);
-  const length = Math.max(600, Math.min(recommended, Math.round(targetWords * 1.2), factCount * 45));
-  const body = Math.round(length * 0.8);
-  const sum = sections.reduce((n, s) => n + s.words, 0) || 1;
-  for (const s of sections) s.words = Math.max(120, Math.round((s.words / sum) * body));
+  const factWords = sections.reduce((n, s) => n + s.facts.length, 0) * WORDS_PER_FACT;
+  const length = Math.max(MIN_GUIDE_WORDS, Math.min(recommended, Math.round(targetWords * 1.2), Math.round(factWords / 0.8)));
+  const body = Math.round(length * 0.8); // intro and conclusion take the rest
+  const factSum = sections.reduce((n, s) => n + s.facts.length, 0) || 1;
+  for (const s of sections) s.words = Math.max(80, Math.round((s.facts.length / factSum) * body));
   const list = (v: any, n: number, max: number) =>
     (Array.isArray(v) ? v : []).map((x: any) => String(x || "").trim().slice(0, max)).filter(Boolean).slice(0, n);
   return {
@@ -167,7 +192,7 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
     system: OUTLINE_PROMPT,
     user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nTYPE: ${topic.topicType}\nMAX LENGTH: ${topic.targetWords} words${topic.angle ? `\nANGLE: ${topic.angle}` : ""}${seriesBrief(topic, siblings)}\n\nFACTS:\n${factLines(research.facts)}`,
   });
-  const outline = normalizeOutline(json, research.facts.length, topic.targetWords);
+  const outline = normalizeOutline(json, research.facts.length, topic.targetWords, research.facts.map((f) => f.subtopic));
   // The cluster plan decides the keyword, so two articles never compete for one query.
   if (topic.plan?.primaryKeyword) outline.primaryKeyword = topic.plan.primaryKeyword;
   if (!outline.title) outline.title = topic.title;
@@ -178,7 +203,7 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
 // ------------------------------------------------------------------ sections
 
 const SECTION_PROMPT = `You write ONE section of a travel guide, under a heading that is added separately.
-- Write at least the target number of words (it is a minimum; up to 20% more is fine) by using every fact given, explained with useful detail. Short paragraphs (2-4 sentences). Use <h3> sub-headings only if the section covers several distinct places or items. Use a <ul> only for a real list (places, dishes, tips).
+- Use every fact given, explained with useful detail, in about the target number of words. The target is a ceiling, not a minimum: when the facts are used up, stop. Never fill space with general statements, judgements or encouragement. Short paragraphs (2-4 sentences). Use <h3> sub-headings only if the section covers several distinct places or items. Use a <ul> only for a real list (places, dishes, tips).
 - Start straight in; do not repeat the heading or introduce the article.
 - Use the keywords only where they read naturally (at most once or twice in the section); never stuff them.
 - Readability: simple words, sentences under 22 words on average, one idea per paragraph. Use a <ul> when listing 3 or more places, dishes or tips.

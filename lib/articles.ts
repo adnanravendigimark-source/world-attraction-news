@@ -4,7 +4,7 @@ import { publishDueScheduledArticles } from "./scheduling";
 import type { ModerationSignals } from "./moderation";
 import { sanitizeArticleHtml, stripLinkTags } from "./sanitizeHtml";
 import { slugifyCountry } from "./countries";
-import { contentHash } from "./news/contentHash";
+import { hashMatches } from "./news/contentHash";
 import { highlightsFromRow, highlightLines } from "./news/highlights";
 import { dedupeSources } from "./news/sourceNames";
 
@@ -1075,7 +1075,7 @@ export async function newsPublishProblems(
     const c = chk[0];
     if (!c) {
       if (a.news_cluster_id || blog) problems.push("Run the fact check before publishing.");
-    } else if (c.content_hash && c.content_hash !== contentHash(html, highlightLines(highlightsFromRow(a)))) {
+    } else if (c.content_hash && !hashMatches(c.content_hash, html, highlightLines(highlightsFromRow(a)))) {
       problems.push("The article changed after the last fact check. Re-run the check.");
     } else if ((c.verdict === "fail" || c.verdict === "failed") && !c.overridden) {
       problems.push("The fact check found unsupported claims. Fix them and re-run the check, or approve the override with a reason.");

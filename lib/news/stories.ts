@@ -1,7 +1,7 @@
 import { sql } from "../db";
 import { newsWindowDays } from "./trend";
 import { loadFilterConfig } from "./filter";
-import { contentHash } from "./contentHash";
+import { hashMatches } from "./contentHash";
 import { highlightsFromRow, highlightLines } from "./highlights";
 import { storyPipeline, type StoryPipeline } from "./stage";
 import { loadGazetteer, resolvePlace } from "./places";
@@ -159,7 +159,7 @@ export async function listStories(
           }
         : null,
       check: a?.verdict
-        ? { verdict: a.verdict, overridden: !!a.overridden, stale: !!a.content_hash && a.content_hash !== contentHash(html, highlightLines(highlightsFromRow(a))) }
+        ? { verdict: a.verdict, overridden: !!a.overridden, stale: !!a.content_hash && !hashMatches(a.content_hash, html, highlightLines(highlightsFromRow(a))) }
         : null,
     });
   };

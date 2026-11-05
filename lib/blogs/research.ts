@@ -11,10 +11,10 @@ import { researchModel } from "../news/research";
 import { getTopic, type BlogTopic } from "./topics";
 import { sectionSubject } from "./images";
 
-export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-v2-2026-10-14";
+export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-v3-2026-11-05";
 const UA = "WorldAttractionNewsBot/1.0 (https://www.worldattractionnews.com; research)";
 const PER_SOURCE = 6000;
-const TOTAL = 26000;
+const TOTAL = 42000; // up to 7 pages; broad guides ran out of facts at 4 pages
 export const MIN_FACTS = 12;
 export const MIN_SUBJECT_FACTS = 6; // facts about the topic's own subject (e.g. Siam Park)
 
@@ -112,10 +112,10 @@ export function topicQueries(type: string, dest: string, title: string): string[
     best_time: [`Climate of ${dest}`, `${dest} festivals`],
     history: [`History of ${dest}`],
     food: [`${dest} cuisine`, `cuisine of ${dest}`],
-    attractions: [`Tourism in ${dest}`, `Culture of ${dest}`],
-    things_to_do: [`Tourism in ${dest}`, `Culture of ${dest}`],
-    itinerary: [`Tourism in ${dest}`, `Transport in ${dest}`],
-    travel_guide: [`Tourism in ${dest}`, `Transport in ${dest}`],
+    attractions: [`Tourism in ${dest}`, `Culture of ${dest}`, `Architecture of ${dest}`],
+    things_to_do: [`Tourism in ${dest}`, `Culture of ${dest}`, `${dest} cuisine`, `Transport in ${dest}`],
+    itinerary: [`Tourism in ${dest}`, `Transport in ${dest}`, `Culture of ${dest}`],
+    travel_guide: [`Tourism in ${dest}`, `Transport in ${dest}`, `Culture of ${dest}`, `${dest} cuisine`, `Climate of ${dest}`],
     tickets: [title.replace(/\b(tickets?|how to book|guide|prices?)\b/gi, "").trim() || title],
   };
   // The topic title itself only for tickets (it names the attraction); for
@@ -262,7 +262,7 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
   wanted.push(["en.wikivoyage.org", dest, "Wikivoyage"], ["en.wikipedia.org", dest, "Wikipedia"]);
   // Pages about the topic itself, e.g. "Uffizi" or "Tuscan cuisine".
   for (const q of topicQueries(topic.topicType, dest, topic.title)) {
-    if (wanted.length >= 5) break;
+    if (wanted.length >= 7) break;
     for (const t of await wikiSearch("en.wikipedia.org", q.slice(0, 200), 3)) {
       if (seen.has(t.toLowerCase()) || isOffTopicTitle(t) || !relatedTitle(t, words, dest)) continue;
       seen.add(t.toLowerCase());
@@ -271,7 +271,7 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
     }
   }
 
-  for (const [host, title, publisher] of wanted.slice(0, 5)) {
+  for (const [host, title, publisher] of wanted.slice(0, 7)) {
     if (total >= TOTAL) break;
     const page = await wikiExtract(host, title).catch(() => null);
     if (page) add(page.title, page.url, publisher, page.text);
@@ -308,7 +308,7 @@ Rules:
 - subtopic: one of places, practical, tickets, seasons, transport, food, history, other.
 - volatile: true ONLY for things that can change and must be checked before visiting: prices, fees, opening hours, ticket and booking rules, entry or visa rules, timetables, temporary closures. Climate, weather, seasons, history, geography and descriptions of places are NOT volatile.
 - Prefer facts relevant to the TOPIC; include background facts only when they help the article.
-- Return 25 to 45 facts when the sources allow; fewer if they don't. Never pad.
+- Return 30 to 60 facts when the sources allow; fewer if they don't. Never pad.
 Return JSON: {"facts":[{"subtopic","claim","sources","volatile"}]}`;
 
 export function normalizeBlogFacts(raw: any, sourceNumbers: number[]): BlogFact[] {
