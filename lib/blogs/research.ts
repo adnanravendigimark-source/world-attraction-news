@@ -10,6 +10,7 @@ import { chatJson } from "../news/aiClient";
 import { researchModel } from "../news/research";
 import { getTopic, type BlogTopic } from "./topics";
 import { sectionSubject } from "./images";
+import { buildGazetteer, findPlaces } from "../news/places";
 
 export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-v3-2026-11-05";
 const UA = "WorldAttractionNewsBot/1.0 (https://www.worldattractionnews.com; research)";
@@ -190,6 +191,23 @@ export function isKindSubject(subject: string): boolean {
   return words.length > 0 && words.every((w) => KIND_WORDS.has(w));
 }
 
+// Other names for a country that aren't in the place list ("America
+// Travel Guide" is about the United States).
+const PLACE_NICKNAMES = /^(america|the states|holland|britain|great britain|england|scotland|wales|the uk)$/i;
+const GAZETTEER = buildGazetteer();
+
+// True when the subject is one named place or attraction with its own page:
+// the Wikipedia page found for it was read and its title has every word of
+// the subject, and the subject isn't a city, country or region (those are
+// the destination itself). Pure; exported for tests.
+export function isNamedSubject(subject: string, pageRead: string): boolean {
+  if (!subject || !pageRead) return false;
+  if (PLACE_NICKNAMES.test(subject.trim()) || findPlaces(subject, GAZETTEER).length > 0) return false;
+  const have = new Set(fold(pageRead).split(/[^a-z0-9]+/).map(stemWord));
+  const want = subjectWords(subject).map(stemWord);
+  return want.length > 0 && want.every((w) => have.has(w));
+}
+
 // How many facts are about the subject. Pure; exported for tests.
 export function factsAboutSubject(facts: { claim: string; subtopic?: string }[], subject: string): number {
   const words = subjectWords(subject).map(stemWord);
@@ -224,7 +242,7 @@ async function officialSite(wikiTitle: string): Promise<string> {
 }
 
 // Collects source text for the topic. Exported for tests with fetch mocked.
-export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []): Promise<{ sources: BlogSource[]; blocks: string[] }> {
+export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []): Promise<{ sources: BlogSource[]; blocks: string[]; subjectPage: string }> {
   const dest = destinationName(topic);
   const words = [...(TYPE_WORDS[topic.topicType] || []), ...topic.title.toLowerCase().split(/\W+/).filter((w) => w.length > 3)];
   const sources: BlogSource[] = [];
@@ -249,9 +267,11 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
   const subject = topicSubject(topic.title, topic.destination);
   let subjectPage = "";
   if (subject) {
-    const sw = subjectWords(subject);
+    // Same rule as the subject check: a page that names every word of the
+    // subject, and never for a place ("America" found "Native Americans in
+    // the United States").
     for (const t of await wikiSearch("en.wikipedia.org", `${subject} ${dest}`.slice(0, 200), 5)) {
-      if (isOffTopicTitle(t) || !sw.some((w) => fold(t).includes(w))) continue;
+      if (isOffTopicTitle(t) || !isNamedSubject(subject, t)) continue;
       subjectPage = t;
       seen.add(t.toLowerCase());
       wanted.push(["en.wikipedia.org", t, "Wikipedia"]);
@@ -297,7 +317,9 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
     if (page.ok) add(page.title || url, page.finalUrl || url, host, page.text.replace(/\. /g, ".\n"));
     else sources.push({ n: sources.length + 1, title: url, url, publisher: host, ok: false, chars: 0, note: page.error || "could not read" });
   }
-  return { sources, blocks };
+  // The subject's own page, only if it was found and read.
+  const read = subjectPage && sources.some((s) => s.ok && s.publisher === "Wikipedia" && fold(s.title) === fold(subjectPage)) ? subjectPage : "";
+  return { sources, blocks, subjectPage: read };
 }
 
 const SYSTEM_PROMPT = `You are a careful research assistant for a travel website. Extract FACTS for one article from the numbered sources.
@@ -364,7 +386,7 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
     return (await getLatestBlogResearch(topicId))!;
   };
 
-  const { sources, blocks } = await gatherSources(topic, urls).catch(() => ({ sources: [] as BlogSource[], blocks: [] as string[] }));
+  const { sources, blocks, subjectPage } = await gatherSources(topic, urls).catch(() => ({ sources: [] as BlogSource[], blocks: [] as string[], subjectPage: "" }));
   // Never write from model memory: no readable source, no AI call.
   if (blocks.length === 0) {
     return fail("No source could be read for this topic. Add a page about it (for example the official tourism site) and run research again.", sources);
@@ -393,7 +415,12 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
   }
   // Enough facts about the destination isn't enough: the article needs facts
   // about its own subject, or the outline can't be built from them.
-  const subject = topicSubject(topic.title, topic.destination);
+  // Only for a subject that is clearly one named place with its own page
+  // (Siam Park, Sagrada Família). Guessed subjects ("Beaches", "Many",
+  // "America") failed guides every few days; for those the minimum of
+  // MIN_FACTS facts is the only rule.
+  const guessed = topicSubject(topic.title, topic.destination);
+  const subject = isNamedSubject(guessed, subjectPage) ? guessed : "";
   const about = factsAboutSubject(facts, subject);
   if (subject && about < MIN_SUBJECT_FACTS) {
     return fail(

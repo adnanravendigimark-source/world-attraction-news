@@ -143,3 +143,28 @@ describe("pages found by topic search must be related", () => {
     expect(relatedTitle("Tuscan cuisine", ["cuisine", "food", "dishes"], "Florence")).toBe(true);
   });
 });
+
+import { isNamedSubject } from "@/lib/blogs/research";
+describe("subject check only for a named place with its own page", () => {
+  it("runs for an attraction whose page was read", () => {
+    expect(isNamedSubject("Siam Park", "Siam Park")).toBe(true);
+    expect(isNamedSubject("Sagrada Família", "Sagrada Família")).toBe(true);
+  });
+  it("skips guessed subjects and places (every headline that failed before)", () => {
+    const cases: [string, string, string][] = [
+      ["America Travel Guide: How to Plan a Trip to the United States", "United States", "Americas"],
+      ["How to Choose and Book an Alaska Vacation", "Alaska", ""],
+      ["How Many Days in Dubai? What to Expect From Your Trip", "Dubai", ""],
+      ["Where to Buy Tickets for Barcelona's Attractions", "Barcelona, Spain", "Tourism in Barcelona"],
+      ["Best Beaches in Tenerife: Sun, Sand and Surf Spots", "Tenerife, Spain", ""],
+    ];
+    for (const [title, dest, page] of cases) {
+      const subject = topicSubject(title, dest);
+      expect(isNamedSubject(subject, page), `${title} -> "${subject}"`).toBe(false);
+    }
+  });
+  it("skips when no page was read, or the page is about something else", () => {
+    expect(isNamedSubject("Siam Park", "")).toBe(false);
+    expect(isNamedSubject("Colosseum Arena", "Colosseum")).toBe(false);
+  });
+});
