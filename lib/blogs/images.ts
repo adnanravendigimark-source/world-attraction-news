@@ -6,6 +6,7 @@
 import { sql } from "../db";
 import { computeContentStats } from "../articles";
 import { altForPhoto, captionHtml, creditLine, figureHtml, findPhoto, storePhoto, stripOurFigures, type FoundPhoto } from "../news/media";
+import { buildGazetteer, findPlaces } from "../news/places";
 import { saveCoverSize, saveImageMeta } from "../news/images";
 import { generateCoverImage } from "../news/imagegen";
 import { recordAiRevision } from "../news/aiRevision";
@@ -34,6 +35,28 @@ export function photoSections(count: number): number[] {
   return out.slice(0, 4);
 }
 
+// Alt text that says what and where: a stock description that doesn't name
+// the place ("Brown concrete building under gray sky") is prefixed with the
+// section's subject and the place. Pure; exported for tests.
+export function labelledAlt(alt: string, subject: string, place: string): string {
+  const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const names = [subject, place].map((x) => fold(String(x || "")).split(/[^a-z0-9]+/).filter((w) => w.length >= 4)).flat();
+  if (!alt || names.some((w) => fold(alt).includes(w))) return alt;
+  const label = subject && !fold(subject).includes(fold(place)) ? `${subject}, ${place}` : place;
+  return label ? `${label}: ${alt.charAt(0).toLowerCase()}${alt.slice(1)}`.slice(0, 160) : alt;
+}
+
+// The one city of `country` named in a guide's title, if exactly one is.
+// Pure; exported for tests.
+const GAZ = buildGazetteer();
+export function titleCity(title: string, country: string): string {
+  if (!country) return "";
+  const c = country.toLowerCase();
+  const keys = findPlaces(title, GAZ);
+  const cities = GAZ.filter((e) => e.country && e.country === c && keys.includes(e.key));
+  return cities.length === 1 ? cities[0].name : "";
+}
+
 // Puts a figure after the first paragraph that follows the n-th <h2>.
 export function insertAfterSection(html: string, sectionIndex: number, figure: string): string {
   const re = /<h2[^>]*>[\s\S]*?<\/h2>/gi;
@@ -56,20 +79,26 @@ export async function ensureBlogImages(articleId: string, opts: { allowAi?: bool
     FROM articles a LEFT JOIN cities ci ON ci.id = a.city_id LEFT JOIN countries co ON co.id = a.country_id
     WHERE a.id = ${articleId} LIMIT 1`)[0] as any;
   if (!a) throw new Error("Article not found.");
-  const dest = String(a.city || a.country || "");
   const country = String(a.city_country || a.country || "");
+  // A country-level guide whose title names one of its cities ("Plan a Trip
+  // to Paris" filed under France) is photographed as that city: "France"
+  // alone accepted a fort in Alsace.
+  const dest = String(a.city || titleCity(String(a.title || ""), country) || a.country || "");
+  const countryOnly = !a.city && dest === String(a.country || "");
   const html0 = stripOurFigures(String(a.content_html || ""));
   const headings = [...html0.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)].map((m) => m[1].replace(/<[^>]+>/g, "").trim());
   const used = new Set<string>();
 
   // Cover: the destination itself reads best as a lead photo.
   let cover: "licensed" | "ai" | "none" = "none";
+  const alts: string[] = [];
   const coverPhoto = await findPhoto(blogCoverQueries(a.title, dest), used, { place: dest, country }).catch(() => null);
+  if (coverPhoto) alts.push(altForPhoto(coverPhoto));
   if (coverPhoto) {
     try {
       const s = await storePhoto(coverPhoto, { cover: true });
       used.add(coverPhoto.imageUrl);
-      await sql`UPDATE articles SET image = ${s.url}, image_alt = ${altForPhoto(coverPhoto)}, updated_at = now() WHERE id = ${articleId}`;
+      await sql`UPDATE articles SET image = ${s.url}, image_alt = ${labelledAlt(altForPhoto(coverPhoto), "", dest)}, updated_at = now() WHERE id = ${articleId}`;
       await saveCoverSize(articleId, s);
       await saveImageMeta(articleId, { sourceType: "licensed", credit: creditLine(coverPhoto), license: coverPhoto.license, sourceUrl: coverPhoto.pageUrl });
       cover = "licensed";
@@ -88,12 +117,16 @@ export async function ensureBlogImages(articleId: string, opts: { allowAi?: bool
     // Work from the last section back so earlier positions don't shift.
     for (const idx of photoSections(headings.length).reverse()) {
       const subject = sectionSubject(headings[idx], dest);
-      const p = await findPhoto([subject ? `${subject} ${dest}` : dest, dest], used, { place: dest, country }).catch(() => null);
+      // A bare country search returns any photo taken anywhere in the country,
+      // so a country-only guide searches the section's subject or nothing.
+      const queries = countryOnly ? (subject ? [`${subject} ${dest}`] : []) : [subject ? `${subject} ${dest}` : dest, dest];
+      const p = queries.length ? await findPhoto(queries, used, { place: dest, country, avoid: alts }).catch(() => null) : null;
       if (!p) continue;
+      alts.push(altForPhoto(p));
       try {
         const s = await storePhoto(p);
         used.add(p.imageUrl);
-        html = insertAfterSection(html, idx, figureHtml(s.url, altForPhoto(p), captionHtml(p)));
+        html = insertAfterSection(html, idx, figureHtml(s.url, labelledAlt(altForPhoto(p), subject, dest), captionHtml(p)));
         placed.push({ url: s.url, photo: p });
       } catch {
         /* skip photos that fail to download */

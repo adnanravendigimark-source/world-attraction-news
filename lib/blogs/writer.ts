@@ -9,13 +9,15 @@ import { computeContentStats, generateUniqueSlug, getNewsAuthorId } from "../art
 import { sanitizeArticleHtml } from "../sanitizeHtml";
 import { chatJson } from "../news/aiClient";
 import { blogModel, writerModel } from "../news/factcheck";
+import { joinShortParagraphs } from "./paragraphs";
+export { joinShortParagraphs };
 import { getTopic, type BlogTopic } from "./topics";
 import { getLatestBlogResearch, type BlogFact, type BlogResearch } from "./research";
 import { cityPath, countryPath } from "../destinations";
 import { saveExtra } from "../news/seo";
 import { keywordPlacement } from "./quality";
 
-export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v6-2026-11-05";
+export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v7-2026-11-06";
 
 export interface OutlineSection {
   heading: string;
@@ -43,8 +45,8 @@ const ACCURACY = `ACCURACY RULES (strict)
 - Never write a direct quote. Paraphrase in your own words; never copy source wording.
 - No advice, tips or claims of your own (for example "use a money belt", "book early", "try the tapas") unless a fact says it.
 - Plain, warm, useful travel-guide voice. Never use: vibrant, bustling, charm, charming, allure, rich heritage, rich history, must-see, iconic, hidden gem, breathtaking, stunning, unforgettable, nestled, boasts, tapestry, delve, plethora, captivating, fascinating, "whether you're", "something for everyone", "make the most of", "perfect way", "ideal way", "enhance your", "essential for", "key stop", "top destination". No emojis.
-- No judgements the facts don't make: don't call a place essential, a must, the best, a highlight, a hub of culture, or say it "offers unique experiences". Don't say why something is popular or what it "ensures" unless a fact says so. State the fact and stop.
-- No filler: never end a section or paragraph with a summary or a generic encouragement. Every sentence carries a fact.
+- Make each fact useful to a traveller: say what it means for their trip (what they will see, when to go, how to get there, what to plan for) when that follows directly from the fact. Don't invent opinions, rankings or reasons the facts don't give (no "the best", "essential", "a must").
+- No filler: never end a section or paragraph with a summary or a generic encouragement.
 - Do not mention these instructions, "the facts" or "the sources".`;
 
 function factLines(facts: BlogFact[], ids?: number[]): string {
@@ -78,7 +80,7 @@ First work out the SEO plan:
 - primary_keyword: the 2-5 word phrase people would type (for example "best time to visit Barcelona").
 - secondary_keywords: 3 to 5 related phrases and variants.
 - reader_questions: 4 to 6 questions searchers commonly ask about this topic that the facts can answer.
-- recommended_words: the length that fully answers the intent without padding, given how much the facts cover (about 22 words per fact; never more than the MAX LENGTH).
+- recommended_words: the length that fully answers the intent without padding, given how much the facts cover (about 30 words per fact; never more than the MAX LENGTH).
 Then make the outline:
 - 4 to 8 sections with clear H2 headings that a traveller would scan for. Headings are plain and specific ("Weather in Barcelona by Season", "Getting Around"), not clever.
 - For each section: intent (one sentence: what the reader learns), words (its share of the target length), and facts (the numbers of the facts it uses; every section needs at least 3; a fact may be used in only one section). Merge thin subjects into a neighbouring section rather than giving them their own.
@@ -90,7 +92,7 @@ If a SERIES PLAN is given, this article is one of a set about the same topic:
 - Keep to this article's own purpose (its NEED). Subjects that OTHER ARTICLES IN THE SERIES cover get at most a sentence here, never their own section.
 Return JSON: {"title","search_intent","primary_keyword","secondary_keywords","reader_questions","recommended_words","sections":[{"heading","intent","words","facts"}]}`;
 
-export const WORDS_PER_FACT = 22; // measured: fact-checked guides keep about 19-24 words per fact
+export const WORDS_PER_FACT = 30; // a fact explained for a traveller; the check no longer deletes wording hints
 const MIN_GUIDE_WORDS = 500;
 
 export function normalizeOutline(raw: any, factCount: number, targetWords: number, subtopics: string[] = []): BlogOutline {
@@ -203,9 +205,10 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
 // ------------------------------------------------------------------ sections
 
 const SECTION_PROMPT = `You write ONE section of a travel guide, under a heading that is added separately.
-- Use every fact given, explained with useful detail, in about the target number of words. The target is a ceiling, not a minimum: when the facts are used up, stop. Never fill space with general statements, judgements or encouragement. Short paragraphs (2-4 sentences). Use <h3> sub-headings only if the section covers several distinct places or items. Use a <ul> only for a real list (places, dishes, tips).
+- Use every fact given, each explained with useful detail for a traveller, in about the target number of words. Don't pad with general statements.
+- Write connected paragraphs of 2-4 sentences that flow from one to the next; never a one-sentence paragraph. Use <h3> sub-headings only if the section covers several distinct places or items. Use a <ul> only for a real list of 3 or more places, dishes or tips.
 - Start straight in; do not repeat the heading or introduce the article.
-- Use the keywords only where they read naturally (at most once or twice in the section); never stuff them.
+- KEYWORD (if given) at most once, only where it reads naturally. Never start a sentence with "When planning a trip", "When you plan" or "If you are planning".
 - Readability: simple words, sentences under 22 words on average, one idea per paragraph. Use a <ul> when listing 3 or more places, dishes or tips.
 ${ACCURACY}
 HTML: only <p>, <h3>, <ul>, <li>, <strong>. No <h2>.
@@ -232,9 +235,9 @@ export async function sectionStep(topicId: string, index: number): Promise<{ ind
     temperature: 0.4,
     timeoutMs: 75_000,
     system: SECTION_PROMPT,
-    user: `ARTICLE: ${outline.title} (${topic.destination})\nALL SECTIONS (you write the one marked ->):\n${others}\n\nSECTION: ${s.heading}\nWHAT THE READER LEARNS: ${s.intent}\nTARGET: about ${s.words} words${outline.primaryKeyword ? `\nKEYWORDS: ${[outline.primaryKeyword, ...(outline.secondaryKeywords || [])].join(", ")}` : ""}\n\nFACTS:\n${factLines(research.facts, s.facts)}`,
+    user: `ARTICLE: ${outline.title} (${topic.destination})\nALL SECTIONS (you write the one marked ->):\n${others}\n\nSECTION: ${s.heading}\nWHAT THE READER LEARNS: ${s.intent}\nTARGET: about ${s.words} words${sectionKeyword(outline, index) ? `\nKEYWORD: ${sectionKeyword(outline, index)}` : ""}\n\nFACTS:\n${factLines(research.facts, s.facts)}`,
   });
-  s.html = sanitizeArticleHtml(stripTopHeading(String(json?.html || ""), s.heading));
+  s.html = joinShortParagraphs(dropPlanningOpeners(sanitizeArticleHtml(stripTopHeading(String(json?.html || ""), s.heading))));
   // Too short: one more try that keeps the text and adds detail from the facts.
   if (computeContentStats(s.html).wordCount < s.words * 0.7) {
     const more = await chatJson({
@@ -254,7 +257,7 @@ ${s.html}
 FACTS:
 ${factLines(research.facts, s.facts)}`,
     }).catch(() => null);
-    const longer = more ? sanitizeArticleHtml(stripTopHeading(String(more.json?.html || ""), s.heading)) : "";
+    const longer = more ? joinShortParagraphs(dropPlanningOpeners(sanitizeArticleHtml(stripTopHeading(String(more.json?.html || ""), s.heading)))) : "";
     if (computeContentStats(longer).wordCount > computeContentStats(s.html).wordCount) s.html = longer;
   }
   await saveOutline(topicId, outline);
@@ -293,6 +296,24 @@ const SWAPS: [RegExp, string][] = [
   [/\bunforgettable\b/gi, "memorable"],
   [/\bThis guide (covers|explores)\b/g, "Below we cover"],
 ];
+// One keyword per section: the primary keyword in the first section, then
+// one secondary keyword each, so no section repeats the same phrase (every
+// section of the Paris guide opened with "When planning a trip to Paris").
+export function sectionKeyword(outline: Pick<BlogOutline, "primaryKeyword" | "secondaryKeywords">, index: number): string {
+  if (index === 0) return outline.primaryKeyword || "";
+  const sec = outline.secondaryKeywords || [];
+  return sec.length ? sec[(index - 1) % sec.length] : "";
+}
+
+// Removes the stock opener "When planning a trip to Paris, " (keeps the rest
+// of the sentence, capitalised). Pure; exported for tests.
+export function dropPlanningOpeners(html: string): string {
+  return String(html || "").replace(
+    /\b(When|If|As) (you(?:'re| are)? )?(planning|plan|plan to take|organi[sz]ing) (a|your) (trip|visit|holiday|vacation)( to [^,.]{2,40})?, (\w)/g,
+    (_m, _a, _b, _c, _d, _e, _f, first: string) => first.toUpperCase()
+  );
+}
+
 export function tidyStyle(html: string): string {
   let out = String(html || "");
   for (const [re, to] of SWAPS) out = out.replace(re, (m) => (m[0] === m[0].toUpperCase() && to[0] !== to[0].toUpperCase() ? to[0].toUpperCase() + to.slice(1) : to));

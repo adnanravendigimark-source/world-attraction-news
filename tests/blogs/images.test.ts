@@ -37,3 +37,21 @@ describe("guide cover searches", () => {
     expect(blogCoverQueries("Arno Boat Tour: Your Ultimate Guide in Florence", "Florence")[0]).toBe("Florence Arno Boat Tour");
   });
 });
+
+import { titleCity } from "@/lib/blogs/images";
+describe("country guide photographed as the city its title names", () => {
+  it("finds Paris in a France guide", () => {
+    expect(titleCity("Plan a Trip to Paris: Booking Tips and Must-Reserve Attractions", "France")).toBe("Paris");
+    expect(titleCity("Japan Travel Guide: Explore Regions, Transport, and Culture", "Japan")).toBe("");
+    expect(titleCity("Tokyo or Kyoto? Two Cities Compared", "Japan")).toBe("");
+  });
+});
+
+import { labelledAlt } from "@/lib/blogs/images";
+describe("photo alt text says what and where", () => {
+  it("prefixes a stock description that doesn't name the place", () => {
+    expect(labelledAlt("Brown concrete building under gray sky", "Colosseum", "Rome")).toBe("Colosseum, Rome: brown concrete building under gray sky");
+    expect(labelledAlt("Colosseum arena photography", "Colosseum", "Rome")).toBe("Colosseum arena photography");
+    expect(labelledAlt("Pagoda surrounded by trees", "", "Japan")).toBe("Japan: pagoda surrounded by trees");
+  });
+});

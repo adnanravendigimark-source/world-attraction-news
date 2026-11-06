@@ -22,6 +22,7 @@ import { recordAiRevision } from "./aiRevision";
 export const CHECK_PROMPT_VERSION = "news-check-2026-11-05";
 export const REVISE_PROMPT_VERSION = "news-revise-2026-11-05";
 import { contentHash, hashMatches } from "./contentHash";
+import { joinShortParagraphs } from "../blogs/paragraphs";
 import { dropFlagged, highlightLines, highlightsCheckHtml, highlightsFromRow, type NewsHighlights } from "./highlights";
 
 export type Verdict = "passed" | "needs_review" | "failed";
@@ -402,15 +403,9 @@ Return JSON: {"body_html": "...", "faq": [{"q": "...", "a": "..."}]} with the FA
 // article (pipeline step and job). Never touches a published article.
 export async function checkAndRevise(articleId: string): Promise<{ check: FactCheck; revised: boolean; wordCount: number | null }> {
   let check = await factCheckArticle(articleId);
-  // Guides are fixed until they pass (up to two rounds), wording hints
-  // included; news only when the check fails.
-  const blog = (await sql`SELECT origin, type FROM articles WHERE id = ${articleId} LIMIT 1`.catch(() => []))[0] as any;
-  if (blog && blog.type !== "news" && blog.origin === "ai_blog") {
-    if (check.verdict === "passed") return { check, revised: false, wordCount: null };
-    const first = await reviseOnce(articleId, check);
-    if (!first.revised || first.check.verdict === "passed") return first.result;
-    return (await reviseOnce(articleId, first.check)).result;
-  }
+  // Only a failed check (real errors) is rewritten automatically. Fixing every
+  // wording hint too deleted so many sentences that guides read choppy and
+  // lost a third of their length; hints are left for the editor.
   if (check.verdict !== "failed") return { check, revised: false, wordCount: null };
   // News boxes: a bullet the check flags is removed (never rewritten).
   const boxes = await dropFlaggedHighlights(articleId, check);
@@ -434,9 +429,7 @@ async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revise
   // problems with the news boxes are handled by dropFlaggedHighlights().
   const boxText = highlightLines(highlightsFromRow(article));
   const { boxIssues } = dropFlagged({ keyUpdates: boxText, travelerSteps: [] }, check.issues);
-  // Guides: every issue the check raised, wording hints too, so the guide can
-  // pass. News: only the high ones (news hints are left to the editor).
-  const high = check.issues.filter((i) => (blog || i.severity === "high") && !HEADLINE_ISSUE.test(i.text) && !boxIssues.has(i.text));
+  const high = check.issues.filter((i) => i.severity === "high" && !HEADLINE_ISSUE.test(i.text) && !boxIssues.has(i.text));
   if (high.length === 0) return none;
   const faqIn = blog && Array.isArray(article.faq) ? article.faq : [];
   const { json } = await chatJson({
@@ -455,6 +448,7 @@ async function reviseOnce(articleId: string, check: FactCheck): Promise<{ revise
     const { sectionFigures, restoreFigures } = await import("../blogs/images");
     revised = restoreFigures(revised, sectionFigures(String(article.content_html || "")));
     revised = keepGuideCta(String(article.content_html || ""), revised);
+    revised = joinShortParagraphs(revised);
   }
   const stats = computeContentStats(revised);
   if (!revised || stats.wordCount < 90) return none;

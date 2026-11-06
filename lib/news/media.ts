@@ -47,6 +47,8 @@ export function altForPhoto(p: Pick<FoundPhoto, "provider" | "title" | "descript
   const tidy = (s: string) =>
     s
       .replace(/^\s*\d*px provided description:\s*/i, "")
+      .replace(/\b\d{5,}\b/g, " ") // Flickr/Commons file numbers
+      .replace(/\s+I\s+(did|didn't|was|took|have|had|went|walked|am|got|could)\b.*$/i, "") // uploader notes
       .replace(/\[[^\]]*#[^\]]*\]/g, " ")
       .replace(/#[\p{L}\p{N}_]+/gu, " ")
       .replace(/\b(\w+)\s+\1\b/gi, "$1")
@@ -55,7 +57,8 @@ export function altForPhoto(p: Pick<FoundPhoto, "provider" | "title" | "descript
       .trim();
   const sentence = (s: string) => {
     const t = tidy(s).replace(/^(this is |an? (photo|picture|image) of )/i, "");
-    const first = t.split(/(?<=[.!?])\s/)[0].replace(/[.!?]+$/, "");
+    // Split at a sentence end, not after an abbreviation like "U.S." or "St.".
+    const first = t.split(/(?<=[a-z]{3}[.!?]|[0-9][.!?])\s/)[0].replace(/[.!?]+$/, "");
     return first.length >= 8 && first.length <= 125 ? first.charAt(0).toUpperCase() + first.slice(1) : "";
   };
   if (p.provider === "unsplash") {
@@ -197,9 +200,9 @@ async function searchWikimedia(query: string): Promise<FoundPhoto[]> {
 const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // Not photographs of a place.
-const NON_PHOTO = /\b(painting|oil on canvas|drawing|sketch|engraving|lithograph|etching|woodcut|watercolou?r|illustration|map|plan of|floor plan|diagram|chart|logo|coat of arms|emblem|seal of|poster|stamp|coin|banknote|screenshot|icon|render|rendering|3d model|manuscript|postcard|lineart|clipart)\b/;
+const NON_PHOTO = /\b(stereo|stereofoto|stereograph|stereoview|daguerreotype|albumen|glass plate|lantern slide|photochrom|sfa\d{6,}|painting|oil on canvas|drawing|sketch|engraving|lithograph|etching|woodcut|watercolou?r|illustration|map|plan of|floor plan|diagram|chart|logo|coat of arms|emblem|seal of|poster|stamp|coin|banknote|screenshot|icon|render|rendering|3d model|manuscript|postcard|lineart|clipart)\b/;
 // Close-ups that rarely illustrate a travel story, unless the story is about them.
-const OFF_SUBJECT = /\b(butterfly|moth|insect|beetle|spider|bee|wasp|caterpillar|dragonfly|bird|gull|pigeon|lizard|snake|frog|flower|blossom|orchid|leaf|leaves|plant|fungus|mushroom|specimen|herbarium|macro|selfie|portrait|mugshot)\b/;
+const OFF_SUBJECT = /\b(butterfly|moth|insect|beetle|spider|bee|wasp|caterpillar|dragonfly|bird|gull|pigeon|lizard|snake|frog|flower|blossom|orchid|leaf|leaves|plant|fungus|mushroom|specimen|herbarium|macro|selfie|portrait|mugshot|army|navy|military|soldiers?|troops|sailors?|petty officer|marines?|air force|airman|usag|uss|veterans?|ceremony|conference|summit|meeting|parade|protest|rally|exempt|flag|flags|politician|minister|president|senator|governor)\b/;
 // Words that suggest a wide, scene-setting view.
 const SCENE = /\b(skyline|panorama|panoramic|view|aerial|street|square|piazza|plaza|harbou?r|port|beach|old town|cityscape|landmark|terminal|station|exterior|waterfront|river|canal|bridge|temple|cathedral|palace|promenade|boulevard)\b/;
 
@@ -208,6 +211,20 @@ const HINT_WORDS = new Set(["skyline", "city", "view", "cityscape", "panorama"])
 export interface PhotoContext {
   place?: string; // the story's city or country, e.g. "Florence"
   country?: string; // the story's country, e.g. "Italy" (rejects Florence, Alabama)
+  avoid?: string[]; // alt texts of photos already in the article (no second Eiffel Tower)
+}
+
+// True when two photo descriptions show the same thing: they share two or
+// more words besides the place names and generic photo words ("Eiffel Tower
+// at Paris, France" and "Eiffel Tower, Paris France"). Pure; exported for tests.
+const GENERIC_PHOTO_WORDS = new Set(["photo", "view", "image", "picture", "with", "under", "over", "from", "during", "near", "white", "blue", "cloudy", "skies", "sunny", "sunset", "sunrise", "night", "city", "town", "people", "street"]);
+export function samePhotoSubject(a: string, b: string, placeWords: string[] = []): boolean {
+  const words = (s: string) =>
+    new Set(keywords(fold(s)).filter((w) => w.length >= 4 && !GENERIC_PHOTO_WORDS.has(w) && !placeWords.includes(w)));
+  const x = words(a);
+  let shared = 0;
+  for (const w of words(b)) if (x.has(w)) shared++;
+  return shared >= 2;
 }
 
 // Every country name and alias, folded, mapped to its canonical name.
@@ -280,6 +297,11 @@ export async function findPhoto(queries: string[], exclude: Set<string> = new Se
       }
       for (const r of results) {
         if (!r.imageUrl || exclude.has(r.imageUrl) || exclude.has(r.pageUrl) || !isPublicUrl(r.imageUrl)) continue;
+        if (ctx.avoid?.length) {
+          const alt = altForPhoto(r);
+          const placeWords = keywords(fold(`${ctx.place || ""} ${ctx.country || ""}`));
+          if (ctx.avoid.some((a) => samePhotoSubject(a, alt, placeWords))) continue;
+        }
         const score = scorePhoto(r, ctx);
         if (score !== null && (!best || score > best.score)) best = { photo: r, score };
       }

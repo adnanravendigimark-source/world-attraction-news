@@ -17,7 +17,7 @@ describe("blog outline", () => {
     expect(o.sections[2].facts).toEqual([5, 6]);
     expect(o.sections[3].facts).toEqual([7, 8]);
     const total = o.sections.reduce((n, s) => n + s.words, 0);
-    // 9 facts carry about 200 words; the guide is still the 500-word minimum
+    // 9 facts carry about 270 words; the guide is still the 500-word minimum
     // (body 400), shared by each section's facts.
     expect(o.recommendedWords).toBe(500);
     expect(total).toBeGreaterThanOrEqual(395);
@@ -81,11 +81,11 @@ describe("on-page SEO checks", () => {
 
 describe("outline length follows the facts", () => {
   it("never asks for more words than the facts can carry", () => {
-    // 3 sections of 10 facts: 30 facts x 22 words = 660 body words, 825 in all.
+    // 3 sections of 10 facts: 30 facts x 30 words = 900 body words, 1125 in all.
     const sections = [0, 1, 2].map((i) => ({ heading: `S${i}`, words: 300, facts: Array.from({ length: 10 }, (_, k) => i * 10 + k) }));
     const o = normalizeOutline({ title: "t", recommended_words: 2000, sections }, 30, 1800);
-    expect(o.recommendedWords).toBe(825);
-    expect(o.sections.map((s) => s.words)).toEqual([220, 220, 220]);
+    expect(o.recommendedWords).toBe(1125);
+    expect(o.sections.map((s) => s.words)).toEqual([300, 300, 300]);
   });
   it("a section's words follow its facts, not the model's guess", () => {
     const o = normalizeOutline({ title: "t", recommended_words: 3000, sections: [
@@ -142,5 +142,29 @@ describe("outline uses the facts the model skipped", () => {
     expect(by.Weather).toEqual([0, 1, 6]);
     expect(by["Getting Around"]).toEqual([2, 3, 7]);
     expect(o.sections.flatMap((s) => s.facts)).not.toContain(8); // no history section: left out
+  });
+});
+
+import { dropPlanningOpeners, joinShortParagraphs, sectionKeyword } from "@/lib/blogs/writer";
+describe("guide text clean-up", () => {
+  it("drops the 'When planning a trip to X,' opener", () => {
+    expect(dropPlanningOpeners("<p>When planning a trip to Paris, consider the seasonal weather.</p>")).toBe("<p>Consider the seasonal weather.</p>");
+    expect(dropPlanningOpeners("<p>If you are planning a visit, book early.</p>")).toBe("<p>Book early.</p>");
+    expect(dropPlanningOpeners("<p>Paris has 20 arrondissements.</p>")).toBe("<p>Paris has 20 arrondissements.</p>");
+  });
+  it("joins a one-sentence paragraph to the one before it", () => {
+    const html = "<p>Summer in Paris is typically warm, averaging 22°C, with around eight hours of sunshine on most days in July.</p><p>Winter brings cooler temperatures.</p><h2>Next</h2><p>Short one.</p>";
+    expect(joinShortParagraphs(html)).toBe(
+      "<p>Summer in Paris is typically warm, averaging 22°C, with around eight hours of sunshine on most days in July. Winter brings cooler temperatures.</p><h2>Next</h2><p>Short one.</p>"
+    );
+  });
+  it("keeps the closing guide link and long paragraphs apart", () => {
+    const long = `<p>${"word ".repeat(20)}end.</p>`;
+    const html = `${long}${long}<p class="guide-cta">Planning a trip? See all our guides.</p>`;
+    expect(joinShortParagraphs(html)).toBe(html);
+  });
+  it("one keyword per section: primary first, then the secondary ones", () => {
+    const o = { primaryKeyword: "paris trip planning", secondaryKeywords: ["book paris attractions", "paris train tickets"] };
+    expect([0, 1, 2, 3].map((i) => sectionKeyword(o, i))).toEqual(["paris trip planning", "book paris attractions", "paris train tickets", "book paris attractions"]);
   });
 });
