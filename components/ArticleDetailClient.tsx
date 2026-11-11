@@ -262,7 +262,7 @@ export default function ArticleDetailClient({
 
 
             {article.faq?.length > 0 && (
-              <section className="mt-12 -mx-4 rounded-3xl bg-paper-50 px-4 py-10 sm:-mx-6 sm:px-8" aria-labelledby="faq-heading">
+              <section className="mt-12 -mx-4 rounded-3xl bg-white px-4 py-10 sm:-mx-6 sm:px-8" aria-labelledby="faq-heading">
                 <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#2F80C9]">Got questions?</p>
                 <h2 id="faq-heading" className="mt-2 text-center text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
                   {faqHeading(article.focusKeyword)}
