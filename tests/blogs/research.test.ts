@@ -68,6 +68,14 @@ describe("the topic's own subject", () => {
     expect(factsAboutSubject(facts, "Siam Park")).toBe(2);
     expect(factsAboutSubject(facts, "")).toBe(4); // a destination topic: every fact counts
   });
+  it("counts facts taken from the subject's own page even without its name", () => {
+    const facts = [
+      { claim: "The basilica is due to be finished in 2026.", sources: [1] },
+      { claim: "Barcelona has a Mediterranean climate.", sources: [2] },
+    ];
+    expect(factsAboutSubject(facts, "Sagrada Familia")).toBe(0);
+    expect(factsAboutSubject(facts, "Sagrada Familia", [1])).toBe(1);
+  });
 });
 
 import { stemWord, isKindSubject } from "@/lib/blogs/research";

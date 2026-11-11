@@ -12,7 +12,7 @@ import { getTopic, type BlogTopic } from "./topics";
 import { sectionSubject } from "./images";
 import { buildGazetteer, findPlaces } from "../news/places";
 
-export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-v3-2026-11-05";
+export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-v4-2026-11-11";
 const UA = "WorldAttractionNewsBot/1.0 (https://www.worldattractionnews.com; research)";
 const PER_SOURCE = 6000;
 const TOTAL = 42000; // up to 7 pages; broad guides ran out of facts at 4 pages
@@ -163,12 +163,14 @@ export function topicSubject(title: string, destination: string): string {
     .trim();
   // Nothing left but filler ("How Many Days in Dubai?"): a guide to the
   // destination itself, so every researched fact counts.
-  return s.replace(ACTION_WORDS, " ").replace(PLANNING_WORDS, " ").replace(/\s+/g, " ").trim();
+  // Years and other bare numbers aren't part of a name: "Sagrada Familia
+  // 2027" is about the Sagrada Família page.
+  return s.replace(ACTION_WORDS, " ").replace(PLANNING_WORDS, " ").replace(/(^|\s)\d+(?=\s|$)/g, " ").replace(/\s+/g, " ").trim();
 }
 
 // Words of the subject that identify it ("siam", "park").
 export function subjectWords(subject: string): string[] {
-  return fold(subject).split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+  return fold(subject).split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^\d+$/.test(w));
 }
 
 // Singular form of an English word, so "beaches" matches "beach" and
@@ -209,7 +211,9 @@ export function isNamedSubject(subject: string, pageRead: string): boolean {
 }
 
 // How many facts are about the subject. Pure; exported for tests.
-export function factsAboutSubject(facts: { claim: string; subtopic?: string }[], subject: string): number {
+// A fact taken from the subject's own pages counts even when it doesn't
+// repeat the name ("The basilica is due to be completed in 2026").
+export function factsAboutSubject(facts: { claim: string; subtopic?: string; sources?: number[] }[], subject: string, subjectSources: number[] = []): number {
   const words = subjectWords(subject).map(stemWord);
   if (words.length === 0) return facts.length;
   const factWords = (claim: string) => new Set(fold(claim).split(/[^a-z0-9]+/).map(stemWord));
@@ -217,6 +221,7 @@ export function factsAboutSubject(facts: { claim: string; subtopic?: string }[],
   const need = Math.max(1, Math.ceil(words.length / 2));
   const kind = isKindSubject(subject);
   return facts.filter((f) => {
+    if ((f.sources || []).some((n) => subjectSources.includes(n))) return true;
     const fw = factWords(f.claim);
     if (words.filter((w) => fw.has(w)).length >= need) return true;
     // A kind of place: a fact about a specific place, dish or its tickets counts too.
@@ -266,22 +271,61 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
   const seen = new Set([dest.toLowerCase()]);
   const subject = topicSubject(topic.title, topic.destination);
   let subjectPage = "";
+  let cached: { title: string; url: string; text: string } | null = null;
+  let elsewhere = false;
   if (subject) {
     // Same rule as the subject check: a page that names every word of the
     // subject, and never for a place ("America" found "Native Americans in
     // the United States").
-    for (const t of await wikiSearch("en.wikipedia.org", `${subject} ${dest}`.slice(0, 200), 5)) {
-      if (isOffTopicTitle(t) || !isNamedSubject(subject, t)) continue;
-      subjectPage = t;
-      seen.add(t.toLowerCase());
-      wanted.push(["en.wikipedia.org", t, "Wikipedia"]);
-      break;
+    // With the destination first, then alone: a topic filed under the
+    // wrong country ("Sagrada Familia 2027" under United States) still
+    // finds its page.
+    for (const q of [`${subject} ${dest}`, subject]) {
+      for (const t of await wikiSearch("en.wikipedia.org", q.slice(0, 200), 5)) {
+        if (isOffTopicTitle(t) || !isNamedSubject(subject, t)) continue;
+        subjectPage = t;
+        break;
+      }
+      if (subjectPage) break;
+    }
+    if (subjectPage) {
+      seen.add(subjectPage.toLowerCase());
+      wanted.push(["en.wikipedia.org", subjectPage, "Wikipedia"]);
+      // A subject whose page never mentions the destination is somewhere
+      // else: "Sagrada Familia 2027" filed under United States read six
+      // pages about the United States, and 1 of 37 facts was about it.
+      // Research it from pages about the subject instead.
+      cached = await wikiExtract("en.wikipedia.org", subjectPage).catch(() => null);
+      if (cached && !fold(cached.text).includes(fold(dest))) {
+        elsewhere = true;
+        const sw = subjectWords(subject);
+        for (const t of await wikiSearch("en.wikipedia.org", subject.slice(0, 200), 8)) {
+          if (wanted.length >= 4) break;
+          // Not a namesake elsewhere ("Sagrada Familia, Chile").
+          if (seen.has(t.toLowerCase()) || isOffTopicTitle(t) || /,\s/.test(t) || !relatedTitle(t, sw, "")) continue;
+          seen.add(t.toLowerCase());
+          wanted.push(["en.wikipedia.org", t, "Wikipedia"]);
+        }
+      }
+    } else {
+      // No page named after the subject ("Biggest New Theme Park Attractions
+      // Opening in 2027"): the pages a search for it finds, so the sources
+      // are about the topic and not only about the destination. Without
+      // them a 2027 theme park guide was researched from pages about the
+      // United States, and the model rightly found 0 facts.
+      const sw = subjectWords(subject);
+      for (const t of await wikiSearch("en.wikipedia.org", subject.slice(0, 200), 5)) {
+        if (wanted.length >= 2) break;
+        if (seen.has(t.toLowerCase()) || isOffTopicTitle(t) || !relatedTitle(t, sw, "")) continue;
+        seen.add(t.toLowerCase());
+        wanted.push(["en.wikipedia.org", t, "Wikipedia"]);
+      }
     }
   }
   // Then the destination: Wikivoyage (practical) and Wikipedia (background).
-  wanted.push(["en.wikivoyage.org", dest, "Wikivoyage"], ["en.wikipedia.org", dest, "Wikipedia"]);
+  if (!elsewhere) wanted.push(["en.wikivoyage.org", dest, "Wikivoyage"], ["en.wikipedia.org", dest, "Wikipedia"]);
   // Pages about the topic itself, e.g. "Uffizi" or "Tuscan cuisine".
-  for (const q of topicQueries(topic.topicType, dest, topic.title)) {
+  for (const q of elsewhere ? [] : topicQueries(topic.topicType, dest, topic.title)) {
     if (wanted.length >= 7) break;
     for (const t of await wikiSearch("en.wikipedia.org", q.slice(0, 200), 3)) {
       if (seen.has(t.toLowerCase()) || isOffTopicTitle(t) || !relatedTitle(t, words, dest)) continue;
@@ -293,7 +337,7 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
 
   for (const [host, title, publisher] of wanted.slice(0, 7)) {
     if (total >= TOTAL) break;
-    const page = await wikiExtract(host, title).catch(() => null);
+    const page = cached && host === "en.wikipedia.org" && title === subjectPage ? cached : await wikiExtract(host, title).catch(() => null);
     if (page) add(page.title, page.url, publisher, page.text);
     else sources.push({ n: sources.length + 1, title, url: `https://${host}/wiki/${encodeURIComponent(title)}`, publisher, ok: false, chars: 0, note: "not found" });
   }
@@ -391,9 +435,9 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
   if (blocks.length === 0) {
     return fail("No source could be read for this topic. Add a page about it (for example the official tourism site) and run research again.", sources);
   }
-  let ai;
-  try {
-    ai = await chatJson({
+  const okNumbers = sources.filter((s) => s.ok).map((s) => s.n);
+  const ask = (effort: "low" | "medium", hint: string) =>
+    chatJson({
       kind: "blog_research",
       log: { promptVersion: BLOG_RESEARCH_PROMPT_VERSION },
       model,
@@ -401,15 +445,33 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
       // gpt-6-luna with no reasoning sometimes returns an empty list for a
       // broad topic ("How to Plan and Book a Trip to Paris": 0 facts; with
       // low reasoning 28). Low costs about $0.0005 more per run.
-      reasoningEffort: "low",
+      reasoningEffort: effort,
       timeoutMs: 90_000,
       system: SYSTEM_PROMPT,
-      user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nARTICLE TYPE: ${topic.topicType}${topic.angle ? `\nANGLE: ${topic.angle}` : ""}\n\n${blocks.join("\n\n---\n\n")}`,
+      user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nARTICLE TYPE: ${topic.topicType}${topic.angle ? `\nANGLE: ${topic.angle}` : ""}${hint}\n\n${blocks.join("\n\n---\n\n")}`,
     });
+  let ai;
+  let facts: BlogFact[];
+  let tokensIn = 0;
+  let tokensOut = 0;
+  try {
+    ai = await ask("low", "");
+    tokensIn += ai.tokensIn ?? 0;
+    tokensOut += ai.tokensOut ?? 0;
+    facts = normalizeBlogFacts(ai.json, okNumbers);
+    // Too few: one more pass that thinks harder and may use background
+    // facts. The model returned {"facts":[]} (10 tokens) for topics whose
+    // sources only partly match; a second pass costs about $0.001.
+    if (facts.length < MIN_FACTS) {
+      ai = await ask("medium", `\nNOTE: A first pass returned too few facts. The sources may not match the topic exactly: extract every useful fact they do state about the topic, the places it names and the destination, so the article has enough to work from.`);
+      tokensIn += ai.tokensIn ?? 0;
+      tokensOut += ai.tokensOut ?? 0;
+      const more = normalizeBlogFacts(ai.json, okNumbers);
+      if (more.length > facts.length) facts = more;
+    }
   } catch (err: any) {
     return fail(String(err?.message || err), sources);
   }
-  const facts = normalizeBlogFacts(ai.json, sources.filter((s) => s.ok).map((s) => s.n));
   if (facts.length < MIN_FACTS) {
     return fail(`Research found only ${facts.length} cited facts (at least ${MIN_FACTS} are needed). Add a page about this topic and run research again.`, sources);
   }
@@ -421,7 +483,9 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
   // MIN_FACTS facts is the only rule.
   const guessed = topicSubject(topic.title, topic.destination);
   const subject = isNamedSubject(guessed, subjectPage) ? guessed : "";
-  const about = factsAboutSubject(facts, subject);
+  // Its own Wikipedia page and pages named after it (its official site).
+  const subjectSources = subject ? sources.filter((s) => s.ok && isNamedSubject(subject, s.title) && !/,\s/.test(s.title)).map((s) => s.n) : [];
+  const about = factsAboutSubject(facts, subject, subjectSources);
   if (subject && about < MIN_SUBJECT_FACTS) {
     return fail(
       isKindSubject(subject)
@@ -432,7 +496,7 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
   }
   await sql`
     UPDATE blog_research SET status = 'done', facts = ${JSON.stringify(facts)}::jsonb, sources = ${JSON.stringify(sources)}::jsonb,
-      tokens_in = ${ai.tokensIn}, tokens_out = ${ai.tokensOut}, finished_at = now()
+      tokens_in = ${tokensIn}, tokens_out = ${tokensOut}, finished_at = now()
     WHERE id = ${id}
   `;
   return (await getLatestBlogResearch(topicId))!;
