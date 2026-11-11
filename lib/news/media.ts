@@ -21,6 +21,10 @@ export interface FoundPhoto {
   width?: number;
   height?: number;
   rawUrl?: string; // Unsplash: base image URL that takes size/crop parameters
+  lat?: number; // where the photo was taken, when the provider says
+  lon?: number;
+  location?: string; // Unsplash: "Barcelona, Spain"
+  proof?: string; // why we know it shows the right place ("Wikidata image", "Commons category", "taken 0.4 km away")
 }
 
 const UA = "WorldAttractionNewsBot/1.0 (https://worldattractionnews.com; editorial image search)";
@@ -119,6 +123,17 @@ export function unsplashDescription(r: any): string {
     .join(" ");
 }
 
+// Where an Unsplash photo was taken: its location name and, when set, its
+// coordinates (0,0 means "not set"). Pure; exported for tests.
+export function unsplashPlace(r: any): { location?: string; lat?: number; lon?: number } {
+  const loc = r?.location || {};
+  const location = [loc.name, loc.city, loc.country].filter(Boolean).join(", ");
+  const lat = Number(loc?.position?.latitude);
+  const lon = Number(loc?.position?.longitude);
+  const has = Number.isFinite(lat) && Number.isFinite(lon) && !(lat === 0 && lon === 0);
+  return { ...(location ? { location } : {}), ...(has ? { lat, lon } : {}) };
+}
+
 async function searchUnsplash(query: string): Promise<FoundPhoto[]> {
   const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
   if (!key) return [];
@@ -150,18 +165,16 @@ async function searchUnsplash(query: string): Promise<FoundPhoto[]> {
     width: Number(r?.width) || undefined,
     height: Number(r?.height) || undefined,
     rawUrl: typeof r?.urls?.raw === "string" ? r.urls.raw : undefined,
+    ...unsplashPlace(r),
     _download: r?.links?.download_location as string,
     _profile: r?.user?.links?.html ? `${r.user.links.html}?utm_source=world_attraction_news&utm_medium=referral` : undefined,
   }));
 }
 
-async function searchWikimedia(query: string): Promise<FoundPhoto[]> {
-  const url =
-    "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=15" +
-    `&gsrsearch=${encodeURIComponent(`${query} filetype:bitmap`)}` +
-    "&prop=imageinfo&iiprop=url|size|mime|extmetadata&iiurlwidth=1600&origin=*";
-  const j = await jget(url);
-  const pages: any[] = Object.values(j?.query?.pages || {});
+// Commons file pages (from any query) as photos we may use: JPEG or PNG,
+// landscape, at least 1000 px wide, with a licence we can use. Pure;
+// exported for tests.
+export function commonsPhotos(pages: any[], query: string, proof = ""): FoundPhoto[] {
   const out: FoundPhoto[] = [];
   for (const p of pages) {
     const ii = p?.imageinfo?.[0];
@@ -184,9 +197,52 @@ async function searchWikimedia(query: string): Promise<FoundPhoto[]> {
       description: desc.slice(0, 300),
       query,
       width: Number(ii.width) || undefined,
+      height: Number(ii.height) || undefined,
+      ...(typeof p?.coordinates?.[0]?.lat === "number" ? { lat: p.coordinates[0].lat, lon: p.coordinates[0].lon } : {}),
+      ...(proof ? { proof } : {}),
     });
   }
   return out;
+}
+
+const COMMONS_PROPS = "&prop=imageinfo|coordinates&iiprop=url|size|mime|extmetadata&iiurlwidth=1600&origin=*";
+
+async function searchWikimedia(query: string): Promise<FoundPhoto[]> {
+  const j = await jget(
+    "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=15" +
+      `&gsrsearch=${encodeURIComponent(`${query} filetype:bitmap`)}` +
+      COMMONS_PROPS
+  );
+  return commonsPhotos(Object.values(j?.query?.pages || {}), query);
+}
+
+// Named Commons files (a Wikidata item's own image, P18).
+export async function commonsFiles(names: string[], proof: string): Promise<FoundPhoto[]> {
+  const titles = names.filter(Boolean).map((n) => (n.startsWith("File:") ? n : `File:${n}`));
+  if (titles.length === 0) return [];
+  const j = await jget(`https://commons.wikimedia.org/w/api.php?action=query&format=json&titles=${encodeURIComponent(titles.join("|"))}${COMMONS_PROPS}`);
+  return commonsPhotos(Object.values(j?.query?.pages || {}), names[0].replace(/^File:/, ""), proof);
+}
+
+// Photos filed in a Commons category ("Sagrada Família"): people filed them
+// there because they show it.
+export async function commonsCategoryPhotos(category: string, label: string, limit = 40): Promise<FoundPhoto[]> {
+  if (!category) return [];
+  const j = await jget(
+    "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=categorymembers&gcmtype=file" +
+      `&gcmlimit=${limit}&gcmtitle=${encodeURIComponent(`Category:${category}`)}${COMMONS_PROPS}`
+  );
+  return commonsPhotos(Object.values(j?.query?.pages || {}), label, "Commons category");
+}
+
+// Photos taken within `radiusM` metres of a point (camera coordinates).
+export async function commonsNear(lat: number, lon: number, radiusM: number, label: string, limit = 40): Promise<FoundPhoto[]> {
+  const r = Math.max(10, Math.min(10_000, Math.round(radiusM))); // the API's range
+  const j = await jget(
+    "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=geosearch&ggsnamespace=6" +
+      `&ggscoord=${lat}|${lon}&ggsradius=${r}&ggslimit=${limit}${COMMONS_PROPS}`
+  );
+  return commonsPhotos(Object.values(j?.query?.pages || {}), label, "taken nearby");
 }
 
 // ------------------------------------------------------------- relevance
@@ -212,6 +268,30 @@ export interface PhotoContext {
   place?: string; // the story's city or country, e.g. "Florence"
   country?: string; // the story's country, e.g. "Italy" (rejects Florence, Alabama)
   avoid?: string[]; // alt texts of photos already in the article (no second Eiffel Tower)
+  // Proof of place: when set, a photo is used only if it was taken within
+  // `km` of this point, or (Unsplash) its location names `place`. Text
+  // matches alone picked a namesake church in New Mexico for Barcelona.
+  near?: { lat: number; lon: number; km: number };
+}
+
+const R_EARTH = 6371;
+function km(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const h = Math.sin(rad(b.lat - a.lat) / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lon - a.lon) / 2) ** 2;
+  return 2 * R_EARTH * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// True when the photo is proven to be at the story's place (see
+// PhotoContext.near). Pure; exported for tests.
+export function provenPlace(p: Pick<FoundPhoto, "provider" | "lat" | "lon" | "location" | "proof">, ctx: PhotoContext): boolean {
+  if (!ctx.near) return true;
+  if (p.proof === "Wikidata image" || p.proof === "Commons category") return true;
+  if (typeof p.lat === "number" && typeof p.lon === "number") return km({ lat: p.lat, lon: p.lon }, ctx.near) <= ctx.near.km;
+  if (p.provider === "unsplash" && p.location && ctx.place) {
+    const want = fold(ctx.place.split(",")[0]).trim();
+    return want.length >= 3 && new RegExp(`\\b${want.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(fold(p.location));
+  }
+  return false;
 }
 
 // True when two photo descriptions show the same thing: they share two or
@@ -236,6 +316,14 @@ function countriesIn(text: string): Set<string> {
   const out = new Set<string>();
   for (const [re, name] of COUNTRY_INDEX) if (re.test(text)) out.add(name);
   return out;
+}
+
+// A photograph of a scene: not artwork, a map, a document or an off-subject
+// close-up. For photos already proven to show the place (its Commons
+// category), where no search words need to match. Pure; exported for tests.
+export function isScenePhoto(p: Pick<FoundPhoto, "title" | "description">): boolean {
+  const text = fold(`${p.title || ""} ${p.description || ""}`);
+  return !NON_PHOTO.test(text) && !OFF_SUBJECT.test(text);
 }
 
 // A score for how well a photo fits the search and the story, or null when it
@@ -297,6 +385,7 @@ export async function findPhoto(queries: string[], exclude: Set<string> = new Se
       }
       for (const r of results) {
         if (!r.imageUrl || exclude.has(r.imageUrl) || exclude.has(r.pageUrl) || !isPublicUrl(r.imageUrl)) continue;
+        if (!provenPlace(r, ctx)) continue;
         if (ctx.avoid?.length) {
           const alt = altForPhoto(r);
           const placeWords = keywords(fold(`${ctx.place || ""} ${ctx.country || ""}`));

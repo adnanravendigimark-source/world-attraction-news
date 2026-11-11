@@ -51,17 +51,23 @@ export interface FactCheck {
   stale: boolean; // the article text changed after this check
 }
 
-// Defaults chosen on 2026-10-29 by writing the same story and guide with each
-// model: gpt-6-luna writes accurate, plain news at about 1/20 of gpt-4o's cost,
-// but its long guides read padded and robotic, so guides stay on gpt-4o
-// (OPENAI_BLOG_MODEL) and fall back to the news writer once gpt-4o retires.
+// Defaults: gpt-6-luna for everything (about 1/20 of gpt-4o's cost; gpt-4o
+// retires on 14 January 2027). Guides use it with low reasoning (blogEffort)
+// and a stricter flow prompt; OPENAI_BLOG_MODEL can still pick another model.
 export const checkModel = () => process.env.OPENAI_CHECK_MODEL?.trim() || "gpt-6-luna";
 export const checkEffort = (): "none" | "low" | "medium" | "high" => {
   const v = String(process.env.OPENAI_CHECK_EFFORT || "").trim();
   return v === "none" || v === "medium" || v === "high" ? v : "low";
 };
 export const writerModel = () => process.env.OPENAI_WRITER_MODEL?.trim() || "gpt-6-luna";
-export const blogModel = () => process.env.OPENAI_BLOG_MODEL?.trim() || "gpt-4o";
+export const blogModel = () => process.env.OPENAI_BLOG_MODEL?.trim() || "gpt-6-luna";
+// gpt-6-luna with no reasoning wrote choppy, robotic guides (2026-11-06); a
+// little reasoning fixes the flow for about $0.003 more per guide. Other
+// models ignore it.
+export const blogEffort = (): "none" | "low" | "medium" | "high" => {
+  const v = String(process.env.OPENAI_BLOG_EFFORT || "").trim();
+  return v === "none" || v === "medium" || v === "high" ? v : "low";
+};
 
 // ---------------------------------------------------------------- facts text
 

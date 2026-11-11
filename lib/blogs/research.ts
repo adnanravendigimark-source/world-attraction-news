@@ -10,12 +10,18 @@ import { chatJson } from "../news/aiClient";
 import { researchModel } from "../news/research";
 import { getTopic, type BlogTopic } from "./topics";
 import { sectionSubject } from "./images";
-import { buildGazetteer, findPlaces } from "../news/places";
+import { buildGazetteer, findPlaces, loadGazetteer, resolvePlace } from "../news/places";
+import { parseFeed } from "../news/rss";
+import { resolveGoogleNewsUrl } from "../news/googleNews";
+import { anchorForTitle, canonicalCountry, correctedDestination, type Anchor } from "./anchor";
+import { resolveDestination } from "./topics";
 
-export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-v4-2026-11-11";
+export const BLOG_RESEARCH_PROMPT_VERSION = "blog-research-v5-2026-11-11";
 const UA = "WorldAttractionNewsBot/1.0 (https://www.worldattractionnews.com; research)";
 const PER_SOURCE = 6000;
 const TOTAL = 42000; // up to 7 pages; broad guides ran out of facts at 4 pages
+const FRESH_TOTAL = 15000; // recent news pages, on top of TOTAL, for time-sensitive topics
+const FRESH_PAGES = 3;
 export const MIN_FACTS = 12;
 export const MIN_SUBJECT_FACTS = 6; // facts about the topic's own subject (e.g. Siam Park)
 
@@ -29,6 +35,8 @@ export interface BlogSource {
   ok: boolean;
   chars: number;
   note: string;
+  date?: string; // when the page was published (news), YYYY-MM-DD
+  kind?: "encyclopedia" | "official" | "news" | "editor";
 }
 export interface BlogFact {
   subtopic: string;
@@ -246,6 +254,84 @@ async function officialSite(wikiTitle: string): Promise<string> {
   return /^https?:\/\//i.test(url) && isPublicUrl(url) ? url : "";
 }
 
+// Topics about something new or changing, where encyclopedias are out of
+// date: a year, "new", "opening", "updates", tickets and prices. Pure;
+// exported for tests.
+export function isTimeSensitive(title: string, type = ""): boolean {
+  if (type === "tickets") return true;
+  return /\b(20\d\d|new|newest|opening|opens|reopen\w*|updates?|latest|news|upcoming|now|closed|closures?|renovation|construction|completion|completed?|tickets?|prices?|costs?|fees?|hours|this year|next year)\b/i.test(String(title || ""));
+}
+
+// Header line of one source in the model's input. News pages carry their
+// date so a planned or temporary fact is never written as current. Pure.
+export function sourceHeader(n: number, publisher: string, title: string, meta: { date?: string; kind?: BlogSource["kind"] } = {}): string {
+  const tag = meta.kind === "news" ? ` (news, published ${meta.date || "date unknown"})` : meta.kind === "official" ? " (official website)" : meta.kind === "encyclopedia" ? " (encyclopedia, may be years old)" : "";
+  return `SOURCE ${n} — ${publisher}${tag}: ${title}`;
+}
+
+// Recent news stories (last 12 months) about a subject, newest first, with
+// the publisher's own URL. Pure parsing lives in parseFeed.
+export async function recentNews(name: string, where = "", limit = 8): Promise<{ title: string; url: string; date: string }[]> {
+  const q = `"${name}"${where ? ` ${where}` : ""} when:1y`;
+  const res = await fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`, {
+    headers: { "User-Agent": UA },
+    cache: "no-store",
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!res.ok) return [];
+  const items = parseFeed(await res.text())
+    .filter((i) => i.url && i.publishedAt)
+    .sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)))
+    .slice(0, limit);
+  const out: { title: string; url: string; date: string }[] = [];
+  for (const i of items) {
+    const url = (await resolveGoogleNewsUrl(i.url).catch(() => null)) || "";
+    if (url && isPublicUrl(url)) out.push({ title: i.title, url, date: String(i.publishedAt).slice(0, 10) });
+  }
+  return out;
+}
+
+// The Wikipedia page of a topic's named subject ("Sagrada Família"), with
+// the destination first and then alone, or "".
+export async function findSubjectPage(subject: string, dest: string): Promise<string> {
+  if (!subject) return "";
+  for (const q of [`${subject} ${dest}`, subject]) {
+    for (const t of await wikiSearch("en.wikipedia.org", q.slice(0, 200), 5)) {
+      if (isOffTopicTitle(t) || !isNamedSubject(subject, t)) continue;
+      return t;
+    }
+  }
+  return "";
+}
+
+// Fixes a topic filed under the wrong place: when its named subject's own
+// page never mentions the destination and Wikidata puts the subject in
+// another country ("Sagrada Familia 2027" filed under United States), the
+// topic is moved to the subject's city (or country). Returns a note for the
+// editor, or "".
+export async function checkTopicPlace(topic: BlogTopic): Promise<{ note: string; anchor: Anchor | null }> {
+  const dest = destinationName(topic);
+  const subject = topicSubject(topic.title, topic.destination);
+  const page = await findSubjectPage(subject, dest).catch(() => "");
+  if (!page) return { note: "", anchor: null };
+  const anchor = await anchorForTitle(page).catch(() => null);
+  if (!anchor) return { note: "", anchor: null };
+  const text = await wikiExtract("en.wikipedia.org", page).catch(() => null);
+  if (!text || fold(text.text).includes(fold(dest))) return { note: "", anchor };
+  const filedCountry = topic.destination.split(",").pop()!.trim();
+  const g = await loadGazetteer();
+  const fix = correctedDestination(anchor, filedCountry, (name, country) => {
+    const p = resolvePlace(name, g);
+    return p.known && !!p.country && canonicalCountry(p.country) === canonicalCountry(country);
+  });
+  if (!fix) return { note: "", anchor };
+  const to = await resolveDestination(fix.city || fix.country).catch(() => null);
+  if (!to) return { note: `${anchor.label} is in ${fix.country}, not ${topic.destination}. Change the topic's destination.`, anchor };
+  await sql`UPDATE blog_topics SET city_id = ${to.cityId}, country_id = ${to.countryId}, updated_at = now() WHERE id = ${topic.id}`;
+  if (topic.articleId) await sql`UPDATE articles SET city_id = ${to.cityId}, country_id = ${to.countryId}, updated_at = now() WHERE id = ${topic.articleId}`.catch(() => {});
+  return { note: `Destination corrected: ${anchor.label} is in ${to.label}, not ${topic.destination} (from Wikidata).`, anchor };
+}
+
 // Collects source text for the topic. Exported for tests with fetch mocked.
 export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []): Promise<{ sources: BlogSource[]; blocks: string[]; subjectPage: string }> {
   const dest = destinationName(topic);
@@ -253,14 +339,18 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
   const sources: BlogSource[] = [];
   const blocks: string[] = [];
   let total = 0;
-  const add = (title: string, url: string, publisher: string, text: string, note = "") => {
+  let freshTotal = 0;
+  const add = (title: string, url: string, publisher: string, text: string, note = "", meta: { date?: string; kind?: BlogSource["kind"] } = {}) => {
     const n = sources.length + 1;
-    const body = pickPassages(text, words, Math.min(PER_SOURCE, TOTAL - total));
+    const fresh = meta.kind === "news";
+    const room = fresh ? Math.min(5000, FRESH_TOTAL - freshTotal) : Math.min(PER_SOURCE, TOTAL - total);
+    const body = pickPassages(text, words, room);
     const ok = body.length >= 300;
-    sources.push({ n, title, url, publisher, ok, chars: body.length, note: ok ? note || "read" : note || "too little text" });
+    sources.push({ n, title, url, publisher, ok, chars: body.length, note: ok ? note || "read" : note || "too little text", ...meta });
     if (ok) {
-      blocks.push(`SOURCE ${n} — ${publisher}: ${title}\n${body}`);
-      total += body.length;
+      blocks.push(`${sourceHeader(n, publisher, title, meta)}\n${body}`);
+      if (fresh) freshTotal += body.length;
+      else total += body.length;
     }
   };
 
@@ -280,14 +370,7 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
     // With the destination first, then alone: a topic filed under the
     // wrong country ("Sagrada Familia 2027" under United States) still
     // finds its page.
-    for (const q of [`${subject} ${dest}`, subject]) {
-      for (const t of await wikiSearch("en.wikipedia.org", q.slice(0, 200), 5)) {
-        if (isOffTopicTitle(t) || !isNamedSubject(subject, t)) continue;
-        subjectPage = t;
-        break;
-      }
-      if (subjectPage) break;
-    }
+    subjectPage = await findSubjectPage(subject, dest).catch(() => "");
     if (subjectPage) {
       seen.add(subjectPage.toLowerCase());
       wanted.push(["en.wikipedia.org", subjectPage, "Wikipedia"]);
@@ -338,8 +421,27 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
   for (const [host, title, publisher] of wanted.slice(0, 7)) {
     if (total >= TOTAL) break;
     const page = cached && host === "en.wikipedia.org" && title === subjectPage ? cached : await wikiExtract(host, title).catch(() => null);
-    if (page) add(page.title, page.url, publisher, page.text);
+    if (page) add(page.title, page.url, publisher, page.text, "", { kind: "encyclopedia" });
     else sources.push({ n: sources.length + 1, title, url: `https://${host}/wiki/${encodeURIComponent(title)}`, publisher, ok: false, chars: 0, note: "not found" });
+  }
+  // Recent news for topics about something new or changing ("2027 updates",
+  // "opening", tickets): encyclopedias are years behind. Free: Google News
+  // search, then the publisher's own page.
+  if (isTimeSensitive(topic.title, topic.topicType)) {
+    const label = subjectPage ? subjectPage.replace(/\s*\(.*\)$/, "") : subject || dest;
+    for (const item of await recentNews(label, label === dest ? "" : dest).catch(() => [])) {
+      if (sources.filter((x) => x.kind === "news" && x.ok).length >= FRESH_PAGES || freshTotal >= FRESH_TOTAL) break;
+      const page = await fetchPageText(item.url);
+      if (!page.ok) continue;
+      const host = (() => {
+        try {
+          return new URL(page.finalUrl || item.url).hostname.replace(/^www\./, "");
+        } catch {
+          return "";
+        }
+      })();
+      add(page.title || item.title, page.finalUrl || item.url, host, page.text.replace(/\. /g, ".\n"), "", { kind: "news", date: item.date });
+    }
   }
   // The subject's official site, unless the editor already added it.
   const official = subjectPage ? await officialSite(subjectPage).catch(() => "") : "";
@@ -358,7 +460,7 @@ export async function gatherSources(topic: BlogTopic, extraUrls: string[] = []):
         return "";
       }
     })();
-    if (page.ok) add(page.title || url, page.finalUrl || url, host, page.text.replace(/\. /g, ".\n"));
+    if (page.ok) add(page.title || url, page.finalUrl || url, host, page.text.replace(/\. /g, ".\n"), "", { kind: url === official ? "official" : "editor" });
     else sources.push({ n: sources.length + 1, title: url, url, publisher: host, ok: false, chars: 0, note: page.error || "could not read" });
   }
   // The subject's own page, only if it was found and read.
@@ -374,8 +476,18 @@ Rules:
 - subtopic: one of places, practical, tickets, seasons, transport, food, history, other.
 - volatile: true ONLY for things that can change and must be checked before visiting: prices, fees, opening hours, ticket and booking rules, entry or visa rules, timetables, temporary closures. Climate, weather, seasons, history, geography and descriptions of places are NOT volatile.
 - Prefer facts relevant to the TOPIC; include background facts only when they help the article.
+- Dates and time: sources marked "news, published <date>" are recent. For anything planned, new, temporary or changing, put the time in the claim ("As of October 2026, …", "is planned to open in 2027"). Never state as current something a source describes as planned, past or temporary.
+- Encyclopedia sources can be years old: never take prices, fees, opening hours or ticket rules from them; take those only from the official website or a recent news source, with its date.
+- When sources disagree, prefer the official website, then the newest news source.
 - Return 30 to 60 facts when the sources allow; fewer if they don't. Never pad.
 Return JSON: {"facts":[{"subtopic","claim","sources","volatile"}]}`;
+
+// Volatile facts with a number (a price, an hour, a fee) whose only sources
+// are encyclopedias. Pure; exported for tests.
+export function dropStaleVolatile(facts: BlogFact[], sources: Pick<BlogSource, "n" | "kind" | "publisher">[]): BlogFact[] {
+  const encyclopedia = new Set(sources.filter((s) => s.kind === "encyclopedia" || /^(Wikipedia|Wikivoyage)$/.test(s.publisher)).map((s) => s.n));
+  return facts.filter((f) => !(f.volatile && /[\d€$£¥]/.test(f.claim) && f.sources.every((n) => encyclopedia.has(n))));
+}
 
 export function normalizeBlogFacts(raw: any, sourceNumbers: number[]): BlogFact[] {
   const valid = new Set(sourceNumbers);
@@ -418,7 +530,7 @@ export async function getLatestBlogResearch(topicId: string): Promise<BlogResear
 
 export async function runBlogResearch(topicId: string, opts: { urls?: string[] } = {}): Promise<BlogResearch> {
   if (!process.env.OPENAI_API_KEY?.trim()) throw new Error("OPENAI_API_KEY is not set.");
-  const topic = await getTopic(topicId);
+  let topic = await getTopic(topicId);
   if (!topic) throw new Error("Topic not found.");
   const urls = [...new Set([...(opts.urls || []), ...((await topicUrls(topicId)) || [])].map((u) => u.trim()).filter(Boolean))];
   if (opts.urls?.length) await sql`UPDATE blog_topics SET source_urls = ${urls} WHERE id = ${topicId}`.catch(() => {});
@@ -426,10 +538,15 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
   const model = researchModel();
   const id = (await sql`INSERT INTO blog_research (topic_id, status, model) VALUES (${topicId}, 'running', ${model}) RETURNING id`)[0].id as string;
   const fail = async (msg: string, sources: BlogSource[] = []) => {
+    if (notes.length) msg = `${msg} (${notes.join(" ")})`;
     await sql`UPDATE blog_research SET status = 'failed', error = ${msg.slice(0, 500)}, sources = ${JSON.stringify(sources)}::jsonb, finished_at = now() WHERE id = ${id}`;
     return (await getLatestBlogResearch(topicId))!;
   };
 
+  // The topic's real place first (a wrong country ruined research and photos).
+  const place = await checkTopicPlace(topic).catch(() => ({ note: "", anchor: null }));
+  const notes: string[] = place.note ? [place.note] : [];
+  if (place.note.startsWith("Destination corrected")) topic = (await getTopic(topicId))!;
   const { sources, blocks, subjectPage } = await gatherSources(topic, urls).catch(() => ({ sources: [] as BlogSource[], blocks: [] as string[], subjectPage: "" }));
   // Never write from model memory: no readable source, no AI call.
   if (blocks.length === 0) {
@@ -472,6 +589,11 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
   } catch (err: any) {
     return fail(String(err?.message || err), sources);
   }
+  // A price or opening time read only from an encyclopedia is probably out of
+  // date ("tickets €15–20" from an old Wikipedia text): left out.
+  const before = facts.length;
+  facts = dropStaleVolatile(facts, sources);
+  if (facts.length < before) notes.push(`${before - facts.length} price or opening-time fact(s) from encyclopedia pages left out (may be out of date). Add the official website for current prices.`);
   if (facts.length < MIN_FACTS) {
     return fail(`Research found only ${facts.length} cited facts (at least ${MIN_FACTS} are needed). Add a page about this topic and run research again.`, sources);
   }
@@ -495,7 +617,7 @@ export async function runBlogResearch(topicId: string, opts: { urls?: string[] }
     );
   }
   await sql`
-    UPDATE blog_research SET status = 'done', facts = ${JSON.stringify(facts)}::jsonb, sources = ${JSON.stringify(sources)}::jsonb,
+    UPDATE blog_research SET status = 'done', facts = ${JSON.stringify(facts)}::jsonb, sources = ${JSON.stringify(sources)}::jsonb, error = ${notes.join(" ").slice(0, 500)},
       tokens_in = ${tokensIn}, tokens_out = ${tokensOut}, finished_at = now()
     WHERE id = ${id}
   `;

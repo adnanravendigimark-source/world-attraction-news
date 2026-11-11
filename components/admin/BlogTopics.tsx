@@ -107,6 +107,12 @@ export default function BlogTopics({ canEdit }: { canEdit: boolean }) {
     try {
       const r = await generateBlog(id, (text) => setGen({ id, text }));
       toast.success(`Article ready (${r.wordCount} words${r.quality != null ? `, quality ${r.quality}/100` : ""}).`);
+      // Notes and soft failures (photos, links, check) stay visible: the
+      // editor reads them before the page changes.
+      if (r.warnings.length) {
+        r.warnings.forEach((w) => toast.error(w));
+        await new Promise((res) => setTimeout(res, 6000));
+      }
       window.location.href = r.adminUrl;
     } catch (e: any) {
       toast.error(e.message || "Generation failed.");

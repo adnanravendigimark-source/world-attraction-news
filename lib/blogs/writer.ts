@@ -8,7 +8,7 @@ import { sql } from "../db";
 import { computeContentStats, generateUniqueSlug, getNewsAuthorId } from "../articles";
 import { sanitizeArticleHtml } from "../sanitizeHtml";
 import { chatJson } from "../news/aiClient";
-import { blogModel, writerModel } from "../news/factcheck";
+import { blogEffort, blogModel, writerModel } from "../news/factcheck";
 import { joinShortParagraphs } from "./paragraphs";
 export { joinShortParagraphs };
 import { getTopic, type BlogTopic } from "./topics";
@@ -17,7 +17,7 @@ import { cityPath, countryPath } from "../destinations";
 import { saveExtra } from "../news/seo";
 import { keywordPlacement } from "./quality";
 
-export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v7-2026-11-06";
+export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v8-2026-11-11";
 
 export interface OutlineSection {
   heading: string;
@@ -188,6 +188,7 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
     kind: "blog_outline",
     log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
     model: blogModel(),
+    reasoningEffort: blogEffort(),
     fallbackModel: writerModel(),
     temperature: 0.3,
     timeoutMs: 60_000,
@@ -206,7 +207,8 @@ export async function outlineStep(topicId: string): Promise<BlogOutline> {
 
 const SECTION_PROMPT = `You write ONE section of a travel guide, under a heading that is added separately.
 - Use every fact given, each explained with useful detail for a traveller, in about the target number of words. Don't pad with general statements.
-- Write connected paragraphs of 2-4 sentences that flow from one to the next; never a one-sentence paragraph. Use <h3> sub-headings only if the section covers several distinct places or items. Use a <ul> only for a real list of 3 or more places, dishes or tips.
+- Write connected paragraphs of 2-4 sentences that flow from one to the next; never a one-sentence paragraph.
+- Flow: don't state one fact per sentence like a list. Join related facts in one sentence, link sentences with words like "so", "which", "because", "from there", and vary how sentences start (never three in a row starting with "The" or the place name). Use <h3> sub-headings only if the section covers several distinct places or items. Use a <ul> only for a real list of 3 or more places, dishes or tips.
 - Start straight in; do not repeat the heading or introduce the article.
 - KEYWORD (if given) at most once, only where it reads naturally. Never start a sentence with "When planning a trip", "When you plan" or "If you are planning".
 - Readability: simple words, sentences under 22 words on average, one idea per paragraph. Use a <ul> when listing 3 or more places, dishes or tips.
@@ -231,6 +233,7 @@ export async function sectionStep(topicId: string, index: number): Promise<{ ind
     kind: "blog_section",
     log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
     model: blogModel(),
+    reasoningEffort: blogEffort(),
     fallbackModel: writerModel(),
     temperature: 0.4,
     timeoutMs: 75_000,
@@ -244,6 +247,7 @@ export async function sectionStep(topicId: string, index: number): Promise<{ ind
       kind: "blog_section",
       log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
       model: blogModel(),
+      reasoningEffort: blogEffort(),
       fallbackModel: writerModel(),
       temperature: 0.4,
       timeoutMs: 75_000,
@@ -365,6 +369,7 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
     kind: "blog_finish",
     log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
     model: blogModel(),
+    reasoningEffort: blogEffort(),
     fallbackModel: writerModel(),
     temperature: 0.3,
     timeoutMs: 75_000,
@@ -379,6 +384,7 @@ export async function finishStep(topicId: string): Promise<{ articleId: string; 
       kind: "blog_intro",
       log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
       model: blogModel(),
+      reasoningEffort: blogEffort(),
       fallbackModel: writerModel(),
       temperature: 0.2,
       timeoutMs: 45_000,

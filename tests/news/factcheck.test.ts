@@ -149,12 +149,14 @@ describe("gpt-6-luna request body", () => {
 });
 
 import { modelGone } from "@/lib/news/aiClient";
-import { blogModel, checkModel, writerModel } from "@/lib/news/factcheck";
+import { blogEffort, blogModel, checkModel, writerModel } from "@/lib/news/factcheck";
 import { researchModel } from "@/lib/news/research";
 describe("model defaults and retirement fallback", () => {
-  it("news, research and checks default to gpt-6-luna; guides to gpt-4o", () => {
+  it("everything defaults to gpt-6-luna, guides with low reasoning", () => {
     for (const k of ["OPENAI_MODEL", "OPENAI_WRITER_MODEL", "OPENAI_CHECK_MODEL", "OPENAI_BLOG_MODEL"]) delete process.env[k];
-    expect([researchModel(), writerModel(), checkModel(), blogModel()]).toEqual(["gpt-6-luna", "gpt-6-luna", "gpt-6-luna", "gpt-4o"]);
+    expect([researchModel(), writerModel(), checkModel(), blogModel()]).toEqual(["gpt-6-luna", "gpt-6-luna", "gpt-6-luna", "gpt-6-luna"]);
+    delete process.env.OPENAI_BLOG_EFFORT;
+    expect(blogEffort()).toBe("low");
   });
   it("recognises a retired model, not other errors", () => {
     expect(modelGone({ status: 404, message: "The model `gpt-4o` does not exist or you do not have access to it." })).toBe(true);

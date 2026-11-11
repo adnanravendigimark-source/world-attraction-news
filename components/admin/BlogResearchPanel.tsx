@@ -67,8 +67,9 @@ export default function BlogResearchPanel({ topicId, canEdit }: { topicId: strin
         </div>
       )}
       {loading && <p className="text-ink-500">Loading…</p>}
-      {!loading && !r && <p className="text-ink-500">No research yet. It reads Wikivoyage, Wikipedia and any page you add, then lists cited facts.</p>}
+      {!loading && !r && <p className="text-ink-500">No research yet. It finds the subject on Wikidata, reads Wikipedia, Wikivoyage, recent news (for new or changing topics), the official site and any page you add, then lists cited facts.</p>}
       {r?.status === "failed" && <p className="font-medium text-red-700">{r.error}</p>}
+      {r?.status === "done" && r.error && <p className="font-medium text-amber-800">{r.error}</p>}
       {r && (
         <>
           <div>
@@ -78,6 +79,7 @@ export default function BlogResearchPanel({ topicId, canEdit }: { topicId: strin
                 <li key={s.n} className={s.ok ? "text-ink-700" : "text-ink-400"}>
                   [{s.n}]{" "}
                   <a href={s.url} target="_blank" rel="noopener noreferrer" className="underline">{s.publisher ? `${s.publisher}: ` : ""}{s.title}</a>
+                  {s.date && ` · ${s.date}`}
                   {!s.ok && ` (${s.note})`}
                 </li>
               ))}

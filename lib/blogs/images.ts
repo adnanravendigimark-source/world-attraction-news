@@ -1,11 +1,29 @@
 // Track B5 — photos for AI blogs: a cover plus one photo for every second
-// section, each looked up from that section's subject (a landmark, a dish, a
-// street) and the destination. Free-licence photos first (Wikimedia,
-// Unsplash); an AI image only as the cover fallback.
+// section. Every photo must be PROVEN to show the right place: the subject's
+// own Wikidata image or Commons category, or a photo whose camera position
+// (Commons) or location (Unsplash) is at the destination. Text matches alone
+// are never enough (they picked the Space Needle and a New Mexico church for
+// a Barcelona guide). No proven photo -> no photo; an AI image only as the
+// cover fallback.
 
 import { sql } from "../db";
 import { computeContentStats } from "../articles";
-import { altForPhoto, captionHtml, creditLine, figureHtml, findPhoto, storePhoto, stripOurFigures, type FoundPhoto } from "../news/media";
+import {
+  altForPhoto,
+  captionHtml,
+  commonsCategoryPhotos,
+  commonsFiles,
+  commonsNear,
+  creditLine,
+  figureHtml,
+  findPhoto,
+  isScenePhoto,
+  storePhoto,
+  stripOurFigures,
+  type FoundPhoto,
+} from "../news/media";
+import { isPublicUrl } from "../news/extract";
+import { anchorForTitle, canonicalCountry, type Anchor } from "./anchor";
 import { buildGazetteer, findPlaces } from "../news/places";
 import { saveCoverSize, saveImageMeta } from "../news/images";
 import { generateCoverImage } from "../news/imagegen";
@@ -73,7 +91,42 @@ export function insertAfterSection(html: string, sectionIndex: number, figure: s
   return html;
 }
 
-export async function ensureBlogImages(articleId: string, opts: { allowAi?: boolean; inline?: boolean } = {}): Promise<{ cover: "licensed" | "ai" | "none"; inline: number }> {
+// How far from the anchor a photo may have been taken: a landmark's own
+// photos are within a short walk; a city's anywhere in the city; a country's
+// anywhere in it (its centre point, so wide). Pure; exported for tests.
+export function proofRadiusKm(kind: "subject" | "city" | "country"): number {
+  return kind === "subject" ? 1.5 : kind === "city" ? 30 : 1200;
+}
+
+// The anchors photos must match: the topic's own subject (when research
+// found its Wikipedia page) and the destination. Null when Wikidata has
+// nothing or can't be reached.
+async function photoAnchors(articleId: string, dest: string, title: string): Promise<{ subject: Anchor | null; place: Anchor | null }> {
+  const t = (await sql`SELECT id, title FROM blog_topics WHERE article_id = ${articleId} ORDER BY created_at DESC LIMIT 1`.catch(() => []))[0] as any;
+  let subject: Anchor | null = null;
+  if (t) {
+    const { getLatestBlogResearch, topicSubject, isNamedSubject } = await import("./research");
+    const r = await getLatestBlogResearch(String(t.id)).catch(() => null);
+    const guess = topicSubject(String(t.title || title), dest);
+    const page = guess ? (r?.sources || []).find((s) => s.ok && s.publisher === "Wikipedia" && !/,\s/.test(s.title) && isNamedSubject(guess, s.title)) : undefined;
+    if (page) subject = await anchorForTitle(page.title, 0).catch(() => null);
+  }
+  const place = dest ? await anchorForTitle(dest, 0).catch(() => null) : null;
+  return { subject, place };
+}
+
+// Photos proven to show the subject: its own Wikidata image, its Commons
+// category, then photos taken within a few hundred metres of it.
+async function subjectPool(a: Anchor): Promise<FoundPhoto[]> {
+  const own = a.image ? await commonsFiles([a.image], "Wikidata image").catch(() => []) : [];
+  const cat = await commonsCategoryPhotos(a.commonsCategory, a.label).catch(() => []);
+  const near = a.lat !== null && a.lon !== null ? await commonsNear(a.lat, a.lon, 400, a.label).catch(() => []) : [];
+  const seen = new Set<string>();
+  return [...own, ...cat.sort((x, y) => (y.width || 0) - (x.width || 0)), ...near]
+    .filter((p) => isScenePhoto(p) && isPublicUrl(p.imageUrl) && !seen.has(p.imageUrl) && !!seen.add(p.imageUrl));
+}
+
+export async function ensureBlogImages(articleId: string, opts: { allowAi?: boolean; inline?: boolean } = {}): Promise<{ cover: "licensed" | "ai" | "none"; inline: number; notes: string[] }> {
   const a = (await sql`
     SELECT a.title, a.content_html, a.image, ci.name AS city, co.name AS country, ci.country AS city_country
     FROM articles a LEFT JOIN cities ci ON ci.id = a.city_id LEFT JOIN countries co ON co.id = a.country_id
@@ -88,48 +141,77 @@ export async function ensureBlogImages(articleId: string, opts: { allowAi?: bool
   const html0 = stripOurFigures(String(a.content_html || ""));
   const headings = [...html0.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)].map((m) => m[1].replace(/<[^>]+>/g, "").trim());
   const used = new Set<string>();
+  const notes: string[] = [];
 
-  // Cover: the destination itself reads best as a lead photo.
+  // Every photo must be proven to show the right place (see PhotoContext.near).
+  const anchors = await photoAnchors(articleId, dest, String(a.title || ""));
+  const subject = anchors.subject;
+  // A namesake page ("Florence" the US city for Florence, Italy) is not the place.
+  const place = anchors.place && (!anchors.place.country || !country || canonicalCountry(anchors.place.country) === canonicalCountry(country)) ? anchors.place : null;
+  const destNear =
+    place && place.lat !== null && place.lon !== null ? { lat: place.lat, lon: place.lon, km: proofRadiusKm(countryOnly ? "country" : "city") } : undefined;
+  if (!destNear) notes.push(`No map position found for ${dest}: only photos that name it in their location are used.`);
+  const pool = subject ? await subjectPool(subject) : [];
+  if (subject && pool.length === 0) notes.push(`No free photo of ${subject.label} found on Wikimedia Commons.`);
+  const nextFromPool = (): FoundPhoto | null => pool.find((p) => !used.has(p.imageUrl)) || null;
+
+  const place1 = async (photo: FoundPhoto, cover: boolean) => {
+    const s = await storePhoto(photo, { cover });
+    used.add(photo.imageUrl);
+    return s;
+  };
+
+  // Cover: the subject itself when there is one, else the destination.
   let cover: "licensed" | "ai" | "none" = "none";
   const alts: string[] = [];
-  const coverPhoto = await findPhoto(blogCoverQueries(a.title, dest), used, { place: dest, country }).catch(() => null);
-  if (coverPhoto) alts.push(altForPhoto(coverPhoto));
-  if (coverPhoto) {
+  const ctx = { place: dest, country, near: destNear };
+  const candidates: (() => Promise<FoundPhoto | null>)[] = subject
+    ? [async () => nextFromPool()]
+    : [
+        async () => (place?.image ? (await commonsFiles([place.image], "Wikidata image").catch(() => []))[0] || null : null),
+        async () => (destNear ? findPhoto(blogCoverQueries(a.title, dest), used, ctx).catch(() => null) : null),
+        async () => (place?.commonsCategory ? (await commonsCategoryPhotos(place.commonsCategory, dest).catch(() => [])).find(isScenePhoto) || null : null),
+      ];
+  for (const next of candidates) {
+    if (cover !== "none") break;
+    const photo = await next();
+    if (!photo) continue;
     try {
-      const s = await storePhoto(coverPhoto, { cover: true });
-      used.add(coverPhoto.imageUrl);
-      await sql`UPDATE articles SET image = ${s.url}, image_alt = ${labelledAlt(altForPhoto(coverPhoto), "", dest)}, updated_at = now() WHERE id = ${articleId}`;
+      const s = await place1(photo, true);
+      alts.push(altForPhoto(photo));
+      await sql`UPDATE articles SET image = ${s.url}, image_alt = ${labelledAlt(altForPhoto(photo), subject?.label || "", dest)}, updated_at = now() WHERE id = ${articleId}`;
       await saveCoverSize(articleId, s);
-      await saveImageMeta(articleId, { sourceType: "licensed", credit: creditLine(coverPhoto), license: coverPhoto.license, sourceUrl: coverPhoto.pageUrl });
+      await saveImageMeta(articleId, { sourceType: "licensed", credit: creditLine(photo), license: photo.license, sourceUrl: photo.pageUrl });
       cover = "licensed";
     } catch {
-      /* fall through to the AI fallback */
+      used.add(photo.imageUrl); // a photo that won't download: try the next one
     }
   }
   if (cover === "none" && opts.allowAi !== false && !a.image) {
     cover = await generateCoverImage(articleId, "", { auto: true }).then(() => "ai" as const).catch(() => "none" as const);
+    notes.push(cover === "ai" ? "No proven free cover photo: an AI cover was made. Replace it if you have a real photo." : "No cover photo found.");
   }
 
-  // Inline photos, one per chosen section.
+  // Inline photos, one per chosen section: the section's own subject at the
+  // destination (proven by position), else another photo of the subject.
   let html = html0;
   const placed: { url: string; photo: FoundPhoto }[] = [];
   if (opts.inline !== false) {
     // Work from the last section back so earlier positions don't shift.
     for (const idx of photoSections(headings.length).reverse()) {
-      const subject = sectionSubject(headings[idx], dest);
-      // A bare country search returns any photo taken anywhere in the country,
-      // so a country-only guide searches the section's subject or nothing.
-      const queries = countryOnly ? (subject ? [`${subject} ${dest}`] : []) : [subject ? `${subject} ${dest}` : dest, dest];
-      const p = queries.length ? await findPhoto(queries, used, { place: dest, country, avoid: alts }).catch(() => null) : null;
+      const sub = sectionSubject(headings[idx], dest);
+      const named = sub && !(subject && fold(subject.label).includes(fold(sub)));
+      let p: FoundPhoto | null = null;
+      if (named && destNear) p = await findPhoto([`${sub} ${dest}`], used, { ...ctx, avoid: alts }).catch(() => null);
+      if (!p) p = nextFromPool();
       if (!p) continue;
-      alts.push(altForPhoto(p));
       try {
-        const s = await storePhoto(p);
-        used.add(p.imageUrl);
-        html = insertAfterSection(html, idx, figureHtml(s.url, labelledAlt(altForPhoto(p), subject, dest), captionHtml(p)));
+        const s = await place1(p, false);
+        alts.push(altForPhoto(p));
+        html = insertAfterSection(html, idx, figureHtml(s.url, labelledAlt(altForPhoto(p), p.proof && subject ? subject.label : sub, dest), captionHtml(p)));
         placed.push({ url: s.url, photo: p });
       } catch {
-        /* skip photos that fail to download */
+        used.add(p.imageUrl); /* skip photos that fail to download */
       }
     }
   }
@@ -138,9 +220,11 @@ export async function ensureBlogImages(articleId: string, opts: { allowAi?: bool
     await sql`UPDATE articles SET content_html = ${html}, word_count = ${stats.wordCount}, reading_time_minutes = ${stats.readingTimeMinutes}, updated_at = now() WHERE id = ${articleId}`;
     await recordAiRevision(articleId, `Photos placed in the guide (${placed.length})`);
   }
-  await sql`UPDATE article_image_meta SET inline = ${JSON.stringify(placed.reverse().map((s) => ({ url: s.url, credit: creditLine(s.photo), license: s.photo.license, source: s.photo.pageUrl })))}::jsonb WHERE article_id = ${articleId}`.catch(() => {});
-  return { cover, inline: placed.length };
+  await sql`UPDATE article_image_meta SET inline = ${JSON.stringify(placed.reverse().map((s) => ({ url: s.url, credit: creditLine(s.photo), license: s.photo.license, source: s.photo.pageUrl, proof: s.photo.proof || "taken nearby" })))}::jsonb WHERE article_id = ${articleId}`.catch(() => {});
+  return { cover, inline: placed.length, notes };
 }
+
+const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // Photos by section (index of the <h2> they follow), so text can be rewritten
 // and the photos put back where they were.
