@@ -225,3 +225,14 @@ describe("fact check fingerprint", () => {
     expect(hashMatches(legacy, '<p>Visit <a href="/x">Tokyo</a>, Nara.</p>')).toBe(false);
   });
 });
+
+import { plain as checkedText } from "@/lib/news/factcheck";
+describe("photo credits are not claims", () => {
+  it("drops a caption even when the editor saved the figure without its class", () => {
+    const html = '<p>India proposed free e-visas.</p><figure><img src="x" alt="a"><figcaption>Photo: Shujenchang / <a href="https://commons.wikimedia.org/x">Wikimedia Commons</a> · CC0</figcaption></figure><p>No start date yet.</p>';
+    const text = checkedText(html);
+    expect(text).not.toContain("Shujenchang");
+    expect(text).toContain("India proposed free e-visas.");
+    expect(text).toContain("No start date yet.");
+  });
+});

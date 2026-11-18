@@ -88,15 +88,23 @@ const LinkWithAttrs = Link.extend({
   },
 });
 
-const Figure = Node.create({
+export const Figure = Node.create({
   name: "figure",
   group: "block",
   content: "inline*",
   isolating: true,
   addAttributes() {
+    // src and alt belong on the <img>, not the <figure>. The class is kept:
+    // saving from the editor used to drop class="news-figure", and the fact
+    // check then read the photo credit as a claim to verify.
     return {
-      src: { default: null },
-      alt: { default: "" },
+      src: { default: null, renderHTML: () => ({}) },
+      alt: { default: "", renderHTML: () => ({}) },
+      class: {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.getAttribute("class"),
+        renderHTML: (attrs: Record<string, any>) => (attrs.class ? { class: attrs.class } : {}),
+      },
     };
   },
   parseHTML() {
@@ -108,7 +116,7 @@ const Figure = Node.create({
           if (typeof el === "string") return false;
           const img = el.querySelector("img");
           if (!img) return false;
-          return { src: img.getAttribute("src"), alt: img.getAttribute("alt") || "" };
+          return { src: img.getAttribute("src"), alt: img.getAttribute("alt") || "", class: el.getAttribute("class") };
         },
       },
     ];

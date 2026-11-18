@@ -123,6 +123,9 @@ export function keepAllowedLinks(html: string, allowed: string[]): string {
 
 function blocks(html: string): string[] {
   return html
+    // Photo credits and captions aren't claims, whatever the figure's markup
+    // ("Photo: Shujenchang / Wikimedia Commons · CC0" failed a check).
+    .replace(/<figcaption\b[^>]*>[\s\S]*?<\/figcaption>/gi, " ")
     .split(/<\/(?:p|h[1-6]|li|blockquote|figcaption)>/i)
     .map((b) => b.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim())
     .filter(Boolean);
