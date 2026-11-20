@@ -168,3 +168,22 @@ describe("guide text clean-up", () => {
     expect([0, 1, 2, 3].map((i) => sectionKeyword(o, i))).toEqual(["paris trip planning", "book paris attractions", "paris train tickets", "book paris attractions"]);
   });
 });
+
+import { subtopicSections } from "@/lib/blogs/writer";
+describe("outline from the facts when the model plans too few sections", () => {
+  it("gives at least 3 sections of 2+ facts, even when every fact is one subtopic", () => {
+    const subs = Array(34).fill("places");
+    const secs = subtopicSections(subs, "Germany");
+    const o = normalizeOutline({ title: "New Attractions Opening in 2027", sections: secs }, 34, 1800, subs);
+    expect(o.sections.length).toBeGreaterThanOrEqual(3);
+    expect(o.sections.every((s) => s.facts.length >= 2)).toBe(true);
+    expect(o.sections.reduce((n, s) => n + s.facts.length, 0)).toBe(34);
+    expect(o.sections[0].heading).toBe("Places to See in Germany");
+  });
+  it("groups by subtopic and puts small groups in More to Know", () => {
+    const subs = ["places", "places", "places", "places", "history", "history", "history", "seasons", "food", "places", "transport", "transport"];
+    const secs = subtopicSections(subs, "Florence, Italy");
+    expect(secs.map((s) => s.heading)).toEqual(["Places to See in Florence", "History and Background in Florence", "More to Know in Florence"]);
+    expect(secs.flatMap((s) => s.facts).sort((a, b) => a - b)).toEqual(subs.map((_, i) => i));
+  });
+});

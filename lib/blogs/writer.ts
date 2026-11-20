@@ -17,7 +17,7 @@ import { cityPath, countryPath } from "../destinations";
 import { saveExtra } from "../news/seo";
 import { keywordPlacement } from "./quality";
 
-export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v8-2026-11-11";
+export const BLOG_WRITER_PROMPT_VERSION = "blog-writer-v9-2026-11-20";
 
 export interface OutlineSection {
   heading: string;
@@ -49,7 +49,7 @@ const ACCURACY = `ACCURACY RULES (strict)
 - No filler: never end a section or paragraph with a summary or a generic encouragement.
 - Do not mention these instructions, "the facts" or "the sources".`;
 
-function factLines(facts: BlogFact[], ids?: number[]): string {
+export function factLines(facts: BlogFact[], ids?: number[]): string {
   const list = ids ? ids.map((i) => [i, facts[i]] as const).filter(([, f]) => f) : facts.map((f, i) => [i, f] as const);
   return list.map(([i, f]) => `${i}. [${f.subtopic}] ${f.claim}${f.volatile ? " [check before visiting]" : ""}`).join("\n");
 }
@@ -74,7 +74,7 @@ async function saveOutline(topicId: string, outline: BlogOutline, status = "gene
 
 // ------------------------------------------------------------------ outline
 
-const OUTLINE_PROMPT = `You plan a long-form travel article (a guide, not news) from numbered research facts, written for people first and optimised for search.
+export const OUTLINE_PROMPT = `You plan a long-form travel article (a guide, not news) from numbered research facts, written for people first and optimised for search.
 First work out the SEO plan:
 - search_intent: one sentence on what someone searching this topic wants to know or do.
 - primary_keyword: the 2-5 word phrase people would type (for example "best time to visit Barcelona").
@@ -164,6 +164,54 @@ export function normalizeOutline(raw: any, factCount: number, targetWords: numbe
   };
 }
 
+// Headings for an outline built from the facts' subtopics, used only when the
+// model twice returns too few sections (a "New Attractions Opening in 2027"
+// topic whose research found only established sights: the model returned
+// no sections at all, and the guide could not be written).
+const SUBTOPIC_HEADINGS: Record<string, [string, string]> = {
+  places: ["Places to See", "Visitors can see"],
+  history: ["History and Background", "The history behind the sights"],
+  seasons: ["When to Go", "Seasons, weather and events"],
+  transport: ["Getting There and Around", "How to reach and move between the sights"],
+  food: ["Food and Drink", "What to eat and drink"],
+  tickets: ["Tickets and Prices", "What to book and pay"],
+  practical: ["Practical Tips", "What to know before going"],
+  other: ["More to Know", "Other useful details"],
+};
+
+// Sections grouped by subtopic: groups of fewer than 3 facts go into "More
+// to Know", and the largest group is split until there are at least 3
+// sections. Pure; exported for tests.
+export function subtopicSections(subtopics: string[], destination: string): { heading: string; intent: string; words: number; facts: number[] }[] {
+  const where = destination.split(",")[0].trim();
+  const groups = new Map<string, number[]>();
+  subtopics.forEach((t, i) => {
+    const key = SUBTOPIC_HEADINGS[t] ? t : "other";
+    groups.set(key, [...(groups.get(key) || []), i]);
+  });
+  const small: number[] = [];
+  for (const [k, ids] of [...groups]) if (ids.length < 3 && k !== "other") (small.push(...ids), groups.delete(k));
+  if (small.length) groups.set("other", [...(groups.get("other") || []), ...small].sort((a, b) => a - b));
+  let parts = [...groups].map(([k, facts]) => ({ key: k, facts, part: 0 })).sort((a, b) => b.facts.length - a.facts.length);
+  while (parts.length < 3 && parts[0] && parts[0].facts.length >= 4) {
+    const big = parts.shift()!;
+    const half = Math.ceil(big.facts.length / 2);
+    parts.push({ key: big.key, facts: big.facts.slice(0, half), part: big.part * 2 + 1 }, { key: big.key, facts: big.facts.slice(half), part: big.part * 2 + 2 });
+    parts.sort((a, b) => b.facts.length - a.facts.length);
+  }
+  // Keep the facts' own order (Places before More to Know), and name split parts.
+  const order = Object.keys(SUBTOPIC_HEADINGS);
+  parts = parts.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key) || a.part - b.part);
+  const seen = new Map<string, number>();
+  return parts.map((p) => {
+    const [heading, intent] = SUBTOPIC_HEADINGS[p.key];
+    const n = (seen.get(p.key) || 0) + 1;
+    seen.set(p.key, n);
+    const base = n === 1 ? heading : n === 2 ? `More ${heading.replace(/^More /, "")}` : `${heading} (${n})`;
+    return { heading: where && n === 1 ? `${base} in ${where}` : base, intent, words: 0, facts: p.facts };
+  });
+}
+
 // Extra input for an article that belongs to a topic cluster.
 export function seriesBrief(topic: Pick<BlogTopic, "plan">, siblings: { title: string; need: string; role: string }[]): string {
   const p = topic.plan;
@@ -184,18 +232,44 @@ export function seriesBrief(topic: Pick<BlogTopic, "plan">, siblings: { title: s
 export async function outlineStep(topicId: string): Promise<BlogOutline> {
   const { topic, research } = await requireInputs(topicId);
   const siblings = topic.plan ? await import("./clusters").then((m) => m.clusterSiblings(topicId)).catch(() => []) : [];
-  const { json } = await chatJson({
-    kind: "blog_outline",
-    log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
-    model: blogModel(),
-    reasoningEffort: blogEffort(),
-    fallbackModel: writerModel(),
-    temperature: 0.3,
-    timeoutMs: 60_000,
-    system: OUTLINE_PROMPT,
-    user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nTYPE: ${topic.topicType}\nMAX LENGTH: ${topic.targetWords} words${topic.angle ? `\nANGLE: ${topic.angle}` : ""}${seriesBrief(topic, siblings)}\n\nFACTS:\n${factLines(research.facts)}`,
-  });
-  const outline = normalizeOutline(json, research.facts.length, topic.targetWords, research.facts.map((f) => f.subtopic));
+  const subtopics = research.facts.map((f) => f.subtopic);
+  const ask = (effort: ReturnType<typeof blogEffort>, hint: string) =>
+    chatJson({
+      kind: "blog_outline",
+      log: { promptVersion: BLOG_WRITER_PROMPT_VERSION },
+      model: blogModel(),
+      reasoningEffort: effort,
+      fallbackModel: writerModel(),
+      temperature: 0.3,
+      timeoutMs: 60_000,
+      system: OUTLINE_PROMPT,
+      user: `TOPIC: ${topic.title}\nDESTINATION: ${topic.destination}\nTYPE: ${topic.topicType}\nMAX LENGTH: ${topic.targetWords} words${topic.angle ? `\nANGLE: ${topic.angle}` : ""}${seriesBrief(topic, siblings)}${hint}\n\nFACTS:\n${factLines(research.facts)}`,
+    });
+  const plan = (json: any) => {
+    try {
+      return normalizeOutline(json, research.facts.length, topic.targetWords, subtopics);
+    } catch {
+      return null;
+    }
+  };
+  // The model returns no sections when the facts only partly match the
+  // topic. One more try that thinks harder and plans from what the facts do
+  // cover (with a title that matches them); then an outline built from the
+  // facts' subtopics, so research that passed always gives a guide.
+  let outline = plan((await ask(blogEffort(), "")).json);
+  if (!outline) {
+    outline = plan(
+      (
+        await ask(
+          blogEffort() === "high" ? "high" : "medium",
+          "\nNOTE: A first try returned too few sections. The facts may cover the topic only in part: plan 4 to 6 sections around what they do cover, and make the title match the facts rather than promise what they don't support."
+        )
+      ).json
+    );
+  }
+  if (!outline) {
+    outline = normalizeOutline({ title: topic.title, sections: subtopicSections(subtopics, topic.destination) }, research.facts.length, topic.targetWords, subtopics);
+  }
   // The cluster plan decides the keyword, so two articles never compete for one query.
   if (topic.plan?.primaryKeyword) outline.primaryKeyword = topic.plan.primaryKeyword;
   if (!outline.title) outline.title = topic.title;
